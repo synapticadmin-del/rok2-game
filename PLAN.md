@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P5-T5 ضباب الحرب + الكشافة على الخريطة (URok2FogOfWar + إخفاء المدن/الممرات/العقد في الضباب + إرسال كشافة).
+> **آخر تحديث:** 2026-07-28 — P5-T6 حركات وانتقالات وأصوات (URok2AudioManager بموسيقى حسب الحضارة + حركات بناء/ترقية/كشف + أصوات أحداث).
 
 ---
 
@@ -85,7 +85,7 @@
 - [x] **P5-T3** HUD بأسلوب RoK كامل (شريط موارد، أزرار دائرية، دردشة، مهام — مرجع `07-game-design/ui-ux-design-system.md` + `assets/ui-city-mockup.jpg`) — ✅ تم 2026-07-28
 - [x] **P5-T4** شاشة القادة الكاملة (بورتريهات، مهارات، مواهب، معدات) — ✅ تم 2026-07-28
 - [x] **P5-T5** ضباب الحرب + الكشافة على الخريطة — ✅ تم 2026-07-28
-- [ ] **P5-T6** حركات وانتقالات وأصوات (بناء يُشيّد، جنود تسير، احتفال ترقية، موسيقى حسب الحضارة)
+- [x] **P5-T6** حركات وانتقالات وأصوات (بناء يُشيّد، جنود تسير، احتفال ترقية، موسيقى حسب الحضارة) — ✅ تم 2026-07-28
 - **🚪 بوابة النجاح:** لاعب يدخل اللعبة ويشعر أنها RoK — قلعته السداسية بثيم حضارته، يحرك مبانيه بحرية، واجهة لعبة كاملة.
 
 ---
@@ -138,6 +138,7 @@
 | 2026-07-28 | P5-T3 HUD بأسلوب RoK (العميل) | b258978 | Rok2HudWidget أعيد كتابته بالكامل: شريط موارد علوي ذهبي RTL (طعام/خشب/حجر/ذهب/gems/AP بتنسيق مختصر K/M) + أزرار دائرية مزخرفة أسفل يمين (بناء 🔨 بشارة بنّاء خامل + قادة/تحالف/حقيبة/أحداث) + مجموعة يسار (خريطة/تقارير/تحرير المدينة) + طوابير/إشعارات/مركز إشعارات — كل الأحداث تفوَّض لـ Blueprint (OnBuild/OnCommanders/OnAlliance/OnItems/OnEvents/OnEditCity/OnMap/OnReports)؛ Rok2BuildingDetailWidget أعيد كتابته كبطاقة مبنى Bottom Sheet تنزلق من أسفل (مقبض سحب + عنوان + وصف + مستوى + تكلفة/وقت + شريط طابور + زر ترقية + زر ثانوي حسب النوع: تدريب/شفاء/بحث/صناديق + خلفية معتمة للإغلاق)؛ Rok2BuildMenuWidget جديد: قائمة بناء بثلاث فئات (اقتصاد/عسكري/زخرفة) بشبكة UUniformGridPanel + وسيط URok2BuildButtonProxy لكل زر (يخزن id ويعيد بثّ الضغط)؛ لوحة ألوان ui-ux-design-system.md (برونز #1A120B، ذهب #C9A227، عاجي #F5E9D0)؛ فحص سلامة 6/6. ملاحظة: gems/AP تُعرض 0 مؤقتاً حتى إتاحتها في FRok2City من الـ backend |
 | 2026-07-28 | P5-T4 شاشة القادة الكاملة (العميل) | d103df0 | Rok2CommanderWidget أعيد كتابته بالكامل كشاشة قادة RoK-style: قائمة قادة قابلة للتمرير (يمين) ببورتريه placeholder ملوّن حسب الحضارة (من URok2CivThemes) + اسم + ندرة ملوّنة + نجوم مستوى (★/☆)؛ لوحة تفاصيل (يسار) عند اختيار قائد: بورتريه كبير بإطار ذهبي + اسم + حضارة + ندرة + مستوى/نجوم + شريط خبرة UProgressBar + إحصائيات (هجوم/دفاع/دعم) + 3 مهارات (attack ⚔️ / defense 🛡️ / passive ✨ بأيقونات وألوان) + 3 فروع مواهب stub (قتال 🔴 / دعم 🟡 / حركة 🔵 بنقاط 0/20) + 5 خانات معدات stub (سلاح/خوذة/درع/حذاء/إكسسوار) + أزرار (تعيين في مسيرة ⚔️ / ترقية مستوى ⭐ / ترقية مهارة ⚡)؛ FRok2CommanderSkillData + FRok2CommanderDetailData في Rok2CommanderWidget.h؛ LoadCommanderDetailsFromJson يقرأ data/commanders.json (12 قائداً بمهارات كاملة)؛ delegates: OnCommanderSelected + OnAssignCommander؛ لوحة ألوان ui-ux-design-system.md (برونز #1A120B، ذهب #C9A227، عاجي #F5E9D0)؛ scripts/verify_commanders_screen.mjs: 82 فحص بنيوي ناجح |
 | 2026-07-28 | P5-T5 ضباب الحرب + الكشافة (العميل) | f795b41 | URok2FogOfWar جديد: شبكة كشف للخريطة (2400×2400 بخلايا 50) كل خلية لها حالة (Unexplored/Partially/Explored)؛ RevealArea يكشف دائرة حول نقطة (للمدينة أو الكشافة)؛ IsExplored/GetFogStateAt للاستعلام؛ FRok2Scout (كشافة بموقع/هدف/وقت وصول) + UpdateScouts يكشف عند الوصول + OnScoutArrived/OnFogUpdated delegates؛ Rok2Types: FRok2ScoutEntity + Scouts في FRok2WorldSnapshot؛ Rok2Api: SendScout (POST /v1/world/scout) + ParseScoutEntity + بارس scouts في snapshot + WS scout_arrived event؛ Rok2WorldRenderer: يقرأ Fog->IsExplored — لا يرسم مدن/ممرات/عقد في مناطق غير مكتشفة (إلا مدينة اللاعب) + يكشف المنطقة حول مدينة اللاعب تلقائياً + UpdateScouts في Tick؛ Rok2MarchPanel: زر "🔭 إرسال كشافة" يرسل SendScout(ToX, ToY) بدون قوات؛ scripts/verify_fog_of_war.mjs: 58 فحص بنيوي ناجح |
+| 2026-07-28 | P5-T6 حركات وانتقالات وأصوات (العميل) | 6b36de3 | URok2AudioManager جديد: يدير الموسيقى والمؤثرات حسب حضارة اللاعب (من URok2CivThemes) — يقرأ ملفات .wav من Content/Audio/<civ>/ إن وُجدت وإلا placeholder صامت؛ ERok2AudioType (Music/BuildComplete/Upgrade/BattleVictory/BattleDefeat/MarchStart/ButtonClick/Notification) + ERok2MusicState (Stopped/Playing/Paused) + OnMusicStateChanged delegate؛ Rok2BuildingActor: PlayBuildAnimation (scale-in من 0.1 لمدة 0.6s) + PlayUpgradeAnimation (pulse ذهبي بـ sin لمدة 0.4s) + PlayRevealAnimation (fade-in من 0.01 لمدة 0.5s) + Tick override + UpdateAnimation + ComputeAnimatedScale؛ Rok2CityLayoutActor: يستدعي PlayBuildAnimation عند زرع مبنى جديد؛ Rok2WorldRenderer: يستدعي PlayRevealAnimation عند ظهور مدينة بعد ضباب + PlaySfx(MarchStart) عند انطلاق مسيرة؛ Rok2Api: InitForCiv+PlayMusic عند InitCity + PlaySfx(Upgrade) عند ترقية + PlaySfx(BattleVictory/Defeat) عند تقرير قتال؛ scripts/verify_game_feel.mjs: 59 فحص بنيوي ناجح |
 ---
 
 ## 5. ملفات مرجعية سريعة
