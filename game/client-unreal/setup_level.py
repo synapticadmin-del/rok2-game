@@ -45,7 +45,8 @@ for cmd in console_cmds:
 # ---------------------------------------------------------------------------
 print(">>> Step 1b: Importing KayKit GLB art assets (P2-T7)...")
 import os, base64
-ART_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Content", "Art", "kaykit")
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(globals().get("__file__", r"C:/Users/kayf/Desktop/rok2/game/client-unreal/setup_level.py")))
+ART_SRC = os.path.join(_SCRIPT_DIR, "Content", "Art", "kaykit")
 ART_DST = "/Game/Art/kaykit"
 
 def _ensure_binary_glb(path):
@@ -61,10 +62,9 @@ def _ensure_binary_glb(path):
         decoded = base64.b64decode(raw, validate=True)
         if decoded[:4] != b"glTF":
             return path  # ليس base64 GLB — اتركه كما هو
-        fixed = path + ".bin.glb"
-        with open(fixed, "wb") as fh:
+        with open(path, "wb") as fh:  # decode in place: keep original .glb extension
             fh.write(decoded)
-        return fixed
+        return path
     except Exception:
         return path
 
@@ -97,7 +97,7 @@ else:
 #   Content/Art/Commanders/<id>.png                          → /Game/Art/Commanders
 # ---------------------------------------------------------------------------
 print(">>> Step 1c: Decoding + importing audio (WAV) and commander portraits (PNG) — P4-T2...")
-CONTENT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Content")
+CONTENT_ROOT = os.path.join(_SCRIPT_DIR, "Content")
 
 def _ensure_binary(path, magic):
     """يفك base64 إن لزم (نفس نمط _ensure_binary_glb) ويعيد مساراً binary صالحاً."""
@@ -111,10 +111,9 @@ def _ensure_binary(path, magic):
         decoded = base64.b64decode(raw, validate=True)
         if decoded[: len(magic)] != magic:
             return path
-        fixed = path + ".bin"
-        with open(fixed, "wb") as fh:
+        with open(path, "wb") as fh:  # decode in place: keep original extension (.wav/.png)
             fh.write(decoded)
-        return fixed
+        return path
     except Exception:
         return path
 
@@ -207,7 +206,7 @@ if plane:
         # Apply simple solid green material
         flat_mat = unreal.load_asset("/Engine/EngineMaterials/DefaultMaterial")
         if flat_mat:
-            dyn = unreal.MaterialInstanceDynamic.create(flat_mat, plane)
+            dyn = unreal.KismetMaterialLibrary.create_dynamic_material_instance(plane, flat_mat)
             if dyn:
                 dyn.set_vector_parameter_value("BaseColor", unreal.LinearColor(0.15, 0.45, 0.18, 1.0))
                 mesh_comp.set_material(0, dyn)
