@@ -5,6 +5,7 @@
 #include "Rok2PlayerController.h"
 #include "Rok2BootWidget.h"
 #include "Rok2CityWidget.h"
+#include "Rok2HudWidget.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/DirectionalLight.h"
@@ -121,6 +122,17 @@ void ARok2GameMode::OnPlayerLoadedHandler(const FRok2Player& Player)
 		{
 			CityWidget->Setup(Api);
 			CityWidget->AddToViewport(10);
+		}
+	}
+
+	// P2-T6: HUD موحد فوق بقية الواجهات — موارد حية + طوابير + إشعارات + شريط تنقل
+	if (!HudWidget && GetWorld())
+	{
+		HudWidget = Cast<URok2HudWidget>(URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2HudWidget::StaticClass()));
+		if (HudWidget)
+		{
+			HudWidget->Setup(Api);
+			HudWidget->AddToViewport(20);
 		}
 	}
 }

@@ -207,6 +207,10 @@ struct FRok2WorldSnapshot
 	TArray<FRok2MarchEntity> Marches;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2NodeEntity> Nodes;
+
+	/** حالة قفل/فتح المناطق (P2-T4) — يملؤه الـ HUD لعرض مؤقت المناطق (P2-T6) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2ZoneStatus> Zones;
 };
 
 USTRUCT(BlueprintType)
@@ -388,4 +392,43 @@ struct FRok2TechNode
 	int32 TimeSeconds = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FString> Prerequisites;
+};
+
+/** حالة فتح/قفل منطقة واحدة — من snapshot.zones (P2-T4) */
+USTRUCT(BlueprintType)
+struct FRok2ZoneStatus
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 ZoneId = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString RegionId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bUnlocked = true;
+	/** يوم الفتح من الموسم (0 = مفتوحة دائماً) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 UnlockDay = 0;
+};
+
+/** إشعار HUD لحظي — يُعرض كبطاقة ثم يتلاشى (P2-T6) */
+USTRUCT(BlueprintType)
+struct FRok2HudNotification
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Title;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Body;
+	/** toast | combat | zone | rally */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Kind = TEXT("toast");
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 CreatedAtUtcMs = 0;
+	/** مدة البقاء قبل التلاشي (ثانية) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	float TtlSeconds = 6.f;
 };

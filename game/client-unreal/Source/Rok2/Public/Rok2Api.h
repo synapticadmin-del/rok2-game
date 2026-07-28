@@ -27,6 +27,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattleReports, const TArray<FRok2
 /** يُبث عند اكتمال سحب بيانات التوازن من الخادم (P1-T6) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaLoaded, bool, bFromServer);
 
+/** يُبث عند تحديث حالة المناطق (فتح/قفل) — P2-T4/P2-T6 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZonesUpdated, const TArray<FRok2ZoneStatus>&, Zones);
+
+/** يُبث عند إضافة إشعار HUD جديد (P2-T6) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHudNotification, const FRok2HudNotification&, Notification);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -126,6 +132,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	const FRok2GameMeta& GetMeta() const { return Meta; }
 
+	/** إشعارات الـ HUD المخزنة (الأحدث أولاً، حد أقصى 20) — P2-T6 */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	const TArray<FRok2HudNotification>& GetNotifications() const { return Notifications; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	int32 GetUnreadNotificationsCount() const { return UnreadNotifications; }
+
+	/** يصفّر عدّاد غير المقروء (عند فتح مركز الإشعارات) — P2-T6 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void MarkNotificationsRead() { UnreadNotifications = 0; }
+
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	bool IsLoggedIn() const { return !Token.IsEmpty(); }
 
@@ -163,6 +180,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnMetaLoaded OnMetaLoaded;
 
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnZonesUpdated OnZonesUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnHudNotification OnHudNotification;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -179,6 +202,14 @@ protected:
 	TArray<FRok2Commander> Commanders;
 	TArray<FRok2BattleReport> BattleReports;
 	FRok2GameMeta Meta;
+
+	// ---- HUD الموحد (P2-T6) ----
+	/** سجل الإشعارات (الأحدث أولاً) */
+	TArray<FRok2HudNotification> Notifications;
+	int32 UnreadNotifications = 0;
+	int32 NotificationSeq = 0;
+	/** يضيف إشعاراً ويبثه للـ HUD */
+	void PushNotification(const FString& Kind, const FString& Title, const FString& Body, float TtlSeconds = 6.f);
 
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> PendingRequest;
 	TSharedPtr<IWebSocket> WebSocket;

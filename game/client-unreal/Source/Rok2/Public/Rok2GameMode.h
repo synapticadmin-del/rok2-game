@@ -9,6 +9,7 @@
 class URok2Api;
 class URok2BootWidget;
 class URok2CityWidget;
+class URok2HudWidget;
 
 UCLASS(minimalapi)
 class ARok2GameMode : public AGameModeBase
@@ -40,6 +41,10 @@ public:
 
 	UPROPERTY(Transient)
 	URok2CityWidget* CityWidget;
+
+	/** HUD موحد (P2-T6): موارد + طوابير + إشعارات — يُركَّب فوق CityWidget */
+	UPROPERTY(Transient)
+	URok2HudWidget* HudWidget;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")

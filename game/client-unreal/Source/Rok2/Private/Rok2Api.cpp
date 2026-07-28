@@ -528,6 +528,52 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		OnBattleReports.Broadcast(BattleReports);
 	}
 
+	// ---- طوابير التحالف الجارية (P2-T5) — تعرض في HUD الطوابير (P2-T6) ----
+	const TArray<TSharedPtr<FJsonValue>>* QueuesArr;
+	if (Obj->TryGetArrayField(TEXT("queues"), QueuesArr))
+	{
+		City.ActiveQueues.Empty();
+		for (const auto& V : *QueuesArr)
+		{
+			const TSharedPtr<FJsonObject> Q = V->AsObject();
+			if (!Q.IsValid()) continue;
+			FRok2QueueEntry E;
+			E.Id = Q->GetStringField(TEXT("id"));
+			E.Type = Q->GetStringField(TEXT("type"));
+			const TSharedPtr<FJsonObject>* DataObj;
+			if (Q->TryGetObjectField(TEXT("data"), DataObj) && DataObj->IsValid())
+			{
+				FString BId, TId;
+				if ((*DataObj)->TryGetStringField(TEXT("buildingId"), BId)) E.RefId = BId;
+				else if ((*DataObj)->TryGetStringField(TEXT("techId"), TId)) E.RefId = TId;
+				E.Level = (int32)(*DataObj)->GetNumberField(TEXT("level"));
+			}
+			E.StartMs = (int64)Q->GetNumberField(TEXT("startMs"));
+			E.EndMs = (int64)Q->GetNumberField(TEXT("etaMs"));
+			City.ActiveQueues.Add(E);
+		}
+		OnCityLoaded.Broadcast(City);
+	}
+
+	// ---- حالة المناطق (P2-T4) — لمؤقّت المناطق في الـ HUD (P2-T6) ----
+	const TArray<TSharedPtr<FJsonValue>>* ZonesArr;
+	if (Obj->TryGetArrayField(TEXT("zones"), ZonesArr))
+	{
+		World.Zones.Empty();
+		for (const auto& V : *ZonesArr)
+		{
+			const TSharedPtr<FJsonObject> Z = V->AsObject();
+			if (!Z.IsValid()) continue;
+			FRok2ZoneStatus E;
+			E.ZoneId = (int32)Z->GetNumberField(TEXT("zoneId"));
+			E.RegionId = Z->GetStringField(TEXT("regionId"));
+			E.bUnlocked = Z->GetBoolField(TEXT("unlocked"));
+			E.UnlockDay = (int32)Z->GetNumberField(TEXT("unlockDay"));
+			World.Zones.Add(E);
+		}
+		OnZonesUpdated.Broadcast(World.Zones);
+	}
+
 	OnWorldSnapshot.Broadcast(World);
 }
 
@@ -892,11 +938,46 @@ void URok2Api::ConnectWebSocket()
 				FRok2BattleReport Report;
 				Self->ParseBattleReport(*ReportObj, Report);
 				Self->AddBattleReport(Report);
+				Self->PushNotification(TEXT("combat"), TEXT("⚔️ تقرير قتال"),
+					FString::Printf(TEXT("%s — %s"), *Report.Kind, *Report.Winner), 8.f);
 			}
 			else
 			{
 				Self->RefreshWorld();
 			}
+		}
+		else if (Type == TEXT("zone_unlocked"))
+		{
+			// فتح منطقة جديدة (P2-T4) — إشعار بارز في الـ HUD (P2-T6)
+			const FString RegionId = Obj->GetStringField(TEXT("regionId"));
+			const int32 ZoneId = (int32)Obj->GetNumberField(TEXT("zoneId"));
+			Self->PushNotification(TEXT("zone"), TEXT("🗺️ انفتحت منطقة جديدة"),
+				FString::Printf(TEXT("Zone %d — %s أصبحت متاحة الآن"), ZoneId, *RegionId), 10.f);
+			Self->RefreshWorld();
+		}
+		else if (Type == TEXT("tech_researched"))
+		{
+			// اكتمال بحث (P2-T3) — إشعار + مزامنة
+			const FString TechId = Obj->GetStringField(TEXT("techId"));
+			const int32 Level = (int32)Obj->GetNumberField(TEXT("level"));
+			Self->PushNotification(TEXT("toast"), TEXT("🔬 اكتمل البحث"),
+				FString::Printf(TEXT("%s → مستوى %d"), *TechId, Level), 6.f);
+			Self->LoadCity();
+		}
+		else if (Type == TEXT("rally_launched"))
+		{
+			// انطلاق حملة rally (P2-T5)
+			const FString TargetId = Obj->GetStringField(TEXT("targetId"));
+			Self->PushNotification(TEXT("rally"), TEXT("🚩 انطلقت حملة التحالف"),
+				FString::Printf(TEXT("rally على %s"), *TargetId), 8.f);
+			Self->RefreshWorld();
+		}
+		else if (Type == TEXT("season_day"))
+		{
+			const int32 Day = (int32)Obj->GetNumberField(TEXT("day"));
+			Self->World.SeasonDay = Day;
+			Self->PushNotification(TEXT("zone"), TEXT("📅 يوم جديد في الموسم"),
+				FString::Printf(TEXT("اليوم %d"), Day), 5.f);
 		}
 	});
 
@@ -933,6 +1014,24 @@ void URok2Api::DisconnectWebSocket()
 		WebSocket.Reset();
 	}
 	bWsConnected = false;
+}
+
+// ---------------------------------------------------------------------------
+// HUD الموحد (P2-T6): سجل إشعارات مركزي يغذي بطاقات الإشعارات وعدّاد الجرس
+// ---------------------------------------------------------------------------
+void URok2Api::PushNotification(const FString& Kind, const FString& Title, const FString& Body, float TtlSeconds)
+{
+	FRok2HudNotification N;
+	N.Id = FString::Printf(TEXT("ntf_%d"), ++NotificationSeq);
+	N.Kind = Kind;
+	N.Title = Title;
+	N.Body = Body;
+	N.TtlSeconds = TtlSeconds;
+	N.CreatedAtUtcMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
+	Notifications.Insert(N, 0);
+	if (Notifications.Num() > 20) Notifications.SetNum(20);
+	UnreadNotifications++;
+	OnHudNotification.Broadcast(N);
 }
 
 void URok2Api::PumpEvents(float DeltaSeconds)
