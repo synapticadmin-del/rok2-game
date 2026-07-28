@@ -1,4 +1,5 @@
 import type { Troops } from "../../env";
+import { commanderAttackMod, commanderDefenseMod, type CommanderInstance } from "./commanders";
 
 export type CombatSide = {
   name: string;
@@ -22,9 +23,7 @@ export type CombatResult = {
   powerBefore: { attacker: number; defender: number };
 };
 
-export type CommanderStub = {
-  skills: number[];
-};
+export type CommanderStub = CommanderInstance;
 
 const BRANCH: Record<string, "infantry" | "cavalry" | "archer"> = {
   infantry_t1: "infantry",
@@ -68,11 +67,6 @@ export function totalTroops(troops: Troops): number {
   return Object.values(troops).reduce((s, n) => s + Math.max(0, n || 0), 0);
 }
 
-function getCommanderAttackMod(commander?: CommanderStub): number {
-  if (!commander) return 0;
-  return commander.skills.reduce((sum, lvl) => sum + lvl * 0.02, 0);
-}
-
 export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub): CombatResult {
   const aPower = Math.max(1, troopPower(attacker.troops));
   const dPower = Math.max(1, troopPower(defender.troops));
@@ -88,10 +82,12 @@ export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId
   }
   if (samples > 0) aMult = aMult / (samples + 1);
 
-  const aCommMod = 1 + getCommanderAttackMod(attackerCommander);
-  const dCommMod = 1 + getCommanderAttackMod(defenderCommander);
+  // P2-T1: مهارة attack للطرفين + مهارة defense تخفض فعالية المهاجم ضد المدافع
+  const aCommMod = 1 + commanderAttackMod(attackerCommander);
+  const dCommMod = 1 + commanderAttackMod(defenderCommander);
+  const dDefMod = 1 - Math.min(0.5, commanderDefenseMod(defenderCommander));
 
-  const aEff = aPower * aMult * aCommMod;
+  const aEff = aPower * aMult * aCommMod * dDefMod;
   const dEff = dPower * dCommMod;
 
   const aLossRatio = Math.min(0.95, dEff / (aEff + dEff));

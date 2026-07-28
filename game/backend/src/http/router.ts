@@ -17,7 +17,15 @@ import {
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
 import { TECHNOLOGIES } from "../do/sim/research";
-import { xpForLevel } from "../do/sim/commanders";
+import {
+  addXp,
+  commanderPassiveMod,
+  COMMANDER_CONSTANTS,
+  getCommanderDef,
+  isValidCommander,
+  starterCommanderForCiv,
+  xpForLevel,
+} from "../do/sim/commanders";
 
 function kingdomStub(env: Env) {
   return env.KINGDOM_SHARD.get(env.KINGDOM_SHARD.idFromName(env.KINGDOM_ID || "kingdom-1"));
@@ -39,6 +47,64 @@ async function getTroopsMap(env: Env, playerId: string): Promise<Record<string, 
   const out: Record<string, number> = {};
   for (const r of rows.results || []) out[r.unit_id] = r.count;
   return out;
+}
+
+/** P2-T1: قائد مملوك للاعب */
+type OwnedCommanderRow = {
+  id: string;
+  player_id: string;
+  commander_id: string;
+  level: number;
+  xp: number;
+  tomes: number;
+  skills_json: string;
+  created_at: number;
+};
+
+async function getOwnedCommanders(env: Env, playerId: string): Promise<OwnedCommanderRow[]> {
+  try {
+    const rows = await env.DB.prepare(
+      "SELECT * FROM player_commanders WHERE player_id = ? ORDER BY created_at ASC",
+    ).bind(playerId).all<OwnedCommanderRow>();
+    return rows.results || [];
+  } catch {
+    return []; // الجدول قد لا يكون مُرحّلاً بعد
+  }
+}
+
+async function getOwnedCommander(env: Env, playerId: string, commanderId: string): Promise<OwnedCommanderRow | null> {
+  try {
+    return await env.DB.prepare(
+      "SELECT * FROM player_commanders WHERE player_id = ? AND commander_id = ?",
+    ).bind(playerId, commanderId).first<OwnedCommanderRow>();
+  } catch {
+    return null;
+  }
+}
+
+function commanderJson(row: OwnedCommanderRow) {
+  const def = getCommanderDef(row.commander_id);
+  const skills = JSON.parse(row.skills_json || "[1,1,1]") as number[];
+  return {
+    instanceId: row.id,
+    commanderId: row.commander_id,
+    name: def?.name || row.commander_id,
+    rarity: def?.rarity || "elite",
+    nation: def?.nation || null,
+    level: row.level,
+    xp: row.xp,
+    xpToNext: xpForLevel(row.level),
+    tomes: row.tomes,
+    skills: (def?.skills || []).map((s, i) => ({
+      id: s.id,
+      name: s.name,
+      type: s.type,
+      level: skills[i] || 0,
+      maxLevel: s.max_level,
+      effects: s.effects,
+    })),
+    marchSpeedMod: commanderPassiveMod({ commanderId: row.commander_id, level: row.level, skills }, "march_speed"),
+  };
 }
 
 async function refreshCity(env: Env, playerId: string): Promise<CityRow> {
@@ -148,6 +214,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         constants: {
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
+          commanders: COMMANDER_CONSTANTS,
           trainableUnits: [
             { id: "infantry_t1", name: "مشاة T1", branch: "infantry" },
             { id: "cavalry_t1", name: "فرسان T1", branch: "cavalry" },
@@ -273,6 +340,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           .run();
       }
 
+      // P2-T1: قائد البداية للحضارة المختارة (يُقرأ من data/commanders.json)
+      const starterCmdId = starterCommanderForCiv(civ);
+      let starterCommander: any = null;
+      if (starterCmdId) {
+        try {
+          const now2 = nowMs();
+          await env.DB.prepare(
+            `INSERT INTO player_commanders (id, player_id, commander_id, level, xp, tomes, skills_json, created_at)
+             VALUES (?, ?, ?, 1, 0, ?, '[1,1,1]', ?)`,
+          ).bind(newId("pc"), playerId, starterCmdId, COMMANDER_CONSTANTS.starter_tomes, now2).run();
+          const def = getCommanderDef(starterCmdId);
+          starterCommander = { commanderId: starterCmdId, name: def?.name, level: 1, tomes: COMMANDER_CONSTANTS.starter_tomes };
+        } catch {
+          // الجدول قد لا يكون مُرحّلاً بعد — لا نفشل إنشاء المدينة
+        }
+      }
+
       // re-sign token with player id
       const token = await signToken(
         { accountId: auth.accountId, playerId, exp: now + 1000 * 60 * 60 * 24 * 30 },
@@ -306,6 +390,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           x: spawn.x,
           y: spawn.y,
         },
+        starterCommander,
       });
     }
 
@@ -511,18 +596,123 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, techId: body.techId, level: nextLevel, queueId, city });
     }
 
-    // Commander Levelup
+    // P2-T1: قائمة قادة اللاعب المملوكين (مع بياناتهم من data/commanders.json)
+    if (path === "/v1/commanders" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const owned = await getOwnedCommanders(env, player.id);
+      return json({
+        commanders: owned.map(commanderJson),
+        roster: getCommanders(),
+        constants: COMMANDER_CONSTANTS,
+      });
+    }
+
+    // P2-T1: استدعاء قائد جديد مقابل ذهب (sandbox — لا gacha حقيقي بعد)
+    if (path === "/v1/commander/summon" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string }>(request);
+      if (!body.commanderId || !isValidCommander(body.commanderId)) {
+        throw new HttpError(400, "Unknown commanderId");
+      }
+      const existing = await getOwnedCommander(env, player.id, body.commanderId);
+      if (existing) throw new HttpError(409, "Commander already owned");
+
+      let city = await refreshCity(env, player.id);
+      const cost = { food: 0, wood: 0, stone: 0, gold: COMMANDER_CONSTANTS.summon_cost_gold };
+      if (!canAfford(city, cost)) throw new HttpError(400, "Not enough gold", { cost });
+      const spent = spend(city, cost);
+      await env.DB.prepare(
+        `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
+      ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
+
+      await env.DB.prepare(
+        `INSERT INTO player_commanders (id, player_id, commander_id, level, xp, tomes, skills_json, created_at)
+         VALUES (?, ?, ?, 1, 0, 0, '[1,1,1]', ?)`,
+      ).bind(newId("pc"), player.id, body.commanderId, nowMs()).run();
+
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, commander: row ? commanderJson(row) : null, city: await refreshCity(env, player.id) });
+    }
+
+    // P2-T1: رفع مستوى القائد باستهلاك تومات خبرة
     if (path === "/v1/commander/levelup" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       const body = await readJson<{ commanderId: string; tomes: number }>(request);
-      return json({ ok: true, message: "Commander leveled up" }); // Prototype stub
+      if (!body.commanderId) throw new HttpError(400, "commanderId required");
+      const tomes = Math.floor(Number(body.tomes) || 0);
+      if (tomes <= 0 || tomes > 100) throw new HttpError(400, "Invalid tomes count");
+
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      if (row.tomes < tomes) throw new HttpError(400, "Not enough tomes", { have: row.tomes });
+      if (row.level >= COMMANDER_CONSTANTS.max_level) throw new HttpError(400, "Max level reached");
+
+      const next = addXp(
+        { commanderId: row.commander_id, level: row.level, xp: row.xp, skills: JSON.parse(row.skills_json) },
+        tomes * COMMANDER_CONSTANTS.tome_xp,
+      );
+      await env.DB.prepare(
+        `UPDATE player_commanders SET level=?, xp=?, tomes=tomes-? WHERE id=?`,
+      ).bind(next.level, next.xp, tomes, row.id).run();
+
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, commander: updated ? commanderJson(updated) : null });
     }
 
-    // Commander Skill
+    // P2-T1: رفع مهارة قائد (attack/defense/passive) مقابل تومات
     if (path === "/v1/commander/skill" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
-      const body = await readJson<{ commanderId: string }>(request);
-      return json({ ok: true, message: "Commander skill upgraded" }); // Prototype stub
+      const body = await readJson<{ commanderId: string; skillSlot: number }>(request);
+      if (!body.commanderId) throw new HttpError(400, "commanderId required");
+      const slot = Math.floor(Number(body.skillSlot) || 0);
+      if (slot < 1 || slot > 3) throw new HttpError(400, "skillSlot must be 1..3");
+
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      const def = getCommanderDef(row.commander_id);
+      if (!def) throw new HttpError(404, "Commander def missing");
+
+      const skills = JSON.parse(row.skills_json || "[1,1,1]") as number[];
+      const skillDef = def.skills[slot - 1];
+      const cur = skills[slot - 1] || 0;
+      if (cur >= skillDef.max_level) throw new HttpError(400, "Skill maxed");
+      // شرط مستوى القائد: مهارة أعلى تحتاج مستوى قائد أعلى (10 لكل مستوى مهارة)
+      const levelReq = (cur + 1) * 10;
+      if (row.level < levelReq) throw new HttpError(400, `Commander level ${levelReq} required`);
+
+      const cost = COMMANDER_CONSTANTS.skill_upgrade_tome_cost;
+      if (row.tomes < cost) throw new HttpError(400, "Not enough tomes", { have: row.tomes, cost });
+
+      skills[slot - 1] = cur + 1;
+      await env.DB.prepare(
+        `UPDATE player_commanders SET skills_json=?, tomes=tomes-? WHERE id=?`,
+      ).bind(JSON.stringify(skills), cost, row.id).run();
+
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, commander: updated ? commanderJson(updated) : null });
+    }
+
+    // P2-T1: تعيين قائد على مسيرة نشطة مملوكة للاعب
+    if (path === "/v1/commander/assign" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ marchId: string; commanderId: string }>(request);
+      if (!body.marchId || !body.commanderId) throw new HttpError(400, "marchId and commanderId required");
+
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+
+      const stub = kingdomStub(env);
+      const snap = await (await stub.fetch("https://do/snapshot")).json<any>();
+      const march = (snap.marches || []).find((m: any) => m.id === body.marchId);
+      if (!march) throw new HttpError(404, "March not found or not active");
+      if (march.ownerPlayerId !== player.id) throw new HttpError(403, "Not your march");
+
+      await env.DB.prepare(
+        `INSERT OR REPLACE INTO march_commanders (march_id, player_id, commander_id, skills_json, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).bind(body.marchId, player.id, body.commanderId, row.skills_json, nowMs()).run();
+
+      return json({ ok: true, marchId: body.marchId, commander: commanderJson(row) });
     }
 
     // Speedup
@@ -692,6 +882,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       for (const [u, c] of Object.entries(troops)) {
         if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
       }
+      // P2-T1: القائد المرافق (اختياري) — تحقق من الملكية
+      let commanderSkills: number[] | undefined;
+      if (body.primaryCommanderId) {
+        const cmd = await getOwnedCommander(env, player.id, String(body.primaryCommanderId));
+        if (!cmd) throw new HttpError(400, "Commander not owned");
+        commanderSkills = JSON.parse(cmd.skills_json || "[1,1,1]");
+      }
       // deduct temporarily (prototype: permanent send)
       for (const [u, c] of Object.entries(troops)) {
         const left = (owned[u] || 0) - Number(c);
@@ -721,6 +918,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           passId: body.passId,
           toX: body.toX,
           toY: body.toY,
+          primaryCommanderId: body.primaryCommanderId,
+          commanderSkills,
         }),
       });
       const data = await res.json<any>();
@@ -732,11 +931,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/world/pass/attack" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Join an alliance before capturing passes");
-      const body = await readJson<{ passId: string; troops: Record<string, number> }>(request);
+      const body = await readJson<{ passId: string; troops: Record<string, number>; primaryCommanderId?: string }>(request);
       const owned = await getTroopsMap(env, player.id);
       const troops = body.troops || {};
       for (const [u, c] of Object.entries(troops)) {
         if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
+      }
+      // P2-T1: القائد المرافق (اختياري)
+      let commanderSkills: number[] | undefined;
+      if (body.primaryCommanderId) {
+        const cmd = await getOwnedCommander(env, player.id, String(body.primaryCommanderId));
+        if (!cmd) throw new HttpError(400, "Commander not owned");
+        commanderSkills = JSON.parse(cmd.skills_json || "[1,1,1]");
       }
       for (const [u, c] of Object.entries(troops)) {
         const left = (owned[u] || 0) - Number(c);
@@ -762,6 +968,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           playerId: player.id,
           passId: body.passId,
           troops,
+          primaryCommanderId: body.primaryCommanderId,
+          commanderSkills,
         }),
       });
       const data = await res.json<any>();

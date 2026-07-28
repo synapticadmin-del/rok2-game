@@ -4,6 +4,7 @@ import { getMap, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
 import { resolveCombat, totalTroops, troopPower } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
+import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 
 type CityEntity = {
   playerId: string;
@@ -678,9 +679,15 @@ export class KingdomShard extends DurableObject<Env> {
         return;
       }
 
+      // P2-T1: القائد المرافق للمسيرة يمنح باف هجوم من مهاراته
+      const attackerCommander = await this.fetchMarchCommander(m.id);
+
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
         { name: pass.ownerAllianceId || "neutral_guard", troops: defenderTroops },
+        1,
+        attackerCommander,
+        undefined,
       );
 
       const report = {
@@ -693,6 +700,7 @@ export class KingdomShard extends DurableObject<Env> {
         result,
       };
       this.saveReport(report);
+      await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
 
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
@@ -737,10 +745,14 @@ export class KingdomShard extends DurableObject<Env> {
         return;
       }
 
+      const throneAttackerCommander = await this.fetchMarchCommander(m.id);
+
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
         { name: this.throne.ownerAllianceId || "neutral_guard", troops: defenderTroops },
-        3
+        3,
+        throneAttackerCommander,
+        undefined,
       );
 
       const report = {
@@ -752,6 +764,7 @@ export class KingdomShard extends DurableObject<Env> {
         result,
       };
       this.saveReport(report);
+      await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
 
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
@@ -779,7 +792,8 @@ export class KingdomShard extends DurableObject<Env> {
       if (node) {
         if (node.kind === "barb") {
           const def: Troops = { infantry_t1: 40 * node.level };
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def });
+          const barbCommander = await this.fetchMarchCommander(m.id);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined);
           const report = {
             id: newId("br"),
             createdAt: now,
@@ -789,6 +803,7 @@ export class KingdomShard extends DurableObject<Env> {
             result,
           };
           this.saveReport(report);
+          await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
           m.troops = result.attackerRemaining;
           if (result.winner === "attacker") {
             node.remaining = Math.max(0, node.remaining - 50);
@@ -850,6 +865,19 @@ export class KingdomShard extends DurableObject<Env> {
           `UPDATE cities SET ${kind}=${kind}+? WHERE player_id=?`
         ).bind(m.payload.amount, m.ownerPlayerId).run();
       }
+    }
+
+    // P2-T1: خبرة القائد بعد القتال (تُنظف مشاركة القائد مع المسيرة)
+    try {
+      const mc = await this.env.DB.prepare(
+        "SELECT commander_id, skills_json FROM march_commanders WHERE march_id = ?",
+      ).bind(m.id).first<{ commander_id: string; skills_json: string }>();
+      if (mc) {
+        // XP يُحسب في resolveMarchArrival عبر battle reports؛ هنا نكتفي بالتنظيف
+        await this.env.DB.prepare("DELETE FROM march_commanders WHERE march_id = ?").bind(m.id).run();
+      }
+    } catch {
+      // الجدول قد لا يكون مُرحّلاً بعد
     }
   }
 
@@ -1119,12 +1147,75 @@ export class KingdomShard extends DurableObject<Env> {
     };
     this.marches.set(march.id, march);
     this.persistMarch(march);
+
+    // P2-T1: تسجيل القائد المرافق للمسيرة (إن أُرسل وأكّده الـ router بعد التحقق من الملكية)
+    if (body.primaryCommanderId) {
+      try {
+        await this.env.DB.prepare(
+          `INSERT OR REPLACE INTO march_commanders (march_id, player_id, commander_id, skills_json, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+          .bind(
+            march.id,
+            playerId,
+            String(body.primaryCommanderId),
+            JSON.stringify(body.commanderSkills || [1, 1, 1]),
+            nowMs(),
+          )
+          .run();
+      } catch {
+        // الجدول قد لا يكون مُرحّلاً بعد — المسيرة تكمل بدون قائد
+      }
+    }
+
     this.broadcast({ type: "march_created", march });
     return march;
   }
 
-  private regionOf(x: number, y: number): string | null {
-    for (const r of this.regions) {
+  /** P2-T1: جلب القائد المرافق لمسيرة من D1 (إن وُجد) */
+  private async fetchMarchCommander(marchId: string): Promise<CommanderInstance | undefined> {
+    try {
+      const row = await this.env.DB.prepare(
+        "SELECT commander_id, skills_json FROM march_commanders WHERE march_id = ?",
+      )
+        .bind(marchId)
+        .first<{ commander_id: string; skills_json: string }>();
+      if (!row) return undefined;
+      return { commanderId: row.commander_id, level: 1, skills: JSON.parse(row.skills_json || "[1,1,1]") };
+    } catch {
+      return undefined; // الجدول قد لا يكون مُرحّلاً بعد
+    }
+  }
+
+  /** P2-T1: منح خبرة للقائد بعد قتال + رفع مستواه تلقائياً */
+  private async grantCommanderXp(marchId: string, kills: number) {
+    if (kills <= 0) return;
+    try {
+      const mc = await this.env.DB.prepare(
+        "SELECT commander_id, player_id FROM march_commanders WHERE march_id = ?",
+      ).bind(marchId).first<{ commander_id: string; player_id: string }>();
+      if (!mc) return;
+      const pc = await this.env.DB.prepare(
+        "SELECT level, xp FROM player_commanders WHERE player_id = ? AND commander_id = ?",
+      ).bind(mc.player_id, mc.commander_id).first<{ level: number; xp: number }>();
+      if (!pc) return;
+      const xpGain = kills * 2; // 2 خبرة لكل قتيل
+      let level = pc.level;
+      let xp = pc.xp + xpGain;
+      while (level < COMMANDER_CONSTANTS.max_level && xp >= xpForLevel(level)) {
+        xp -= xpForLevel(level);
+        level++;
+      }
+      if (level >= COMMANDER_CONSTANTS.max_level) xp = 0;
+      await this.env.DB.prepare(
+        "UPDATE player_commanders SET level = ?, xp = ? WHERE player_id = ? AND commander_id = ?",
+      ).bind(level, xp, mc.player_id, mc.commander_id).run();
+    } catch {
+      // الجدول قد لا يكون مُرحّلاً بعد
+    }
+  }
+
+  private regionOf(x: number, y: number): string | null {    for (const r of this.regions) {
       const [x0, y0, x1, y1] = r.aabb;
       if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return r.id;
     }
@@ -1177,6 +1268,8 @@ export class KingdomShard extends DurableObject<Env> {
           passId: msg.passId || msg.targetId,
           toX: msg.toX,
           toY: msg.toY,
+          primaryCommanderId: msg.primaryCommanderId,
+          commanderSkills: msg.commanderSkills,
         };
         const march = this.createMarch(body);
         this.ensureAlarm();
