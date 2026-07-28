@@ -385,7 +385,77 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// ---- marches (P1-T3) ----
+	World.Marches.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* MarchesArr;
+	if (Obj->TryGetArrayField(TEXT("marches"), MarchesArr))
+	{
+		for (const auto& V : *MarchesArr)
+		{
+			const TSharedPtr<FJsonObject> M = V->AsObject();
+			if (!M.IsValid()) continue;
+			FRok2MarchEntity E;
+			ParseMarchEntity(M, E);
+			World.Marches.Add(E);
+		}
+	}
+
 	OnWorldSnapshot.Broadcast(World);
+}
+
+// ---------------------------------------------------------------------------
+// Marches (P1-T3) — parsing + upsert من أحداث الـ WS
+// ---------------------------------------------------------------------------
+void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEntity& E) const
+{
+	E.Id = M->GetStringField(TEXT("id"));
+	E.OwnerPlayerId = M->GetStringField(TEXT("ownerPlayerId"));
+	E.AllianceId = M->GetStringField(TEXT("allianceId"));
+	E.FromX = M->GetNumberField(TEXT("fromX"));
+	E.FromY = M->GetNumberField(TEXT("fromY"));
+	E.ToX = M->GetNumberField(TEXT("toX"));
+	E.ToY = M->GetNumberField(TEXT("toY"));
+	E.StartMs = (int64)M->GetNumberField(TEXT("startMs"));
+	E.EtaMs = (int64)M->GetNumberField(TEXT("etaMs"));
+	E.State = M->GetStringField(TEXT("state"));
+	E.TargetType = M->GetStringField(TEXT("targetType"));
+	E.TargetId = M->GetStringField(TEXT("targetId"));
+
+	E.Troops.Empty();
+	const TSharedPtr<FJsonObject>* TroopsObj;
+	if (M->TryGetObjectField(TEXT("troops"), TroopsObj) && TroopsObj->IsValid())
+	{
+		for (const auto& KV : (*TroopsObj)->Values)
+		{
+			E.Troops.Add(FString(KV.Key), (int32)KV.Value->AsNumber());
+		}
+	}
+}
+
+void URok2Api::UpsertMarch(const FRok2MarchEntity& E)
+{
+	for (int32 i = 0; i < World.Marches.Num(); ++i)
+	{
+		if (World.Marches[i].Id == E.Id)
+		{
+			// المسيرة العائدة تتحول لحركة جديدة من الهدف للمدينة — نحدّثها في مكانها
+			if (E.State == TEXT("returned") || E.State == TEXT("cancelled") || E.State == TEXT("arrived"))
+			{
+				World.Marches.RemoveAt(i);
+			}
+			else
+			{
+				World.Marches[i] = E;
+			}
+			OnWorldSnapshot.Broadcast(World);
+			return;
+		}
+	}
+	if (E.State != TEXT("returned") && E.State != TEXT("cancelled") && E.State != TEXT("arrived"))
+	{
+		World.Marches.Add(E);
+		OnWorldSnapshot.Broadcast(World);
+	}
 }
 
 void URok2Api::LoadCity()
@@ -565,6 +635,42 @@ void URok2Api::ConnectWebSocket()
 		if (Type == TEXT("snapshot") || Obj->HasField(TEXT("cities")))
 		{
 			Self->ParseWorld(Obj);
+		}
+		else if (Type == TEXT("march_created") || Type == TEXT("march_returning"))
+		{
+			const TSharedPtr<FJsonObject>* MarchObj;
+			if (Obj->TryGetObjectField(TEXT("march"), MarchObj) && MarchObj->IsValid())
+			{
+				FRok2MarchEntity E;
+				Self->ParseMarchEntity(*MarchObj, E);
+				Self->UpsertMarch(E);
+				if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
+				{
+					Self->EmitToast(TEXT("انطلقت المسيرة ⚔️"));
+				}
+			}
+		}
+		else if (Type == TEXT("march_update"))
+		{
+			// تحديث تقدم خفيف — نحدّث الـ ETA فقط إن تغيّر (الحركة الفعلية تُحسب من startMs/etaMs)
+			const TArray<TSharedPtr<FJsonValue>>* Arr;
+			if (Obj->TryGetArrayField(TEXT("marches"), Arr))
+			{
+				for (const auto& V : *Arr)
+				{
+					const TSharedPtr<FJsonObject> MU = V->AsObject();
+					if (!MU.IsValid()) continue;
+					const FString MId = MU->GetStringField(TEXT("id"));
+					for (FRok2MarchEntity& M : Self->World.Marches)
+					{
+						if (M.Id == MId)
+						{
+							M.EtaMs = (int64)MU->GetNumberField(TEXT("etaMs"));
+							break;
+						}
+					}
+				}
+			}
 		}
 		else if (Type == TEXT("pass_owner_changed"))
 		{

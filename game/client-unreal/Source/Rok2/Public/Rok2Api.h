@@ -187,6 +187,11 @@ protected:
 	void ParseCity(const TSharedPtr<FJsonObject>& Obj);
 	void ParseWorld(const TSharedPtr<FJsonObject>& Obj);
 
+	/** يحوّل كائن march من JSON إلى FRok2MarchEntity (P1-T3) */
+	void ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEntity& E) const;
+	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
+	void UpsertMarch(const FRok2MarchEntity& E);
+
 	FString AuthHeader() const;
 	FString BuildUrl(const FString& Path) const;
 	void EmitToast(const FString& Msg) { OnToast.Broadcast(Msg); }

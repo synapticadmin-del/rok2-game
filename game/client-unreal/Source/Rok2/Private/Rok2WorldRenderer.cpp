@@ -90,7 +90,7 @@ void ARok2WorldRenderer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Animate marches
+	// Animate marches — موضع حسب التقدم الزمني + اتجاه الأيقونة ناحية الهدف (P1-T3)
 	int64 NowMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
 	for (const FRok2MarchEntity& M : CurrentMarches)
 	{
@@ -106,6 +106,12 @@ void ARok2WorldRenderer::Tick(float DeltaSeconds)
 			FVector Start(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ);
 			FVector End(M.ToX * WorldToUnrealScale, M.ToY * WorldToUnrealScale, MarchZ);
 			MarchActor->SetActorLocation(FMath::Lerp(Start, End, Progress));
+
+			// وجّه الأيقونة ناحية الهدف (محور الـ Cone الافتراضي +X)
+			if (!Start.Equals(End))
+			{
+				MarchActor->SetActorRotation((End - Start).Rotation());
+			}
 		}
 	}
 
@@ -218,14 +224,44 @@ void ARok2WorldRenderer::RefreshFromApi()
 
 	CurrentMarches = W.Marches;
 	TSet<FString> ActiveMarches;
+	const FString MyId = Api->GetPlayer().Id;
+	const FString MyAlliance = Api->GetPlayer().AllianceId;
 	for (const FRok2MarchEntity& M : CurrentMarches)
 	{
+		// لا نرسم المسيرات المنتهية
+		if (M.State == TEXT("returned") || M.State == TEXT("cancelled") || M.State == TEXT("arrived")) continue;
+
 		ActiveMarches.Add(M.Id);
 		if (!SpawnedMarches.Contains(M.Id))
 		{
-			FLinearColor Col = (M.OwnerPlayerId == Api->GetPlayer().Id) ? FLinearColor::Green : FLinearColor::Red;
-			AActor* NewMarch = SpawnMarkerActor(MarchMesh, FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ), FString::Printf(TEXT("March_%s"), *M.Id), Col);
-			if (NewMarch) SpawnedMarches.Add(M.Id, NewMarch);
+			// اللون: أخضر لي، أزرق لتحالفي، أحمر للأعداء؛ العائدة رمادية-زرقاء
+			FLinearColor Col;
+			if (M.OwnerPlayerId == MyId)
+			{
+				Col = FLinearColor(0.2f, 0.9f, 0.3f);
+			}
+			else if (!MyAlliance.IsEmpty() && M.AllianceId == MyAlliance)
+			{
+				Col = FLinearColor(0.2f, 0.5f, 1.0f);
+			}
+			else
+			{
+				Col = FLinearColor(0.95f, 0.2f, 0.15f);
+			}
+			if (M.State == TEXT("returning"))
+			{
+				Col = FLinearColor(0.55f, 0.65f, 0.75f);
+			}
+
+			AActor* NewMarch = SpawnMarkerActor(
+				MarchMesh,
+				FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
+				FString::Printf(TEXT("March_%s"), *M.Id), Col);
+			if (NewMarch)
+			{
+				NewMarch->SetActorScale3D(FVector(0.6f, 0.6f, 0.6f));
+				SpawnedMarches.Add(M.Id, NewMarch);
+			}
 		}
 	}
 	
