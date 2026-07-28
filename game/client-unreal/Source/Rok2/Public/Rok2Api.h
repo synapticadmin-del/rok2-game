@@ -171,6 +171,15 @@ protected:
 	float WorldPollTimer = 0.f;
 	bool bWsConnected = false;
 
+	// ---- الموارد الحية (P1-T5) ----
+	/** مؤقّت مزامنة المدينة من الخادم — يعمل فقط عند اتصال الـ WS (غير متصل = polling عالم سريع) */
+	float CitySyncTimer = 0.f;
+	/** الفاصل الزمني لمزامنة المدينة عبر REST عند اتصال الـ WS (ثانية) */
+	static constexpr float CitySyncIntervalSeconds = 30.f;
+
+	/** يعيد حساب معدلات الإنتاج من مستويات المباني (نفس معادلة الخادم) */
+	void RecomputeResourceRates();
+
 	// ---- إعادة الاتصال التلقائي (P1-T2) ----
 	/** مؤقّت إعادة محاولة WebSocket — backoff أسّي حتى WsReconnectMaxDelay */
 	float WsReconnectTimer = 0.f;

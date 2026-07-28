@@ -316,7 +316,37 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// معدلات الإنتاج من المباني المحدّثة (P1-T5)
+	RecomputeResourceRates();
+
 	OnCityLoaded.Broadcast(City);
+}
+
+// ---------------------------------------------------------------------------
+// معدلات الإنتاج (P1-T5) — نفس معادلة الخادم: base * 1.2^(level-1)
+// ---------------------------------------------------------------------------
+static float Rok2ProductionPerHour(const FString& BuildingId, int32 Level)
+{
+	float Base = 0.f;
+	if (BuildingId == TEXT("farm")) Base = 100.f;
+	else if (BuildingId == TEXT("lumber_mill")) Base = 100.f;
+	else if (BuildingId == TEXT("quarry")) Base = 70.f;
+	else if (BuildingId == TEXT("goldmine")) Base = 40.f;
+	else return 0.f;
+	return Base * FMath::Pow(1.2f, (float)FMath::Max(0, Level - 1));
+}
+
+void URok2Api::RecomputeResourceRates()
+{
+	auto Lvl = [this](const FString& Id) -> int32
+	{
+		const int32* P = Buildings.Find(Id);
+		return P ? *P : 1; // الخادم يعامل المباني المفقودة كمستوى 1
+	};
+	City.Rates.Food = Rok2ProductionPerHour(TEXT("farm"), Lvl(TEXT("farm")));
+	City.Rates.Wood = Rok2ProductionPerHour(TEXT("lumber_mill"), Lvl(TEXT("lumber_mill")));
+	City.Rates.Stone = Rok2ProductionPerHour(TEXT("quarry"), Lvl(TEXT("quarry")));
+	City.Rates.Gold = Rok2ProductionPerHour(TEXT("goldmine"), Lvl(TEXT("goldmine")));
 }
 
 void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
@@ -760,6 +790,12 @@ void URok2Api::ConnectWebSocket()
 				}
 			}
 		}
+		else if (Type == TEXT("city_upsert"))
+		{
+			// تحديث مدينة على الخريطة/الموارد (مثلاً ترقية قاعة المدينة) — مزامنة فورية (P1-T5)
+			Self->LoadCity();
+			Self->RefreshWorld();
+		}
 		else if (Type == TEXT("pass_owner_changed"))
 		{
 			Self->EmitToast(TEXT("تغير مالك ممر!"));
@@ -841,6 +877,16 @@ void URok2Api::PumpEvents(float DeltaSeconds)
 		{
 			WorldPollTimer = 0.f;
 			RefreshWorld();
+		}
+	}
+	// 3) WS متصل: مزامنة المدينة (موارد + طوابير) كل CitySyncIntervalSeconds بدون polling يدوي (P1-T5)
+	else if (HasPlayer())
+	{
+		CitySyncTimer += DeltaSeconds;
+		if (CitySyncTimer >= CitySyncIntervalSeconds)
+		{
+			CitySyncTimer = 0.f;
+			LoadCity();
 		}
 	}
 }

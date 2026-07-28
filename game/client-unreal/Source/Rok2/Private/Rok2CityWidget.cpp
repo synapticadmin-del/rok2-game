@@ -244,13 +244,7 @@ void URok2CityWidget::Refresh()
 			TEXT("%s · %s · قوة %d · %s"),
 			*P.Name, *P.Civ, P.Power, *P.RegionId)));
 	}
-	if (ResourcesText)
-	{
-		ResourcesText->SetText(FText::FromString(FString::Printf(
-			TEXT("🍲 %d   🪵 %d   🪨 %d   🪙 %d"),
-			(int32)C.Resources.Food, (int32)C.Resources.Wood,
-			(int32)C.Resources.Stone, (int32)C.Resources.Gold)));
-	}
+	UpdateResourceText();
 
 	if (BuildingsList)
 	{
@@ -312,6 +306,38 @@ void URok2CityWidget::Refresh()
 			}
 		}
 	}
+}
+
+void URok2CityWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	// عدّاد حي سلس — المزامنة الحقيقية تتم في URok2Api كل 30 ثانية (P1-T5)
+	UpdateResourceText();
+}
+
+void URok2CityWidget::UpdateResourceText()
+{
+	if (!Api || !ResourcesText) return;
+	const FRok2City& C = Api->GetCity();
+
+	// accrue محلي منذ آخر مزامنة خادم
+	double ElapsedSec = 0.0;
+	if (C.UpdatedAt > 0)
+	{
+		const int64 NowMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
+		ElapsedSec = FMath::Max(0.0, (double)(NowMs - C.UpdatedAt) / 1000.0);
+	}
+	const double H = ElapsedSec / 3600.0;
+
+	const int32 Food = (int32)(C.Resources.Food + C.Rates.Food * H);
+	const int32 Wood = (int32)(C.Resources.Wood + C.Rates.Wood * H);
+	const int32 Stone = (int32)(C.Resources.Stone + C.Rates.Stone * H);
+	const int32 Gold = (int32)(C.Resources.Gold + C.Rates.Gold * H);
+
+	ResourcesText->SetText(FText::FromString(FString::Printf(
+		TEXT("🍲 %d (+%d/س)   🪵 %d (+%d/س)   🪨 %d (+%d/س)   🪙 %d (+%d/س)"),
+		Food, (int32)C.Rates.Food, Wood, (int32)C.Rates.Wood,
+		Stone, (int32)C.Rates.Stone, Gold, (int32)C.Rates.Gold)));
 }
 
 void URok2CityWidget::OnCityLoaded(const FRok2City& City)

@@ -71,6 +71,9 @@ struct FRok2City
 	int32 HallLevel = 1;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FRok2Resources Resources;
+	/** معدلات الإنتاج في الساعة — تحسب من المباني لعرض العدّاد الحي (P1-T5) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FRok2Resources Rates;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	int64 UpdatedAt = 0;
 
