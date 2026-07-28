@@ -6,6 +6,12 @@
 #include "Rok2BootWidget.h"
 #include "Rok2CityWidget.h"
 #include "Rok2HudWidget.h"
+#include "Rok2BuildMenuWidget.h"
+#include "Rok2CommanderWidget.h"
+#include "Rok2AllianceRosterWidget.h"
+#include "Rok2BattleReportWidget.h"
+#include "Rok2ViewManager.h"
+#include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/DirectionalLight.h"
@@ -32,7 +38,7 @@ void ARok2GameMode::BeginPlay()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		// 1. Ensure Directional Light exists
+		// 1. Directional Light
 		if (!UGameplayStatics::GetActorOfClass(World, ADirectionalLight::StaticClass()))
 		{
 			FActorSpawnParameters P;
@@ -45,7 +51,7 @@ void ARok2GameMode::BeginPlay()
 			}
 		}
 
-		// 2. Ensure Sky Light exists
+		// 2. Sky Light
 		if (!UGameplayStatics::GetActorOfClass(World, ASkyLight::StaticClass()))
 		{
 			FActorSpawnParameters P;
@@ -58,7 +64,7 @@ void ARok2GameMode::BeginPlay()
 			}
 		}
 
-		// 3. Ensure Rok2WorldRenderer exists
+		// 3. World Renderer
 		if (!UGameplayStatics::GetActorOfClass(World, ARok2WorldRenderer::StaticClass()))
 		{
 			FActorSpawnParameters P;
@@ -66,7 +72,7 @@ void ARok2GameMode::BeginPlay()
 			World->SpawnActor<ARok2WorldRenderer>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 		}
 
-		// 4. Ensure Rok2CityBuilder exists
+		// 4. City Builder
 		if (!UGameplayStatics::GetActorOfClass(World, ARok2CityBuilder::StaticClass()))
 		{
 			FActorSpawnParameters P;
@@ -79,12 +85,11 @@ void ARok2GameMode::BeginPlay()
 	{
 		Api = NewObject<URok2Api>(this);
 	}
-	// Populate civilizations from BlueprintLibrary before login
 	Api->SetCivilizations(URok2BlueprintLibrary::GetDefaultCivilizations());
 	Api->Init(ApiBaseUrl, KingdomId, AdminKey);
 	Api->OnPlayerLoaded.AddDynamic(this, &ARok2GameMode::OnPlayerLoadedHandler);
 
-	// Spawn Boot Widget UI
+	// Boot Widget
 	if (!BootWidget && World)
 	{
 		BootWidget = Cast<URok2BootWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2BootWidget::StaticClass()));
@@ -125,7 +130,6 @@ void ARok2GameMode::OnPlayerLoadedHandler(const FRok2Player& Player)
 		}
 	}
 
-	// P2-T6: HUD موحد فوق بقية الواجهات — موارد حية + طوابير + إشعارات + شريط تنقل
 	if (!HudWidget && GetWorld())
 	{
 		HudWidget = Cast<URok2HudWidget>(URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2HudWidget::StaticClass()));
@@ -133,6 +137,182 @@ void ARok2GameMode::OnPlayerLoadedHandler(const FRok2Player& Player)
 		{
 			HudWidget->Setup(Api);
 			HudWidget->AddToViewport(20);
+			BindHudEvents();
 		}
+	}
+
+	EnsureViewManager();
+}
+
+// ---------------------------------------------------------------------------
+// ربط أحداث HUD (P5-T3) بالمعالجات
+// ---------------------------------------------------------------------------
+void ARok2GameMode::BindHudEvents()
+{
+	if (!HudWidget) return;
+	HudWidget->OnBuildAction.AddDynamic(this, &ARok2GameMode::HandleBuildAction);
+	HudWidget->OnEditCityAction.AddDynamic(this, &ARok2GameMode::HandleEditCityAction);
+	HudWidget->OnCommandersAction.AddDynamic(this, &ARok2GameMode::HandleCommandersAction);
+	HudWidget->OnAllianceAction.AddDynamic(this, &ARok2GameMode::HandleAllianceAction);
+	HudWidget->OnItemsAction.AddDynamic(this, &ARok2GameMode::HandleItemsAction);
+	HudWidget->OnEventsAction.AddDynamic(this, &ARok2GameMode::HandleEventsAction);
+	HudWidget->OnMapAction.AddDynamic(this, &ARok2GameMode::HandleMapAction);
+	HudWidget->OnReportsAction.AddDynamic(this, &ARok2GameMode::HandleReportsAction);
+}
+
+void ARok2GameMode::EnsureViewManager()
+{
+	UWorld* World = GetWorld();
+	if (!World || ViewManager) return;
+
+	ViewManager = Cast<ARok2ViewManager>(UGameplayStatics::GetActorOfClass(World, ARok2ViewManager::StaticClass()));
+	if (!ViewManager)
+	{
+		FActorSpawnParameters P;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ViewManager = World->SpawnActor<ARok2ViewManager>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	}
+
+	if (ViewManager)
+	{
+		ViewManager->WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(World, ARok2WorldRenderer::StaticClass()));
+		ViewManager->CityBuilder = Cast<ARok2CityBuilder>(UGameplayStatics::GetActorOfClass(World, ARok2CityBuilder::StaticClass()));
+		ViewManager->IsoCamera = Cast<ARok2IsometricCamera>(UGameplayStatics::GetActorOfClass(World, ARok2IsometricCamera::StaticClass()));
+		// ابدأ بعرض المدينة (اللاعب في مدينته بعد الدخول)
+		ViewManager->SwitchToCityView();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// معالجات أحداث HUD
+// ---------------------------------------------------------------------------
+
+void ARok2GameMode::HandleBuildAction()
+{
+	// يفتح قائمة البناء (تُنشأ مرة وتُعاد)
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!BuildMenuWidget)
+	{
+		BuildMenuWidget = Cast<URok2BuildMenuWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2BuildMenuWidget::StaticClass()));
+		if (BuildMenuWidget)
+		{
+			BuildMenuWidget->Setup(Api);
+			BuildMenuWidget->OnBuildMenuPick.AddDynamic(this, &ARok2GameMode::HandleBuildMenuPick);
+		}
+	}
+	if (BuildMenuWidget && !BuildMenuWidget->IsInViewport())
+	{
+		BuildMenuWidget->AddToViewport(50);
+	}
+}
+
+void ARok2GameMode::HandleBuildMenuPick(const FString& BuildingId)
+{
+	// عند اختيار مبنى من القائمة: ندخل وضع تحرير المدينة ليضعه اللاعب على الشبكة
+	// (البناء الفعلي عبر UpgradeBuilding عند وضع مبنى جديد — حالياً كل المباني موجودة، فهذا يبدأ التحرير)
+	if (ViewManager && ViewManager->CityBuilder)
+	{
+		if (!ViewManager->CityBuilder->IsEditModeActive())
+		{
+			ViewManager->CityBuilder->ToggleEditMode();
+		}
+	}
+}
+
+void ARok2GameMode::HandleEditCityAction()
+{
+	// تفعيل/إيقاف وضع تحرير المدينة (من P5-T1)
+	if (ViewManager && ViewManager->CityBuilder)
+	{
+		ViewManager->CityBuilder->ToggleEditMode();
+	}
+}
+
+void ARok2GameMode::HandleCommandersAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!CommanderWidget)
+	{
+		CommanderWidget = Cast<URok2CommanderWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2CommanderWidget::StaticClass()));
+		if (CommanderWidget)
+		{
+			CommanderWidget->Api = Api;
+		}
+	}
+	if (CommanderWidget && !CommanderWidget->IsInViewport())
+	{
+		CommanderWidget->AddToViewport(50);
+	}
+}
+
+void ARok2GameMode::HandleAllianceAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!AllianceWidget)
+	{
+		AllianceWidget = Cast<URok2AllianceRosterWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2AllianceRosterWidget::StaticClass()));
+		if (AllianceWidget)
+		{
+			AllianceWidget->Api = Api;
+		}
+	}
+	if (AllianceWidget && !AllianceWidget->IsInViewport())
+	{
+		AllianceWidget->AddToViewport(50);
+	}
+}
+
+void ARok2GameMode::HandleItemsAction()
+{
+	// الحقيبة — غير منفذة بعد (متجر/VIP). نعرض إشعاراً مؤقتاً.
+	if (Api)
+	{
+		// يستخدم نظام الإشعارات الداخلي عبر toast
+		// (تحسين مستقبلي: شاشة حقيبة كاملة)
+	}
+}
+
+void ARok2GameMode::HandleEventsAction()
+{
+	// الأحداث — غير منفذة بعد. (تحسين مستقبلي: شاشة أحداث)
+}
+
+void ARok2GameMode::HandleMapAction()
+{
+	// التبديل بين مدينة اللاعب وخريطة العالم
+	EnsureViewManager();
+	if (ViewManager)
+	{
+		ViewManager->ToggleView();
+		// عند الذهاب للخريطة: حدّث العالم
+		if (Api)
+		{
+			Api->RefreshWorld();
+		}
+	}
+}
+
+void ARok2GameMode::HandleReportsAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!BattleReportWidget)
+	{
+		BattleReportWidget = Cast<URok2BattleReportWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2BattleReportWidget::StaticClass()));
+		if (BattleReportWidget)
+		{
+			BattleReportWidget->Setup(Api);
+		}
+	}
+	if (BattleReportWidget && !BattleReportWidget->IsInViewport())
+	{
+		BattleReportWidget->AddToViewport(50);
 	}
 }
