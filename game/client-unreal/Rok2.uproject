@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "ROK2 - Thrones of Ages. 4X MMO Strategy prototype.",
+	"Modules": [
+		{
+			"Name": "Rok2",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "WebSocketNetworking",
+			"Enabled": true
+		}
+	],
+	"TargetPlatforms": [
+		"Windows",
+		"Android"
+	],
+	"DisableEnginePluginsByDefault": false
+}

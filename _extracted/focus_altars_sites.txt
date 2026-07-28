@@ -1,0 +1,888 @@
+Lost Temple
+Shrine of Radiance 
+Shrine of War
+Flame Altar
+Surge Altar
+Storm Altar
+Earth Altar
+Harvest Altar
+Wisdom Altar
+A majestic temple that has existed as long as the land itself. Prophecy says that only the mightiest can occupy it.
+During the harvest season, all farmers will journey here to pray for bountiful crops. This is probably one of the most frequently visited Altars in the land, and never lacks for offerings.(
+Altars
+Shrines
+Altars are structures left over from an ancient time, places imbued with amazing power far beyond the imaginations of ordinary men.
+1. Altars are open for contending every 3 days. During this period, all alliances are able to attack the altar. Any alliance who can occupy and hold an altar for 4 hours will gain control of it.
+2. The first commander (captain of the rallied army) to occupy an altar will become the battle captain. If this commander is withdrawn, the commander with the highest power will automatically succeed the position.
+3. Buffs from the same types of altars do not stack.
+4. All units who are severely wounded during altar battles will be sent to the hospital.R
+Shrines are even more powerful than altars. Once you have captured a shrine, the gods will look down upon you with greater benevolence and you will receive stronger blessings.
+1. Shrines are open for contending every 3 days. During this period, all alliances may attack the shrine. Any alliance who can occupy and hold a shrine for 4 hours will gain control of it.
+3. Buffs from the same types of shrines do not stack.
+4. Half of the units who are severely wounded during shrine battles will die immediately.
+5. Shrines can be attacked by rallied armies containing a maximum of 1,500,000 units.
+The Lost Temple stands at the center of the kingdom, a position befitting its central importance. Conquer the temple and you will conquer the world.
+4. All units who are severely wounded during Lost Temple battles will die (except when battling the barbarian garrison during the first occupation).e
+The temple will be open soon!"
+Sanctum of Courage
+Sanctum of Blood
+Sanctum of Wind
+Sanctum of Hope
+Shrine of Honor
+Shrine of Order
+Sanctum Guardian
+the shamans. Shamans are responsible for defending their tribe's holy sites, and will punish any outsiders who dare desecrate the sites with their presence.
+5. You must defeat guardians in a single attack, or they will be immediately returned to full health by the holy site.
+Altar Guardian
+Shrine Guardian
+Temple Guardian
+Supreme guardians will attack anything that enters the territory of the Lost Temple.
+Upon entering the temple, believers will restore temple garrison strength by 25%.
+Supreme guardians answer only to the high priest. They are charged with the righteous task of eradicating all enemies who dare to desecrate the temple grounds with their presence.
+1. Supreme guardians will attack all enemies who enter the territory of the Lost Temple. 
+Believers hear nothing but the summons of the Lost Temple. If they are allowed to enter the temple, its garrison strength will grow so great that the temple will become almost impervious to attack.
+1. Once a believer enters the territory of Lost Temple, it will stop at nothing to reinforce the temple garrison.
+2. If it reaches the temple, the believer will restore a massive amount of temple garrison strength.
+<color=#bb0000>Immigration Limited:</color> This kingdom is currently participating in the Lost Kingdom event, so immigration to or from it is not currently possible.
+2. This <color=#ffc600><b>Hold & Drag</b></color> feature can be used to dispatch troops from holy sites and allied cities as well.
+Pyramiden
+This Holy Site will be permanently destroyed after the countdown and cannot be rebuilt.
+Altar of Darkness
+Sanctums are structures left over from an ancient time, places imbued with amazing power far beyond the imaginations of ordinary men.
+1. Sanctums will open for contention every 3 days. During this period, all alliances will be able attack the Sanctum. Any alliance that can occupy and hold a Sanctum for 4 hours will gain control of it.
+3. Buffs from the same types of Sanctums do not stack.
+4. All units severely wounded during Sanctum battles will be sent to the Hospital.
+1. Believers will ignore all dangers and move to reinforce the Shrine.
+2. As soon as the believers enter the Shrine, a large number of the Shrine's garrisoned units will be healed.Q
+Believers can immediately restore 25% of garrison units upon entering the shrine.
+Altar of DarknessI
+Your target kingdom is not in Lost Kingdom.
+Lost Kingdoms currently in Season 1#
+Lost Kingdoms currently in Season 2:
+<color=#000000>Lost Kingdoms currently in Season 3</color>7
+Lost Kingdoms currently in the Season of Conquest: {p1}
+Kingdoms in their <b>Preparation Season</b>, with an internal struggle for control of the Lost Temple.w
+In the <b>offseason before Season 1</b>, kingdoms of the same region will enter Lost Kingdom Season 1 at the same time.
+Kingdoms in the <b>offseason before Season 2</b>. Kingdoms in adjacent regions will match up to enter Lost Kingdom Season 2 together.}
+Kingdoms in the <b>offseason before Season 3</b>. Kingdoms can register to match up and enter Lost Kingdom Season 3 together.
+Kingdoms in the <b>offseason before a Season of Conquest</b>. These kingdoms are free to register for a variety of Lost Kingdom stories.
+<color=#bb0000><b>Immigration Limited:</b></color> This kingdom is currently participating the Lost Kingdom event and cannot be immigrated to.'
+Lost Kingdom {p1}
+After Lost Kingdom Season 3, kingdoms will enter the Season of Conquest. Immigration is possible both ways between any two Developed kingdoms.T
+This kingdom is currently participating the Lost Kingdom event. Unable to immigrate.0
+As Governors' cities grow quickly, the fight for control of the Lost Temple grows ever fiercer. Immigration is possible both ways between kingdoms in the same region that are not Nascent.
+Lost Kingdom List
+There are no kingdoms battling in the Lost Kingdom at this timeN
+<color=#000000>Lost Kingdoms currently in the Season of Conquest: {p1}</color>
+Derelict PassQ
+Derelict Passes cannot be attacked or used.A
+Kingdoms will be divided into different Season Statuses according to the kingdom's history and its participation in Lost Kingdom:
+From the end of the Chronicles chapter "The Last Golden Apple" in all kingdoms within the region until the end of Lost Kingdom Season 1 "Endless War"l
+From the end of Lost Kingdom Season 1 "Endless War" until the end of Lost Kingdom Season 2 "Distant Journey"s
+From the end of Lost Kingdom Season 2 "Distant Journey" until the end of Lost Kingdom Season 3 "Light and Darkness":
+From the end of Lost Kingdom Season 3 "Light and Darkness"
+If a kingdom has no King, the Lost Temple will automatically choose the lowest Power cap as an entry requirement.\
+As Governors' cities grow quickly, the fight for control of the Lost Temple grows ever fiercer. Immigration to kingdoms in the Preparation Season is now possible.
+The destination kingdom is not currently in the Lost Kingdom event or an immigration waiting period.
+This kingdom is either taking part in the Lost Kingdom event or in an immigration waiting period. Would you like to be reminded when it becomes open for immigration?m
+- Cross-season immigration will <b>invalidate any Autarch Passes or Vindicator Passes</b> you earned at the end of the previous Lost Kingdom.
+Governors can register to immigrate to a kingdom while it is taking part in the <color=#EE7600><b>Lost Kingdom event</b></color>.
+1. Elite Garter Knights will actively attack all enemies near the Lost Temple.
+2. After the Lost Temple is secured, they will retire to their quarters and wait patiently for the next time they are needed.
+1. Garter Knights will try to reinforce the Lost Temple regardless of any obstacles.
+2. Once the Garter Knights make it to the Lost Temple, it will regain a large portion of its lost garrison units.
+Elite Garter Knights will attack any enemies that enter the territory of the Lost Temple.b
+Upon entering the Lost Temple, the Garter Knights will restore 25% of the Temple's garrison units.
+ans is not currently open for contention, and you are not within 1 hour of the start or end of the Lost Kingdom.
+Check the Lost Kingdom Chronicles for opening times.t
+A list of Lost Kingdoms currently in the Season of Conquest
+Season 1 Lost Kingdom Kingdoms
+Season 2 Lost Kingdom Kingdoms
+Season 3 Lost Kingdom Kingdoms%
+Season of Conquest Lost Kingdom Kingdoms
+In the Lost Kingdom
+Holy Sites
+Altar of Darkness'
+1) The target kingdom's Lost Kingdom has settled but hasn't closed yet.
+3) You are not immigrating to the target kingdom via Lost Kingdom immigration.
+- You cannot purchase anything from the target kingdom's Lost Kingdom Season Shop.
+- If you enter the target kingdom's Lost Kingdom, you won't be able to leave the starting province until the Lost Kingdom closes.
+A governor added to your kingdom's watchlist will be unable to enter the Lost Kingdom for the next {p1} days. You can add one governor every {p2} days. Continue?
+4. Governors who are added to the Watchlist will be removed from the Lost Kingdom and returned to their home kingdom.
+Adds a governor to the kingdom watchlist. Governors on the watchlist will be unable to enter the Lost Kingdom, and the king will be able to locate them on the map at any time. Up to {p1} governors can be added.
+The destination kingdom is not currently in the Lost Kingdom event, the matchmaking phase, or an immigration waiting period.
+4. If you add a governor in the Lost Kingdom to the watchlist, they will be returned to your home kingdom.
+From the end of Lost Kingdom Season 2 "Distant Journey" until the end of Lost Kingdom Season 3 "King of All Britain"5
+Lost Kingdom Season 3 "King of All Britain" has ended#
+Lost Kingdoms currently in Season 31
+A governor added to your kingdom's watchlist will be unable to enter the Lost Kingdom for the next {p1} days. Continue?
+Crusader Camp
+1. Crusader camps are open for contending every 12 hours. During this period, all alliances may attack the crusader camp. Any alliance who can occupy and hold a crusader camp for 4 hours will gain control of it.
+3. Buffs from the same types of crusader camps do not stack.
+Ruined Crusader Fortress
+Crusader Fortress
+Alliance Crystal Field
+The Lost Kingdomx
+1. There are 8 crusader fortresses in the Lost Kingdom, one in each of the eight starting provinces.
+5. Once reconstruction is complete, the crusader fortress will begin providing honor for its home kingdom.
+Hierons are where barbarian warriors go to express their devotion and demonstrate their faith. Warriors who reside in or near these structures become imbued with the mysterious power of the Lost Kingdom.
+A special type of ancient ruin reserved by the barbarians for only the most important rituals. The dark power flowing through this broken altar gives its defenders additional strength.
+1. Altars of darkness open for contending every 84 hours and remain open for 2 hours.
+2. New dark stalkers will appear when the altar opens for contending. Defeat them to earn massive amounts of experience and abundant rewards.
+5. The barbarian defenders will regain control of the altar of darkness once the contention period has ended.
+6. Each Governor can only have one troop benefit from the altar of darkness buff.
+1. Alliance Crystals are a precious alliance resource used to build Crusader Flags within the Lost Kingdom.
+2. Expand your alliance territory to an Alliance Crystal Field to occupy it. 
+3. Alliance Crystal Fields will continuously produce Crystals for your alliance.
+4. If you occupy multiple Alliance Crystal Fields, their production will stack.
+Exalted barbarians form the ruling class of barbarian society. For untold centuries they have guarded the Lost Kingdom from invasion, thriving on the mysterious power these lands possess.
+The marauders have constructed imposing strongholds all across the kingdom. Destroying them is the only way to gain entrance the Lost Kingdom.
+Stalkers belong to a secretive barbarian cult responsible for protecting each tribe's ancient ruins and altars of darkness. Cold, calculating warriors, they will take any means necessary to eliminate potential threats.
+4. Crusade points will determine each kingdom's ranking and which kingdom buffs each kingdom will receive in the Lost Kingdom.
+The Lost Kingdom
+Crusader Achievements
+This magnificent kingdom has been overrun by barbarians for far too long. The ancient flames of the Last Crusade have been rekindled once more. Who will be master of the Lost Kingdom once all is said and done?
+1. If your City Hall is Level 16 or higher, you can teleport into the Lost Kingdom province corresponding to your home kingdom.
+2. Alliances can only build Alliance Fortresses within the Lost Kingdom. Center Fortresses cannot be built.
+3. Alliances can build Crusader Flags within the Lost Kingdom. Building Crusader Flags is the only way to expand your territory within the Lost Kingdom.
+7. After entering the Lost Kingdom, you can use a Random Teleport to return to your home kingdom at any time.
+8. Only governors located within the Lost Kingdom can participate in the Lost Kingdom event series.
+9. Barbarian troops in the Lost Kingdom will be Level 26 or higher.
+Work together to rebuild the Crusader Fortresses.
+2. Complete the targets of all stages with the governors of your kingdom to rebuild your Crusader Fortress.
+1. After completing each stage target, all governors in your kingdom will receive a powerful buff (these buffs will only take effect in the Lost Kingdom). 
+1. Governors can donate resources to rebuild their kingdom's crusader fortress.
+2. Governors will receive a Crusader's Supply Chest containing item rewards for each donation.
+2. Claiming rewards will also speed up the reconstruction of your kingdom's crusader fortress. Once the current rebuilding stage is completed, the next stage will begin.
+3. Each donation will speed up the reconstruction of your kingdom's crusader fortress.
+Altar Appropriation
+Twilight
+We have come to the Lost Kingdom. We must muster our strength and re-establish a foothold.j
+With the aid of our Holy Sites, we can reclaim our homeland from even mightier barbarians!t
+Arrows whizz through the blood-drenched air... As new Passes open, we wonder what sinister forces might hide beyond.8
+Seizing the Altar of Darkness may weaken the barbarians, but it is poised to make us fight amongst ourselves.N
+Occupy ancient ruins or altars of darkness for <b>{p1}</b> minutes.
+Occupy <b>1</b> crusader fortress belonging to another kingdoml
+Your alliance controlled <b>{p1}</b> crusader fortresses belonging to other kingdoms at the end of the event+
+Your kingdom occupied <b>1</b> crusader fortress>
+Occupy <b>1</b> crusader fortress belonging to another kingdomk
+Your kingdom controlled <b>{p1}</b> crusader fortresses belonging to other kingdoms at the end of the event
+Crusader Rankings
+Crusader's Might ({p1})
+Buffs received from kingdom rankings during the "Eve of the Crusade" event will remain in effect throughout the Lost Kingdom series of events.
+After choosing a kingdom territory color, territory controlled by this kingdom's alliances in the Lost Kingdom will be displayed using a single, unified color. (Color cannot be changed once chosen.)
+Territory controlled by this kingdom's alliances will be displayed using a unified color, and governors will be able to teleport onto all of their kingdom's territory anywhere in the Lost Kingdom.^
+You are about to enter the Lost Kingdom. Your city will spawn in your kingdom's starting province. No items will be spent.
+You are about to leave the Lost Kingdom. Your city will appear at a random location in your home kingdom. This will expend a <color=#ffa800>Random Teleport</color>.q
+The Lost Temple was built to guard a deadly, ancient secret. Will we unravel its mysteries before it is too late?e
+The barbarians are desperate. They will stop at nothing to prevent us from entering the Lost Kingdom.m
+The Lost Throne
+We fight forward to capture the barren throne.8
+I've made it to the Lost Kingdom!4
+Crusader Camps
+Crusader Fortresses
+Altars of Darkness
+Curse the Lost Kingdom's twisted roads. I really am lost.)
+These stalker cult leaders lurk in the shadows, appearing only when the sanctity of an ancient ruin or altar of darkness has been seriously threatened.
+You are currently in the Lost Kingdom, so you cannot view the Kingdom Chronicles of other kingdoms.
+A total of {p1} alliance fortresses were built between all alliances in the Lost Kingdom.G
+Your alliance controlled {p1} crusader camps at the end of the chapter.]
+Your home kingdom controlled your home kingdom's crusader fortress at the end of the chapter.4
+Your alliance was ranked in the Top 20 in the Lost Kingdom for total power at the end of the chapter.#
+A total of {p1} crusader flags were built between all alliances in the Lost Kingdom.E
+Your kingdom controlled {p1} crusader camps belonging to other kingdoms at the end of the chapter.,
+Your kingdom controlled {p1} crusader fortresses belonging to other kingdoms at the end of the chapter.?
+The following actions must be completed within the Lost Kingdom to earn honor points (which cannot be earned after Lost Kingdom ends).
+<b>First occupation of a holy site / pass.</b>
+<b>Continual occupation of a holy site.</b>
+<b>Continual occupation of an ancient ruins or altar of darkness.</b>
+<b>1 x Crusader's Resource Chest</b>i
+<b>1 x Crusader's Bounty</b>.
+Lost Kingdom Chronicles
+Rewards will be received by mail at the end of the Lost Kingdom event.
+Rewards will be received by mail at the end of the Lost Kingdom event.O
+<b><color=#ffff00>{p1}</color></b> have rebuilt their kingdom's crusader fortress. Hurrah!9
+<b><color=#ffff00>{p1}</color></b> have completed stage <b><color=#ffff00>{p2}</color></b> in the reconstruction of their kingdom's crusader fortress. Hurrah!1
+Kingdom territory color may only be selected after your kingdom's crusader fortress has been rebuilt.b
+Chapter <b><color=#FFC600>"{p1}"</color></b> in the Lost Kingdom Chronicles has now been unlocked.-
+Congratulations Governor! You defeated a stalker within the Lost Kingdom and found a treasure hoard.m
+Only the leader of the alliance occupying a kingdom's crusader fortress can choose a kingdom territory color.Z
+Lost Kingdom Chronicles Chapter {p1}: <b><color=#ffc600>{p2}</color></b> has been written.
+Lost Kingdom Contenders
+Unlocked after recapturing your kingdom's ruined crusader fortress.*
+Lost Kingdom Crusader Achievements Rewards^
+You have completed the Lost Kingdom "{p1}" crusader achievement and won the following rewards.
+Destroy {p1} Crusader Camps in enemy camp.
+Destroy {p1} Crusader Fortresses in enemy campH
+Forward we marched in the Lost Kingdom, longing to regain our past glory.6
+Destroy {p1} Crusader Fortresses in enemy camp-
+1. All participating kingdoms will be randomly assigned to either Camp Solaria or Camp Lunaria. You cannot change your camp during the Lost Kingdom.
+5. Alliance Fortresses cannot be built inside the center province. Alliance Flags and Alliance Fortresses cannot be built inside a province that has an Ancient Ruins or an Altar of Darkness in it.
+Individual Honor can be increased by making progress in Crusader Achievements and Honor Roll.
+You can complete the following tasks within the Lost Kingdom to earn Honor Points and Soluna Coins (neither can be earned after the Lost Kingdom ends)
+<b>Occupy Ancient Ruins or Altars of Darkness to earn continual Honor Points</b>
+To ensure balance in the Lost Kingdom, the roster of usable commanders will be based on the matched Kingdom with the longest history. Commanders and equipment unlocked in Season of Conquest will be unavailable.
+(Wu Zetian cannot be used in The Lost Kingdom Season 2)
+This Commander cannot be used in this <b><color=#ffa800>Lost Kingdom</color></b> event.
+2. Your alliance will be ranked with the rest of your <color=#379f1f>Lost Kingdom</color> based on total troop power gained during the event.
+2. Lost Kingdom Alliances are ranked based on total resources gathered by Governors during the event. Ranked Alliances after the event will receive an extra rankings reward!
+2. Lost Kingdom Alliances are ranked based on the number of barbarians killed by Governors during the event. Ranked Alliances after the event will receive an extra rankings reward!
+2. Your alliance will be ranked with the rest of your <color=#379f1f>Lost Kingdom</color> based on the number of speedups your alliance used during the event.
+2. You will be ranked with the rest of your Lost Kingdom based on the number of points you earned from killing or severely wounding enemy units in the Lost Kingdom during this event.
+Clear All Fog In The Lost Kingdom
+After the end of this chapter (whether or not the objective is achieved), all fog in the Lost Kingdom will be cleared. Governors not in this Lost Kingdom will be able to view the entire map.(
+Holy Site Heroes
+Holy Site Melee
+A total of {p1} alliance fortresses were built between all alliances in the Lost Kingdom.H
+Your coalition controlled {p1} crusader camps at the end of the chapter.I
+Your camp controlled its own Crusader Fortress at the end of the chapter.)
+A total of {p1} Crusader Flags were built between all coalitions in the Lost Kingdom.H
+Explored all fog in the Lost Kingdom.6
+Your camp controlled {p1} other camps' crusader camps at the end of the chapter.S
+Your camp controlled {p1} other camps' Crusader Fortresses at the end of the event.F
+The Lost Kingdom shall be ours once more!>
+War has come once more to the Lost Kingdom...8
+Only the strongest can survive the trials of the Lost Kingdom!-
+New Passes have opened, sending our forces in multiple directions. Onwards! We have Holy Sites to liberate.-
+With the blood of this land's true masters in our veins, we will fight to retake the Holy Sites that were lost.
+We will fight tooth and nail for the Holy Sites. The smoke may clear, but the glory we win will never fade.
+After the end of this chapter (whether or not the objective is achieved), all coalitions in the Lost Kingdom will be able to recruit one more new alliance from their camp.
+CrystalsN
+2. Complete the targets of all stages with the governors of your camp to rebuild your Crusader Fortress.
+1. After completing each stage target, all governors in your camp will receive a powerful buff (these buffs will only take effect in the Lost Kingdom).
+Governor, your camp has already completed stage {p1} of rebuilding their crusader fortress. Thank you for your hard work! Please accept this small token of thanks from the entire camp.
+Complete quests given by commanders to increase their Favor and your Crystal Mine's work speed. At high enough Favor levels, your troops can use one of the commander's abilities as a support skill.
+Season Coins can be obtained by completing research at the Crystal Research Center or participating in the Trial of Kau Karuak event.J
+Complete Crusader Achievements in the Lost Kingdom to earn Conquest Coins.S
+After the story has begun, you will be able to construct a new building in your city: the Crystal Mine.d
+You can "Work" the Crystal Mine to get Crystals. Working the Mine costs Food, Wood, Stone, and Gold.
+Upgrading the Crystal Mine will increase the maximum amount of work you can order at a time. In addition, completing quests given by commanders will increase its Crystal output.e
+The Crystals which can be mined here are a precious resource. You can use them to open up a whole new frontier of research.
+During this story, Crystals cannot be plundered by attackers or sent as aid.
+Crystals will be removed once the Season is over. Your Crystal Mine, Crystal Research Center, and any Crystal technologies you've researched will be reset and removed.J
+All coalition members will receive first occupation rewards for Holy Sites and Passes.}
+All coalition members will receive boost effects from holy sites and passes, and passes will be open to all member alliances.b
+All coalition members will share the occupation bonuses from Altars of Darkness and Ancient Ruins.y
+Share Holy Site Occupation Rewards and Buffs'
+Co-own Ancient Ruins/Altars of Darkness*
+Warriors, honoring their ancestors' covenant, answer the king's call. Gathering at the flame altar, they swear allegiance to the ancestors and the flame. They shall be a raging, inextinguishable fire.
+Pious warriors rallied to their kings at the earth altar, kissing the sacred land in an oath to restore their ancestors' honor. Their knowledge of the land allows them to march effortlessly.
+On the orders of their kings, the warriors gathered at the surge altar. Dreaming of huge waves each night, they are as relentless and unending as the sea itself.
+Kings lead their warriors toward the sanctum in the eye of the storm. Only those who pass the trials of the winds are worthy allies. For those that do, the blessings of the wind are well worth it.
+Your coalition controlled <b>{p1}</b> crusader camps at the end of the event^
+Your coalition controlled <b>{p1}</b> other camps' crusader fortresses at the end of the event(
+Crystal Mines
+Crystals
+Earned by completing research in the Crystal Research Center.2
+Earned by completing enough Crusader Achievements.
+Crystal Mine Work Speed +{p1}%
+2. Increasing your Favor will increase the work speed of your Crystal Mine.
+Crystal Mine Work Speed@
+The surrounding area is not only rich in Crystals, but Gold too. So long as you're here, why not take advantage?v
+Several holy sites nearby contain magical runes. These runes are extremely powerful, an opportunity we cannot miss.h
+This land's unique Crystals could strengthen our weapons and armor. Could you contribute some iron ore to help our efforts?k
+You are about to enter the Lost Kingdom. Your city will spawn in your camp's starting province. No items will be spent.
+"The Lost Kingdom: {p1}" has come to an end. You achieved Rank {p2} on the individual rankings, and will receive the following rewards for your efforts. Congratulations!
+"The Lost Kingdom: {p1}" has come to an end. Your coalition achieved Rank {p2} on the coalition rankings, and all governors in the coalition will receive the following rewards for your efforts. Congratulations!
+"The Lost Kingdom: {p1}" has come to an end. Your camp achieved Rank {p2} on the camp rankings, and all governors in the camp will receive the following rewards for your combined efforts. Congratulations!
+The top 20 coalitions in the rankings will earn additional ranking rewards, which will be sent via in-game mail after the Lost Kingdom event ends.
+<b>Continual occupation of ancient ruins or an altar of darkness.</b>
+<b>First occupation of a holy site or pass.</b>
+All camps can earn great rewards! Rewards will be sent via in-game mail after the Lost Kingdom event ends.
+1. Governors must retake the fortresses from the barbarians and restore them to their former glory, turning ruined crusader fortresses into crusader fortresses.
+4. The coalition that occupies their crusader fortress will be able to call on one more alliance to join them.-
+Cannot view Bastions in another Lost Kingdom. 
+3. Each donation will speed up the reconstruction of your camp's Crusader Fortress.
+1. Governors will be able to claim rewards for every 10 barbarian troops defeated and every 3 barbarian forts destroyed in the Lost Kingdom.
+2. Claiming rewards will also speed up the reconstruction of your camp's Crusader Fortress. Once the current rebuilding stage is completed, the next stage will begin.
+1. Governors can donate resources to rebuild their camp's Crusader Fortress.
+<b><color=#ffff00>{p1}</color></b> have completed stage <b><color=#ffff00>{p2}</color></b> in the reconstruction of their camp's Crusader Fortress. Hurrah!p
+Lvl 4 passes are now <color=#ffff00>unsealed</color>! You may now occupy the Crusader Fortresses of other camps.
+Crusader FortressesG
+Your camp controlled its own Crusader Fortress at the end of the event.Y
+Your camp controlled <b>{p1}</b> other camps' Crusader Fortresses at the end of the event5
+Occupied <b>1</b> Crusader Fortress from another camp-
+Your camp occupied <b>1</b> Crusader FortressY
+Occupied <b>1</b> Crusader Fortress from another camp
+Unlocked after recapturing your camp's ruined crusader fortress.
+Kings and warriors test their weapons at the Storm Altar. Having passed through thunder and lightning, their weapons and spirits will be mighty and unbreakable.>
+(Acquired by purchasing a Premium Season Crystal Supply))
+Complete quests from Bastion commanders to gain Favor with them, along with an increase in Crystal Mine work speed.
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their troops. There are 12 commanders in total for governors to find.
+Your camp controlled <b>{p1}</b> other camps' crusader fortresses at the end of the event'
+Gain Favor to increase the work speed of your Crystal Mine.
+<b>Crystals</b>
+Crystals are a rare and valuable resource unique to these lands. They can be used at the Crystal Research Center to research new technologies.!
+Entering and Leaving the Lost Kingdom
+In the Lost Kingdom, alliances can build only alliance fortresses and crusader flags to expand their territory. Alliance center fortresses cannot be built here.
+There are three types of honor points: individual honor, alliance honor, and kingdom honor. Gaining enough honor points can unlock crusader achievements and qualify you for ranking rewards in the Honor Roll page.
+The barbarian tribes of the Lost Kingdom are stronger and more violent. The lowest barbarian troop level is 26, and even higher level barbarians lie in wait for unsuspecting invaders.
+The barbarian fortresses in the Lost Kingdom are stronger and harder to attack. Governors will gradually discover Lvl 6-10 barbarian forts.f
+The Lost Kingdom contains higher level resource points which contain a plentiful reserve of resources.A
+In this story, Governors will find a number of unique holy sites.
+An overgrown fortress which was once glorious. Occupy a crusader fortress to begin rebuilding it. Once rebuilt, Governors of that kingdom can teleport their cities to any alliance territory of the same kingdom.
+The remnants of a crusader camp once held by our ancestors. Occupy it to generate honor points over time and gain buffs. Once Level 4 Passes are unsealed, you can attack other kingdoms' crusader fortresses.
+Such holy sites are extremely intimidating and only the truly faithful or the truly bold dare tread upon these hallowed grounds. Alliances that can occupy them will gain truly miraculous buffs.
+The Great Ziggurat lies at the heart of the Lost Kingdom, and is the traditional seat of the sovereign in these lands. Once the Great Ziggurat is unlocked, control can be contested once every three days.
+When the Lost Kingdom first opens, warriors from every kingdom will begin setting up their starting provinces. It's time to set forth for the Great Ziggurat, and victory!
+Build a Crystal Mine
+Secret Crystal Center*
+Spend <b>{p1}</b> Crystals
+This bounty of crystals seems the tip of the iceberg.
+Crystal Tycoon IV
+Crystal Tycoon V
+Crystal Tycoon VI
+Crystal Tycoon VII
+Crystal Tycoon VIII
+Crystal Tycoon IX
+Crystal Tycoon X
+Crystal Tycoon XI
+Crystal Tycoon XII
+Crystal Tycoon I
+Crystal Tycoon II
+Crystal Tycoon IIIN
+These crystals have bestowed what my efforts could not have yielded otherwise.Z
+Endless crystals flow through my fingers like grains of sand, and yet are far from enough.
+The crystals have gifted me unique power.8
+My knowledge of crystals was already boundless long ago.@
+My crystals have paved a bright path forward.9
+Crystals have furnished my stepping stone to royal power.
+Build a Crystal Research Center'
+Upgrade your Crystal Mine to Level {p2}2
+Upgrade your Crystal Research Center to Level {p2}
+Derelict Pass
+At the end of this chapter (whether or not the objective is achieved), all ancient pagodas throughout the Lost Kingdom will be activated, and {p1} hours later will be open for contending.
+At the end of this chapter (whether or not the objective is achieved), all Governors throughout the Lost Kingdom will be able to build a forward camp.
+Complete "Pushing Forward" in the Lost Kingdom Chronicles to unlockA
+Complete "Arrows Nocked" in the Lost Kingdom Chronicles to unlockQ
+Governors can build two new structures in the Lost Kingdom: Foundation Stones and Forward Camps.
+Derelict Passes, which cannot be attacked or traversed, are scattered around the Lost Kingdom. Governors will need to find creative and strategic ways around wherever they appear.U
+To ensure balance in the Lost Kingdom, the roster of usable commanders will be based on the matched Kingdom with the longest history.
+(Wu Zetian cannot be used in The Lost Kingdom Season 2)"
+Cannot attack a derelict pass.&
+More expansive Lost Kingdom territory, more provinces and more passes yet to be claimed!
+Greetings Governor, and welcome to the Lost Kingdom!Q
+I must note we have discovered an entirely new, ancient structure within this Lost Kingdom - the <color=#c88800>Ancient Pagoda</color>.R
+The horn announces the arrival of war to the Lost Kingdom and the beginning of the new, blood-soaked chapter therein... We await the coming dawn, which no doubt waits for us.
+1. Kingdoms can prioritize the entry of certain Governors into the Lost Kingdom ahead of the main force for strategic purposes.
+2. All Governors will be eligible to teleport into the Lost Kingdom at the end of the countdown.
+Your kingdom controlled its own crusader fortresses at the end of the evento
+In the Lost Kingdom, alliances can build only alliance fortresses and crusader flags to expand their territory.
+Your kingdom controlled its own four Crusader Camps in the starting province at the end of the event
+Your kingdom controlled its own crusader fortresses at the end of the event
+Governor, we have located a number of <color=#c88800>Ancient Pagodas</color> around the Lost Kingdom. They must be truly ancient!
+Loading the Lost Kingdom...
+6. Crusader fortresses are open for contending every 2 days. During this period, all alliances are able to attack the fortress. Any alliance who can occupy and hold the fortress for 6 hours will gain control of it.
+3. Crusader fortresses are open for contending every 2 days. During this period, all alliances are able to attack the fortress. Any alliance who can occupy and hold the fortress for 6 hours will gain control of it.
+5. The coalition that occupies their crusader fortress will be able to call on one more alliance to join them.
+We may have removed the Honor Point leaderboard for this story, but governors with enough Honor Points will still be able to claim Crusader Achievement rewards.)
+Governors participating in Lost Kingdom events will be entitled to the following rewards, distributed after teleporting into the Lost Kingdom.
+Governors with at least <b>10,000 Honor Points</b> by the end of the Lost Kingdom event will be entitled to the following rewards.*
+2. Your coalition will be ranked with the rest of your <color=#379f1f>Lost Kingdom</color> based on total troop power gained during the event.
+2. Lost Kingdom Coalitions are ranked based on the number of barbarians killed by their members during the event. Ranked Coalitions will receive an extra rankings reward by the end of the event!
+2. Your coalition will be ranked with the rest of your <color=#379f1f>Lost Kingdom</color> based on the number of speedups your coalition used during the event.
+<b>Normal Mode</b>: If you select the same Story as the King, then you will certainly be placed in the same Lost Kingdom.v
+<b>Random Mode</b>: if you select the same Story as the King, then you may still be placed in different Lost Kingdoms.1
+4. The coalition that occupies their crusader fortress will be able to call on five more alliances to join them.
+After the end of this chapter (whether or not the objective is achieved), all coalitions in the Lost Kingdom will be able to recruit <b>5</b> more new alliances from their camp.
+Lost Kingdom ends in: <b>{p1}</b>$
+Lost Kingdom: <color=#ffa800><b>{p1}</b></color>
+Normal Mode: If you select the same Story as the King, then you will certainly be placed in the <color=#bd5400>same Lost Kingdom</color>.
+Random Mode: Even if you select the same Story as the King, you may still be placed in <color=#bd5400>different Lost Kingdoms</color>.
+Regardless of the matchmaking mode selected by the alliance leader, all governors that come from the same kingdom and are matched to the same Lost Kingdom will certainly be allocated to the one faction.
+Governors <color=#bd5400>cannot join</color> an alliance which has been matched to a different Lost Kingdom. However, those in their home kingdom can still join alliances that have not yet registered for a Story.
+Governors who have already embarked on a Lost Kingdom event <color=#bd5400>cannot join</color> an alliance currently involved in registering for a Story or in the matchmaking process.
+Lost Kingdom
+Once the matchmaking process has completed, governors will then be <color=#bd5400>unable to join an alliance matched to a different Lost Kingdom</color> than you.
+Your Lost Kingdom: {p1}; Alliance's Lost Kingdom: {p2}
+Your Lost Kingdom: {p1}
+You can view the Lost Kingdom that you have been matched to from the World of Alliances event page or the Kingdom Overview page.
+Currently matched to Lost Kingdom: <color=#bd5400>{p1}</color>~
+All alliances will select standalone Season of Conquest Stories so that kingdom members can battle in different Lost Kingdoms.
+2. Occupying Holy Sites affects the number of Healing Potions you receive. Camps who occupy fewer Holy Sites will gain more Healing Potions.
+Governors who have already embarked on a Lost Kingdom event <color=#bd5400>cannot join</color> an alliance currently involved in the registering or matchmaking process.
+Governors currently finding a Lost Kingdom match <color=#bd5400>cannot create alliances or transfer leadership</color>.
+6. Each Governor can only have one troop benefit from the altar of darkness buff.9
+Shrouded in holy light, our warriors are invincible.N
+To earn Prestige Points, complete the following actions in the Lost Kingdom. Prestige Points cannot be earned after the Lost Kingdom ends.
+<b>First occupation of a Colossus, Holy Site, or Pass</b>
+<b>Continual occupation of a Colossus or Holy Site</b>
+Special Holy Site
+Coalitions controlled {p1} Sandswept Outposts in the Lost Kingdom.'
+Our names will be known throughout the entire Lost Kingdom!
+The Sea of Death is dotted with Sandswept Outposts. Controlling one allows your coalition to assemble troops there, providing a launchpad for attacks on nearby Holy Sites or
+Crystals and Healing Potions will be removed once the Season is over. Your Crystal Mine, Crystal Research Center, and any Crystal technologies you researched will be reset and removed.
+Season Coins can be obtained by completing research at the Crystal Research Center or participating in the Trial of Kau Karuak event. Leftover Crystals will also be turned into Season Coins once the season ends.
+After the Lost Kingdom Chronicle <b>Suppression</b>, you'll be able to construct alliance buildings (except for Alliance Fortresses) or teleport in the King's Land.
+Lost Kingdom ends in: <b>{p1}</b>N
+1. There are 4 Crusader Fortresses in the Lost Kingdom, one in each of the four starting provinces.
+You can complete the following tasks within the Lost Kingdom to earn Honor Points and Tech Tokens (neither can be earned after the Lost Kingdom ends).
+<b>Occupy Ancient Ruins or Altars of Darkness to earn continual Honor Points.</b>
+Alliance Arrow Towers: Alliance Leaders and Officers have the option of converting Crusader Flags into Alliance Arrow Towers, which can effectively take out nearby non-allied cities.)
+Rewards will be sent by mail at the end of the Lost Kingdom.
+Rewards will be sent by mail at the end of the Lost Kingdom.g
+The crystals which can be mined here are a precious resource. Governors can use them to open up a whole new frontier of research.
+2. Governors will receive 1 Crusader's Supply Chest containing item rewards for each donation (3 for donating Gems).
+Lost Kingdom Immigration
+Alliance Crusader Achievements
+Alliance-based Crusader Achievements are only available to members of that alliance. Governors can team up with fellow camp members to form powerful alliances and gain greater rewards.<
+Lost Kingdom Immigration Approved
+You have approved the Lost Kingdom Immigration application of {p2} from {p1}.
+Lost Kingdom Immigration Rejected
+You have rejected the Lost Kingdom Immigration application of {p2} from {p1}.)
+Lost Kingdom Immigration Approval Revoked
+You have revoked your approval of the Lost Kingdom Immigration application of {p2} from {p1}.
+You can view other options available regarding this governor by going to the Lost Kingdom Immigration application page.
+Alliance Arrow Towers: Alliance Leaders and Officers have the option of converting Crusader Flags into Alliance Arrow Towers, which can quickly take out nearby non-allied cities.)
+Your alliance controlled <b>{p1}</b> other camps' crusader camps at the end of the event]
+Your alliance controlled <b>{p1}</b> other camps' Crusader Fortresses at the end of the eventT
+Lost Kingdom Immigration Application
+You have submitted a Lost Kingdom Immigration application to King {p1}. Please wait for the king to approve your application. You will be notified once it is approved..
+Lost Kingdom Immigration Application Withdrawn%
+You have withdrawn your Lost Kingdom Immigration application to {p1}. You may resubmit your application if you wish.-
+Lost Kingdom Immigration Application Rejected
+We regret to inform you that {p1} has rejected your Lost Kingdom Immigration application. You may resubmit your application if you wish.)
+We regret to inform you that {p1} has revoked its approval of your Lost Kingdom Immigration application. You may enquire about the reason for this revocation, and you may also resubmit your application if you wish.-
+Lost Kingdom Immigration Application Approved
+Congratulations! {p1} has approved your Lost Kingdom Immigration application. Tap below to go to the immigration page, or go to the Lost Kingdom Immigration application page to see details. 
+Lost Kingdom Immigration Management#
+Kings can manage Lost Kingdom Immigration as follows:
+5. You can see which governors have entered your kingdom through Lost Kingdom Immigration on the Migrated Members page.
+7. Once the Lost Kingdom Immigration Period ends, all immigration applications, whether approved or not, will end. Your migration quota will be reset at the beginning of the next Season.
+You can only carry out Lost Kingdom Immigration once during the current Story.
+Lost Kingdom Immigration Has Begun*
+Lost Kingdom Immigration Is Now Available!-
+Sometimes it's a good idea to visit other kingdoms and meet new people. Submit your immigration application to the kingdom of your choice! See the Lost Kingdom Immigration application page for more details.
+Alliance Crusader Achievements: Alliance-based Crusader Achievements are only available to members of that alliance. Complete their requirements to gain greater rewards.
+Occupy all Crusader Fortresses to begin Rebuilding Quest
+Crusader Fortresses occupied: {p1}
+Finish Lost Kingdom Chronicles chapter {p1}
+5. You can earn up to <b>17</b> Strategy Points: 12 from the Lost Kingdom Chronicles and 5 from Crusader Achievements and the "Enemy Elimination" event.
+Lost Kingdom Begins.
+4. Before entering The Lost Kingdom, teams will be matched with other teams close to them in strength and divided into two Camps.
+Once the Lost Kingdom begins, both camps can destroy Holy Sites belonging to the enemy camp, gaining 1 point for each Holy Site destroyed.
+There are 6 Starting Provinces in The Lost Kingdom. Kingdoms participating in the Story will be assigned a Starting Province according to their Kingdom Class and affiliated Camp.
+Reduces cost to upgrade your Crystal Mine and Crystal Research Center by {p1}%.+
+Increases Crystal Mine Work Speed by {p1}%.*
+Gathering resources also grants Crystals. You can obtain up to {p1} Crystals in this manner before the Season ends.t
+Increases the number of Crystals gained by completing Bastion Quests by {p1}%.
+Crystals saved: {p1}D
+Crystals gained: {p1}
+Lost Kingdom matchmaking underway. Once a match is found, team members will be assigned to the same Camp.
+Participating Kingdoms' Camps and Starting Provinces have been confirmed. Once Lost Kingdom begins, Governors may move into their marked Starting Provinces.;
+With the death of King Osiris, the Holy Scepter will soon fall into the hands of the mighty King Seth.
+You can also find a number of holy structures on the map
+A holy structure located in the center of the map. Only the faithful or truly bold dare tread upon these hallowed grounds. Occupy the Great Ziggurat to gain extremely powerful buffs.
+Crusader Fortress"
+The Lost Kingdom: King of the Nile
+Congratulations, Governor! We have claimed victory against the enemy Camp in The Lost Kingdom: King of the Nile with a final score of <b>{p1}</b>.m
+Unfortunately, our Camp was defeated in The Lost Kingdom: King of the Nile with a final score of <b>{p1}</b>.i
+We have tied with our opponents in The Lost Kingdom: King of the Nile, with a final score of <b>{p1}</b>.
+Your Camp controlled {p1} Crusader Fortresses by the end of the chapter.I
+After the end of this chapter (whether or not the objective is achieved), all Coalitions in the Lost Kingdom will be able to recruit 2 more new Alliances from their Camp. 
+The Lost Kingdom Chronicle <b>"{p1}"</b> has ended. You have gained {p2} Strategy Points!
+Matchups have been confirmed. Lost Kingdom is about to begin.
+This holy structure resounds with the sound of rushing water, carrying the blessings of the King of the Gods. But greedy and barbarous tribes have come to claim these blessings for their own.
+ We have the expelled the enemy from their Holy Sites.
+ The sound of battle fades. The holy structure still stands tall.
+The following actions must be completed within the Lost Kingdom to earn Honor Points (which cannot be earned after Lost Kingdom ends).
+<b>First occupation of a Holy Site or Pass.</b>
+<b>Continual occupation of a Holy Site.</b>
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their troops. There are 10 commanders in total for governors to find.
+2. During the immigration period, you can apply to immigrate to any kingdom <b>in the same Lost Kingdom</b>. After the king approves the application, you can move to the target kingdom.
+1. Altars of Darkness will be opened for contention every 84 hours, and will remain open for 2 hours.
+2. New English Guards will appear when the Altar of Darkness is opened for contention. Defeat them for massive rewards and EXP.
+4. Once your coalition has gained control of an Altar, so long as you have a troop in the vicinity of the Altar, the commanders of that troop will continually gain EXP and you will continually earn Honor Points.
+5. Once the contention period has ended, the English Guards will regain control of the Altar of Darkness.
+6. Each governor can only have one troop benefit from an Altar of Darkness' effect at a time.
+Your alliance controlled <b>{p1}</b> crusader fortresses at the end of the event.L
+Your alliance controlled <b>{p1}</b> crusader camps at the end of the event.
+Unlocked after Lost Kingdom Chronicle "{p1}"V
+5. The 2-Slot will be available from the start. The 3-Slot and 4-Slot will be unlocked with the Lost Kingdom Chronicles.
+Unlocked after Lost Kingdom Chronicle "{p1}"6
+To earn Honor Points, complete the following actions in the Lost Kingdom (Honor Points cannot be earned after the Lost Kingdom ends).
+<b>Continued occupation of Ancient Ruins or an Altar of Darkness</b>
+<b>First occupation of a Holy Site or Pass</b>
+<b>Continued occupation of a Holy Site</b>
+1. Crusader Camps will be opened for contention every 12 hours. During this period, all alliances may attack the Crusader Camp. Any alliance that can occupy and hold a Crusader Camp for 4 hours will gain control of it.
+3. Buffs from the same types of Crusader Camps do not stack.
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their troops. There are 13 commanders in total for governors to find.9
+Crystals\
+1. After retaking a Crusader Fortress from the English Army, it must be rebuilt.
+4. The coalition that occupies their Crusader Fortress will be able to call on one more alliance to join them.
+The captain of a contingent of English Guards, they represent the might and honor of England. When an Ancient Ruins or Altar of Darkness comes under serious threat, they will personally enter the fray.
+Your troops defeated {p1} English Guard troops protecting Altars of Darkness.7
+<color=#ffc600>English Men-at-Arms</color> are the finest English forces, stationed at Holy Sites to carve away parcels of French land for their king.
+The English Men-at-Arms are the most elite of the English forces, tasked with guarding the Holy Sites that serve as a testament to their king's conquests.
+Stronger than your average English Soldiers, English Guards protect Ancient Ruins and Altars of Darkness. With the safety of their commanders at stake, they show no mercy to any potential threats.
+Can be obtained by completing research at the Crystal Research Center or participating in the Trial of Kau Karuak event. Leftover Crystals will also be turned into Season Coins once the season ends.
+3. During the immigration period, you can apply to immigrate to any kingdom <b>in the same Lost Kingdom</b>. After the King approves the application, you can move to the target kingdom.
+3. <b>After approving an application</b>, the applicant and the King will be notified, and may complete the immigration process any time <b>before</b> the Lost Kingdom immigration period ends.
+6. You can see which governors have entered your kingdom through Lost Kingdom immigration on the <b>Migrated Members page</b>.
+8. Once the Lost Kingdom immigration period ends, all immigration applications, whether approved or not, will <b>end</b>. Your migration quota will be reset at the beginning of the next season.
+A dim light emerged from beneath the Lost Temple. The relics within seemed to hum with potent energy, and the troves of precious metals and gems had not lost any of their luster.
+In the {p1} story, Alliance Fortresses built outside of your starting province can only be built in areas bordering a Holy Site or Pass (you do not need to capture the Holy Site/Pass).*
+Lost Kingdom Immigration Has Not Begun Yet 
+Building Restrictions: In this new story, Alliance Fortresses built outside of your starting province can only be built in areas bordering a Holy Site or Pass (you do not need to capture the Holy Site/Pass).
+During the immigration period, you can apply to immigrate to your desired kingdom through the Lost Kingdom immigration system using fewer Passport Pages than regular immigration.
+<b>1 x Crusader's Resource Chest</b>E
+<b>1 x Crusader's Bounty</b>
+Artifacts will be unlocked after the end of the Lost Kingdom Chronicle {p1}.3
+Redeeming this artifact will cost {p1} Crystals. You can <b>only redeem one</b> artifact per season and <b>cannot swap</b> it later. Would you like to redeem {p2}?
+1. You can claim a reward for every 10 English Soldier troops defeated and every 3 Mottes destroyed in the Lost Kingdom.
+2. Claiming rewards will also speed up the reconstruction of your camp's Crusader Fortress. Once the current rebuilding stage is completed, the next stage will begin."
+1. Artifacts will be unlocked after the end of the Lost Kingdom Chronicle {p1}.
+2. You can only redeem one artifact this season, and it cannot be swapped for another afterwards. It costs 5000 Crystals to redeem an artifact.
+3. When a troop's secondary commander is equipped with an artifact, all their skills and Museum Relic bonuses that only apply to a single unit type will instead affect a different unit type (depending on the artifact).
+4. Artifacts will only take effect in this story's Lost Kingdom, Sunset Canyon, and Lost Canyon events.
+Artifacts can only be used during the Warriors Unbound story in the <color=#ffa800>Lost Kingdom, Sunset Canyon, and Lost Canyon</color> events. I know you will make great use of this new boon!3
+Artifact effects will only work in the Lost Kingdom, Sunset Canyon, and Lost Canyon. You can only claim one artifact per season, which will be lost at the end of the season.
+2. Alliances in the Lost Kingdom will be ranked by how many resources their members can gather during the event. Ranked alliances will receive extra rewards at the end of the event!
+Extra Crystals produced: {p1},
+Extra Crystals acquired: {p1}
+Please note that auxiliary skills can only be used in the Lost Kingdom.
+On day 1 at 00:00 UTC, the Season will be tallied and Lost Kingdom immigration will open.
+The Lost Kingdom has ended. See you next time!
+Note: In order for your immigration to be counted as Lost Kingdom migration, you must apply and immigrate to any kingdom in the same Lost Kingdom as you via the immigration tab of the Season of Conquest story page.
+Gathering resources will also earn you Crystals. You can obtain up to {p1} Crystals this way per Season.
+Crystals Gained: {p1}
+4. For the sake of fairness, each Lost Kingdom will consist of either only S, A, and B-class kingdoms/domains or only C and D-class kingdoms/domains.
+7. Before entering the Lost Kingdom, 6 teams of similar strength will be matched against each other and divided into 6 camps.F
+6. In each Lost Kingdom, 6 teams of similar strength will be matched against each other and divided into 6 camps.
+There are {p1} starting provinces in this Lost Kingdom. Kingdoms taking part in this story will be assigned to one of the starting provinces along with the rest of their team.
+You've now taken part in the Lost Kingdom <size=28><b>{p1} times</b></size>.
+The Lost Kingdom will never forget <size=28><b>{p1}</b></size>,
+You ranked <size=28><b>no. {p2}</b></size> in this Lost Kingdom.
+ranking <size=28><b>no. {p2}</b></size> in the Lost Kingdom.
+Within the Lost Kingdom, you ranked <size=28><b>no. {p2}</b></size>.
+<size=22><b>killed</b></size>, which ranks <size=28><b>no. {p4}</b></size> among all kingdoms in the Lost Kingdom.8
+To ensure balance in the Lost Kingdom, the roster of usable commanders will be based on the oldest participating kingdom.
+To unlock the Season Retrospect feature, you must have gone through at least one entire Lost Kingdom after 2023/05/30 UTC.
+you've taken part in the Lost Kingdom
+<b>Defeat Barbarian Patrols</b> in the Lost Kingdom to earn <b>Healing Potions</b>. Healing Potions can be used to <b>heal severely wounded units in your Hospitals</b> and will not expire until the end of the Season.
+In this Tide, you can choose an <b>artifact</b> to receive, which can only be equipped within the Lost Kingdom. All artifacts will be lost at the end of the Tide.
+Increases Crystal Mine Work Speed by {p1}%.
+Reduces the number of Crystals needed to upgrade your Crystal Mine and Crystal Research Center by {p1}%./
+Increases Honor Points earned from defeating Barbarian Patrols in the Lost Kingdom by {p1}%. 
+You will earn Crystals when gathering Food, Wood, Stone, or Gold, but you will not earn any extra individual resources from current Tide effects.
+Crystals: {p1}/{p2}!
+1. A new Tide will begin in the Lost Kingdom every 4 days.
+2. Every Tide has its own effects and mechanics, which affect all governors in the Lost Kingdom.
+Increases Honor Points earned from occupying Ancient Ruins and Altars of Darkness by {p1}%.^
+1. In this Season, you can stock your Alliance Merit Shop with alliance supplies by gathering resources in the Lost Kingdom or by defeating Barbarian Patrols during certain Tides.
+More Honor Points from occupying Ancient Ruins and Altars of Darkness5
+In the Lost Kingdom story "Tides of War", the Lost Kingdom will periodically cycle through a series of phases called "Tides". You will have to navigate an ever-changing battlefield as the Tides ebb and flow.
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their units. There are 14 commanders in total for you to find. 
+Tides: In Tides of War, the Lost Kingdom will periodically cycle through phases called "Tides", each with their own unique mechanics, Personal Directives, and Alliance Directives.
+Non-Conquest Seasons: If your kingdom occupied the Great Ziggurat in the Lost Kingdom at any point, this event will open at the end of the season.
+- In the King of the Nile story, if your camp occupied the Great Ziggurat at the end of the Lost Kingdom, the event will open at the end of the season.
+The kingdom that occupies the Great Ziggurat at the end of the Lost Kingdom will receive 3 Hall of Fame seats. All other participating kingdoms will receive 1 Hall of Fame seat.
+- In other stories, all kingdoms in the camp that controlled the Great Ziggurat at the end of the Lost Kingdom will receive 3 Hall of Fame seats. All other participating kingdoms will receive 1 Hall of Fame seat.
+- In the King of the Nile story, if your camp occupied the Great Ziggurat at the end of the Lost Kingdom, the Go Down In History event will open at the end of the season.
+1) Non-Conquest Seasons: The kingdom that occupied the Great Ziggurat at the end of the Lost Kingdom will receive 3 Hall of Fame seats. All other participating kingdoms will receive 1 Hall of Fame seat.
+5. Some commanders will be unlocked as the Lost Kingdom Chronicles progress. You will only be able to assign them as auxiliary commanders after they've been unlocked.
+6. The order in which commanders are unlocked will differ between different Lost Kingdoms./
+2. When a troop's secondary commander is equipped with an artifact, all their skills and Museum Relic bonuses that only apply to a single unit type will instead affect a different unit type (depending on the artifact).
+3. Artifacts will only take effect in this story's Lost Kingdom, the Sunset Canyon, and the Lost Canyon.
+1. On the Domain Overview page, you can view the Lost Kingdoms of your kingdom's other domains.
+Increases Individual Honor Points earned from occupying Ancient Ruins and Altars of Darkness by {p1}%.
+When rally attacking a Barbarian Fort or a barbarian-occupied Holy Site or Pass:
+LOST KINGDOM BATTLE ROSTER
+LOST KINGDOM DOMAINS
+Unfortunately, you did not receive a slot for this Lost Kingdom. You can still enter the Lost Kingdom as part of {p1}, but you will not be able to leave your starting province or perform certain other actions.
+You did not receive a slot for this Lost Kingdom. You can still enter the Lost Kingdom, but you will not be able to leave your starting province or perform certain other actions.,
+Lost Kingdom Domain Rules
+2. Each domain will take part in the upcoming Lost Kingdom independently, including matchmaking and actual combat. <b>Domains from the same kingdom will not be placed in the same Lost Kingdom</b>.
+6. <b>No kingdom can have more than {p4} slots in a single Lost Kingdom</b>.\
+2. They can use their kingdom's Lost Temple to send mail to all governors in their domain.
+2. They can only build alliance buildings on their own domain's Lost Kingdom map, and they can only take part in their own domain's events.
+1. They can enter their domain's Lost Kingdom map, but they <b>cannot move their troops or city outside of their starting province</b>.
+3. They cannot build or reinforce alliance buildings (except for alliance resource centers). They also cannot reinforce Passes or Holy Sites.
+1. After entering the Lost Kingdom, you can use the Domain Overview page to view the status of other domains and claim certain camp rewards they've earned. <b>You can only claim each camp reward once</b>.
+3. <b>All domains in your kingdom will share one Lost Kingdom immigration quota</b>, and the king is still the only person who can approve immigrant applications. 
+Lost Kingdom Domain Structure
+1. In your kingdom's current Lost Kingdom, only a certain number of governors in your kingdom will be able to take part. Participation slots have been automatically assigned to the highest-power governors.
+3. Your kingdom can have no more than <b>{p1} slots</b> in this Lost Kingdom.0
+You have not been allocated any Lost Kingdom slots.
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their units. There are 14 commanders in total for you to find.
+<b>Your alliance must own at least {p6} Crusader Flags to activate Flag shields</b>
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their units. There are 18 commanders in total for you to find. 
+1. Curios will be unlocked after the end of the Lost Kingdom Chronicle chapter "{p1}".
+2. You can redeem one curio per Season. After the Lost Kingdom Chronicles chapter "{p2}", you will have a chance to swap to a different curio. Redeeming or swapping curios costs {p3} Crystals.
+5. Curios will only take effect in the Lost Kingdom map.
+Spend {p1} Crystals to redeem {p2}?
+You can swap to a different curio after the Lost Kingdom Chronicles chapter "{p1}".
+Spend {p1} Crystals to swap {p2} for {p3}? You can only swap curios <b>once per Season</b>.
+1. The Altar of Darkness will be opened for contention every 84 hours, and will remain open for 2 hours.
+2. New Dark Stalkers will spawn when the Altar opens. Defeat them to earn massive amounts of EXP and other rewards.
+3. While the Altar is open, you can dispatch a troop to the province the Altar is located in to earn Honor Points.
+5. If your coalition controls the Altar and you have a troop in the vicinity of the Altar, the commanders of that troop will continually gain EXP and you will continually earn Honor Points.
+6. The barbarians will regain control of the Altar of Darkness once the contention period has ended.
+7. Each governor can only have one troop benefit from the Altar of Darkness' effect at a time.l
+1. They can only enter their own domain's Lost Kingdom. While in the Lost Kingdom, they cannot join alliances in other domains. Upon returning to their home kingdom, they can once again join any alliance they wish to.
+3. They cannot build or reinforce alliance buildings (except for alliance resource centers). They also cannot reinforce Passes or Holy Sites.I
+Curios will be unlocked after the Lost Kingdom Chronicles chapter "{p1}".H
+You can redeem a curio after the Lost Kingdom Chronicles chapter "{p1}".h
+After the Lost Kingdom Chronicles chapter "{p1}", you will have one chance to swap to a different curio.
+Insufficient Crusader Flags)
+Crystal Crazed
+Increases the max production of coalition member Crystal Mines.:
+<color=#bf4848>Unlocked after the Lost Kingdom Chronicles chapter <b>{p1}</b></color>Z
+<color=#27b0e9>Can only be completed after the Lost Kingdom Chronicles chapter <b>{p1}</b></color>
+3. Certain techs can only be researched after the end of their corresponding Lost Kingdom Chronicles chapter.
+1. Rather than opening with the Lost Kingdom Chronicles, Arenas will be opened at the very start of the Lost Kingdom. Arenas will alternate between phases of contention and protection.
+Built by the ancients and imbued with divine power, the <color=#ffa800>Arenas</color> of the Lost Kingdom will provide powerful boons to the coalitions that occupy them.
+- There will be fewer total governors in the Lost Kingdom and fewer governors in each camp.
+- The objectives of certain Lost Kingdom Chronicle chapters will be easier to achieve.
+- Requirements for certain Crusader Achievements will be lowered.
+- The number of Autarch Testimonies will be reduced to match the fewer governors in the Lost Kingdom.
+New Holy Site and Pass models with vivid display effects.3
+Wait for the Lost Kingdom Chronicles to progress to unlock commander revamping.
+Artillery troops will be unlocked after the Lost Kingdom Chronicles chapter "{p1}".
+Obtained through Crusader Achievements.
+3. After the signup period ends, your king can choose to directly apply the results to your kingdom's Lost Kingdom domain rosters. Applying signup results will overwrite any manually-set domain rosters.
+After the deadline, signup results will be published. You can view the results and choose to directly apply them to your Lost Kingdom domain rosters.
+Apply signup results to all of your Lost Kingdom domain rosters?,
+Your kingdom has begun signups for Lost Kingdom domains. Head to the story registration page to select the domain you want to sign up for.!
+Lost Kingdom Domain Signup Failed,
+You were not selected for the Lost Kingdom domain you signed up for. Contact your alliance leader as soon as possible to assign you to another domain.
+This holy land has granted us the strength to wage ceaseless war against the barbarians.H
+A new master sits on the throne, and a new day rises from the horizon.
+1. Stratagems can be purchased from the Stratagem Shop with Stratagem Points. As the Lost Kingdom Chronicles progress, new Stratagems will added to the Stratagem Shop.
+This slot will be unlocked after the Lost Kingdom Chronicles chapter "{p1}".
+Crystals Gained: {p1}r
+Stratagems are divided into three categories. As the Lost Kingdom Chronicles progress, you'll <color=#ffa800>unlock</color> new Stratagems to purchase.
+When the Lost Kingdom first opens, the Holmgang event will enter a warm-up phase, lasting for 2 days. You can use this time to familiarize yourself with the rules of the event and plan out your lineup.
+With the end of the Lost Kingdom Chronicles chapter <b>{p1}</b>, you've received "{p2}". May its legendary power aid you in your quest to unite Britain!
+Crystal Technologies
+In this story, a number of Crystal technologies have been strengthened.
+1. The Lost Kingdom is home to both English and Viking Burhs. You can only raid and loot enemy Burhs.
+The city is home to <color=#ffa800>Southwell Minster</color>, a cathedral most holy...S
+ROAD TO THE ALTAR OF DARKNESSB
+12 hours after the end of this chapter (whether or not the objective is achieved), all English and Viking Burhs in the Lost Kingdom will be <b>opened</b>, allowing you to raid them for rewards. 
+Burh Raiding: Scattered across the Lost Kingdom are both Viking and English Burhs. Raid Burhs belonging to the enemy to loot valuable rewards.
+Prime Ragnar Lodbrok Artifact: At a certain point in the Lost Kingdom Chronicles, you'll receive the unique artifact "Megingj
+There can be no thrones but my lord's.&
+Stratagem Points can be used in the Stratagem Shop to purchase Stratagems, which will grant you powerful boons within the Lost Kingdom.0
+Monastery of the Holy Sword
+{p1} hours after the end of this chapter (whether or not the objective is achieved), all Castra in the Lost Kingdom will be opened for contention. Your coalition territory must be connected to a Castrum to attack it.A
+Occupy 1 Crusader Camp:     <b>50</b> Occupation Points
+Occupy 1 Crusader Fortress:     <b>200</b> Occupation Points
+Beckoning Altars
+A camp will allow our scattered forces to regroup as we prepare to fight for the throne.I
+Sanctified by war, the Altars will provide their blessings to those who can master them.P
+We have ignited the flames of war. For the throne! For our homeland!\
+At the end of the season, {p1}% of the resources you spent on healing units in the Lost Kingdom will be returned to you.
+The unit and resource return feature will be enabled when the Lost Kingdom ends.4
+Welcome to the <color=#ffa800>Lost Kingdom</color>, governor. In times past, our ancestors prospered in these fertile fields.w
+We must take back the <color=#ffa800>Great Ziggurat</color>, the holy heart of this land! Only then can we reclaim our destiny!4
+Once the barbarians are cleared away, we will be able to drive straight into the heart of the Lost Kingdom.q
+Though ravaged by time and abuse, the <color=#ffa800>Holy Sites</color> of our ancestors still hold divine power._
+If we reclaim the Holy Sites and the blessings of our ancestors, our armies will be invincible!
+Coalition territory colors are limited to Lost Kingdom camp territory colors.
+Earn points by defeating enemy units and occupying Holy Sites, then claim extra rewards based on your ranking.
+Holy Site Occupation Points
+1. The first time your coalition occupies a given Holy Site, all members of your coalition in the Lost Kingdom will earn {p1} points.
+2. While your coalition is occupying a Holy Site, all members of your coalition in the Lost Kingdom will earn points every minute based on the Holy Site's Honor Point value.
+3. Holy Sites in your starting province do not produce points.
+1. The first time your coalition occupies a given Holy Site, it will earn {p1} points.
+2. While your coalition is occupying a Holy Site, your coalition will earn points every minute based on the Holy Site's Honor Point value.
+To reward governors for staying active throughout the entire Lost Kingdom, the governors with the most Midseason Review points will earn rewards based on their ranking.
+While in the Lost Kingdom, you can earn points by killing/severely wounding other camps' units and spending resources on healing:%
+Bastions are spread throughout the Lost Kingdom, each of them led by a commander and their units. There are 15 commanders in total for you to find.
+5. You can earn up to <b>17</b> Strategy Points: 12 from the Lost Kingdom Chronicles and 5 from Crusader Achievements and the Midseason Review event.M
+In the Heroic Anthem story, Crystal technologies are getting a major upgrade:
+- The new Crystal technologies system splits unit-specific buffs into separate branches. Focus on your favorite unit types and skip the ones you don't need
+4. For the sake of fairness, each Lost Kingdom will consist of either only S, A, and B-class kingdoms/domains, or only C and D-class kingdoms/domains.
+7. Before entering the Lost Kingdom, 4 teams of similar strength will be matched against each other and divided into 4 camps.
+6. In each Lost Kingdom, 4 teams of similar strength will be matched against each other and divided into 4 camps.
+In this story, Crystal technologies are getting a major upgrade:
+2. Instant removal of resource points and Barbarian Forts from the Lost Kingdom map.
+2. Your Faith = Crystals Spent 
+2. Troops that fight in the Olympian Arena can be severely wounded, though at a slightly lower rate than normal. While the Olympian Arena is open, your Hospital Capacity in Lost Kingdom will increase by {p1}%.
+Trojan Horses can move to any accessible location in the Lost Kingdom and be converted into a Horse Fort, granting them immense strategic value.
+If your camp has occupied its Crusader Fortress, the leader/Counselor of the alliance occupying it can assign Trojan Horses to your camp's alliances.
+1. After your camp occupies its Crusader Fortress, it will build a Trojan Horse every {p2} hours (up to a maximum of {p1} Horses).
+2. If your camp has the maximum amount of Trojan Horses, your Crusader Fortress will only start building a new one if one of your Trojan Horses or Horse Forts is destroyed or dismantled.
+3. The leader and Counselor of the alliance occupying the Crusader Fortress can assign idle Trojan Horses to alliances in your camp that have unlocked the Trojan Horse alliance skill.
+4. If there are no troops garrisoned in an assigned Trojan Horse, the leader or Counselor of the alliance occupying the Crusader Fortress can recall it.
+1. If your Trojan Horse has garrisoned troops and its status is set to Mobile, the garrison captain can order it to move. Trojan Horses cannot enter Altar of Darkness provinces.
+2. The status of your Trojan Horse can be controlled by the leader or Counselor of the alliance occupying your camp's Crusader Fortress.
+What a wonderful show! The crowd thunders with applause!F
+Welcome to the Pantheon, governor. In this hallowed temple, you can select a <color=#ffa800>Patron deity</color>.
+In this Lost Kingdom, when your camp captures its <color=#ffa800>Crusader Fortress</color>, you will unlock an exciting new ability: <color=#ffa800>Trojan Horses</color>.f
+Once your camp has occupied its Crusader Fortress, it will automatically start building Trojan Horses.
+The <color=#ffa800>leader and Counselor</color> of the alliance occupying the Crusader Fortress can assign completed Trojan Horses to other alliances in your camp.{
+<color=#ffa800>The leader and Counselor</color> of the alliance occupying the Crusader Fortress can manage settings to prevent Trojan Horses from moving.
+Welcome to the Olympian Arena, governor! In this blood-soaked battleground, your troops can fight thrilling battles against the mightiest heroes of the Lost Kingdom.
+Greetings, governor. With the end of the Lost Kingdom Chronicles chapter "{p1}", you've received {p2}. May its legendary power aid you in this battle for the fate of Troy!
+{p1} hours after the end of this chapter (whether or not the goal is achieved), Troy will be open for contention within the Lost Kingdom. Your coalition's territory must be connected to Troy to attack it.'
+Buffs received from camp rankings during the Eve of the Crusade event will remain in effect throughout the Lost Kingdom.j
+A fearsome flame rises from the profane altar. Gods best forgotten listen to our warriors' cries.Y
+  return the holy lands to their rightful owners.e
+When attacking Barbarian Forts/Holy Sites:
+When the commander is the <color=#ffa800>primary commander of a troop in the Lost Kingdom</color>, you can cast the skill.
+1. After Crusader Fortresses have been occupied and the corresponding Chronicles chapter ends, voting will commence to determine the time that Level 4 passes will become semi-protected.
+2. Alliance leaders who have occupied Crusader Fortresses have the right to vote. Each camp can vote once, and must select at least 3 time slots.
+5. After Crusader Fortresses are occupied and the corresponding Chronicles chapter ends, voting will take place over the next 24 hours. You can change your selected time slots at any time during this period.
+5. Only alliance leaders who are occupying Crusader Fortresses have the right to vote.
+After the end of this chapter (whether or not the objective is achieved), all Level 4 passes in the Lost Kingdom will enter a voting phase. Alliance leaders who occupy Crusader Fortresses have the right to vote.
+Altar of Darkness Treasure
+2. Troops that fight in the Olympian Arena can be severely wounded, though at a slightly lower rate than normal. While the Olympian Arena is open, your Hospital Capacity in the Lost Kingdom will increase by {p1}%.-
+Risk of Lost Kingdom Matchmake Failure
+There are three types of honor points: individual honor, coalition honor, and camp honor. Gaining enough honor points can unlock crusader achievements and qualify you for ranking rewards in the Honor Roll page.*
+Occupy the Holy Site to grant the entire alliance powerful buffs.
+Wonderful! All daily objectives have been completed!
+Holy Site
+Altar
+Temples
+Grand Temple
+You can only attack passes and holy sites that are adjacent to your alliance's territory.R
+The Teutonic Order was initially formed to aid Christians on their pilgrimages to the Holy Land and to establish hospitals.t
+Holy Site Conquest
+4. When your troops are fighting <color=#ffA800ff>at a sanctum, altar, or level 1 pass</color>, all severely wounded units will be sent to the hospital.
+5. When your troops are fighting <color=#ffA800ff>at a shrine or level 2 pass</color>, <color=#ffA800ff>half of all severely wounded units will die</color>.
+6. When your troops are fighting <color=#ffA800ff>at a Lost Temple or level 3 pass</color>, <color=#ffA800ff>all severely wounded units will die</color>.
+Holy Site Captured: {p1}
+First Sanctums
+Blessings of the Altars
+Glory of the Shrines
+With a new Holy Site to protect us, who will be worthy of joining us?p
+We have entered a fertile new land, bathed in the light of the Shrines.=
+{p1} Sanctums Occupied For The First Time#
+Your Alliance Occupied a Previously Unoccupied Altar%
+Your Alliance Occupied a Previously Unoccupied Shrine%
+The Lost Temple Was Occupied&
+Sanctum
+Shrine
+Sanctum: 
+Altar: 
+Shrine: 
+Temple Management
+1. Kingdom gifts will be reset at the end of every temple contest. The king may distribute these gifts to any governor whose city is in the kingdom.
+4. Governors can only receive one gift after each temple contest.
+Lost Temple has been occupied by <b><color=#FFC600>{p1}</color></b>!B
+After temple contests, the king can grant chests to Governors who have distinguished themselves.
+Capture the Lost Temple and the entire kingdom will be yours!
+With a new Holy Site to protect us, who will be worthy of joining us?o
+{p1} Sanctums Occupied For The First Time:
+Your Alliance Controlled an Altar at the End of the Countdown#
+Your Alliance Controlled a Shrine at the End of the Countdown%
+Your Alliance Controlled the Lost Temple at the End of the Countdown 
+Governor, stage {p1} of the reconstruction of your kingdom's crusader fortress is now complete. Thank you for your hard work! Please accept this small token of thanks from the entire kingdom.
+Twilight Falls
+Temple of Vishnu
+Adorns your city with special Lost Kingdom decorations. (Duration: Permanent)
+Temple of Karnak
+Temple of Karnak (Permanent)
+Kingdom of Holybourne
+Temple of Artemis
+Temple of Artemis (Permanent)P
+Unlock The Lost Kingdom For the First Time
+The Lost Temple has been occupied by <b><color=#FFC600>{p1}</color></b>, unlocking a new chapter in history!
+The Lost Kingdom Unlocked For the First Time
+from a temple to a distant kingdom
+exiled and the existence of the temple and the kingdom were forgotten
+You've conquered land, altars, holy sites
+You've unearthed the lost temple
+and take control of the Lost kingdom
+Temple of Vishnu (Permanent)P
+The Hold & Drag feature can also be used to dispatch troops from Holy Sites and allied cities.Q
+Crystal Keyf
+Crystal Mine Work SpeedW
+Governor, stage {p1} of the reconstruction of your camp's Crusader Fortress is now complete. Thank you for your hard work! Please accept this small token of thanks from the entire camp.
+Crystal Technologies: 5
+Are you sure you want to use this bundle? When opened outside of the Season of Conquest, the Crystals inside will be recycled, and this bundle cannot be refunded once used.&
+Holy Site guardians drop runes which can provide huge buffs to your development.n
+Defeat Holy Site guardians to earn your troop commanders a huge amount of experience!8
+The Crystals that can be mined here are a precious resource. You can use them to open up a whole new frontier of research.
+Golden rays of light fall gently through the temple glass, illuminating the solemn statue in its center and symbol of past glories. Your temple watches over Lake Nasser, and its statue the city of stars above.
+There are several ways to earn Prestige Points in the Lost Kingdom. Prestige Points cannot be earned after the Lost Kingdom ends.
+<b>You can gain extra Prestige Points by doing any of the following when attacking/defending Colossi, Holy Sites, Sandswept Outposts, or Ancient Outposts</b>
+Kingdom of Altara
+4. If the alliance territory that borders your rally target belongs to a Holy Site or a Pass, your War Camp will be built at an Alliance Flag or territory building adjacent to the Holy Site/Pass.
+2. If the alliance territory that borders your rally target belongs to a Holy Site or a Pass, your War Camp will be built at an Alliance Flag or territory building adjacent to the Holy Site/Pass.
+Temple of Wisdom
+Flickering candlelight falls upon the words of sages. The works of only the greatest tacticians are permitted to enter the collection of the Temple of Wisdom.
+(If the alliance territory adjacent to the rally target belongs to a Holy Site or a Pass, the War Camp will be built at an Alliance Flag or territory building adjacent to that Holy Site/Pass.)!
+Temple of Wisdom (Permanent)N
+YOU RECEIVED A CIRCUS OF WONDERS TICKET
+6. Only buffs from <color=#855151>commander levels, talents, equipment, Museum Relics, formations, armaments, and VIP Unit Capacity bonuses</color> will take effect in the Sunset Canyon.
+1. The Lost Canyon will be unlocked at the start of the Lost Kingdom event. When the Lost Kingdom ends, so will the Lost Canyon.
+5. Only buffs from <color=#855151>commander levels, talents, equipment, Museum Relics, formations, armaments, and VIP Unit Capacity bonuses</color> will take effect in the Lost Canyon.
+IN SEARCH OF WONDERS
+This mystical compass seems able to guide its bearer to the relics of civilizations long past. Can be used in the In Search of Wonders event.
+Winter Wonderland
+Winter Wonderland (Permanent)J
+Winter Wonderland (7 Days)G
+Winter Wonderland (30 Days)H
+Follow your compass to discover the relics of ancient realms. Unearth long-lost armaments to aid you in your path to power.
+In Search of Wonders
+1. During this event, you can use <b>Compasses</b> to search for relics. At the end of each search, you will receive an armament.
+<b><size=30>In Search of Wonders</size></b>  
+Countless relics of countless civilizations have been lost to the ravages of time.
+Nestled in the deepest woods, this storied temple cuts through the moonlight, a relic of some polis long-forgotten. Here, the epics of countless heroes were forged.
+Lost Kingdom Accoladesc
+If hidden, your Lost Kingdom accolades will not be visible to other governors viewing your profile.
+Data is from Lost Kingdoms that started after {p1} UTC.
+Circus of Wonders
+7. Barbarian Keeps in the Lost Kingdom will also have Keep resource centers. After defeating Bloodfist Bargha, you can occupy the Keep's resource centers to gather resources there for some time.
+{p1} entered the kingdom via Lost Kingdom immigration-
+We've prepared a collection of wonderful gifts
+You have registered for the remastered version of the Heroic Anthem story. Please update the game to the latest version as soon as possible, or you may not be able to enter the Lost Kingdom when it opens.
+Kingdom of Crystallis
+Perform the following actions in the Lost Kingdom to earn Kill Points. You will not earn any more points after the Great Ziggurat opens.
+Perform the following actions in the Lost Kingdom to earn Heal Points. You will not earn any more points after the Great Ziggurat opens.
+Perform the following actions in the Lost Kingdom to earn Death Points. You will not earn any more points after the Great Ziggurat opens.
+2024 Circus of Wonders Ticket>
+Admission to the 2024 Circus of Wonders, limit one per person!
+"Kingdom vs Kingdom". A Lost Kingdom season. In the Lost Kingdom, you can battle against governors from other kingdoms.
+The Lost Kingdom.*
+The leader of the alliance currently occupying the Lost Temple.
+Every kingdom has a Lost Temple at the center of the map.v
+Refers to governor-owned buildings on the map. Includes Alliance Fortresses, Alliance Flags, occupied Holy Sites, etc.2
+Dropped by defeated Holy Site Guardians. You can send a troop to collect Runes to gain a variety of buffs. 
+Twilight Banquet
+Twilight Banquet (Permanent)J
+Ruined Crusader Fortress. Crusader Fortresses are buildings in the Lost Kingdom that start off ruined but can be rebuilt.
+Open to receive a Legendary Blueprint Fragment Choice Chest or a Crystal Key.
+Lost Temples
+Perform the following actions in the Lost Kingdom to earn Kill Points. You will not earn any more points after {p1} opens.
+Perform the following actions in the Lost Kingdom to earn Heal Points. You will not earn any more points after {p1} opens.
+Perform the following actions in the Lost Kingdom to earn Death Points. You will not earn any more points after {p1} opens.
+Higher than <b>{p1}%</b> of governors in this Lost Kingdom
+3. If your city is in your original kingdom, your power will be compared against other governors in your kingdom. In the Lost Kingdom, your power will be compared against other governors in your current Lost Kingdom.
+LOST KINGDOM STATEMENT
+These Transmutation Stones and Transmutation Crystals will help you get the attributes you want!
+Twilight Banquet (7 Days)J
+Radiance of the Altars
+Temple ShowdownF
+Your alliance controls {p1} Altar(s) at the end of the chapter.A
+Your alliance controls {p1} Sanctum(s) at the end of the chapter.E
+Your alliance controls {p1} Shrine(s) at the end of the chapter.E
+Your alliance controls the Lost Temple at the end of the chapter.9
+Our banners fly proudly over the hallowed Sanctums.*
+As the gates of the Lost Temple opened, we knew that history would be made this day.
+Kingdom of Valtaris
+Jade light dances up and down the stone steps, lighting a path to an ancient altar. Wind slinks through the cracks in the limestone, as if whispering secrets from ages long past.
+In the Lost Kingdom, you can earn Acclaim when you kill/severely wound units from other camps and when your own units are killed/severely wounded. The Acclaim earned depends on the tier of the units.?
+Acclaim will be tracked in Lost Kingdoms that begin after {p1}.
+Admission to the 2025 Circus of Wonders, limit one per person!
+2025 Circus of Wonders TicketE
+When battling players of other Camps in Lost Kingdom:
+Acclaim will be calculated starting from Lost Kingdoms opened after November 19, 2025.9
+Frosthowl Sanctum"
+As eternal night descends with winter, the dancing aurora drifts across the sky, and between heaven and earth, the chill of ice mingles with the crystalline beauty of falling snow.
+Frosthowl SanctumO
+Frosthowl Sanctum (365 Days)N
+From here a gift laden sleigh begins its journey, bearing the hopes of dreams and the quiet brilliance of the night. Snowflakes dance and drift, adorning the crystal clear sky.
+Adorns your city with special Lost Kingdom decorations. (Duration: Permanent)t
+One enabled, you will receive notifications on any dismantled alliance buildings in the Lost Kingdom
+Here, the three-legged golden toad sits upon the auspicious temple of the god of wealth.
+With the first rays of dawn shining upon the temple, the scene unfolds with radiant charm as the scent of incense and wood from throughout the years wafts among passing devotees.
+She who is the eye of the sun god Ra greets dawn's first touch on her temple's granite walls.
+Within temple depths, the goddess Bast stands in hybrid cat-headed form, her golden eyes brimming with the heat of the midday sun.
+Crystal Mega Pack
+Crystal Mine Work
+Your authority is imprinted in sand and swamp, your name hailed across town and temple.
+Crystal Techs

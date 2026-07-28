@@ -1,0 +1,34 @@
+[
+  {
+    "id": "julius_caesar",
+    "name": "Julius Caesar",
+    "rarity": "legendary",
+    "nation": "rome",
+    "tags": ["leadership", "conquering", "attack"],
+    "skills": [
+      {
+        "id": "indomitable_army",
+        "name": "Indomitable Army",
+        "type": "active",
+        "rage_cost": 1000,
+        "description": "Increases troops' attack and defense for 5 seconds."
+      }
+    ]
+  },
+  {
+    "id": "sun_tzu",
+    "name": "Sun Tzu",
+    "rarity": "epic",
+    "nation": "china",
+    "tags": ["infantry", "garrison", "skill"],
+    "skills": [
+      {
+        "id": "art_of_war",
+        "name": "Art of War",
+        "type": "active",
+        "rage_cost": 1000,
+        "description": "Deals direct damage to up to 3 targets in a fan-shaped area."
+      }
+    ]
+  }
+]

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "map_id": "rok2_world_2400_v1",
+  "units": {
+    "tile_size_world": 1,
+    "world_width": 2400,
+    "world_height": 2400,
+    "origin": "bottom_left",
+    "center": [1200, 1200],
+    "mvp_scale_optional": 0.5
+  },
+  "constants": {
+    "mountain_belt_thickness": 40,
+    "pass_opening_width": 20,
+    "city_footprint": 2,
+    "city_protection_radius": 5,
+    "pass_teleport_block_radius": 12,
+    "aoi_cell_size": 20,
+    "spawn_edge_margin": 60
+  },
+  "zones": {
+    "1": {
+      "name": "Home Ring",
+      "outer_aabb": [0, 0, 2400, 2400],
+      "inner_hole_aabb": [700, 700, 1700, 1700]
+    },
+    "2": {
+      "name": "Expansion Ring",
+      "outer_aabb": [700, 700, 1700, 1700],
+      "inner_hole_aabb": [1000, 1000, 1400, 1400]
+    },
+    "3": {
+      "name": "Finals Core",
+      "aabb": [1000, 1000, 1400, 1400]
+    }
+  },
+  "regions": [
+    {"id": "R1", "zone_id": 1, "name": "Northern Marches", "aabb": [0, 1700, 700, 2400], "spawn_anchor": [350, 2050], "altar": {"id": "A_R1", "pos": [250, 1900], "buff": "storm"}},
+    {"id": "R2", "zone_id": 1, "name": "Frostvale", "aabb": [700, 1700, 1700, 2400], "spawn_anchor": [1200, 2050], "altar": {"id": "A_R2", "pos": [1200, 2200], "buff": "earth"}},
+    {"id": "R3", "zone_id": 1, "name": "Eagle Highlands", "aabb": [1700, 1700, 2400, 2400], "spawn_anchor": [2050, 2050], "altar": {"id": "A_R3", "pos": [2150, 1900], "buff": "flame"}},
+    {"id": "R4", "zone_id": 1, "name": "Sunrise Plains", "aabb": [1700, 700, 2400, 1700], "spawn_anchor": [2050, 1200], "altar": {"id": "A_R4", "pos": [2200, 1200], "buff": "harvest"}},
+    {"id": "R5", "zone_id": 1, "name": "Amber Coast", "aabb": [1700, 0, 2400, 700], "spawn_anchor": [2050, 350], "altar": {"id": "A_R5", "pos": [2150, 500], "buff": "surge"}},
+    {"id": "R6", "zone_id": 1, "name": "Southern Dunes", "aabb": [700, 0, 1700, 700], "spawn_anchor": [1200, 350], "altar": {"id": "A_R6", "pos": [1200, 200], "buff": "wisdom"}},
+    {"id": "R7", "zone_id": 1, "name": "Ironwood Expanse", "aabb": [0, 0, 700, 700], "spawn_anchor": [350, 350], "altar": {"id": "A_R7", "pos": [250, 500], "buff": "harvest"}},
+    {"id": "R8", "zone_id": 1, "name": "Riverlands", "aabb": [0, 700, 700, 1700], "spawn_anchor": [350, 1200], "altar": {"id": "A_R8", "pos": [200, 1200], "buff": "earth"}},
+    {"id": "Z2N", "zone_id": 2, "name": "North Expansion", "aabb": [700, 1400, 1700, 1700], "feeds_from": ["R1", "R2", "R3"]},
+    {"id": "Z2E", "zone_id": 2, "name": "East Expansion", "aabb": [1400, 700, 1700, 1700], "feeds_from": ["R3", "R4", "R5"]},
+    {"id": "Z2S", "zone_id": 2, "name": "South Expansion", "aabb": [700, 700, 1700, 1000], "feeds_from": ["R5", "R6", "R7"]},
+    {"id": "Z2W", "zone_id": 2, "name": "West Expansion", "aabb": [700, 700, 1000, 1700], "feeds_from": ["R7", "R8", "R1"]},
+    {"id": "CORE", "zone_id": 3, "name": "Finals Core", "aabb": [1000, 1000, 1400, 1400]}
+  ],
+  "zone3_objectives": {
+    "throne": {"id": "throne_core", "pos": [1200, 1200], "footprint": [12, 12], "capture_radius": 8, "hold_score_per_minute": 10, "open_day": 40},
+    "outer_forts": [
+      {"id": "OF_N", "pos": [1200, 1320]},
+      {"id": "OF_E", "pos": [1320, 1200]},
+      {"id": "OF_S", "pos": [1200, 1080]},
+      {"id": "OF_W", "pos": [1080, 1200]}
+    ],
+    "side_altars": [
+      {"id": "SA_NE", "pos": [1300, 1300]},
+      {"id": "SA_SE", "pos": [1300, 1100]},
+      {"id": "SA_SW", "pos": [1100, 1100]},
+      {"id": "SA_NW", "pos": [1100, 1300]}
+    ]
+  },
+  "passes": [
+    {"id": "P_R1_R2", "from": "R1", "to": "R2", "center": [700, 2050], "level": 2, "axis": "vertical", "zone_link": [1, 1]},
+    {"id": "P_R2_R3", "from": "R2", "to": "R3", "center": [1700, 2050], "level": 2, "axis": "vertical", "zone_link": [1, 1]},
+    {"id": "P_R3_R4", "from": "R3", "to": "R4", "center": [2050, 1700], "level": 2, "axis": "horizontal", "zone_link": [1, 1]},
+    {"id": "P_R4_R5", "from": "R4", "to": "R5", "center": [2050, 700], "level": 2, "axis": "horizontal", "zone_link": [1, 1]},
+    {"id": "P_R5_R6", "from": "R5", "to": "R6", "center": [1700, 350], "level": 2, "axis": "vertical", "zone_link": [1, 1]},
+    {"id": "P_R6_R7", "from": "R6", "to": "R7", "center": [700, 350], "level": 2, "axis": "vertical", "zone_link": [1, 1]},
+    {"id": "P_R7_R8", "from": "R7", "to": "R8", "center": [350, 700], "level": 2, "axis": "horizontal", "zone_link": [1, 1]},
+    {"id": "P_R8_R1", "from": "R8", "to": "R1", "center": [350, 1700], "level": 2, "axis": "horizontal", "zone_link": [1, 1]},
+
+    {"id": "P_R2_Z2", "from": "R2", "to": "Z2N", "center": [1200, 1700], "level": 3, "axis": "horizontal", "zone_link": [1, 2], "unlock_day": 10},
+    {"id": "P_R4_Z2", "from": "R4", "to": "Z2E", "center": [1700, 1200], "level": 3, "axis": "vertical", "zone_link": [1, 2], "unlock_day": 10},
+    {"id": "P_R6_Z2", "from": "R6", "to": "Z2S", "center": [1200, 700], "level": 3, "axis": "horizontal", "zone_link": [1, 2], "unlock_day": 10},
+    {"id": "P_R8_Z2", "from": "R8", "to": "Z2W", "center": [700, 1200], "level": 3, "axis": "vertical", "zone_link": [1, 2], "unlock_day": 10},
+    {"id": "P_R3_Z2", "from": "R3", "to": "Z2N", "center": [1700, 1700], "level": 3, "axis": "corner", "zone_link": [1, 2], "unlock_day": 14},
+    {"id": "P_R5_Z2", "from": "R5", "to": "Z2E", "center": [1700, 700], "level": 3, "axis": "corner", "zone_link": [1, 2], "unlock_day": 14},
+    {"id": "P_R7_Z2", "from": "R7", "to": "Z2S", "center": [700, 700], "level": 3, "axis": "corner", "zone_link": [1, 2], "unlock_day": 14},
+    {"id": "P_R1_Z2", "from": "R1", "to": "Z2W", "center": [700, 1700], "level": 3, "axis": "corner", "zone_link": [1, 2], "unlock_day": 14},
+
+    {"id": "P_Z2N_Z2E", "from": "Z2N", "to": "Z2E", "center": [1550, 1550], "level": 4, "zone_link": [2, 2]},
+    {"id": "P_Z2E_Z2S", "from": "Z2E", "to": "Z2S", "center": [1550, 850], "level": 4, "zone_link": [2, 2]},
+    {"id": "P_Z2S_Z2W", "from": "Z2S", "to": "Z2W", "center": [850, 850], "level": 4, "zone_link": [2, 2]},
+    {"id": "P_Z2W_Z2N", "from": "Z2W", "to": "Z2N", "center": [850, 1550], "level": 4, "zone_link": [2, 2]},
+
+    {"id": "FG_N", "from": "Z2N", "to": "CORE", "center": [1200, 1400], "level": 6, "type": "final_gate", "zone_link": [2, 3], "unlock_day": 35},
+    {"id": "FG_E", "from": "Z2E", "to": "CORE", "center": [1400, 1200], "level": 6, "type": "final_gate", "zone_link": [2, 3], "unlock_day": 35},
+    {"id": "FG_S", "from": "Z2S", "to": "CORE", "center": [1200, 1000], "level": 6, "type": "final_gate", "zone_link": [2, 3], "unlock_day": 35},
+    {"id": "FG_W", "from": "Z2W", "to": "CORE", "center": [1000, 1200], "level": 6, "type": "final_gate", "zone_link": [2, 3], "unlock_day": 35}
+  ],
+  "pass_geometry_rules": {
+    "vertical_border": {"width": 40, "height": 20},
+    "horizontal_border": {"width": 20, "height": 40},
+    "corner": {"width": 28, "height": 28},
+    "walkable_terrain": "plain",
+    "blocked_surrounding": "mountain"
+  },
+  "season_unlock_schedule": [
+    {"day": 0, "feature": "zone1_all_passes_border"},
+    {"day": 10, "feature": "zone2_cardinal_inner_passes"},
+    {"day": 14, "feature": "zone2_corner_inner_passes"},
+    {"day": 35, "feature": "zone3_final_gates"},
+    {"day": 40, "feature": "zone3_throne_windows"}
+  ],
+  "validation_tests": [
+    "all_zone1_regions_cover_outer_ring_without_overlap",
+    "every_adjacent_region_pair_has_pass",
+    "no_path_between_R2_and_R4_without_pass_ownership_chain",
+    "throne_inside_zone3",
+    "spawn_anchors_inside_their_region_and_away_from_belts"
+  ]
+}

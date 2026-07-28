@@ -1,0 +1,140 @@
+1 Pass
+2 Pass
+Pass
+1. Troops may not go through a pass that is not occupied by their own alliance. 
+4. You cannot teleport a city to within a certain radius of a Pass.V
+Uninvestigated
+Investigated
+This pass can only be attacked by alliances from the home kingdom of its corresponding outer province.$
+This pass can only be attacked by alliances from this camp's kingdoms.&
+1. Troops of the same coalition can travel through this pass.
+4. You cannot teleport your city to within a certain radius of a Pass. 
+A pass crushed by centuries of neglect. It is unlikely anyone could use it today.
+4. You cannot teleport your city to within a certain radius of a Pass.
+2. City Gates and Guildhall
+1) The West, North, and East Gates of Orl
+ans remain standing. Your coalition or alliance can send troops through these gates into Orl
+2) The Gates of Orl
+ans cannot be garrisoned before starting the campaign. After the campaign is started and enters the preparation phase, you can begin to garrison the Gates.
+3) The English Army will first target the <color=#DA7101>Gates</color>. If a Gate is destroyed, it can no longer be garrisoned and the English Army will begin to target the Orl
+4) The status of the Gates and the Guildhall will be reset after the end of the campaign.
+2) Your first priority will be to secure and defend the three Gates, and if they should fall, the Orl
+Clear the campaign without a single Gate being destroyed to earn
+Lvl {p1} Pass
+Taygate
+4 Pass
+5 Pass
+6 Pass
+1. Troops may not go through a pass that is not occupied by their own alliance.
+5. Unsealed Level 4 passes can be attacked by all governors, but only if their alliance's territory borders the pass.
+6. You cannot teleport a city to within a certain radius of a Pass.Z
+Beyond the Pass
+The Final Gate
+<b>First occupation of a holy site / pass.</b>
+When light and darkness intertwine, the gate to conflict and war shall open.
+7 Pass
+8 Pass
+9 Pass&
+Your coalition controlled {p1} Lvl 4 Pass(es) at the end of the chapter.F
+Your coalition controlled {p1} Lvl 5 Pass(es) at the end of the chapter.U
+Your coalition controlled {p1} Lvl 6 Pass(es) at the end of the chapter.(
+Your coalition controlled {p1} Lvl 7 Pass(es) at the end of the chapter.5
+Your coalition controlled {p1} Lvl 8 Pass(es) at the end of the chapter.5
+Kings lead their warriors toward the sanctum in the eye of the storm. Only those who pass the trials of the winds are worthy allies. For those that do, the blessings of the wind are well worth it.
+Our scouts discovered a Bastion in the fog. Should we send them closer to investigate?
+<b>First occupation of a holy site or pass.</b>
+Your coalition controlled {p1} Lvl 9 Pass(es) at the end of the chapter.)
+Derelict Pass
+Cannot attack a derelict pass.&
+You may wish to investigate these enigmatic buildings as you formulate a strategy.
+<b>First occupation of a Colossus, Holy Site, or Pass</b>
+Your alliance controlled 1 Lvl 8 Pass at the end of the chapter.  
+1. Armies may not go through a pass that is not occupied by their own alliance. 
+5. You cannot teleport your city to within a certain radius of a Pass.
+5. Unsealed Level 6 passes can be attacked by all governors, but only if their alliance's territory borders the pass.
+6. You cannot teleport your city to within a certain radius of a Pass.)
+5. Unsealed Level 7 passes can be attacked by all governors, but only if their alliance's territory borders the pass.
+6. You cannot teleport your city to within a certain radius of a Pass.
+10 Pass
+Your coalition controlled {p1} Lvl 10 Pass(es) at the end of the chapter.J
+<b>First occupation of a Holy Site or Pass.</b>
+<b>First occupation of a Holy Site or Pass</b>
+North Gate
+West Gate
+East Gate
+The Gates of Orl
+ans campaign, you can garrison the Gates with troops. If a Gate is destroyed, it can no longer be garrisoned.
+In the {p1} story, Alliance Fortresses built outside of your starting province can only be built in areas bordering a Holy Site or Pass (you do not need to capture the Holy Site/Pass).*
+Building Restrictions: In this new story, Alliance Fortresses built outside of your starting province can only be built in areas bordering a Holy Site or Pass (you do not need to capture the Holy Site/Pass).
+1. Troops may not go through a pass that is not occupied by their own coalition.
+4. You cannot teleport a city to within a certain radius of a Pass.;
+Rest easy, now. We shall meet again before the gates of Heaven.C
+Destroy them before they reach our Gates!;
+The enemy's assault is imminent. They will attack all three Gates!=
+Soldiers, proceed to the gates and prepare to meet them in battle!#
+ans. They are able to go right through our Gates and wreak havoc on the Orl
+The <color=#fff600>West Gate</color> is about to fall! Its garrison needs help!O
+The <color=#fff600>West Gate</color> has been <color=#ff3d3d>destroyed</color>!P
+The <color=#fff600>North Gate</color> is about to fall! Its garrison needs help!P
+The <color=#fff600>North Gate</color> has been <color=#ff3d3d>destroyed</color>!O
+The <color=#fff600>East Gate</color> is about to fall! Its garrison needs help!O
+The <color=#fff600>East Gate</color> has been <color=#ff3d3d>destroyed</color>!R
+In the Lost Kingdom story "Tides of War", the Lost Kingdom will periodically cycle through a series of phases called "Tides". You will have to navigate an ever-changing battlefield as the Tides ebb and flow.
+You can also manually report speeches you believe to contain sensitive or illegal content. We will investigate the matter promptly.
+When rally attacking a Barbarian Fort or a barbarian-occupied Holy Site or Pass:
+<b>Flags adjacent to a Pass cannot activate shields</b>.
+New Holy Site and Pass models with vivid display effects.3
+The foreboding Pass has fallen to us. Our warriors stand ready, hungry for a real fight.
+The gates of the Great Ziggurat lie wide open. A final confrontation awaits.W
+{p1} captured a Lvl {p2} Pass, opening up a brand new battlefield.
+Our shields will guard these gates.:
+Only good Englishmen shall pass these gates!!
+Lvl 11 Pass
+The Olympian Arena has opened its gates!/
+The Arena closes its gates. Mighty heroes
+The Olympian Arena has opened its gates! Who shall prove themselves the worthiest warrior?
+The Scaean GatesI
+Heroes gather before the gates of Troy, awaiting the ultimate showdown.^
+Pass Time VoteV
+Level 4 Pass Vote
+Level 4 Pass Semi-Protection Time Vote
+Level 4 Pass Voting
+The way to your destination is blocked, please occupy the Pass along the road first! (only routed troops can travel through unoccupied Passes)
+Simple structures that can inflict massive damage to wooden gates. A nightmare for many cities.
+INVESTIGATE
+Pass Captured: {p1}
+4. When your troops are fighting <color=#ffA800ff>at a sanctum, altar, or level 1 pass</color>, all severely wounded units will be sent to the hospital.
+5. When your troops are fighting <color=#ffA800ff>at a shrine or level 2 pass</color>, <color=#ffA800ff>half of all severely wounded units will die</color>.
+6. When your troops are fighting <color=#ffA800ff>at a Lost Temple or level 3 pass</color>, <color=#ffA800ff>all severely wounded units will die</color>.
+None Shall Pass
+3 Pass=
+Pass: 
+Your Alliance Controlled a Level 2 Pass at the End of the Countdown=
+Photo did not pass inspection
+Kingdom of Coalgate
+Pass the Peerless Scholar Midterm and Final Exam to earn a lot of gems!J
+Kingdom of Megates
+Kingdom of Luschoke
+While marching, friendly troops can pass freely, but non-friendly troops will not be able to pass when blockaded.
+4. If the alliance territory that borders your rally target belongs to a Holy Site or a Pass, your War Camp will be built at an Alliance Flag or territory building adjacent to the Holy Site/Pass.
+2. If the alliance territory that borders your rally target belongs to a Holy Site or a Pass, your War Camp will be built at an Alliance Flag or territory building adjacent to the Holy Site/Pass.
+(If the alliance territory adjacent to the rally target belongs to a Holy Site or a Pass, the War Camp will be built at an Alliance Flag or territory building adjacent to that Holy Site/Pass.)!
+Your final score was <b>{p1}</b>. You did not pass the exam.'
+Negates Health and Defense Debuffs
+Health and Defense Buffs Negated,
+Greetings, your excellency! We've brought you something that might be useful. Come find us at the <b>city gate</b>!'
+We're waiting for you by the city gate!
+      In the RoK Club, you can read the latest RoK news, explore our amazing store, and enjoy exclusive Lilith Pass benefits!
+Hangu Pass
+Countless souls have perished beneath the stout walls of Hangu Pass, where one man can hold against a thousand.
+The gatehouse soars high into the clouds, its eaves turned up to the heavens. It is a simple and solemn place, a warrior who has held his post for untold years. When war comes to this place
+Hangu Pass (Permanent)L
+Hangu Pass (7 Days)I
+Hangu Pass (15 Days)J
+Hangu Pass (30 Days)J
+Enhances the Hangu Pass city theme with the special Auspicious Omen effect.
+Your alliance controls {p1} Lvl 1 Pass(es) at the end of the chapter.E
+Your alliance controls {p1} Lvl 2 Pass(es) at the end of the chapter.@
+Your alliance controls {p1} Lvl 3 Pass(es) at the end of the chapter.A
+Ere the pass of dawn, we sound the charge.:
+As the gates of the Lost Temple opened, we knew that history would be made this day.

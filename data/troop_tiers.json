@@ -1,0 +1,49 @@
+{
+  "branches": ["infantry", "cavalry", "archer", "siege"],
+  "counter_hint": {
+    "infantry": "strong_vs_cavalry_or_configured",
+    "cavalry": "strong_vs_archer",
+    "archer": "strong_vs_infantry",
+    "siege": "strong_vs_cities_and_buildings"
+  },
+  "tiers": [
+    {
+      "tier": 1,
+      "units": {
+        "infantry": "Swordsman",
+        "archer": "Bowman",
+        "cavalry": "Light Cavalry",
+        "siege": "Arcuballista"
+      }
+    },
+    {
+      "tier": 2,
+      "units": {
+        "infantry": "Spearman",
+        "archer": "Composite Bowman",
+        "cavalry": "Heavy Cavalry",
+        "siege": "Mangonel"
+      }
+    },
+    {
+      "tier": 3,
+      "units": {
+        "infantry": "Long Swordsman",
+        "archer": "Crossbowman",
+        "cavalry": "Knight",
+        "siege": "Ballista"
+      }
+    },
+    {
+      "tier": 4,
+      "units": {
+        "infantry": "Royal Guard",
+        "archer": "Royal Crossbowman",
+        "cavalry": "Royal Knight",
+        "siege": "Trebuchet"
+      },
+      "special_units_unlocked": true
+    }
+  ],
+  "stats_template": ["attack", "defense", "health", "speed", "load", "train_time", "train_cost"]
+}

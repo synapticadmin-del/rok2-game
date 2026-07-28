@@ -1,0 +1,579 @@
+Lost Temple
+Flame Altar
+Surge Altar
+Storm Altar
+Earth Altar
+Harvest Altar
+Wisdom Altar
+1 Pass
+2 Pass
+3 Passs
+A majestic temple that has existed as long as the land itself. Prophecy says that only the mightiest can occupy it.
+A deadly plague once swept across this land, only to finally be abated by the arrival of a strange woman bearing unknown herbs and formulas from a foreign land. Once the plague had passed, the people built a statue in honor of the woman who saved them, and a Shrine to protect it. Once construction was finished, they found that the statue attracted fireflies, earning its eternal nickname, the "Shrine of Radiance".|
+Atop this Altar rests an eternal flame which has burned without fail since time immemorial. Blades burned in this fire retain its heat far longer than they should, leading many warriors to believe they are receiving a blessing from a god of war. Many blacksmiths have also journeyed here on a pilgrimage of sorts, hoping the unquenchable flame will help them to forge weapons and armor beyond compare.8
+The air around this Altar is always humid, warm enough that water will never freeze. The water which drips from the statue tastes salty, like the ocean. It is said that the god of the seas will visit the dreams of any who sleep here, and that any who pass the god's trials in their dreams will gain his blessing.
+Even the most zealous believers dare not venture here during the rainy season. The terrifying storm clouds frequently floating over the Altar make the air feel heavy and clammy. No one knows when or if the storm will finally cease, nor does anyone want to be around to see if it will.
+A "statue" made of many entwined branches and vines stands at the center of this Altar. Many think it to be a natural phenomenon, but others insist it was shaped by growing branches around a statue. Regardless, many come here to pray for enhanced building skills.
+During the harvest season, all farmers will journey here to pray for bountiful crops. This is probably one of the most frequently visited Altars in the land, and never lacks for offerings.(
+The greatest wise man of a past age once sat here. After his death, his tribe built an Altar here, where they would pray that he would be reincarnated and lead them again. But time passed, and their leader never returned. However, people who pray here seem wiser and more capable when they leave.Y
+Pass
+Altars
+Unable to teleport city into the fog.
+{p1}'s City
+Altars are structures left over from an ancient time, places imbued with amazing power far beyond the imaginations of ordinary men.
+1. Altars are open for contending every 3 days. During this period, all alliances are able to attack the altar. Any alliance who can occupy and hold an altar for 4 hours will gain control of it.
+2. The first commander (captain of the rallied army) to occupy an altar will become the battle captain. If this commander is withdrawn, the commander with the highest power will automatically succeed the position.
+3. Buffs from the same types of altars do not stack.
+4. All units who are severely wounded during altar battles will be sent to the hospital.R
+Shrines are even more powerful than altars. Once you have captured a shrine, the gods will look down upon you with greater benevolence and you will receive stronger blessings.
+Passes are important strategic locations because of their key positions along interprovincial thoroughfares. They have been contested by opposing armies since the dawn of civilization.
+1. Troops may not go through a pass that is not occupied by their own alliance. 
+2. Passes will not intercept scouts or troops that are unable to fight. 
+3. Once the initial protection period has ended, passes may be contended at any time.
+4. You cannot teleport a city to within a certain radius of a Pass.V
+The Lost Temple stands at the center of the kingdom, a position befitting its central importance. Conquer the temple and you will conquer the world.
+1. The Lost Temple is open for contending every 7 days. During this period, all alliances may attack the Temple. Any alliance who can occupy and hold the Temple for 8 hours will gain control of it, and their alliance leader will become king!
+2. The king holds sovereign power over the kingdom.
+3. The first commander (captain of the rallied army) to occupy the Lost Temple will become the defense captain responsible for repelling enemy attacks. If this commander is withdrawn, the commander with the highest power will automatically succeed the position.
+4. All units who are severely wounded during Lost Temple battles will die (except when battling the barbarian garrison during the first occupation).e
+Allows troops to enter other provinces. Allows governors to teleport their cities to other provinces.
+Please defeat <color=#ff8888><b>{p1}</b></color> barbarians first.
+Barbarians are the original inhabitants of this land. They are strong, savage, and militant. War is the only way to force them to surrender.
+1. You will only suffer minor losses from attacking barbarians. All slightly wounded units will recover once they return to the city.
+2. Attacking barbarians will cost action points, but action points will recover over time.
+<color=#ffa800>Barbarian forts</color> are places where groups of barbarians live, and also serve as storehouses and military centers. Only the most powerful <color=#ffa800>alliances</color> can challenge these fortifications.
+1. You will only suffer minor losses from attacking barbarian forts. All slightly wounded units will recover once you return to your city.
+2. Attacking barbarian forts will expend action points, but your action points will recover over time.
+3. When a fort is destroyed, all troops involved in the attack will receive rewards. Troops which dealt more damage will receive greater rewards.
+4. Barbarian forts are garrisoned by countless warriors, so their attack will not decrease during the battle.
+5. Barbarian forts must be destroyed in a single attempt, or nearby barbarian troops will immediately replenish any losses.A
+Barbarian Fortx
+An army marches on its stomach, which is why the fertile lands outside of our city are crucial.
+1. You can dispatch troops to gather resources at resource points (Croplands, Logging Camps, Stone Deposits, Gold Deposits, and Gem Deposits).
+4. After they are finished gathering resources, your troops will automatically transport the resources to your city.
+Wood serves as the engine for our booming economy, but we must be careful not to over-exploit the forests within our city.
+Gathering Gems is highly labor-intensive (it takes a troop with 1000 Load Capacity to transport 1 Gem), but considering their value it is well worth the effort.
+The temple will be open soon!"
+A troop has returned to your city.
+<b>[Barbarian Exterminator]</b>
+The more barbarians your troops defeat, the less action points they will require. 
+(This effect can stack a maximum of 5 times. Effect resets when troops return to the city.)
+Your scout has returned to the city.
+Damage to Barbarians
+Damage Reduction vs Barbarians
+Hospital Capacity
+Ally Garrison Capacity
+Training Capacity
+Sanctum of Courage
+Sanctum of Blood
+Sanctum of Wind
+Sanctum of Hope
+The great stone tablets of the Sanctum give off a faint glow at night, guiding travelers through the darkness. Over time, it has become a place of worship for those who seek the Light, and it is said that those who meditate here need no longer fear the Darkness.
+Powerful gusts of wind surround this Sanctum, stretching out for hundreds of miles. Since ancient times, only a small number of people have managed to reach the Sanctum of Wind. Many more claim to, and more still stand where they took their last steps, their bones forever held up by the endless winds.~
+At the center of this Sanctum lies a mutilated, human-shaped statue. Despite the wear and tear of time and raiders, one can still look upon it and make out the shape of a person kneeling, holding a seedling in his or her arms. The elders teach that this statue is a memorial of the first seedling granted to humanity by the gods, giving us our first hope for real population growth.
+A great leader of an age long past lies entombed at the center of this Shrine, beneath a statue built in his honor generations after his death. It is said this ancestral leader led his armies on a warpath on multiple fronts, achieving many legendary victories. On his death bed, he gave his final words of wisdom, words which became the guiding philosophy of his descendants for generations: "Only through unity can we find glory."]
+At the center of this Shrine stands a moss-covered statue, so old as to be unrecognizable. It is said the statue was erected in tribute to the first leader of the first civilization in the kingdom. He is said to have instituted the first strong ideals of law, order, and morality, laying the ground work for a strong civilization from the beginning.
+Lohar, leader of a powerful barbarian clan, is considered to be the strongest barbarian of all time.
+1. You will only suffer minor losses from attacking Lohar and his elite troops. All slightly wounded units will recover once they return to the city.
+Uninvestigated
+Investigated
+Continent of Egria - Region List
+{p1} Region
+<color=#818181>Nascent:</color> A newly established kingdom with a rapidly growing population. Governors whose City Halls are level 7 or lower can use a Beginner's Teleport to move here.
+<color=#00b01d>Protected:</color> The cities of this kingdom are developing rapidly. All information about this kingdom is classified.
+<color=#00a6dd>Unsealed:</color> The chapter "Ultimate Clarity" in the Kingdom Chronicles has ended. All fog has been cleared and governors in all kingdoms can view information about this kingdom.
+<color=#ff8888>Developed:</color> The entire kingdom has entered a state of stability. Time to prepare for a new challenge.
+There is still unexplored fog in this kingdom, so its information cannot yet be viewed.
+Governor, you must meet the following requirements to teleport into this kingdom:
+1. City Hall level lower than <color=#ffa800>Level 8</color>.
+4. Neither your city nor your troops are in battle.
+5. No reinforcements are present in your city.
+6. Will have no more than 2 characters in any one kingdom after the teleport.
+8. Teleportation may reset the progress of your events since the target kingdom may have a different progress than your current kingdom, so please remember to claim your rewards before teleporting. 
+If the teleport is successful, your game will automatically restart and your city will appear in a random location in the target province.D
+Sorry, you have failed to meet requirement #{p1} for city teleports.
+Kingdom Info
+Sanctum Guardian
+Since ancient times, the guardians have been led by the foreseers of the barbarian tribes
+the shamans. Shamans are responsible for defending their tribe's holy sites, and will punish any outsiders who dare desecrate the sites with their presence.
+5. You must defeat guardians in a single attack, or they will be immediately returned to full health by the holy site.
+Sorry, your city teleport failed due to an unknown error. Please try restarting the game and contact the customer service. Error Code: {p1}
+Altar Guardian
+Temple Guardian
+Check the Kingdom Chronicles for opening times.
+Supreme guardians will attack anything that enters the territory of the Lost Temple.
+Upon entering the temple, believers will restore temple garrison strength by 25%.
+Supreme guardians answer only to the high priest. They are charged with the righteous task of eradicating all enemies who dare to desecrate the temple grounds with their presence.
+1. Supreme guardians will attack all enemies who enter the territory of the Lost Temple. 
+Believers hear nothing but the summons of the Lost Temple. If they are allowed to enter the temple, its garrison strength will grow so great that the temple will become almost impervious to attack.
+1. Once a believer enters the territory of Lost Temple, it will stop at nothing to reinforce the temple garrison.
+2. If it reaches the temple, the believer will restore a massive amount of temple garrison strength.
+Led by their High Priest, the warriors of the Kingdom of Karaku have come east to the dawnlands. They seek worthy challengers powerful enough to help save their kingdom.
+These are the strongest chieftains of the Karaku Kingdom. Defeat them to win the respect of the entire nation.
+Alliance resource centers cannot be attacked.
+Gathering at alliance resource centers will allow you to quickly gather resources, and your troops will never come under attack by enemy troops.:
+Alliance resource centers contain nearly inexhaustible reserves, but require the cooperation of alliance members to be constructed. Once built, resource centers will bring great benefits to an alliance. Moreover, resource centers are an absolutely safe place for troops to gather. Enemies cannot in any way attack troops gathering at resource centers.
+1. Alliance resource centers must be constructed in alliance territory.
+2. All alliance members whose city halls are Level 8 or higher can participate in building and gathering.
+3. Each governor may only dispatch one troop to gather at a given resource center.
+4. Once the resource center's reserves have been depleted, all troops gathering at the center will automatically return to their home cities.
+5. Alliance resource centers cannot be attacked either during construction or while troops are gathering.
+6. If construction is not completed within three days, resource centers will be dismantled.
+7. Resource centers will be dismantled three days after construction, even if their resource reserves have not yet been depleted.
+1. You will only suffer minor losses from attacking the thieves. All slightly wounded units will recover once they return to the city.
+Alliance resource center will disappear at the end of the countdown.
+You must meet the following requirements to immigrate to this kingdom:
+1. Your City Hall is <color=#ffa800>Level 16 or higher</color>.
+2. You have sufficient <color=#ffa800>Passport Pages</color>. The number of Passport Pages required is determined by your power level.
+1. Any resources beyond your Storehouse's protection capacity will be <color=#ffa800>lost</color>.
+4. The game will automatically restart and your city will reappear at a random location in the selected province.
+Your projected power ranking in the destination kingdom is <color=#ffa800>#{p1}</color>. Immigrating to this kingdom will require <color=#ffa800>{p2}</color> Passport Pages.
+<color=#e55600>Protected:</color> The cities of this kingdom are developing rapidly. All information about this kingdom is classified.
+<color=#2781bb>Unsealed:</color> The chapter "Ultimate Clarity" in the Kingdom Chronicles has ended. All fog has been cleared and governors in all kingdoms can view information about this kingdom.
+<color=#00b01d>Developed:</color> This kingdom has been open for more than 120 days, or was established earlier than your home kingdom. Governors from other kingdoms can immigrate here.
+<color=#bb0000>Immigration Limited:</color> This kingdom is currently participating in the Lost Kingdom event, so immigration to or from it is not currently possible.
+<color=#ff8888>Developed:</color> Governors from other kingdoms can immigrate here (because this kingdom is located too far away from your home kingdom, you cannot immigrate here).
+Immigrate to this kingdom? After immigrating to a new kingdom, you will need to wait <b><color=#ffa800>30 days</color></b> before you can immigrate again. Additionally, all event points and ranks will be <b><color=#ffa800>reset</color></b> upon immigration. Choose wisely!?
+Governors from newer kingdoms can always immigrate to older kingdoms, but governors from older kingdoms may only immigrate to <color=#ffa800>developed</color> newer kingdoms. Governors who meet the requirements for immigration can use <color=#ffa800>Passport Pages</color> to permanently immigrate to another kingdom. The King may select a maximum power limit for immigrants, and governors whose total power exceeds this limit will be unable to immigrate to that kingdom. If a kingdom has no King, the Lost Temple will automatically select the lowest immigration power limit.
+Kingdom Status8
+Camp Sentinel
+Fortress Sentinel
+Set a maximum power limit for immigrants coming to your kingdom.
+Because this kingdom is relatively young, you will not be able to use your commander <color=#ffa800>{p1}</color> immediately after immigrating.C
+Rune of Earth  {p1}
+This pass can only be attacked by alliances from the home kingdom of its corresponding outer province.$
+Rallied Army Unit Capacity
+Reinforcement Capacity
+(This effect can stack a maximum of 5 times. Effect resets when troops return to the city.)A
+Mother Nature has answered the alliance's call and given us a generous gift. Many new resource points have been summoned forth. Gather quickly before they disappear!
+Barbarian troops will appear on the map and attack the caravan while travels to its destination. Alliance members must defeat all barbarian troops to ensure the caravan and its goods safely reach their destination.
+ Attack the barbarians to earn points. The more damage you deal, the more points you earn. <color=#B7282E><b>Note: Only players who have earned points can earn prizes.</b></color>$
+Few merchants are willing to risk their necks in these barbarian infested lands, but those who do can reap great rewards...
+Barbarian gangs lie in wait alongside the kingdom's major roads, ready to ambush unsuspecting merchants. Eliminate them so that the caravan can successfully reach its destination.
+Barbarian gangs lie in wait alongside the kingdom's major roads, ready to ambush unsuspecting merchants. Eliminate them so that the caravan can successfully reach its destination."
+Barbarian gangs lie in wait alongside the kingdom's major roads, ready to ambush unsuspecting merchants. Eliminate them so that the caravan can successfully reach its destination.(
+Barbarian gangs lie in wait alongside the kingdom's major roads, ready to ambush unsuspecting merchants. Eliminate them so that the caravan can successfully reach its destination.&
+Don't attack the city!
+Attack the fortress!
+1. When attacking barbarians and other neutral units, the target information panel will have an option to <color=#ffc600><b>"Hold position after attack"</b></color>. If this option is selected, the attacking troop will hold its position on the map after the battle is over.
+1. To quickly dispatch a troop, <color=#ffc600><b>tap and hold</b></color> your city while in map view, then <color=#ffc600><b>drag</b></color> your finger to the target destination. A "New Troop" page will open where you can select commanders and units to dispatch.
+2. This <color=#ffc600><b>Hold & Drag</b></color> feature can be used to dispatch troops from holy sites and allied cities as well.
+3. <color=#ffc600><b>Hold & Drag</b></color> can also be used to quickly give orders to troops already on the map.
+5. <color=#ffc600><b>Double tap</b></color> any of your troops on the map to select all troops in view and issue simultaneous orders.
+6. If the target destination is inaccessible, troops will automatically march to the closest accessible location on the map.
+Once the timer has expired, the Dark Fortress will disappear.
+After defending the caravan from barbarians, we found some extra supplies. These crates are really heavy, and will take 100 action points to open.
+Your current power is <color=#ffa800>{p1}</color>, so this will cost <color=#ffa800>{p2}</color> Passport Pages.
+<b>Imperium Kingdoms</b>
+Governors with more than 35 million power cannot immigrate to a Top 32 ranked kingdom.
+Kingdom power is equal to the total power of the top 300 governors in that kingdom (governors with more than 150 million power will be calculated as 150 million).
+Greetings, Governor! You are about to leave an <color=#ffa800>Imperium Kingdom</color>. Once you leave, you might not be able to return. Are you sure you want to change kingdoms?
+Darkness will soon cover the earth.
+Pyramiden
+Imperium kingdoms can now use special immigration to accept governors with a power rating that meets or exceeds the kingdom's limit.
+1. Only the king can approve applications for special immigration. Applicants will receive a notification via mail if their application is approved. Once confirmed, they can immigrate to the kingdom.
+3. Kingdoms can accumulate up to 3 special immigration chances. Imperium kingdoms will gain 1 additional chance at the beginning of each month.
+<b>{p1}</b> has joined your Kingdom!{
+This is an Imperium Kingdom. Immigration uses up Special Immigration Chances and requires the King's approval, are you sure you want to join this Kingdom?
+(You can only apply for 1 Kingdom at a time)~
+You have applied for Special Immigration to this Kingdom, please wait for the King's approval.<
+You have applied for Special Immigration to this Kingdom.
+This Holy Site will be permanently destroyed after the countdown and cannot be rebuilt.
+Altar of Darkness
+Sanctums are structures left over from an ancient time, places imbued with amazing power far beyond the imaginations of ordinary men.
+1. Sanctums will open for contention every 3 days. During this period, all alliances will be able attack the Sanctum. Any alliance that can occupy and hold a Sanctum for 4 hours will gain control of it.
+2. The first commander (or captain if it is a rallied army) to occupy a Sanctum will become the garrison captain. If this commander is withdrawn, the garrisoned commander with the highest power will automatically succeed the position.
+3. Buffs from the same types of Sanctums do not stack.
+4. All units severely wounded during Sanctum battles will be sent to the Hospital.
+Under the effects of the King Skill "<b>Imprison</b>", you cannot use the City Teleport function.
+You are being affected by the King Skill "<b>Imprison</b>", and cannot use City Teleport for 10 minutes.v
+This pass can only be attacked by alliances from this camp's kingdoms.&
+Idle barbarians, while less effective, will get powered up by their rage if provoked!
+A group of greedy raiders that will charge blindly forward to plunder all the goods they can, completely disregarding any danger.
+Believers only have one thing on their mind: answer the call of the Shrine. If they are allowed to enter the Shrine, the barbarian troops guarding it will be massively healed, making it much harder to capture the Shrine.
+1. Believers will ignore all dangers and move to reinforce the Shrine.
+Altar of DarknessI
+Please defeat a <color=#ff8888><b>{p1}</b></color> barbarian patrol first
+So long as a Resurrection Totem is on the map, Pache recovers 1% of his max units every second.
+1. Troops of the same coalition can travel through this pass.
+2. Passes will not intercept scouts or troops that are unable to fight.
+3. Once the initial protection period has ended, passes may be contended for at any time.
+4. You cannot teleport your city to within a certain radius of a Pass. 
+This city is under territorial protection, and cannot be attacked.
+<b>Rising Kingdom</b>
+Governors with more than 10,000,000 power cannot immigrate to either of the two most powerful kingdoms in any region, unless the target kingdom is "Developed".
+If a kingdom is both a Rising Kingdom and an Imperium Kingdom, the Rising Kingdom rules shall prevail.
+Your City Hall is level 16 or higher.%
+Your current and target kingdoms are in the same region. 
+Your current kingdom is newer than your target kingdom.+
+Your target kingdom is not in Lost Kingdom.
+This is an Imperium Kingdom. Governors with more than {p1} power must have their immigration approved by the King of the target kingdom.
+This is a Rising Kingdom. Governors with more than {p1} power must have their immigration approved by the King of the target kingdom.
+A group is made up of {p1} regions that Governors can immigrate between.J
+Your kingdom is <b>Nascent, in the Preparation Season, or in Season 1</b>.A
+Your kingdom is in <b>Season 2, 3, or the Season of Conquest</b>.=
+Your kingdom is in <b>Season 3 or the Season of Conquest</b>.
+Lost Kingdoms currently in Season 1#
+Lost Kingdoms currently in Season 2:
+<color=#000000>Lost Kingdoms currently in Season 3</color>7
+Lost Kingdoms currently in the Season of Conquest: {p1}
+Kingdoms in their <b>Preparation Season</b>, with an internal struggle for control of the Lost Temple.w
+In the <b>offseason before Season 1</b>, kingdoms of the same region will enter Lost Kingdom Season 1 at the same time.
+Kingdoms in the <b>offseason before Season 2</b>. Kingdoms in adjacent regions will match up to enter Lost Kingdom Season 2 together.}
+Kingdoms in the <b>offseason before Season 3</b>. Kingdoms can register to match up and enter Lost Kingdom Season 3 together.
+Kingdoms in the <b>offseason before a Season of Conquest</b>. These kingdoms are free to register for a variety of Lost Kingdom stories.
+<color=#818181><b>Nascent:</b></color> A newly established kingdom with a rapidly growing population. Governors whose city halls are level 7 or lower can use a Beginner's Teleport to move here.
+<color=#21a4d5><b>Preparation Season:</b></color> As Governors' cities grow quickly, the fight for control of the Lost Temple grows ever fiercer. Immigration is possible both ways between kingdoms in the same region that are not Nascent.
+<color=#00b01d><b>Season 1:</b></color> The eight kingdoms of a region will enter Season 1 once they have all finished "The Last Golden Apple". Immigration is possible between any of these kingdoms.
+<color=#00b01d><b>Season 2:</b></color> Once Season 1 is finished, adjacent regions and their kingdoms will enter Season 2 together. Immigration is possible between any two kingdoms currently in Season 2.
+<color=#00b01d><b>Season 3:</b></color> Once Season 2 is finished, adjacent regions and their kingdoms will enter Season 3 together. Governors in Season 3 kingdoms can immigrate to kingdoms that are in Season 2 or 3.
+<color=#00b01d><b>Season of Conquest:</b></color> Once Season 3 is finished, kingdoms will enter the Season of Conquest. Governors in Season of Conquest kingdoms can immigrate to other kingdoms in the Season of Conquest, as well as those in Seasons 2 and 3.
+<color=#bb0000><b>Immigration Limited:</b></color> This kingdom is currently participating the Lost Kingdom event and cannot be immigrated to.'
+Until the start of Season 2, Governors with more than{p1} Power cannot immigrate to the top 25% of powerful kingdoms in the region.
+<b>Calculating Kingdom Power Contribution</b>
+1. 100% of your power up to 150,000,000 will be factored in to your kingdom's power.
+2. 80% of your power from 150,000,000 to 300,000,000 will be factored in to your kingdom's power.
+3. 50% of your power from 300,000,000 to 500,000,000 will be factored in to your kingdom's power.
+4. Power above 500,000,000 will not factor in to your kingdom's power.
+{p1} Region 
+Lost Kingdom {p1}
+ 1. Your City Hall is <color=#ffa800>Level 7 or lower</color>.
+ 3. Neither your city nor your troops are in battle.
+ 5. You have no more than 1 character in the target kingdom.
+ 1. Any resources beyond your Storehouse's protection capacity will be <color=#ffa800>lost</color>.
+ 3. The game will automatically restart and your city will reappear at a random location in the selected province.
+Open to Region
+A newly established kingdom with a rapidly growing population. Governors whose city halls are level 7 or lower can use a Beginner's Teleport to move here.
+Governors' cities are developing rapidly. All information about this kingdom is classified. Immigration both ways is possible with any other non-Nascent kingdoms in the same region.
+The chapter "Ultimate Clarity" of the Kingdom Chronicles has ended. All fog has been cleared, and governors in all kingdoms can view information about this kingdom. Immigration is possible between any of the 8 kingdoms on the same continent.
+After kingdoms have finished Season 1, those on neighboring continents will be sorted into groups to participate in Seasons 2 and 3. Immigration is possible between all kingdoms on the continents from the same group.
+After Lost Kingdom Season 3, kingdoms will enter the Season of Conquest. Immigration is possible both ways between any two Developed kingdoms.T
+This kingdom is currently participating the Lost Kingdom event. Unable to immigrate.0
+As Governors' cities grow quickly, the fight for control of the Lost Temple grows ever fiercer. Immigration is possible both ways between kingdoms in the same region that are not Nascent.
+The Chronicle "The Last Golden Apple" has ended in all kingdoms in this region. Immigration to kingdoms in Season 1 is now possible.
+Once Season 1 is finished, adjacent regions and their kingdoms will enter Season 2 together. Immigration is possible between any two kingdoms currently in Season 2.
+Once Season 2 is finished, adjacent regions and their kingdoms will enter Season 3 together. Governors in Season 3 kingdoms can immigrate to kingdoms that are in Season 2 or 3.
+Once Season 3 is finished, kingdoms will enter the Season of Conquest. Governors in Season of Conquest kingdoms can immigrate to other kingdoms in the Season of Conquest, as well as those in Seasons 2 and 3.5
+Your current kingdom is in <b>Season of Conquest</b>.
+Governors who meet the requirements for immigration can use <color=#ffa800>Passport Pages</color> to permanently immigrate to another kingdom. The King may select a maximum power limit for immigrants, and governors whose total power exceeds this limit will be unable to immigrate to that kingdom. If a kingdom has no King, the Lost Temple will automatically select the lowest immigration power limit.-
+Kingdoms can now use special immigration to accept governors with a power rating that meets or exceeds the kingdom's limit.
+3. Kingdoms can accumulate up to 3 special immigration chances. Kingdoms will gain 1 additional chance at the beginning of each month.
+This is a Rising Kingdom. Immigration uses up Special Immigration Chances and requires the King's approval. Are you sure you want to join this Kingdom?
+(You can only apply for one Kingdom at a time)
+Greetings, Governor! You are about to leave a <color=#ffa800>Rising Kingdom</color>. Once you leave, you might not be able to return. Are you sure you want to change kingdoms?%
+KINGDOM OVERVIEW
+Input Kingdom Number...
+Lost Kingdom List
+Offseason Kingdom List
+Kingdom List
+<b>Season 2 - Imperium Kingdoms</b>
+Until the end of Season 2, governors with more than {p1} power cannot immigrate to the {p2} most powerful kingdoms currently in Season 2.
+Kingdom Power = The total power of the 300 most powerful governors in the kingdom. See below for additional calculation rules.
+<b>Season 3 - Imperium Kingdoms</b>
+Until the end of Season 3, governors with more than {p1} power cannot immigrate to the {p2} most powerful kingdoms currently in Season 3.
+4. Power above 500,000,000 will not factor in to your kingdom's power.t
+<b>Season of Conquest - Imperium Kingdoms</b>
+After entering the Season of Conquest, Governors with more than {p1} power cannot immigrate to the {p2} most powerful kingdoms currently in the Season of Conquest.
+Kingdom power is equal to the total power of the top 300 governors in that kingdom (governors with more than 150 million power will be calculated as 150 million).1
+There are no kingdoms in preparation at this time?
+There are no kingdoms battling in the Lost Kingdom at this timeN
+<color=#000000>Lost Kingdoms currently in the Season of Conquest: {p1}</color>
+You cannot move with more resources than your storehouse capacity. You can instead choose to <color=#ff5050>remove all excess resources</color>.F
+2. Governors can build Foundation Stones near Ancient Pagodas under their control, allowing city teleportation to its location once completed.
+Derelict PassQ
+A pass crushed by centuries of neglect. It is unlikely anyone could use it today.
+Derelict Passes cannot be attacked or used.A
+You are being affected by the king skill "<b>Exile</b>". Your city has been forced to teleport randomly.u
+You are being affected by the King Skill "<b>Exile</b>". Your city takes 5% increased damage for the next 30 minutes.s
+Under the effects of the King Skill "<b>Imprison</b>", you cannot use the City Teleport function.m
+You are being affected by the King Skill "<b>Exile</b>", increasing damage to your city by 5% for 30 minutes.
+Reserve Troop Capacity
+Because this kingdom is relatively young, you will not be able to use the following <color=#FF8888>{p1}</color> commanders immediately after immigrating.
+Because this kingdom is relatively young, you will not be able to use the following <color=#FF8888>{p1}</color> types of items immediately after immigrating.*
+No camp
+Outpost
+ 1. Your City Hall is <color=#ffa800>Level 16 or higher</color>.
+ 2. You have sufficient <color=#ffa800>Passport Pages</color>. The number of Passport Pages required is determined by your power level.
+ 4. Neither your city nor your troops are in battle.
+ 4. Museum features will be disabled if you immigrate to a kingdom that has not entered the Season of Conquest yet.
+ 5. The game will automatically restart and your city will reappear at a random location in the selected province.
+Check the <color=#ffc000>Outpost</color> option to show the locations of all Outposts on the map and information about them. You can see the owners of each Outpost and whether it can be attacked.
+Kingdoms will be divided into different Season Statuses according to the kingdom's history and its participation in Lost Kingdom:
+Kingdom history 
+Kingdom history > 10 days, and any kingdom within the region have not yet finished the Chronicles chapter "The Last Golden Apple"
+From the end of the Chronicles chapter "The Last Golden Apple" in all kingdoms within the region until the end of Lost Kingdom Season 1 "Endless War"l
+From the end of Lost Kingdom Season 1 "Endless War" until the end of Lost Kingdom Season 2 "Distant Journey"s
+From the end of Lost Kingdom Season 2 "Distant Journey" until the end of Lost Kingdom Season 3 "Light and Darkness":
+From the end of Lost Kingdom Season 3 "Light and Darkness"
+Kingdom Season
+Same-Region Immigration
+Characters applying for immigration cannot be more than {p1} days older than the destination kingdom.C
+Kingdoms in Season 2 can accept up to {p1} cross-season immigrants.C
+Kingdoms in Season 3 can accept up to {p1} cross-season immigrants.
+If a kingdom has no King, the Lost Temple will automatically choose the lowest Power cap as an entry requirement.\
+Rising Kingdoms and Imperium Kingdoms' Power caps are a set value. The rules are as follows:
+Kingdom Progress
+Rising Kingdom
+Imperium Kingdoms
+{p1} hours before this kingdom opens for immigration, its cross-season immigration Power cap will be locked and cannot be changed until the kingdom enters "Eve of the Crusade" for the next season.
+Iconic attributes will automatically change depending on which season your Kingdom is in. These changes are grouped into Seasons 1-2, Season 3, and Season of Conquest. When entering a new season or migrating into another season, Iconic attributes will automatically change. Tap the Equipment screen for details about seasonal attributes.
+Same-Region Immigration: 
+Choose a province on the map:
+A newly established kingdom with a rapidly growing population. Governors whose City Halls are below level 8 can use a Beginner's Immigration to move here.
+As Governors' cities grow quickly, the fight for control of the Lost Temple grows ever fiercer. Immigration to kingdoms in the Preparation Season is now possible.
+Once Season 3 is finished, kingdoms will enter the Season of Conquest. Governors in Season of Conquest kingdoms can immigrate to other kingdoms in the Season of Conquest, as well as those in Seasons 2 and 3.
+Your City Hall is level {p1} or higher.k
+If your power is over {p1}, you must apply for and obtain permission from this kingdom's king to immigrate.L
+Your character is no more than {p1} days older than the destination kingdom.J
+The destination kingdom has not filled its cross-season immigration quota.+
+Your current kingdom is in <b>Season 2</b>.+
+Your current kingdom is in <b>Season 3</b>.
+When the destination kingdom has filled its cross-season immigration quota, Governors with a Power of over {p1} must apply for and obtain permission from that kingdom's King to immigrate.d
+The destination kingdom is not currently in the Lost Kingdom event or an immigration waiting period.
+Sorry! You do not fulfill the necessary conditions to immigrate to this kingdom. Please try again once all conditions have been met.
+Your Registered Kingdom Is Opening For Immigration!
+No registered kingdoms
+This kingdom is either taking part in the Lost Kingdom event or in an immigration waiting period. Would you like to be reminded when it becomes open for immigration?m
+Sorry, you have reached the registration limit. Please cancel some of your registered kingdoms and try again.
+Alongside regular immigration, kingdoms can now use special immigration to accept governors whose power exceeds the limit for the kingdom.
+1. Only the King can approve applications for special immigration. Once approved, the applicant will receive a notification via mail. Once confirmed, they can immigrate to the kingdom.
+3. Kingdoms can accumulate up to 3 special immigration chances. At the beginning of each month, kingdoms gain 1 chance.
+6. Special immigration will not count toward a kingdom's cross-season immigration quota.0
+Governors who exceed the destination kingdom's power cap must be approved by the King. Immigrating will take up 1 space on the Special Immigration quota and {p1} Passport Page(s).
+Note: You can only apply for Special Immigration to one kingdom at a time.
+Do you want to apply to migrate to this kingdom?t
+Note: You can only apply for Special Immigration to one kingdom at a time, and migrating before the season ends will rescind your <b>{p2}</b>.
+Do you want to apply to migrate to this kingdom?|
+As well as season-based divisions, kingdoms in the same season will be divided into Rising Kingdoms or Imperium Kingdoms based on their Kingdom Power.
+Kingdom Power is equal to the total Power of the top 300 Governors in that kingdom (Governors with more than 150 million Power will be calculated as 150 million).
+Before a kingdom enters Season 2, the top 25% of kingdoms with the highest Power in a region will be designated as Rising Kingdoms.
+<b>Imperium Kingdom (Season 2)</b>
+During Season 2, the {p1} kingdoms with the highest Power will be designated as Imperium Kingdoms.
+<b>Imperium Kingdom (Season 3)</b>
+During Season 3, the {p2} kingdoms with the highest Power will be designated as Imperium Kingdoms.
+<b>Imperium Kingdom (Season of Conquest)</b>
+During Season of Conquest, the {p3} Kingdoms with the highest Power will be designated as Imperium Kingdoms7
+Immigration is divided into two types based on a Governor's current kingdom's season status and the season status of the destination kingdom:
+When the current kingdom and the destination kingdom are in the same Season, Governors may engage in same-season immigration. 
+When the current kingdom and the destination kingdom are in different Seasons, and when the current kingdom's server age is older than the destination kingdom, Governors may engage in cross-season immigration. (Using Beginner's Migration to immigrate to a Nascent kingdom is not counted as cross-season immigration).
+Different types of immigration can be carried out in different periods, and also have different requirements based on the season that a kingdom is currently in. See below:5
+Kings can choose to put a cap on the Power of Governors immigrating into the kingdom. Governors whose Power exceeds this cap will not be allowed to immigrate.
+Only the King can approve applications for <color=#EE7600><b>special immigration</b></color>. Once approved, the applicant will receive a notification by mail. Once confirmed, they can immigrate to the kingdom.
+A kingdom can accumulate up to <color=#EE7600><b>3</b></color> special immigration chances. At the beginning of each month, kingdoms gain <color=#EE7600><b>1</b></color> chance.
+- Special immigration will not count toward a kingdom's cross-season immigration quota.5
+ - Your City Hall is above a certain level, depending on the target kingdom.
+ - You have sufficient <color=#EE7600><b>Passport Pages</b></color>. The number of Passport Pages required is determined by your power level.
+ - Neither your city nor your troops are <b>in combat</b>.
+ - The number of resources you possess does not exceed the <b>protection capacity</b> of your Storehouse.
+- You cannot immigrate to a kingdom that is taking part in a <color=#EE7600><b>Lost Kingdom event</b></color> or in an <color=#EE7600><b>immigration waiting period</b></color>. This includes matchmaking, the Eve of the Crusade event, and the Lost Kingdom battle phase.
+- After a kingdom has exited the Lost Kingdom, it will enter into a <b>{p1}</b>-hour <color=#EE7600><b>immigration waiting period</b></color>. You will only be able to immigrate to the kingdom after the waiting period ends. The duration of the waiting period is subject to change. Check the kingdom info screen to view more details and make use of the immigration registration feature.
+- Cross-season immigration will <b>invalidate any Autarch Passes or Vindicator Passes</b> you earned at the end of the previous Lost Kingdom.
+- If your immigration request is successful, the game will automatically <b>restart</b> and your city will reappear at a random location in the selected province.
+Governors can register to immigrate to a kingdom while it is taking part in the <color=#EE7600><b>Lost Kingdom event</b></color>.
+- <color=#EE7600><b>48</b></color> hours before a registered kingdom is opened for immigration, you will be sent a reminder by mail.
+- You may register for up to <color=#EE7600><b>{p1}</b></color> kingdoms.
+- After a kingdom is opened for immigration, it will <b>no longer be counted as registered</b>.
+This kingdom will be open for immigration on {p2}. Please keep an eye out for further information!
+Your kingdom's cross-season immigration Power cap will be locked at {p1}!
+Certain conditions, such as being an Imperium Kingdom, can affect a Kingdom's cross-season immigration power cap. Your specific circumstances may differ.
+Qualifying for migration to the destination kingdom will take up 1 space on its cross-season immigration quota and {p1} Passport Page(s).
+You have <b>gained permission</b> for cross-season immigration to this kingdom!
+ Because this kingdom has filled its cross-season immigration quota, you <b>cannot</b> migrate.t
+The defenders of Karaku make camp amongst the mountains, keeping a watchful eye out for invaders from the dawnlands.
+Sorry, this kingdom has reached the maximum number of registered players.M
+You have gained permission for cross-season immigration to this Kingdom! You can begin the immigration process through the mail system.
+Years of training, unbending faith, and boundless compassion are just the basic requirements for joining the ranks of the Karaku Healpriests.
+Howlers are the most brutal and primal warriors of the Solar Army. Their roars reverberate through the mountain, and are often enough to scare off Uzaku invaders without a fight.}
+The Karaku priesthood is based in the kingdom's northern plateau. The bravest among them travel south to train as Warpriests.
+Campton
+Note: Please check whether a cross-season immigration Power cap is in effect. Immigrating to another kingdom before the season ends will rescind your <b>{p2}</b>.
+4. You cannot teleport your city to within a certain radius of a Pass.
+5. After entering the Sea of Death from a level 4 Pass, troops gain a {p2}% bonus to March Speed for {p1} minutes, which ends {p3} seconds after entering battle. This buff only takes effect in the Sea of Death, and will end {p4} days after Lost Kingdom begins._
+To apply for immigration, a character's current and target kingdoms must be in the same region.9
+Your current kingdom is in the <b>Preparation Season</b>.
+<size=18><color=#ffffff>Kingdoms can accept 1 migrant per minute</color></size>
+1. Troops of the same coalition can travel through passes owned by members of that coalition.
+5. After entering the Sea of Death from a level 5 Pass, troops gain a {p2}% bonus to March Speed for {p1} minutes, which ends {p3} seconds after entering battle. This buff only takes effect in the Sea of Death, and will end {p4} days after Lost Kingdom begins.z
+Your character's starting kingdom (not your current kingdom) cannot be over {p1} days older than your destination kingdom.
+Sentinels are the cleverest and quickest warriors of the Solar Army. When danger arises, they use their feathered whistles to quickly alert the rest of their allies.t
+The elite Sunpiercers are as clever as they are patient, capable of blending in to the mountains and forests for weeks on end. They can pincushion a target's vital organs with deadly accuracy. Not even the famed Huntmasters of the Bloodfury Warband dare compete with their marksmanship.
+The Karaku see the moon as another aspect of the sun, with the two working in tandem to light the sky. Brothers Katta and Matta, the Twilight Blades, were raised by the priests of the Searinglight Order. They carry the legends and prophecies passed down to them onto the battlefield.
+The Karaku see the moon as another aspect of the sun, with the two working in tandem to light the sky. Brothers Katta and Matta, the Twilight Blades, were raised by the priests of the Searinglight Order. They carry the legends and prophecies passed down to them onto the battlefield.t
+3. Runes will eventually be lost to the wilderness and disappear, so make sure to activate them in time.
+Choose a province on the map
+Elite Garter Knights are the most elite members of the Most Noble Order of the Garter, answering only to Richard I himself. They are highly aggressive, with a sacred duty to slay all enemies that threaten the Lost Temple.
+1. Elite Garter Knights will actively attack all enemies near the Lost Temple.
+2. After the Lost Temple is secured, they will retire to their quarters and wait patiently for the next time they are needed.
+Garter Knights are members of England's most elite order of chivalry, the Most Noble Order of the Garter. They embody the chivalric tenets of nobility, sacrifice, and valor in war. If they manage to enter the Lost Temple, its defenders will be greatly enhanced, making the Temple nearly impossible to capture.
+1. Garter Knights will try to reinforce the Lost Temple regardless of any obstacles.
+2. Once the Garter Knights make it to the Lost Temple, it will regain a large portion of its lost garrison units.
+Hospital Capacity/
+Hospital Capacity <color=#ff0000>(Full)</color>
+Friendly Troops in City
+Campaign Progress
+Give up the current campaign?
+Elite Garter Knights will attack any enemies that enter the territory of the Lost Temple.b
+Upon entering the Lost Temple, the Garter Knights will restore 25% of the Temple's garrison units.
+The kingdom you registered for, <color=#1274ba><b>{p1}</b></color>, is about to open for immigration.
+Do you want to head to the Kingdom Overview page?
+The kingdom you registered for, <color=#1274ba><b>{p1}</b></color>, is now open for immigration.
+<b><size=24>Campaign Rules</size></b>
+ans whenever the city is <color=#DA7101>not being contested</color>.
+2. City Gates and Guildhall
+1) The West, North, and East Gates of Orl
+ans remain standing. Your coalition or alliance can send troops through these gates into Orl
+ans if your territory <color=#DA7101>borders</color> the city.
+2) The Gates of Orl
+ans cannot be garrisoned before starting the campaign. After the campaign is started and enters the preparation phase, you can begin to garrison the Gates.
+3) The English Army will first target the <color=#DA7101>Gates</color>. If a Gate is destroyed, it can no longer be garrisoned and the English Army will begin to target the Orl
+ans Guildhall directly. <color=#DA7101>If the Guildhall is captured, you will fail the campaign</color>.
+4) The status of the Gates and the Guildhall will be reset after the end of the campaign.
+ans campaign can be started by your <color=#DA7101>alliance leader/officers</color> or <color=#DA7101>coalition leader</color> from the Orl
+ans does not exceed the city's troop limit (Orl
+ans is not currently open for contention, and you are not within 1 hour of the start or end of the Lost Kingdom.
+2) After you start the campaign you will enter the preparation phase. All troops currently within Orl
+ans will be marked as its <color=#DA7101>defenders</color>. Troops marked as defenders will retain this status until they are disbanded or the campaign ends.
+3) During the campaign, defenders will be able to freely enter and exit Orl
+2) Your first priority will be to secure and defend the three Gates, and if they should fall, the Orl
+3) After the battle phase begins, if you have troops defending the city you can keep track of the campaign's progress on the dedicated interface.
+ans will <color=#DA7101>regain some of their lost units</color>.
+1) England's royal troops in this campaign are extremely powerful, and are easily capable of defeating your standard troops.
+7. Campaign Objectives
+ans Guildhall is captured, the campaign will be lost.
+Buffs from equipment, armaments, alliance technologies, alliance titles, individual technologies, commander talents, VIP bonuses, civilization features, city buildings, city themes, holy sites, and runes will take effect in this campaign.
+1) After clearing the campaign, all members of your alliance or coalition will receive a reward. Rewards will be sent via mail.
+2) During this story, you can take part in the campaign multiple times, but you can only receive the same reward <color=#DA7101>once</color>. This limit will restart when the next season's Siege of Orl
+One of the few French banners yet to fall is carried by the humble Maid of France, who is leading her soldiers through great ardor to relieve the city of Orl
+ans and you shall save France. In this campaign, you will face off against the greatest of England's warriors, who will stop at nothing to capture Orl
+Campaign Rewards
+In this story, can earn the following rewards for clearing this campaign@
+Clear the campaign without a single Gate being destroyed to earn
+The Royal Besiegers are armed with the most lethal siege weapons in the English Army's employ, and anyone foolish enough to approach them tends to be swiftly destroyed. They've yet to meet a city gate capable of withstanding their barrages.
+Campaign
+You must <color=#ffa800>recall your troops to your city</color> before immigrating.<
+You must return your troops to your city before immigrating.
+The amount of resources you have exceeds the protection capacity of your Storehouse.
+After immigrating, any resources above your Storehouse's capacity will be <color=#ff5050>removed</color>.d
+The number of same-season immigrants a kingdom in the Season of Conquest can accept depends on how long the kingdom has existedD
+The target kingdom has not filled its same-season immigration quota.
+After the target kingdom has filled its same-season immigration quota, governors over {p1} power must apply for and obtain permission from that kingdom's king to immigrate.%
+Migrating to the target kingdom will take up a slot in its same-season immigration quota and cost 1 Passport Page.
+Migrating to the target kingdom will take up a slot in its same-season immigration quota and cost {p1} Passport Pages.
+This building can only be attacked by alliances in its camps.
+Check the Lost Kingdom Chronicles for opening times.t
+{p1} Barbarian Fort
+<size=18><color=#ffffff>Kingdoms can accept 1 migrant every {p1} seconds</color></size>Q
+Kingdoms can only accept 1 migrant every {p1} seconds. Try again in {p2} seconds.
+Certain conditions, such as being an Imperium Kingdom, can affect a kingdom's cross-season immigration power cap. Your specific circumstances may differ.
+When building Alliance Fortresses, Flags, or resource centers, your alliance leader or officers can set a single-troop unit limit for all reinforcements. Any troops alliance members send to reinforce the building cannot exceed that limit."
+After defending the caravan from barbarians, we found some extra supplies. These crates are really heavy, and will take 80 action points to open.6
+At the end of its current story, this kingdom's immigration quota will be set at {p1}
+The king of a kingdom can set a power cap for the kingdom, barring any governors above the power cap from immigrating into the kingdom. If a kingdom does not have a king, its power cap will be automatically set to the lowest possible setting.
+If you meet a kingdom's immigration requirements, you can use <color=#ffa800>Passport Pages</color> to permanently immigrate to the kingdom.
+A list of Lost Kingdoms currently in the Season of Conquest
+Preparation Season Kingdoms
+Season 1 Offseason Kingdoms
+Season 1 Lost Kingdom Kingdoms
+Season 2 Offseason Kingdoms
+Season 2 Lost Kingdom Kingdoms
+Season 3 Offseason Kingdoms
+Season 3 Lost Kingdom Kingdoms%
+Season of Conquest Offseason Kingdoms(
+Season of Conquest Lost Kingdom Kingdoms
+<color=1><b>Nascent</b></color>: A newly established kingdom with a rapidly growing population. Governors whose City Halls are level 7 or lower can use a Beginner's Teleport to move here.
+<color=2><b>Preparation Season</b></color>: As governors' cities rapidly expand, the fight for the Lost Temple grows ever fiercer. Governors in Preparation Season kingdoms can immigrate to any non-Nascent kingdoms in the same region.
+<color=3><b>Season 1</b></color>: The Chronicles chapter "The Last Golden Apple" has ended for all kingdoms in the kingdom's region. Governors in Season 1 kingdoms can immigrate to other Season 1 kingdoms.
+<color=4><b>Season 2</b></color>: At the end of Season 1, adjacent regions and their kingdoms will enter Season 2 together. Governors in Season 2 kingdoms can immigrate to other Season 2 kingdoms.
+<color=5><b>Season 3</b></color>: At the end of Season 2, adjacent regions and their kingdoms will enter Season 3 together. Governors in Season 3 kingdoms can immigrate to Season 2 and Season 3 kingdoms.
+<color=6><b>Season of Conquest</b></color>: At the end of Season 3, kingdoms will enter the Season of Conquest. Governors in Season of Conquest kingdoms can immigrate to Season 2, Season 3, and Season of Conquest kingdoms.
+In the Lost Kingdom
+Ranged Skill Damage vs Barbarians"
+Ranged Normal Damage vs Barbarians
+Your current login has been verified with your secondary password.*
+Once you receive eligibility to immigrate to a kingdom, you will take up 1 space of its cross-season immigration quota. Immigrating there will cost <color=#ffa800>{p1} Passport Page(s)</color> <quad x=1.0 y=1.0 width=0.25 height=0.25 />.
+1. If a kingdom's power limit changes after you apply for eligibility, you will need to meet the new power limit to immigrate there, not the previous one. Immigrating before the Season ends will invalidate your <b>{p2}</b>.
+1. If a kingdom's power limit changes after you apply for eligibility, you will need to meet the new power limit to immigrate there, not the previous one.
+Because this kingdom has filled its cross-season immigration quota, you <b>cannot immigrate</b> there.
+Because you were unable to gain immigration eligibility for this kingdom, you will <b>not need to pay a Gem deposit</b>.
+- If you have enabled secondary password verification, you will need to complete verification with your secondary password before doing anything immigration-related.
+- Once you've received cross-season immigration eligibility, a <b>{p3} Gem deposit</b> will be deducted from your account. Once you finish immigrating to the kingdom, your deposit will be returned to you. If you do not immigrate to the kingdom before your eligibility expires, you will lose your deposit.
+- Once you successfully immigrate to your target kingdom, the game will automatically <b>restart</b> and your city will reappear at a random location in your selected province.
+ You cannot obtain cross-season immigration eligibility for the same kingdom twice.
+Governors who have already received cross-season immigration permission from a kingdom cannot apply to the same kingdom again during the same season if they lose that permission.
+Alongside regular immigration, kingdoms can now use special immigration to accept governors whose <color=#EE7600><b>power exceeds the limit for the kingdom</b></color>.
+1. Only the <color=#EE7600><b>king</b></color> can <color=#EE7600><b>approve or reject</b></color> special immigration applications. If an application is approved, the applicant will receive a notification via mail and will be allowed to immigrate to the kingdom.
+2. Special immigration will not use up a kingdom's cross-season immigration quota. Instead, it will cost the kingdom <color=#EE7600><b>special immigration points</b></color>. Points will only be deducted after the special immigration applicant successfully immigrates to the kingdom.
+- When a kingdom is first opened, it will start with {p9} points.
+- At the end of each Season, all kingdoms (except for Preparation Season kingdoms) will receive {p1} points.
+- Kingdoms in the Season of Conquest will receive extra points at the end of each Season based on their total unit deaths. A kingdom's total unit deaths will be based on the total unit deaths of the top 300 governors in the kingdom's death leaderboard. For both the leaderboard and the total death count, only Tier 4+ units will be counted.
+- The maximum number of special immigration points a kingdom can have is {p2}. 
+Approve {p1}'s special immigration application? After this governor finishes immigrating, it will consume <color=#ed9c00>{p2}</color> of your kingdom's special immigration points.N
+2. Special immigration will not use up a kingdom's cross-season immigrate quota. Instead, it will cost the kingdom <color=#EE7600><b>special immigration points</b></color>. Points will only be deducted after the special immigration applicant successfully immigrates to the kingdom.
+- The maximum number of special immigration points a kingdom can have is {p2}.r
+Season of Conquest kingdoms that have not finished their first story can accept up to {p1} same-season immigrants.n
+Season of Conquest kingdoms that have finished their first story can accept up to {p1} same-season immigrants.
+Your character is not more than {p1} days older than the target kingdom.
+If you exceed a kingdom's power cap, you must receive approval from its king to immigrate there. Immigrating there will cost the kingdom special immigration points and will cost you {p1} Passport Page(s).
+Note: You can only apply for special immigration to one kingdom at a time.
+Do you want to apply to immigrate to this kingdom?
+If you exceed a kingdom's power cap, you must receive approval from its king to immigrate there. Immigrating there will cost the kingdom special immigration points and cost you {p1} Passport Page(s).
+Note: You can only apply for special immigration to one kingdom at a time, and immigrating before the Season ends will invalidate your <b>{p2}</b>.
+Holy Sites
+Lvl {p1} Pass
+Altar of Darkness'
+Taygate
+The number of same-season immigrants a Season of Conquest kingdom can accept depends on the kingdom's age and whether or not it is an Imperium Kingdom.t
+If a Season of Conquest Imperium Kingdom's kingdom power is less than {p1}, the above power caps do not apply to it.5
+After entering the Season of Conquest, the {p1} kingdoms with the highest kingdom power will become Imperium Kingdoms. Imperium Kingdoms cannot accept as many same-season immigrants per season as regular kingdoms.
+If a kingdom's kingdom power is above {p2}, governors with over {p3} power cannot immigrate to the kingdom via same-season immigration.
+Kingdom power = The total power of the top 300 most powerful governors in the kingdom. Governors with over 150 million power will be counted as having 150 million power.
+Kingdom power = The total power of the top 300 most powerful governors in the kingdom. Governors with over 150 million power will be counted as having 150 million power.0
+Damage Dealt When Attacking a City or Stronghold
+In addition to season-based divisions, kingdoms in the same season can also be divided into Rising Kingdoms or Imperium Kingdoms based on their kingdom power.
+Kingdom Power = The combined individual power of the kingdom's top 300 governors by power. For governors with extremely high power, there are additional calculation rules:
+Prior to Season 2, each region's top 25% kingdoms by power will be designated as Rising Kingdoms.
+During Season 2, the top {p1} kingdoms by power will be designated as Imperium Kingdoms.
+During Season 3, the top {p2} kingdoms by power will be designated as Imperium Kingdoms.
+During the Season of Conquest, the top {p3} kingdoms by power will be designated as Imperium Kingdoms.l
+Kingdom power = The total power of the 300 most powerful governors in the kingdom.
+4. Power above 500,000,000 will not factor in to your kingdom's power.=
+ 1. Neither your city nor your troops are in battle.
+ 3. You have no more than 1 character in the target kingdom.
+- You cannot immigrate to a kingdom that is taking part in a <color=#EE7600><b>Lost Kingdom event</b></color> or in an <color=#EE7600><b>immigration waiting period</b></color>. This includes matchmaking, Eve of the Crusade, and the Lost Kingdom battle phase.
+- If the target kingdom is not in the Season of Conquest, it will enter a <b>{p1}</b>-hour immigration waiting period after the Lost Kingdom closes. Immigration will open <b>after</b> the waiting period ends. If the target kingdom is in the Season of Conquest, immigration will open<b> {p4} hours</b> <b>before</b> the Lost Kingdom closes. These times may vary. Visit the kingdom info page to learn more and make use of the immigration registration feature.
+- Once you successfully immigrate to your target kingdom, the game will <b>automatically restart</b> and your city will reappear at a random location in your selected province.
+- If you successfully immigrate to the target kingdom and meet the following conditions:
+1) The target kingdom's Lost Kingdom has settled but hasn't closed yet.
+2) The target kingdom is in the Season of Conquest.
+3) You are not immigrating to the target kingdom via Lost Kingdom immigration.
+- You cannot purchase anything from the target kingdom's Lost Kingdom Season Shop.
+- If you enter the target kingdom's Lost Kingdom, you won't be able to leave the starting province until the Lost Kingdom closes.
+*Note: By using the immigration system on the Season of Conquest story page, immigration to any kingdom in the same Lost Kingdom is considered Lost Kingdom immigration. Lost Kingdom immigration has special rules regarding costs. Please see immigration rules on the Season of Conquest story page for details.
+A governor added to your kingdom's watchlist will be unable to enter the Lost Kingdom for the next {p1} days. You can add one governor every {p2} days. Continue?
+Your kingdom's watchlist is empty%
+2. Governors ranked top {p4} by individual power in Imperium Kingdoms (or ranked top {p5} by individual power in non-Imperium Kingdoms) cannot be added to the Watchlist. Governors with under {p6} power can be added to the Watchlist regardless of ranking.
+4. Governors who are added to the Watchlist will be removed from the Lost Kingdom and returned to their home kingdom.
+Adds a governor to the kingdom watchlist. Governors on the watchlist will be unable to enter the Lost Kingdom, and the king will be able to locate them on the map at any time. Up to {p1} governors can be added.
+Governor has been removed from the kingdom watchlist.
+Matchmaking Kingdoms
+Offseason Kingdoms|
+The destination kingdom is not currently in the Lost Kingdom event, the matchmaking phase, or an immigration waiting period.
+Kingdoms in the <b>Season of Conquest offseason</b> can register for a variety of Lost Kingdom stories. Kingdoms in the <b>Season of Conquest matchmaking phase</b> will soon be entering the Lost Kingdom based on their matchmaking results.
+1. As king, you can add governors to the kingdom's watchlist.
+2. The top {p2} governors in your kingdom's power rankings (top {p1} in Imperium Kingdoms) cannot be added to the watchlist. Governors with less than {p3} power are exempt from this restriction.
+4. If you add a governor in the Lost Kingdom to the watchlist, they will be returned to your home kingdom.
+Adds a governor to the kingdom watchlist. Governors on the watchlist will be unable to enter the Lost Kingdom, and the king and kingdom rulers will be able to locate them on the map at any time. Up to {p1} governors can be added.
+A major force of the barbarian coalition. Cunning and brutal, these heavily armored barbarians find company among wolves and use these beasts to advance their assault. They are the indestructible shields of barbarian tribes, as well as hungry devourers of any external threats.
+These bloodthirsty barbarians ride upon the backs of war beasts to vanquish powerful foes. Locking onto targets with absolute fervor, they can obliterate single enemies with a combination of heavy weaponry and the rush attacks of their beasts.
+These barbarian archers carry heavy bows made from the bones of giant beasts. With great force, these archers release a hail of arrows across the battlefield, putting all enemies under heavy fire.
+These dangerous barbarians stride along packs of vicious beasts. Covered by layers of tough hide, their resonating roars with wolves are battle cries for blood.
+These barbarians are the most cunning predators on the plains. Once injured or fatigued prey enter their sights, they will not hesitate to launch fierce attacks at the swiftest speeds.
+These barbarians use specialized heavy arrows that can pierce multiple enemies. Amidst the chaos of battle, they seek to hit as many targets as they can, and become ever stronger because of it.
+This kingdom currently doesn't allow for immigration.
+In regions participating in immigration-related Pioneer experiences, immigration is subject to kingdom restrictions.
+If your kingdom is participating in a Pioneer experience, you will be unable to immigrate for the time being.
+From the end of Lost Kingdom Season 2 "Distant Journey" until the end of Lost Kingdom Season 3 "King of All Britain"5
+Lost Kingdom Season 3 "King of All Britain" has ended#
+Lost Kingdoms currently in Season 31
+Kingdoms in the <b>offseason before Season 3</b>.w
+A governor added to your kingdom's watchlist will be unable to enter the Lost Kingdom for the next {p1} days. Continue?

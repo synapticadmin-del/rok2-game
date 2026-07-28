@@ -1,0 +1,28 @@
+{
+  "resources": ["food", "wood", "stone", "gold"],
+  "buildings": [
+    {"id": "city_hall", "category": "core", "name": "City Hall", "desc": "Caps almost every progression gate"},
+    {"id": "farm", "category": "economic", "name": "Farm", "produces": "food"},
+    {"id": "lumber_mill", "category": "economic", "name": "Lumber Mill", "produces": "wood"},
+    {"id": "quarry", "category": "economic", "name": "Quarry", "produces": "stone"},
+    {"id": "goldmine", "category": "economic", "name": "Goldmine", "produces": "gold"},
+    {"id": "storehouse", "category": "economic", "name": "Storehouse", "protects_resources": true},
+    {"id": "builders_hut", "category": "core", "name": "Builder's Hut", "build_queues": 1},
+    {"id": "wall", "category": "military", "name": "Wall"},
+    {"id": "watchtower", "category": "military", "name": "Watchtower"},
+    {"id": "barracks", "category": "military", "name": "Barracks", "trains": "infantry"},
+    {"id": "stable", "category": "military", "name": "Stable", "trains": "cavalry"},
+    {"id": "archery_range", "category": "military", "name": "Archery Range", "trains": "archer"},
+    {"id": "siege_workshop", "category": "military", "name": "Siege Workshop", "trains": "siege"},
+    {"id": "academy", "category": "progress", "name": "Academy", "research": true},
+    {"id": "hospital", "category": "military", "name": "Hospital", "heals": true},
+    {"id": "castle", "category": "military", "name": "Castle", "rally": true},
+    {"id": "alliance_center", "category": "social", "name": "Alliance Center"},
+    {"id": "tavern", "category": "progress", "name": "Tavern", "commanders": true},
+    {"id": "trading_post", "category": "social", "name": "Trading Post"},
+    {"id": "scout_camp", "category": "military", "name": "Scout Camp"},
+    {"id": "courier_station", "category": "economic", "name": "Courier Station"},
+    {"id": "shop", "category": "economic", "name": "Shop"},
+    {"id": "monument", "category": "progress", "name": "Monument"}
+  ]
+}

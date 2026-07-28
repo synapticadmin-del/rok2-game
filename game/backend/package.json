@@ -1,0 +1,20 @@
+{
+  "name": "rok2-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply rok2-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply rok2-db --remote",
+    "smoke": "node scripts/smoke.mjs",
+    "test:local": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260721.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.22.0"
+  }
+}

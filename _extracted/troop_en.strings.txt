@@ -1,0 +1,70 @@
+Training
+On Cooldown/
+There are no commanders garrisoned in the city.7
+Battling With Troops Of <color=#c88800>{p1}{p2}</color>
+Gathering:
+Your troops have camped and are awaiting your next orders.'
+Garrisoning <color=#ffc600>{p1}</color>5
+Defending Enemy Attack In <color=#c88800>{p1}</color>
+Marching
+Marching to Attack
+Marching to Gather
+Marching to Reinforce
+Retreating
+Routed%
+Attacking <color=#c88800>{p1}</color>%
+All troops have returned to the city.g
+Governor, the soldiers of disbanded troops will immediately retire and we will receive no compensation.
+Troops
+Journey {p1}
+Army Commander.
+Insufficient resources, unable to heal troops.
+Queue {p1}
+Upgrading
+Transporting
+Resources Transportedu
+You will suffer only minor losses when battling Barbarians, but will lose more units when you battle other Governors.
+Upgrade
+Unit Upgrade#
+Rallied Army Unit Capacity Exceeded
+Transporting Gifts
+Slightly wounded units are temporarily unable to participate in battle, so they will not be counted toward the total number of units in a troop.B
+Sorry Governor, you cannot change the target of this rallied army.8
+Sorry governor, you cannot give orders to routed troops.7
+Sorry Governor, you cannot change carriage destination.)
+Assembling at <color=#ffc600>{p1}</color>
+Entering Ranged Mode.
+Leaving Ranged Mode.
+Troop marker set7
+Your {p1} <b>{p2}</b> has set a new troop marker: {p3}.7
+Your {p1} <b>{p2}</b> has removed a troop marker: {p3}.
+Input text here...
+Attack
+Follow
+Defend
+Diamond
+Circle
+{p1}'s Troop
+Dispatching...0
+There are no commanders garrisoned in this {p1}.
+Barbarian Axemen
+Barbarian Ravagers
+Barbarian Chargers
+Barbarian Screamers
+Lunar Blades
+Solar Blades
+Twilight Guardiansx
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.x
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.x
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.x
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.x
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.x
+Elite barbarians who appear after reaching a certain level of Alertness. Defeat them to obtain powerful buffs or skills.
+Guardians summoned by the Solar Blades. Defeat them before they manage to reach the Lunar Blades, or they'll self-destruct and deal massive damage!
+Ceroli Lancer
+Ceroli Marksman
+Ceroli Sharpshooter
+Ceroli Chariot
+Flamespitter
+ArrQI
+jQI[L=>l_S

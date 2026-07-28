@@ -1,0 +1,507 @@
+Land of Civilization
+Brothers In Arms
+Oracle
+You Shall Not Pass
+In My Name
+Rising Star
+Logistical Support
+Fertile City
+Heart of Courage
+Fight For Glory
+Marksman Team
+Mad Destroyer
+The Pioneer)
+Defeat {p3} Barbarian troop(s) on the map
+Join or create an alliance
+Occupy a Holy Site
+Occupy a Pass)
+Set your nickname in the Governor Profile(
+Have a total of {p3} units in your city.
+Own {p3} Farms
+Collect {p3} Food in the city
+Recruit {p3} Infantry Units
+Recruit {p3} Cavalry Units
+Recruit {p3} Archer Units
+Recruit {p3} Siege Units 
+Gather {p3} Resources on the map
+Country Life
+Log Merchant
+Build a Farm
+Upgrade Farm to Level {p2}
+Build a Lumber Mill!
+Upgrade Lumber Mill to Level {p2}
+Sword of Victory
+A Small Problem
+The Gatherer
+The Lumberjack
+Resource Keeper
+Sword of the King
+Hazard Cleanup
+Master of Farming
+Lumber Tycoon
+Sustainable Development
+Rock Star
+The Sculptor
+Recruit {p3} Infantry Units)
+Defeat {p3} barbarian troop(s) on the map
+Gather {p3} Food on the map
+Gather {p3} Wood on the map#
+Collect {p3} resources in your city
+Gather {p3} Stone on the map
+Origin
+Upgrade City Hall to Level {p2}
+Technology Research
+Complete research into "{p1}"
+The Manor Owner
+Forest Conqueror
+Gift From Earth
+Mountain Crusher
+Glittering Gold
+Money Machine
+Solid Protection
+Impregnable
+One Step Ahead
+The Prophet
+House of Warriors
+Battlefield Elite
+Take The Lead
+Galloping Horses
+Sharpshooter
+Rain of Arrows
+City Nightmare
+Unstoppable Machine
+Fountain of Knowledge
+The Wise Man
+Heal The World
+Guardian Angel
+Resource Reserve
+Take Precautions
+Hall of Unity
+Solidarity Is Strength
+Art of Architecture
+Passage of Power
+Heroes Among Chaos
+Blessed Talents
+Win-win Plan
+Commercial Wizard
+Construction Business
+Shopping Time
+Friends From Afar
+Upgrade Quarry to Level {p2}
+Upgrade Goldmine to Level {p2}
+Upgrade the Wall to Level {p2} 
+Upgrade Watchtower to Level {p2}
+Upgrade Barracks to Level {p2}
+Upgrade Stable to Level {p2}#
+Upgrade Archery Range to Level {p2}$
+Upgrade Siege Workshop to Level {p2}
+Upgrade Academy to Level {p2}
+Upgrade Hospital to Level {p2} 
+Upgrade Storehouse to Level {p2}%
+Upgrade Alliance Center to Level {p2}
+Upgrade Castle to Level {p2}
+Upgrade Tavern to Level {p2}"
+Upgrade Trading Post to Level {p2}
+Build a Quarry
+Build a Goldmine
+Build a Wall
+Build a Watchtower
+Build a Barracks
+Build a Stable
+Build an Archery Range
+Build a Siege Workshop
+Build an Academy
+Build a Hospital
+Build a Storehouse
+Build an Alliance Center
+Build a Castle
+Build a Tavern
+Build a Trading Post
+Build a Builder's Hut
+Build a Shop
+Build a Courier Station
+Newborn
+Experience
+Risen
+Justice
+Equality
+Tolerance
+Loyalty
+Creation
+Tenacity
+Trust
+Gratitude
+Abstinence
+Discord
+Courage
+Responsibility
+Principle
+Freedom
+Unparalleled
+Road of Honor
+Respected Overlord
+Ruler of Land
+The Summit
+Origin
+Collect {p3} Stone in the city
+Collect {p3} Wood in the city
+Collect {p3} Gold in the city
+Gold Digger
+The Billionaire
+Gather {p3} Gold on the map
+Upgrade "{p1}" to Level {p2}
+Advanced Research
+Activity Points<
+Acquire {p1} Activity Points to claim the following rewards!
+Claimed
+Mysterious Fog$
+Explore {p3} Fog Block(s) on the map
+Power reached {p3}
+Powerful Leader
+Enlarge An Army%
+Open {p3} Golden Chests in the Tavern
+Mighty General!
+Upgrade a commander to Level {p3}
+Master Tactician"
+Upgrade commander skill {p3} times
+The Legendary Figure&
+Upgrade a commander to Star Level {p1}
+The Chosen One%
+Add {p3} Talent Points to a commander
+Scouting Mission
+Scout an area
+One of a Kind'
+Set your avatar in the Governor Profile
+A Friend of the Tribe'
+Claim rewards from {p3} Tribal Villages
+The Adventurer$
+Successfully investigated {p3} Caves
+Strategic Point
+Find {p3} Passes
+The Blessed Place
+Find {p3} Holy Sites
+The Great Landowner 
+King of the Jungle
+Stone Giant
+Mountain of Gold
+Reach {p3} Wood production
+Reach {p3} Stone production
+Reach {p3} Food production
+Reach {p3} Gold production
+Ready To Go
+Send your troops {p3} times
+Helping Hand
+Help your allies {p3} times
+Hand of Benevolence
+Heal and collect {p3} units'
+Defeat Level {p1} Barbarians on the map
+Barbarian Buster
+Information Center
+Build a Scout Camp 
+Upgrade Scout Camp to Level {p2}
+Campsite Upgrade
+Train {p3} Swordsmen
+Train {p3} Light Cavalry
+Train {p3} Bowmen
+Train {p3} Arcuballistae
+Train {p3} Spearmen
+Train {p3} Heavy Cavalry
+Train {p3} Composite Bowmen
+Train {p3} Mangonels
+The Great Physician
+Help Each Other
+Skillful Craftsman
+Age Of Science
+Strange Fate
+Do More With Less
+Food Growth
+Wood Growth
+Stone Growth
+Gold Growth
+Heal and collect {p3} units
+Help your allies {p3} times"
+Upgrade {p3} building in your city&
+Upgrade {p3} technology in the Academy%
+Open {p3} Silver Chests in the Tavern
+Use {p3} Resource items
+Use a Food Boost item
+Use a Wood Boost item
+Use a Stone Boost item
+Use a Gold Boost item
+Infantry Training
+Cavalry Training
+Archer Training
+War Behemoth
+Train {p3} infantry units
+Train {p3} cavalry units
+Train {p3} archer units
+Train {p3} siege units
+Power of Science
+Start {p3} Technology Research#
+Own 1200 Infantry Units in the city
+Infantry Inspection%
+Open {p3} Silver Chests in the Tavern
+Space Clearance
+Recycle {p3} trees in your city
+Build {p3} Lumber Mills
+Efficiency Increase
+Casualty Reduction
+Build {p3} Hospitals
+More Stone
+Build {p3} Quarries
+More Gold
+Build {p3} Goldmines
+Road Paving
+Build the road {p3} times
+Build {p3} decorations
+The Beauty of the City
+Barbarian Conquest&
+Defeat Lvl {p1}+ barbarians {p3} times
+Fort Destroyer#
+Destroy a Level {p1} Barbarian Fort
+The Extermination
+Destroy {p3} Barbarian Forts
+Technical Pioneer 
+Research a Technology {p3} Times
+Bow of Victory
+Horse of Victory
+Power of Victory
+Recruit {p3} Archer Units
+Recruit {p3} Cavalry Units
+Recruit {p3} Siege Units
+Gathering Enhancement&
+Use {p3} Gathering Enhancement item(s)
+Power of Knowledge
+Use {p3} Tome of Knowledge
+Bow of the King
+Horse of the King
+Power of the King+
+Heal the wounded units once in the Hospital
+New Shopper
+Purchase an item in the Shop
+Construction Complete%
+Upgrade all the buildings to Level 25
+CONGRATULATIONS
+Food Gathering
+Wood Gathering
+Stone Gathering
+Gold Gathering
+Gather {p3} Food on the map
+Gather {p3} Wood on the map
+Gather {p3} Stone on the map
+Gather {p3} Gold on the map1
+Main quest <color=#ffa800>{p1}</color> completed!1
+Side quest <color=#ffa800>{p1}</color> completed!8
+Daily objective <color=#ffa800>{p1}</color> is complete!#
+Send your scout to find more {p1}s!
+Friendly Commerce(
+Purchase {p3} item(s) in Courier Station
+Destroy {p1} Barbarian Forts$
+Explore {p1} Fog Block(s) on the map
+A Long Journey$
+Complete {p1} Missions in Expedition
+Achievements
+Engineer
+Overlord
+Vanquisher
+Adventurer|
+"Engineer" achievements are a testament to your outstanding contributions to the development of your city and your alliance.s
+"Overlord" achievements commemorate your military strength and your success upholding peace throughout the kingdom.c
+"Vanquisher" achievements are a record of the valiance and honor you have shown on the battlefield.Z
+"Adventurer" achievements symbolize your love of challenge and enthusiasm for exploration.
+Return
+Progress: <b>{p1}/{p2}</b>
+Achievement Unlocked!
+Achievements:
+Congratulations, Governor! You have completed every quest.
+Warrior of the Sun
+Challenge Sunset Canyon 1 time
+The Hammer and Anvil
+Build a Blacksmith
+Blacksmith Apprentice 
+Forge {p3} piece(s) of equipment+
+Forge {p3} pieces of {p1} quality equipment1
+Combine {p3} equipment blueprints of {p1} quality,
+Combine a total of {p3} equipment blueprints0
+Combine {p3} equipment materials of {p1} quality+
+Combine a total of {p3} equipment materials:
+Produce a total of {p3} normal quality equipment materials/
+Dismantle {p3} pieces of {p1} quality equipment-
+Dismantle a total of {p3} pieces of equipmentD
+Dismantle {p3} equipment materials from {p1} quality to {p2} quality-
+Dismantle a total of {p3} equipment materials
+DAILY TIMED QUEST
+Refreshes in: {p1}
+Event Time Remaining: :
+Own a <color=#ffb137>Legendary Commander</color> to UnlockO
+Upgrade Any <color=#ffb137>Legendary Commander</color>'s Skill 1 Time to Unlock3
+Enter the <color=#ffb137>Iron Age</color> to Unlock5
+Enter the <color=#ffb137>Bronze Age</color> to Unlock"
+Must unlock the quest field first.
+<b><size=24>Event Rules</size></b>
+1. The Beginner's Limited-Time Event consists of two parts: the <color=#de9300>unlocking of Quest fields</color>, and <color=#de9300>Daily Quests</color>.
+2. Governors start with 1 Quest field by default, and must meet <color=#de9300>certain conditions</color> to <color=#de9300>unlock new Quest fields</color> permanently. Quests in a locked field can be completed early, but their rewards cannot be claimed yet.
+3. Completing a <color=#de9300>Daily Quest</color> gives quest rewards and 1 point. Extra rewards are given upon reaching 3 points and 5 points for that day. Beginner Quests and points are <color=#de9300>refreshed daily</color>, so be sure to claim your rewards on time.%
+Complete {p1} daily quests to obtain:C
+Complete the Research of <color=#ffb137>Swordsman</color> to Unlock
+Ready For Battle'
+Equip {p3} piece(s) of normal equipment)
+Equip {p3} piece(s) of advanced equipment&
+Equip {p3} piece(s) of elite equipment%
+Equip {p3} piece(s) of epic equipment*
+Equip {p3} piece(s) of legendary equipment#
+Begin Producing Materials: Iron Ore 
+Begin Producing Materials: Ebony"
+Begin Producing Materials: Leather&
+Begin Producing Materials: Animal Bone6
+Forge {p3} piece(s) of normal special talent equipment8
+Forge {p3} piece(s) of advanced special talent equipment5
+Forge {p3} piece(s) of elite special talent equipment4
+Forge {p3} piece(s) of epic special talent equipment9
+Forge {p3} piece(s) of legendary special talent equipment6
+Equip {p3} piece(s) of normal special talent equipment8
+Equip {p3} piece(s) of advanced special talent equipment5
+Equip {p3} piece(s) of elite special talent equipment4
+Equip {p3} piece(s) of epic special talent equipment9
+Equip {p3} piece(s) of legendary special talent equipment
+Knowledge is Power
+Build a Lyceum of Wisdom
+Master And CommanderI
+The waves of history crash behind me as I seek new pathways to our cause.Y
+Complete Daily Objectives for activity points, which can be used to unlock reward chests.
+All Daily Objectives, activity points and rewards chests will be reset at the end of the countdown. Remember to claim reward chests manually!
+Materials Processing
+Produce an equipment material;
+Undaunted, unstoppable, you walk the path into the unknown.
+Origins
+Open {p1} Legendary Chest(s)
+Statecraft%
+Upgrade the State Forum to Level {p2}
+Virtue's Reward!
+Speak with the visiting villagers
+People Person(
+Unlock {p1} commander Biography chapters
+PotentateS
+"Potentate" achievements highlight your unassailable might and countless victories.
+Hello World
+Send 1 message in the chat
+Eventful
+Browse the Events page
+Sunset Setter*
+Set your troop lineup in the Sunset Canyon
+Monumental+
+View your kingdom's history at the Monument
+I Blow My Nose At You(
+Assign garrison commanders via your Wallg
+A fantastic show of power, governor! The barbarians will think twice before threatening our city again!
+Tech Research
+Research the {p1} tech
+Upgrade a Farm to Lvl {p2}
+Upgrade a Hospital to Lvl {p2}#
+Upgrade your Watchtower to Lvl {p2} 
+Upgrade your Academy to Lvl {p2}!
+Upgrade your Barracks to Lvl {p2}!
+Upgrade the {p1} tech to Lvl {p2}
+Own {p3} units
+Own 1200 infantry units
+Digging Two Graves
+Brilliant Strategist
+Mastery I
+Mastery II
+Avenger)
+Clear Stage {p1} of the Path of Vengeance%
+Level up {p1} commander to level {p2}1
+Upgrade the skills of {p1} commander by {p2} pips3
+Upgrade the skills of {p1} commander by {p2} levels)
+Clear Stage {p1} of the Path of Vengeance&
+Level up {p1} commanders to level {p2}2
+Upgrade the skills of {p1} commanders by {p2} pips4
+Upgrade the skills of {p1} commanders by {p2} levels
+Own 800 infantry units)
+Upgrade the skills of  commander by 1 pip
+Repair the Builder's Hut!
+Collect Wood from the Lumber Mill
+Hunt an animal 
+Provide your villagers with Food*
+Upgrade your Makeshift Tent to a City Hall
+Collect Food from the Farm
+Build a Storehouse
+Build a Notice Board
+New Foundations
+Logging On
+Wood You Kindly
+Venator
+Vital Vittles
+Rule of Law
+Agricultural Revolution
+Grain Brained
+Brick by Brick
+Bean Counter
+Take a Look Around You, Boy
+Quench the Flame#
+Upgrade your Antler Fence to a Wall)
+Upgrade your Stone Cauldron to a Monument7
+Complete 2 hunts, stockpile food, and eliminate threats
+Acquire Venison
+Acquire Venison
+Acquire Antlers
+Collect Bearskins
+Return to the village
+Rescue the villagers
+Prepare food
+Reinforce the Fence
+Build Makeshift Tent(
+Help the strangers by hunting the wolves5
+We're not out of the woods yet. It's time to rebuild.*
+Upgrade your Makeshift Tent to a City Hall
+Fresh Start
+First Steps
+Laying the First Brick
+Land Reclamation
+Harvesting Season
+At Loggerheads
+Strategic Reserve
+Venator
+House and Home
+Bison Battler
+Agricultural Evolution
+Logging Loon
+Renaissance
+Upgrade your Tent
+Use your Spear to hunt 1 Bison
+Rebuild the Builder's Hut
+Build a Farm
+Collect Food from your Farm
+Build a Lumber Mill
+Build a Storehouse
+Complete a hunt
+Upgrade your Tent to Lvl 2
+Hunt Bison
+Upgrade your Farm to Lvl 2!
+Upgrade your Lumber Mill to Lvl 2*
+Upgrade your Makeshift Tent to a City Hall/
+Reinforce your fence to keep out the giant bear
+Intelligent
+Handle {p3} Telescope incidents
+Handle 1 Telescope incident
+Upgrade a Quarry to Lvl {p2}!
+Upgrade a Lumber Mill to Lvl {p2}
+Upgrade your Wall to Lvl {p2}#
+Upgrade your Storehouse to Lvl {p2}
+Upgrade your Tavern to Lvl {p2}
+Clear the rubble in the village
+Guardianx
+"Guardian" achievements bear witness to the steady protection you offer. Any impending storm is halted by your presence.
+On the Hunt
+Clear Hunting Expedition {p1}
+Unlock {p1} no. {p3}
+Efficiency Boost
+Unlock {p1}
+Bricks and Stone
+Clear Wild Pursuit Stage {p1}
+Call to Adventure
+Log in once per day
+Strength in Numbers
+Make {p3} alliance donation(s)
+Fort Demolisher
+Destroy Barbarian 

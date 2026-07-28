@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rok2-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "KINGDOM_ID": "kingdom-1",
+    "ADMIN_KEY": "rok2-dev-admin",
+    "AUTH_SECRET": "rok2-dev-secret-change-me"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rok2-db",
+      "database_id": "297c811a-ba1e-4f64-88ca-98513cce3042",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "KINGDOM_SHARD",
+        "class_name": "KingdomShard"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["KingdomShard"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

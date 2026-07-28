@@ -1,0 +1,1616 @@
+Julius Caesar
+Calvin
+Sun Tzu
+Rome
+France
+Violent Blood
+Barbarian Charge
+Double-Headed Axe
+Undying Fury
+Iron Spear
+Fleet Of Foot
+Hold The Line
+Elite Soldiers
+Full Quiver
+Arrows Nocked
+Rapid Fire
+Armed And Armored
+Thumb Ring
+Razor Sharp
+Phoenix-Tail Arrows
+Venomous Sting
+Whistling Arrows
+Dragon Saber
+Halberd
+Galea
+Disarm
+Emblazoned Shield
+Equestrian Excellence
+Rallying Cry
+Defensive Formation
+Fresh Recruits
+Steely Soul
+Armored To The Teeth
+Armed To The Teeth
+Hidden Wrath
+Healing Herbs
+Close Formation
+Strategic Prowess
+Name Of The King
+Moment Of Triumph
+Marionette
+Signal Flare
+Thoroughbreds
+Well Provisioned
+Meteor Shower
+Entrenched
+Nowhere To Turn
+Impenetrable Fortifications
+City Guardian
+Adamantine Walls
+Impregnable
+Korea
+Britain
+Japan
+Spain
+Germany
+Yi Seong-Gye
+Cao Cao
+Charles Martel
+El Cid
+Hermann
+Kusunoki Masashige
+Scipio Africanus
+Eulji Mundeok
+Boudica
+Pelagius
+Spartacus
+Indomitable Army
+Barbarossa
+Dragon Rider
+Kyohachiryu
+Famous Warrior
+Military Life
+Divine Revelation
+Water Attack
+The Devout
+Industrious Leader
+City Killer
+The Founders
+Never Give Up
+Joseon Dynasty
+Tiger Knight
+Battle-Hardened
+Heavy Infantry
+The Uncrowned King
+Master Strategist
+Military Genius
+The Worthy Man
+Genuine Aristocracy
+Holy Refuge
+Cold Welcome
+Strike Back
+Group Battle
+Celtic Blood
+Retaking Lost Territory
+Indomitable Spirit
+Divine Julius
+Lofty Ambition
+National Hero
+Patient Warrior
+The Mutineer
+Supreme Commander
+Know Thy Enemy
+City Keeper
+Markswoman
+Centurion
+Dragon Lancer
+Bloody Battle
+Hard Shield
+Raid
+Deterrent
+Excitement
+Army Management
+Courageous Fighter
+Vitality
+Sharp Blade
+Resilient
+Poison Arrow
+Accuracy
+Agility
+Fine Horse
+Metal Armor
+Auto-add
+The Lionheart
+The Uncrowned Emperor
+Barbarian Warrior
+Tactical Genius
+Peerless Lord
+The Immortal Hammer
+Holy Overlord
+Bushido Spirit
+Elegant Demeanor
+Celtic Rose
+Unruly Revivalist
+Shadow Snake
+Dauntless Lohar
+Invincible Lohar
+Junior Lohar
+Hannibal Barca
+War Elephants
+Reinforced Defense
+Reinforced Attack
+Envelopment Tactics
+Siege
+Expedition
+Loadouts
+Empty
+Primary Commander
+Secondary Commander
+Shaman
+Shaman-Priest
+The Immortal
+Sacrifice
+Invasion
+Constance
+Gaius Marius
+Tomoe Gozen
+Lancelot
+Lohar
+Roaring Barbarian
+Struggling Poison
+Blood Sakura
+Quarrel
+Overwhelming Force
+The Last Pharaoh
+The Regent
+Loving Mother
+Divine Bow
+Eternal Love
+Forbidden Love
+Sanction
+Unruly Blood
+Enchantment
+Lost Treasure
+Save Loadout
+Load Loadout
+More
+Tavern
+Daily Special Offer
+First Recharge Gift Package
+Universal Sculpture
+Origin
+The High Priest
+Untouchable
+Shadow Shaman
+The Chanter
+The Martyr
+Rampage
+Destroyer
+Direct Damage Factor
+Damage Bonus
+Additional Damage Factor
+Attack Reduction
+March Speed Reduction
+Damage Reduction
+Rage Gained
+Rage Reduction
+Counterattack Damage Bonus
+Infantry Health Bonus
+Cavalry Defense Bonus
+Archer Attack Bonus
+Defense Reduction
+Defense Bonus
+Healing Factor
+Attack Bonus
+Unit Capacity Bonus
+Cavalry Attack Bonus
+Cavalry March Speed Bonus
+Healing Bonus
+Damage Taken Increase
+Infantry Defense Bonus
+Watchtower Defense Bonus
+Garrison Attack Bonus
+Archer Defense Bonus
+Archer March Speed Bonus
+Garrison Damage Reduction
+Garrison Counterattack Damage Bonus
+Gathering Speed Bonus
+Load Bonus
+Extra Damage Reduction
+March Speed Bonus
+Normal Damage Bonus
+Trigger Chance
+Infantry Attack Bonus
+Siege Unit Attack Bonus
+Siege Unit Defense Bonus
+Resource Bonus
+Ratio
+Upgrade Preview
+Star Upgrade Preview
+Talent Points
+Daily Objectives
+Courier Station
+Defeat Barbarians
+The Qingzhou Army
+Tyrannical Lion
+Furious Barbarossa
+Arrow Storm
+Kyohachiryu Kiwami
+Dead End
+Utter Annihilation
+War Elephant Trample
+Unyielding Spirit
+Andaal
+Lukor
+Murdos
+Pache
+Solon Por
+Voodoo Totem
+Practice Makes Perfect
+Fanaticism
+Immortality
+Resurrection
+Savage Army
+Brutal Blades
+Perseverance
+Totem Dance
+Flameheart Aura
+Bloodfury Ritual
+Slash
+Bearkeeper
+Killing Blow
+Broken Heart
+Primary
+Secondary
+Expertise Attained
+Buckler Shield
+Empty Fortress Stratagem
+Divine Favor
+Insight
+Quick Study
+Domination
+Killer Instinct
+Trophy Hunter
+Mighty Force
+Double-Edged Sword
+Curing Chant
+Modified Axle
+Tourniquet
+Armed Convoy
+The More The Better
+Superior Tools
+Turn Of Fate
+Burning Blood
+Heraldic Shield
+Latent Power
+All For One
+Tactical Mastery
+Naked Rage
+Rejuvenate
+Clarity
+Feral Nature
+Armored Joints
+Fight To The Death
+Martial Mastery
+Effortless
+Victory Charge
+Last Stand
+No Weaknesses
+Master Armorer
+Spiked Armor
+Balance
+Loose Formation
+Testudo Formation
+Medicinal Supplies
+Desperate Elegy
+Hasty Departure
+Elixir
+Expert Design
+Counterattack
+Emergency Protection
+Vortex
+Lightning Charge
+Swiftness
+Saving Cross
+Alacrity
+Triumphant March
+Time Management
+Attack
+Defense
+Support
+Mobility
+Watchtower Attack Bonus
+Legendary Commander
+Epic Commander
+Elite Commander
+Advanced Commander
+Resource Item
+Speedup
+Golden Chest Reward Details
+Silver Chest Reward Details
+Probability
+Reward
+Crowned Thief
+Master Thief
+Wooden Statue
+Wood Dragon
+Escape
+Gift Bash
+Healing Reduction
+Counterattack Damage Reduction
+Belisarius
+Baibars
+Saladin
+Imperial Pioneer
+Deception
+Sandstorm
+The Empire Awakens
+Hold Fast
+Ottoman Cannons
+Blot Out The Sun
+Rising Empire
+Orban Bombard
+Irresistible
+Bucellarii
+Oblique Tactics
+Arabian Knights
+No Escape
+Great Panther
+Allegiance
+Impasse
+Ghulams
+Generosity
+Fatih
+Sage King
+Bloodthirsty Bucellarii
+Sole Augustus
+Recharge
+Hot Blooded
+War Lust
+Fighting Chance
+Terrorize
+Brave Defender
+Regeneration
+Bloodthirst
+Life Tap
+Blood Reckoning
+Cleaving Blow
+Ruthlessness
+Crippling Strike
+Greater Shaman
+Chieftain
+Priest
+Buffalo Drummer
+Marauders
+Marauder Encampment
+Rage Requirement Reduction
+Genghis Khan
+First Khagan
+Chosen One
+Nomadic Empire
+Military Lifestyle
+Blood Debt
+Free Reset
+Cavalry March Speed Reduction
+Filial Piety
+Khan Slayer
+Legendary Heroine
+Mulan
+Wu Zetian
+Charlemagne
+Achievements
+World Conqueror
+Frontline Commander
+Warrior Queen
+Synergy
+Thunderous Force
+Gallop
+Collide
+Heavy Strikes
+Struggle
+Launch
+Furious Roar
+Destined Confrontation
+Strike
+Athikat
+Obeira
+Therata
+Kranitos
+Caravan
+Pater Europae
+The Lost Kingdom
+Happy Home
+Paladin
+Plot Maneuvers
+Carolingian Renaissance
+Scorched Earth
+Shadow Fury
+Endless Battle
+Shadow Mount
+Shadow Bow
+Shadow Blade
+Infantry March Speed Bonus
+Tomyris
+The Black Prince
+Payback
+Vengeful Crusade
+Dark Shelter
+Max Stacks
+Archer Health Bonus
+Archer Defense Reduction
+Control Beast
+Seondeok
+Modest
+Insightful
+Magnanimous
+Incisive
+Siege Unit Health Bonus
+Endless Dusk
+Compassion
+Ceroli Warrior
+Ceroli Executioner
+The Eternal Empress
+Keira
+Veil Totem
+Lion Rider
+Legacy
+Brightest Sky
+Silence Duration
+Royal Bloodline
+Lucerne Scrolls
+Attila
+Takeda Shingen
+Honoria
+Evil Witch
+Other
+Adjudicator Natali
+Lingering Jealousy
+Ishida Mitsunari
+Taiko-kenchi
+Indispensable
+Health Bonus
+Theodora
+Byzantine Empress
+Keeper Of Secrets
+Co-Ruler
+Royal Power
+Guan Yu
+Lone Rider
+Indomitable Powerhouse
+Green Dragon Crescent Blade
+Five Tiger Generals
+Three Hundred Spartans
+Honorable Sacrifice
+Fatal Volley
+Traumatize
+Mutilate
+Ruthless Ironfist
+Brutal Impact
+Barbaric Blood
+Unyielding Resolve
+Overpower
+Warpath
+Broken Wings
+Puncture Wounds
+Earth Shatter
+Intimidating Aura
+Weapon Swap
+Arctic Expanse
+Freezing Seal
+Relentless Assault
+Freezing Gasp
+Thawing Point
+Battle Hardened
+Spear Volley
+Malignant Venom
+Poisoned Arrows
+Combo Shots
+Battlefield Supplies
+Reinforced Armor
+Iron Resolve
+Bolstered Constitution
+Rapid Regeneration
+Lethal Shot
+The Red Chameleon
+Ceroli Sharpshooter
+Undying Flames
+Flesh Eater
+Midnight Assault
+Healing Totem
+Beast Hide
+Evil Fanaticism
+Mud Mire
+Weighty Armor
+Perforate
+Protection Against Voodoo
+Protection Against Brutality
+Blood Drinker
+Steal Life
+Strip Armor
+Gourmandize
+Fanatical Sacrifice
+Bloodfury Warshout
+Midnight Vigilance
+Scorch Totem
+Hunting Instinct
+Desperate Will
+Bestial Impulse
+Bestial Instinct
+Bestial Roar
+Beastlord Awaken
+Burning Backlash
+Fiery Sacrifice
+Master Advisor
+War Strategist
+Counselor
+Ursine Strength
+Flaming Vengeance
+Broken Moon
+Geobukseon
+Winged Formation
+Skybreaker Comet
+Silverhook Axe
+Starfall Might
+Burning Glory
+Golden Crusher
+Judgment Day
+Sundown Smash
+Astral Twins
+Scarred Revenger
+Bandits
+Sun Guard
+No Retreat
+Ancestral Will
+Armor Piercing Spears
+Wild Rage
+Seething Wrath
+Surging Strike
+Provoke
+Ancestral Protection
+Front-Row Defense Bonus
+Health Reduction
+Front-Row Health Bonus
+Front-Row Attack Bonus
+Back-Row Defense Bonus
+Back-Row Health Bonus
+Back-Row Attack Bonus
+Front-Row Damage Reduction
+Back-Row Damage Reduction
+Chandragupta Maurya
+The Conqueror
+Hidden Moon
+Hidden Bloodline
+Royal Elephant Brigade
+Arthashastra
+Self-Control
+Norman Conquest
+Judgement Day
+Development Cost
+Star Upgrade Cost
+Normal Raiders
+Enraged Raiders
+Raider Chieftains
+Summon Believers
+Clever Heart
+The Mora
+Wise Ruler
+To The Death
+Extra Healing Factor
+Immunity Duration
+Harald Sigurdsson
+Zenobia
+Hardrada
+Valhalla
+Ascending Augusta
+Berserker
+Viking Battleaxe
+Varangian Guard
+Stamford Bridge
+Unmatched Beauty
+Pluralistic Reign
+Earth-Shattering Roar
+Thunderous Curse
+Lu Bu
+The Powerful Demon God
+Diaochan
+The Intriguing Dancer
+Sky Piercer
+Babylonian
+The Immortals
+Flying General
+Persian Bow
+The Cyrus Cylinder
+Chaldean Archers
+Sky Scorcher
+Chain Stratagems
+Poisoned Weapons
+Additional Damage Taken Increase
+Tainted Blades
+Target Practice
+Furious Volley
+Jaguar Warrior
+Flower War
+Triple Alliance
+Expanding Borders
+Great Expeditions
+Aztec Eagle
+Trajan
+Optimus Princeps
+Five Good Emperors
+Jadwiga
+Xiang Yu
+Holy Sovereign
+Cavalry Health Bonus
+Normal Damage Reduction
+Cavalry Damage Bonus
+Holy Blessing
+Forceful Spearhead
+Unbeatable Warlord
+Magic Marks
+Shared Blessings
+Caustic Elements
+Cursed Earth
+Corrupting Poison
+Ragnar Lodbrok
+Booming Warsong
+Fearless Fighter
+Longboat Marauder
+Viking Lord
+The Raven
+Minister Protector
+Mayan Strength
+Courageous
+Balanced Strategy
+Byeolmuban
+Stalwart
+Divine Sovereignty
+Gilgamesh
+Amanitore
+Nubian Kandake
+Demigod
+Glorious Arrows
+Line Breaker
+Nubian Willpower
+The Georgian Will
+Tadzreuli Strike
+Probability Overview
+Honda Tadakatsu
+The Undefeated
+Dragonfly Cutter
+Tokugawa Heavenly King
+Samurai Among Samurai
+Extra Attack Bonus
+Annexation
+Janissary
+Kanuni
+Eldritch Gaze
+Corrupting Influence
+Fire Mark
+Lightning Mark
+Scipio
+High Morale
+Fearless Strike
+Cleanse
+Toxicity
+Bonebreaker
+Primal Rage
+Piercing Strike
+Cataclysm
+Underworld Gift
+Stifled
+Rush
+Bandage
+Weakness
+Alexander Nevsky
+Royal Constable
+Battle Hungry
+Fabian Strategy
+Expeditionary
+Filter
+Unit Type
+Scenario
+Armor Breaker
+Quagmire
+Enfeebling Hex
+Bestial Bite
+Bloodletting
+Master Hunter
+Healing Potion
+Heavy Fist Strike
+Flavius Aetius
+Imhotep
+Fiery Rage
+Unmatched Strength
+All-Conquering
+Strategic Pressure
+Flamewielder
+Steely Resolve
+Sort
+Engineering
+Conquest
+Hiring Freeze
+Effective Recruitment
+Agents Provocateurs
+Well Fortified
+Reinforced Firepower
+Swift Maneuvers
+Ebullient
+Defensive Maneuvers
+Cornered Fox Technique
+Forbearance
+Packing Light
+Siege Specialty
+Augmentation
+Irrepressible
+Lancastrian King
+Stormbringer
+Wolfshadow
+Torgny
+Wafura
+Barbarian Fortifications
+Swift Offence
+Castle Breaker
+Whistling Counterstrike
+Smoke Signal
+Wolf Senses
+Blizzard
+Boiling Blood
+Purloin
+Crouching Tiger
+Cry Havoc
+Ranged Normal Damage
+Ranged Direct Damage Factor
+Chieftain Lohar
+Tactical Strike
+Unassailable
+Sweep
+Counterstrike
+Blood Sacrifice
+Defensive Line
+All-Out War
+Desperate Measures
+Distributed Firepower
+Brave Ruler
+Talented Vizier
+Empire Builder
+Vast Territory
+Target Becomes Uncontrollable
+Target Cannot Recruit Mercenaries
+Divine Right
+Welsh Longbows
+Unending Struggle
+No commanders available
+Slow
+Chaos
+Damage
+Clone
+Disturbance
+Expansion
+Buff
+Reinforcements
+Trap
+Summon Guardian
+Into The Breach
+Dying Breath
+Agile Strike
+Sunburst
+Solar Protector
+Astral Symbiosis
+Lunar Brilliance
+Lunar Protector
+Power
+Virgin Warrior
+One-Eyed Knight
+Sacred Banner
+Sword Held High
+Unbowed
+Hundred-Year Dawn
+The Blessed
+Unyielding Martyr
+Rejuvenating Loam
+Hateful Wail
+Rockfall
+Earthen Aegis
+Legendary Chests
+Melee Tactics
+Guerrilla Tactics
+Ranged Tactics
+Rally Tactics
+Garrison Tactics
+No Effect
+Keen Berber Blade
+Sar Kissatim
+Gate Crasher
+Standing Army
+Destructive
+Invincible
+Fearless
+Hunter
+Unstoppable
+Balanced
+Intrepid
+Sharpshooter
+Drilled
+Merciless
+Astute
+Influential Leader
+Loaded
+Civilized
+Fixed
+Cocoon
+Inviolable
+Crowned
+Rounded
+Rich
+Battlements
+Moneyed
+Transporter
+Enmeshed
+Logistical
+Unassailed
+Winged
+Warcry
+Brutal
+Spiked
+Infamy
+Rugged
+Duelist
+Secure
+Well Clad
+Armored
+Metallics
+Shielded
+Robust
+Fit
+Hardy
+Swift
+Galloping
+Haste
+Annexer
+Cleanser
+Pacifier
+Onslaught
+Warhunger
+Striker
+Militant
+Retaliatory
+Alert
+Rebuff
+Resistant
+Enraged
+Devious
+Brawler
+Daring
+Valiant
+Fearsome
+Warflames
+Iron Wall
+Evasive
+Eclipsed
+Bellicose
+Requital
+Brave
+Smite
+Pulverize
+Respite
+Strategic
+Enduring
+Breaker
+Guarded
+Desperado
+Artisan
+Furious
+Embattled
+Cohesive
+Rapacious
+Ward
+Vengeful
+Pursuer
+Guardians
+Phalanx
+Patronage
+Assertive
+Counterer
+Hurried
+Primed
+Wary
+Deflecter
+Tremors
+Uplifting
+Siegework
+Watchmen
+Calm
+Spirited
+Sentries
+Lineshot
+Loosed
+Bluster
+Ballistics
+Riftmaker
+Arch Formation
+Wedge Formation
+Echelon Formation
+Hollow Square Formation
+Line Formation
+Triple Line Formation
+Infantry Damage Bonus
+Enrichment
+Brisk
+Harvester
+Bountiful
+Thorned Rose
+Dynastic Feud
+Broken Will
+Vicious
+Mutual Destruction
+Wild Abandon
+Treasonous Whisper
+Communication Breakdown
+Knight Bachelor
+Blood-Red Rose
+Bloodied Lion
+Sally Forth
+Knight Banneret
+Angevin Ascendance
+Royal Guard Captain
+Babur
+Heraclius
+Jagged Steel
+Conqueror Queen
+The Kalmar Union
+The Eagle Banner
+The Baburnama
+Stoneshaker
+Themata
+Basileus
+Bodkin Barrage
+Mopping Up
+Angevin Glory
+Interdiction
+Serjeant
+Ranged Normal Damage Bonus
+Mighty Shield Damage Factor
+The First Basileus
+Defeat English Soldiers
+Dido
+Zhuge Liang
+Crouching Dragon
+Weeping Queen
+Queenly Zeal
+Borrowing Arrows
+Longzhong Plan
+Marquis Zhongwu
+Chu Shi Biao
+Archer Damage Bonus
+Pyrrhus
+Pericles
+Huo Qubing
+Marquis Guanjun
+Unsleeping Emperor
+Saturation Fire
+Achilles Reborn
+Battlefield Orator
+First Citizen
+Military Maestro
+Ferghana Horses
+Battlefield Appropriations
+Renovatio Imperii
+Corpus Juris Civilis
+Restless Emperor
+Sleepless Emperor
+Delta Formation
+Self-Defense
+Aegis
+Reinforced
+Tenacious
+Irreproachable
+Cautious
+Shield Bash
+Rock Solid
+Avenger
+Guarding Light
+Panacea
+Ironclad
+Unshakeable
+Convalescing
+Back In Action
+Medic
+Rise Up
+Refreshing
+Overawing Presence
+Expansionist
+Above All Kings
+Agoge
+Illuminator
+Huntmaster
+Battle-Ready
+Even-Keeled
+Unswerving
+Forceful
+Crazed
+Defiant
+Focus Fire
+Full Draw
+Bloody Bolt
+Tempered
+Sharp Arrows
+Nullify
+Counter-Parry
+Persevering
+Liu Che
+Ashurbanipal
+Lapulapu
+Multi Select
+Feeble
+Lethal Volley
+Healing Presence
+Barbarous Strike
+Indiscriminate Carnage
+Brutal Bash
+Friendly Fire
+Warriors
+Arrow Tower
+Veteran Warriors
+Elite Warriors
+Burglar
+Blast Totem
+Toro Terror
+Raging Bull
+Luminary Lioness
+Practiced Plunderers
+Ferocious Fighters
+Ruthless Raiders
+Brisk Brigands
+Last Laugh
+Joint Assault
+Judgement By Fire
+Mending Magic
+Roiling Winds
+Battle Frenzy
+Sweeping Blow
+Roiling Rage
+Combat Experience
+Cow Catcher
+Undaunted
+Final Fury
+Thunderclap
+Gorgo
+Laconian Eagle
+Justice Served
+Bas Agus Buaidh
+Scots Wha Hae
+Alpha Wolf
+Mandrake Root
+Gold Panner
+Safeguard
+Plentitude
+Sturdy Back
+Entangling
+Arms Race
+Sprinter
+Strider
+Smite Damage Factor
+Smite Damage Bonus
+Archers
+Siege Units
+Other Buffs
+Soul Chain
+Riposte
+Creeping Necrosis
+Gravitational Mayhem
+Agonizing Cage
+Blood Rage
+Ranged Normal Damage Reduction
+Raider Roughneck
+Ceroli Cavalry
+Raider Tracker
+Ceroli Chosen Infantry
+Ceroli Guardian Infantry
+Ceroli Raider Cavalry
+Raider Flamespitter
+Raider Drumwagon
+Raider Arrow Tower
+Raider Ram
+Ranged Counterattack Damage Bonus
+Ranged Counterattack Damage Reduction
+Ranged Smite Damage Bonus
+Ranged Additional Damage Factor
+Ranged Additional Damage Bonus
+Severe Wounds Inflicted
+Rage Requirement Increase
+Hawk-Eyed
+Omnipotent
+Germania
+Single
+No Expertise
+Expertise
+Rallied Army Damage Bonus
+Scaling Mode
+Gravity Ball
+The Shorestone Shield
+Gajah Mada
+Jirnnodhara
+Bedil Barrage
+Rise Against
+Situational Awareness
+Sumpah Palapa
+Majapahit
+Rampaging Elephant
+Severe Wounds Inflicted Bonus
+Mighty Healing Factor
+Ranged Smite Damage Factor
+Roughneck Shield
+Galloping Blow
+Tracker Volley
+Elite Aegis
+Succor
+Shelter
+Encirclement
+Ganging Up
+Prowler
+Thousand Blades
+Hailstorm
+Tempest
+Burn Baby Burn
+Fuse Bomb
+Backbeat Beatdown
+Summon Totem
+Barbaric Spirit
+Warning Shot
+Burning Oil
+Primal Fervor
+Vine Shackles
+Bellicose Aura
+Vigilant Effect Max Stacks
+Circle Formation
+Healing Force
+Raider Ringleader
+Roman Devotion
+Lionmother
+Rock Crystal Vase
+Surgical Strike
+The Wildflower Duchess
+Renovator Imperii
+Hasty Retreat
+Fall Back
+Blast Shield
+Spread Out
+Full Force
+Shock Troops
+United Front
+Mutual Defense
+Burning Force
+Brutish Blow
+Barbarian Axe Chieftain
+Barbarian Ravager Chieftain
+Barbarian Charger Chieftain
+Barbarian Screamer Chieftain
+Lunar Blade Chieftain
+Solar Blade Chieftain
+Twilight Guardian Chieftain
+Boulder Barrage
+Rock Rain
+Mudbound
+Icy Spikes
+Crystal Razors
+Frostbite
+Cutting Wind
+Furious Tempest
+Silent Curse
+Divine Resonance
+Blood Brothers
+William Wallace
+Scipio Aemilianus
+Africanus
+Pro Libertate
+Ambitious
+Thick Skin
+Lethal Edge
+Thunderous Smite
+Shifter Base Defense Bonus
+Shifter Base Defense
+Shifter Defense Bonus
+Shifter Defense Reduction
+Shifter Load Bonus
+Shifter Base Attack Bonus
+Shifter Base Attack Reduction
+Shifter Attack Bonus
+Shifter Attack Reduction
+Shifter Damage Bonus
+Shifter Damage Reduction
+Shifter Health Reduction
+Shifter Base Health Bonus
+Shifter Base Health Reduction
+Shifter Health Bonus
+Shifter March Speed Bonus
+Shifter March Speed Reduction
+Additional Damage Reduction
+Basic Attack Damage Reduction
+Basic Attack Damage Bonus
+Basic Attack Damage Boost
+Basic Attack Damage Resistance
+Smite Damage Received Reduction
+Smite Damage Resistance
+Smite Damage Taken Increase
+Ranged Additional Damage Reduction
+Extra Ranged Basic Attacks
+Ranged Counterattack Damage Boost
+Ranged Counterattack Damage Resistance
+Ranged Smite Damage Resistance
+Ranged Smite Damage Boost
+Counterattack Damage Resistance
+Normal Damage Resistance
+Counterattack Damage Boost
+Normal Damage Boost
+Smite Damage Reduction
+Smite Damage Boost
+Orderly Retreat
+Furious Shot
+Knockout Volley
+Suppressing Volley
+Scattershot
+Weakening Shot
+Skypiercer Bolt
+Shieldbreaker Bolt
+Raging Tempest
+Dauntless
+Blessed Chant
+Standing Firm
+Well-Built
+Ensnaring Bolt
+Soothing Shot
+Going Ballistic
+Shifter
+Damage Increase
+Enhanced Smite
+Rage Gain Speed Bonus
+Vigilant Winds
+Gale Force
+Thrasher
+Pummeler
+Butterfly Effect
+Causative
+Steelskin
+Determined
+Flurry
+Relentless
+Energy Rings
+Smoke Bomb
+Snail Hex
+Smokestep
+Chainlinked
+Boulder Smash
+Slug Trail
+Linebreaker Charge
+Wild Swing
+Total Eclipse
+Silverlight Spear
+Waxing Moon
+Beat Feet
+Slasher
+Smasher
+Barbarian Bait
+Low Profile
+Thick Armor
+Overexertion
+Wrecking Crew
+Arrowfall
+Clean Sweep
+Potential Unleashed
+Battle Furor
+Unleashed
+Swiftfoot
+Potential
+Mikawa Bushi
+Nagashino Gambit
+All Must Submit
+Iron Pierces Bronze
+Thunder Shakes Earth
+Valor Bests Despair
+Seal Governs All
+Black Army
+Bibliotheca Corviniana
+White-Haired Warrior
+Pearlescent Heart
+Aoi Over Sekigahara
+One Conquers Six
+Ever Faithful
+Choe Yeong
+Lord Mumin
+Combo Attack Damage Bonus
+Combo Attack Damage Reduction
+Combo Attack Damage Boost
+Combo Attack Damage Resistance
+Damage Resistance
+Damage Resistance Reduction
+Sea-King
+Ragnar
+Prime Scipio Africanus
+Prime Boudica
+Experimental Treatment
+Frozen Over
+Hunter Bolts
+Potion Power
+Adverse Effect
+Double Dose
+Ice Cold
+Thunderstruck
+Flaming Hot
+Duration
+Tercio Formation
+Battle Ready
+Vigilant
+Fortified
+Resolute
+Chokepoint
+Precautions
+Steelheart
+Ironsides
+Attack Drained
+March Speed Drained
+John Hunyadi
+Macedonian Phalanx
+Sarissa
+Vergina Sun
+All Men Must Serve
+Cosmin Forest
+Glory Eternal
+Switch Models
+Cel Mare
+Athleta Christi
+Wak Chanil Ajaw
+Lady Six Sky
+Pounce
+Burst Arrow
+Well-Honed
+Cloudpiercer
+Volley
+Reaping Whirlwind
+Lancer Leader
+Marksman Leader
+Sharpshooter Leader
+Chariot Leader
+Narses
+Shadow Queen
+Grand Chamberlain
+Veiled Threat
+All-Knowing
+Star Scryer
+Lethal Concoction
+Royal Banquet
+Wheeler Dealer
+Siege Unit Attack Reduction
+Subutai
+Arthur Pendragon
+Combo
+No Quarter
+Colossus
+Titan
+Impenetrable
+Flameborn
+Golden Feathers
+Obsidian Light
+Simplified
+Preview
+Combo Attack Damage Factor
+Excalibur
+Mab Darogan
+Thundering Hooves
+Circling Vultures
+Daring Raid
+Arrow Tower Leader
+Season
+Strengths
+Field
+Recommended Talent
+Multi
+Ruthless Ambition
+Double Dragon
+Beginner Field
+Beginner Peacekeeping
+Beginner Garrison
+Payback Garrison
+Charles Martel Garrison
+Pericles Sustain
+El Cid Control
+Hermann Versatility
+Imhotep Debuff
+Mediterranean Alliance
+Julius Caesar Burst
+Twin Crescents
+Hellenic Glory
+Toxic Buildup
+Saladin Field
+Attila Conquest
+Xiang Yu Field
+Eleanor Garrison
+Chandragupta Conquest
+Huo Qubing Burst
+Nevsky Flank
+King Arthur Thrasher
+Choe Yeong True Damage
+Ashurbanipal Conquest
+Amanitore Garrison
+Prime Ragnar Lodbrok Field
+William Wallace Smite
+Gorgo Garrison
+Scipio Aemilianus Conquest
+Guan Yu Field
+Pakal Conquest
+Zenobia Garrison
+Liu Che Field
+Lapulapu Garrison
+Honda Tadakatsu Conquest
+Cleopatra Gathering
+Ishida Mitsunari Gathering
+Seondeok Gathering
+Wak Chanil Ajaw Gathering
+Queen Tamar Gathering
+Gajah Mada Ranged
+John Hunyadi Ranged
+Mulan Peacekeeping
+Lohar Peacekeeping
+Keira Peacekeeping
+Prime Belisarius
+Prime Ragnar Lodbrok
+Prime Hermann
+Recommend Unit Type
+Pincer Formation
+Toppler
+Imploder
+Demolisher
+Raider
+Airtight
+Hardheaded
+Thundering
+Rattling
+Bai Qi
+Martial Culture
+Blood Upon Blood
+Malice Stacks
+Tokugawa Ieyasu
+Qin-Han Reconciliation
+Sunrise Eagle
+Remedial Lessons
+Blighty Beatdown
+Brilliant Minds
+Silent Fury
+My Yatagan Cuts True
+Gorgo Smite
+Ambitious Vassals
+Power Hitters
+Choe Yeong Garrison
+Steppe Brothers
+Pincer Princes
+Roman Reconquerors
+Mounted Archers
+Lightning Raid
+Building Time Reduction
+Free Daily Units
+Free Daily Action Points
+City Hall Level
+Commander Star Level
+Item Refund
+Commander Sculpture Refund
+Boudica Damage
+Damage Taken Reduction
+Rage Drained
+Cavalry Damage Reduction
+Archer Damage Reduction
+Infantry Damage Reduction
+Siege Unit Damage Reduction
+Mega Blessed
+Shahanshah
+Qin Shi Huang
+The First Emperor
+Damage Percentage
+Target Troop Rage
+Rage Consumed
+Archimedes
+Bloody Mary
+Fidei Defensatrix
+Tudor Cannons
+Iron Queen
+Shift
+Corvinus
+Thalassocracy
+Hormuz Six
+Mare Clausum
+Vanquisher
+Overwhelm
+Self Heal
+Self Tend
+Brilliant
+Mountain
+Stone
+Let Others Make War
+Achilles
+Hector
+Pelian Spear
+Hephaestian Armor
+Divine Heritage
+Valiant Mortal
+Le Bref
+Papal Anointment
+The Last Piast
+First Carolingian
+Lombard Expedition
+Patricius Romanorum
+Prospectors
+Lumberjacks
+Swift-Footed
+Gang Gamchan
+The Builder
+Geomcha Charge
+Valiant Monaspa
+Gaemamusa
+Starlight
+Pelian Spear Damage Increase
+Combo Kings
+Black Sea Buddies
+City Sackers
+Overview
+No active talents
+Fluid Formation
+Surprise Strike
+Myriad Maneuvers
+Ivar
+The Boneless
+Ironheart Vow
+Destined Defense
+Military Sage
+Maximum Malice
+Mighty Duo
+Southern Longing
+All Damage Bonus
+Barbarians
+Barbarian Wolf Tamers
+Barbarian Pack Striders
+Barbarian Beast Riders
+Barbarian Blitz Hunters
+Barbarian Bone Archers
+Barbarian Heavy Archers
+Advantage Advanced
+Fury
+Indomitable
+Soar
+Ballista
+Horseback Action
+Divine Staff
+Reigning Champion
+Alp Arslan
+Heroic Lion
+Oghuz Archery
+Two-Headed Eagle
+Parthian Shot
+Hayam Wuruk
+The Thalassocrat
+Majapahit Crown
+Trowulan Gate
+Keris Cut
+Shield Bonus
+Rage Gain Speed Reduction
+Alp Arslan Venom
+Abundant Life
+Hayam Wuruk Garrison Heal
+Reconquista
+Reclaimed Soil
+Mountain Monarch
+Rough Terrain
+Covadonga Victory
+Vercingetorix
+Alesia Fortifications
+Cornered Beast
+Queen Gloriana
+Imperial Instruments
+Let Tyrants Fear
+Secret Service
+Eternal Empire
+Earth Shaker
+Two-Headed Fury
+Indomitable Glory
+Pelagius Garrison
+Grand Vizier
+Lyric Reprieve
+Toledo Sapphire

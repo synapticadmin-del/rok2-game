@@ -1,0 +1,34 @@
+# Unreal Engine temporary folders & build artifacts
+Intermediate/
+Saved/
+DerivedDataCache/
+Binaries/
+Build/
+.vs/
+.idea/
+*.sln
+*.vcxproj
+*.uproject.user
+game/client-unreal/Intermediate/
+game/client-unreal/Saved/
+game/client-unreal/DerivedDataCache/
+game/client-unreal/Binaries/
+game/client-unreal/Build/
+game/client-unreal/.vs/
+game/client-unreal/*.sln
+
+# Node.js & Cloudflare Workers
+node_modules/
+.wrangler/
+dist/
+.env
+game/backend/node_modules/
+game/backend/.wrangler/
+game/backend/dist/
+game/client/node_modules/
+game/client/dist/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

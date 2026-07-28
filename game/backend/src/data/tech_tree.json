@@ -1,0 +1,22 @@
+[
+  {
+    "id": "military_discipline",
+    "name": "Military Discipline",
+    "category": "military",
+    "max_level": 5,
+    "cost": { "food": 1000, "wood": 1000 },
+    "time_seconds": 300,
+    "prerequisites": [],
+    "buff": { "type": "attack", "value": 0.01 }
+  },
+  {
+    "id": "sickle",
+    "name": "Sickle",
+    "category": "economy",
+    "max_level": 5,
+    "cost": { "food": 500, "wood": 500 },
+    "time_seconds": 180,
+    "prerequisites": [],
+    "buff": { "type": "gather_speed", "value": 0.05 }
+  }
+]

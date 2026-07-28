@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "notes": "Original identity for your game. Bonuses kept modest (2-8%). Special units unlock near T4.",
+  "civilizations": [
+    {
+      "id": "rome",
+      "name": "Rome",
+      "fantasy": "Order and heavy infantry discipline",
+      "bonuses": [
+        {"stat": "infantry_defense", "value": 0.05},
+        {"stat": "troop_health", "value": 0.02},
+        {"stat": "gathering_speed", "value": 0.05}
+      ],
+      "special_unit": {"id": "legionary", "branch": "infantry", "unlock_tier": 4},
+      "starter_commander": "cmd_rome_starter",
+      "theme": {"primary": "#8B1E1E", "secondary": "#D8C3A5", "architecture": "arches_marble"}
+    },
+    {
+      "id": "china",
+      "name": "China",
+      "fantasy": "Builders, logistics, and cunning",
+      "bonuses": [
+        {"stat": "building_speed", "value": 0.05},
+        {"stat": "research_speed", "value": 0.03},
+        {"stat": "action_point_recovery", "value": 0.05}
+      ],
+      "special_unit": {"id": "chu_ko_nu", "branch": "archer", "unlock_tier": 4},
+      "starter_commander": "cmd_china_starter",
+      "theme": {"primary": "#B5121B", "secondary": "#F0C14A", "architecture": "curved_roofs"}
+    },
+    {
+      "id": "arabia",
+      "name": "Arabia",
+      "fantasy": "Swift riders of the open dunes",
+      "bonuses": [
+        {"stat": "march_speed", "value": 0.05},
+        {"stat": "cavalry_attack", "value": 0.04},
+        {"stat": "scout_vision", "value": 0.05}
+      ],
+      "special_unit": {"id": "desert_rider", "branch": "cavalry", "unlock_tier": 4},
+      "starter_commander": "cmd_arabia_starter",
+      "theme": {"primary": "#C9A227", "secondary": "#1F3D2B", "architecture": "domes_arches"}
+    },
+    {
+      "id": "egypt",
+      "name": "Egypt",
+      "fantasy": "River wealth and eternal stone",
+      "bonuses": [
+        {"stat": "resource_production", "value": 0.05},
+        {"stat": "stone_gathering", "value": 0.08},
+        {"stat": "healing_speed", "value": 0.03}
+      ],
+      "special_unit": {"id": "khopesh_guard", "branch": "infantry", "unlock_tier": 4},
+      "starter_commander": "cmd_egypt_starter",
+      "theme": {"primary": "#0E7C7B", "secondary": "#E1B84B", "architecture": "obelisks_columns"}
+    },
+    {
+      "id": "vikings",
+      "name": "Vikings",
+      "fantasy": "Raiders who live by the load and the axe",
+      "bonuses": [
+        {"stat": "troop_load", "value": 0.10},
+        {"stat": "damage_to_barbarians", "value": 0.05},
+        {"stat": "troop_attack", "value": 0.02}
+      ],
+      "special_unit": {"id": "huskarl", "branch": "infantry", "unlock_tier": 4},
+      "starter_commander": "cmd_vikings_starter",
+      "theme": {"primary": "#2E4057", "secondary": "#8AA0B4", "architecture": "carved_wood"}
+    },
+    {
+      "id": "japan",
+      "name": "Japan",
+      "fantasy": "Precision, mastery, and decisive strikes",
+      "bonuses": [
+        {"stat": "troop_attack", "value": 0.03},
+        {"stat": "commander_xp", "value": 0.05},
+        {"stat": "training_speed", "value": 0.03}
+      ],
+      "special_unit": {"id": "samurai", "branch": "infantry", "unlock_tier": 4},
+      "starter_commander": "cmd_japan_starter",
+      "theme": {"primary": "#111111", "secondary": "#9B1D20", "architecture": "temple_wood"}
+    }
+  ]
+}
