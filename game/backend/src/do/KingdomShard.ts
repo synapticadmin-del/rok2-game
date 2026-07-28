@@ -9,9 +9,15 @@ import { admitWounded, hospitalCapacity } from "./sim/hospital";
 import { researchBuff } from "./sim/research";
 import {
   isRegionUnlocked,
+  isThroneUnlocked,
   nodeLevelForRegion,
   nodeRichness,
   passUnlockDay,
+  seasonDayAt,
+  seasonSchedule,
+  seasonUnlockState,
+  throneUnlockDay,
+  SEASON_SERVICE,
   zonesStatus,
 } from "./sim/zones";
 
@@ -107,6 +113,8 @@ export class KingdomShard extends DurableObject<Env> {
   private mountainBelt = 20;
   private passWidth = 10;
   private seasonDay = 0;
+  // P3-T1: طابع بداية الموسم — خدمة فتح المناطق تحسب اليوم منه زمنياً
+  private seasonStartMs = 0;
   private cities = new Map<string, CityEntity>();
   private throne: ThroneEntity = { ownerAllianceId: null, captureProgress: 0, state: "open", x: 1200, y: 1200, unlockDay: 14 };
   private throneScores = new Map<string, number>();
@@ -147,7 +155,8 @@ export class KingdomShard extends DurableObject<Env> {
         CREATE TABLE IF NOT EXISTS world_meta (
           id INTEGER PRIMARY KEY CHECK (id = 1),
           season_day INTEGER NOT NULL,
-          last_tick_ms INTEGER NOT NULL
+          last_tick_ms INTEGER NOT NULL,
+          season_start_ms INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS map_cities (
           player_id TEXT PRIMARY KEY,
@@ -227,6 +236,16 @@ export class KingdomShard extends DurableObject<Env> {
         INSERT INTO _sql_schema_migrations (id) VALUES (1);
       `);
     }
+
+    if (ver < 2) {
+      // P3-T1: خدمة فتح المناطق — طابع بداية الموسم لحساب اليوم زمنياً
+      try {
+        this.ctx.storage.sql.exec("ALTER TABLE world_meta ADD COLUMN season_start_ms INTEGER NOT NULL DEFAULT 0");
+      } catch {
+        // العمود موجود مسبقاً (قاعدة جديدة بُنيت مباشرة على ver>=2)
+      }
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (2)");
+    }
   }
 
   private loadMapDefs() {
@@ -239,9 +258,13 @@ export class KingdomShard extends DurableObject<Env> {
 
   private loadState() {
     const meta = this.ctx.storage.sql
-      .exec<{ season_day: number; last_tick_ms: number }>("SELECT season_day, last_tick_ms FROM world_meta WHERE id = 1")
+      .exec<{ season_day: number; last_tick_ms: number; season_start_ms?: number }>("SELECT season_day, last_tick_ms, season_start_ms FROM world_meta WHERE id = 1")
       .toArray()[0];
-    if (meta) this.seasonDay = meta.season_day;
+    if (meta) {
+      this.seasonDay = meta.season_day;
+      // P3-T1: إن لم يُسجَّل season_start_ms بعد (قواعد قديمة)، نعتبر الموسم بدأ مع أول tick
+      this.seasonStartMs = meta.season_start_ms && meta.season_start_ms > 0 ? meta.season_start_ms : meta.last_tick_ms;
+    }
 
     for (const row of this.ctx.storage.sql
       .exec<any>("SELECT * FROM map_cities")
@@ -275,6 +298,8 @@ export class KingdomShard extends DurableObject<Env> {
       this.throne.captureProgress = throneRow.capture_progress;
       this.throne.state = throneRow.state;
     }
+    // P3-T1: يوم فتح العرش يُشتق دائماً من zones.json (لا قيمة ثابتة)
+    this.throne.unlockDay = throneUnlockDay();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM throne_scores").toArray()) {
       this.throneScores.set(row.alliance_id, row.points);
     }
@@ -344,11 +369,15 @@ export class KingdomShard extends DurableObject<Env> {
   private seedWorld() {
     const now = nowMs();
     this.ctx.storage.sql.exec(
-      "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms) VALUES (1, ?, ?)",
+      "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms, season_start_ms) VALUES (1, ?, ?, ?)",
       0,
+      now,
       now,
     );
     this.seasonDay = 0;
+    this.seasonStartMs = now; // P3-T1: الموسم يبدأ لحظة بذر العالم — خدمة الفتح تحسب منها
+    // P3-T1: يوم فتح العرش من core_objective.open_day في zones.json — لا قيمة ثابتة
+    this.throne.unlockDay = throneUnlockDay();
     this.ctx.storage.sql.exec(
       "INSERT OR IGNORE INTO throne (id, owner_alliance_id, capture_progress, state) VALUES (1, NULL, 0, 'open')"
     );
@@ -550,6 +579,8 @@ export class KingdomShard extends DurableObject<Env> {
       },
       // P2-T4: حالة قفل/فتح كل منطقة + يوم الفتح (لرسم المؤقت في العميل)
       zones: zonesStatus(this.seasonDay, this.regions),
+      // P3-T1: حالة الموسم الكاملة (ميزات الجدول + قفل العرش) — خدمة فتح المناطق
+      season: seasonUnlockState(this.seasonDay),
     };
   }
 
@@ -583,6 +614,17 @@ export class KingdomShard extends DurableObject<Env> {
   private async tick() {
     const now = nowMs();
     let changed = false;
+
+    // P3-T1: خدمة فتح المناطق — تقدّم يوم الموسم زمنياً من season_start_ms.
+    // لا يحدث شيء إن عُيّن اليوم يدوياً (set_day) لقيمة أعلى — نحتفظ بالأعلى.
+    if (SEASON_SERVICE.autoAdvance && this.seasonStartMs > 0) {
+      const computed = seasonDayAt(this.seasonStartMs, now);
+      if (computed > this.seasonDay) {
+        this.seasonDay = computed;
+        this.broadcast({ type: "season_day", day: this.seasonDay });
+        changed = true;
+      }
+    }
 
     // Process Queues
     const completedQueues = [];
@@ -972,10 +1014,25 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     // P2-T4: حالة فتح/قفل المناطق مع يوم الفتح لكل منطقة
+    // P3-T1: + حالة الموسم الكاملة (اليوم الحالي + العرش + ميزات الجدول)
     if (path.endsWith("/zones-status") && request.method === "GET") {
       return Response.json({
         seasonDay: this.seasonDay,
+        season: seasonUnlockState(this.seasonDay),
         zones: zonesStatus(this.seasonDay, this.regions),
+      });
+    }
+
+    // P3-T1: جدول فتح الموسم الكامل (Zone unlock service) — مناطق + ممرات + عرش + ميزات
+    if (path.endsWith("/season/schedule") && request.method === "GET") {
+      const sched = seasonSchedule(
+        this.regions,
+        [...this.passes.values()].map((p) => ({ id: p.id, unlockDay: p.unlockDay })),
+      );
+      return Response.json({
+        seasonDay: this.seasonDay,
+        seasonStartMs: this.seasonStartMs,
+        ...sched,
       });
     }
 
@@ -1148,9 +1205,10 @@ export class KingdomShard extends DurableObject<Env> {
       if (body.action === "set_day") {
         this.seasonDay = Number(body.day) || 0;
         this.ctx.storage.sql.exec(
-          "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms) VALUES (1, ?, ?)",
+          "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms, season_start_ms) VALUES (1, ?, ?, ?)",
           this.seasonDay,
           nowMs(),
+          this.seasonStartMs,
         );
         this.broadcast({ type: "season_day", day: this.seasonDay });
         return Response.json({ ok: true, seasonDay: this.seasonDay });

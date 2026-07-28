@@ -34,7 +34,22 @@ export const ZONE_CONSTANTS = {
   resourceBaseAmount: DATA.constants?.resource_base_amount ?? 5000,
   zone2RichnessMult: DATA.constants?.zone2_richness_mult ?? 1.5,
   barbHpPerLevel: DATA.constants?.barb_hp_per_level ?? 100,
+  // P3-T1: ثوابت خدمة الموسم (طول اليوم بالمللي ثانية + سقف أيام الموسم) — من JSON
+  seasonDayMs: DATA.constants?.season_day_ms ?? 86_400_000,
+  seasonMaxDay: DATA.constants?.season_max_day ?? 60,
 };
+
+/** P3-T1: إعداد خدمة فتح المناطق على مدار الموسم — تُقرأ من season_service في zones.json */
+export const SEASON_SERVICE = {
+  autoAdvance: DATA.season_service?.auto_advance ?? true,
+  dayMs: DATA.season_service?.day_ms ?? DATA.constants?.season_day_ms ?? 86_400_000,
+  maxDay: DATA.constants?.season_max_day ?? 60,
+  announceEvents: (DATA.season_service?.announce_events as string[] | undefined) ?? ["zone_unlocked", "season_day"],
+};
+
+/** P3-T1: سجل فتح الموسم الكامل (zone1/zone2/zone3) — من season_unlock_schedule في JSON */
+export type SeasonUnlockFeature = { day: number; feature: string };
+export const SEASON_UNLOCK_SCHEDULE: SeasonUnlockFeature[] = (DATA.season_unlock_schedule ?? []) as SeasonUnlockFeature[];
 
 const BY_ID: Record<number, ZoneDef> = {};
 for (const z of ZONES) BY_ID[z.zone_id] = z;
@@ -115,4 +130,67 @@ export function zoneFullyUnlockedDay(zoneId: number): number | null {
   const z = BY_ID[zoneId];
   if (!z || !z.unlock_schedule || z.unlock_schedule.length === 0) return null;
   return Math.max(...z.unlock_schedule.map((e) => e.day));
+}
+
+// ---------------------------------------------------------------------------
+// P3-T1 — Zone unlock service (جدول فتح الـ Zones كاملاً على السيرفر)
+// ---------------------------------------------------------------------------
+
+/**
+ * يوم فتح العرش (Throne of Kingdoms) في قلب Zone 3 — من core_objective.open_day
+ * في zones.json. لا قيمة ثابتة في الكود: العميل والسيرفر يقرآن من نفس JSON.
+ */
+export function throneUnlockDay(): number {
+  const z3 = BY_ID[3];
+  const day = (z3 as any)?.core_objective?.open_day;
+  return typeof day === "number" ? day : 40;
+}
+
+/**
+ * هل العرش مفتوح في هذا اليوم؟ (يتطلب بلوغ open_day — الميزة zone3_core_windows)
+ */
+export function isThroneUnlocked(seasonDay: number): boolean {
+  return seasonDay >= throneUnlockDay();
+}
+
+/**
+ * تقدّم يوم الموسم زمنياً — قلب خدمة الفتح (P3-T1).
+ * يحسب اليوم الحالي من طوابع زمنية: كل seasonDayMs = يوم واحد، بحد أقصى seasonMaxDay.
+ * حتمي بالكامل: نفس المدخلات ⇒ نفس اليوم، بدون أي حالة مخفية.
+ */
+export function seasonDayAt(seasonStartMs: number, nowMs: number): number {
+  const dayMs = Math.max(1, SEASON_SERVICE.dayMs);
+  const d = Math.floor((nowMs - seasonStartMs) / dayMs);
+  return Math.max(0, Math.min(SEASON_SERVICE.maxDay, d));
+}
+
+/**
+ * حالة فتح كاملة لكل ممرات/مناطق اللعبة في يوم معين —
+ * الخلاصة الموحدة التي يستخدمها السيرفر للبث وللتحقق من المسيرات.
+ */
+export function seasonUnlockState(seasonDay: number) {
+  return {
+    day: seasonDay,
+    throneUnlocked: isThroneUnlocked(seasonDay),
+    throneDay: throneUnlockDay(),
+    features: SEASON_UNLOCK_SCHEDULE.map((f) => ({ ...f, unlocked: seasonDay >= f.day })),
+  };
+}
+
+/**
+ * الجدول الزمني الكامل لفتح المناطق عبر الموسم — للعميل (مؤقتات/أقفال) وللاختبار.
+ * يدمج: جدول الموسم (features) + المناطق (من unlock_schedule لكل Zone) + العرش.
+ */
+export function seasonSchedule(
+  regions: Array<{ id: string; zone_id: number }>,
+  passes: Array<{ id: string; unlockDay: number }>,
+) {
+  return {
+    dayMs: SEASON_SERVICE.dayMs,
+    maxDay: SEASON_SERVICE.maxDay,
+    features: SEASON_UNLOCK_SCHEDULE,
+    regions: regions.map((r) => ({ regionId: r.id, zoneId: r.zone_id, unlockDay: regionUnlockDay(r.id, r.zone_id) })),
+    passes: passes.map((p) => ({ passId: p.id, unlockDay: p.unlockDay })),
+    throne: { unlockDay: throneUnlockDay() },
+  };
 }

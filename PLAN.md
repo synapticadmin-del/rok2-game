@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P2-T7 أصول فنية أولية (اكتمال بنود المرحلة 2).
+> **آخر تحديث:** 2026-07-28 — P3-T1 جدول فتح الـ Zones كاملاً على السيرفر (Zone unlock service).
 
 ---
 
@@ -64,7 +64,7 @@
 - **🚪 بوابة النجاح:** جلسة لعب 30 دقيقة متواصلة بدون أخطاء قاتلة، وفيها بناء + بحث + قتال + تحالف.
 
 ### المرحلة 3 — Season Alpha
-- [ ] **P3-T1** جدول فتح الـ Zones كاملاً على السيرفر (Zone unlock service)
+- [x] **P3-T1** جدول فتح الـ Zones كاملاً على السيرفر (Zone unlock service) — ✅ تم 2026-07-28
 - [ ] **P3-T2** Zone 3 core contest + تسجيل نقاط الموسم
 - [ ] **P3-T3** أحداث يومية/أسبوعية (barbarians, resource rush)
 - [ ] **P3-T4** متجر sandbox + speedups + VIP أساسي (بدون مدفوعات حقيقية)
@@ -111,6 +111,7 @@
 | 2026-07-28 | P2-T5 تحالف كامل (رتب + helps + rally) | 9aa251d | data/zones.json يكسب alliance config (رتب R1-R5 بصلاحيات، help: 60ث/مساعدة ×10 كحد أقصى و30% من المدة، rally: R3+ و5 مشاركين وتجميع 300ث)؛ migration 0004 (alliance_members/alliance_helps/rallies/rally_participants)؛ sim/alliance.ts يقرأ JSON فقط؛ helps حقيقية تسرّع طوابير الأعضاء تراكمياً (مساعدة واحدة لكل لاعب/طابور)؛ رتب فعلية: promote/kick بقاعدة أعلى-يغيّر-أدنى + leave (القائد ممنوع)؛ rally على pass/throne يجمع قوات المشاركين في مسيرة واحدة بقائد + إعادة القوات عند فشل المسار + بث rally_launched + poller كل طلب؛ snapshot يكسب queues؛ اجتاز alliance_offline_test.mjs (28/28) ولم تتأثر بقية الاختبارات |
 | 2026-07-28 | P2-T6 HUD موحد في العميل (موارد + طوابير + إشعارات) | d5cae1e | URok2HudWidget جديد يُبنى بالكود (بدون Blueprint): شريط علوي بموارد حية (تحديث كل Tick من Rates) + يوم الموسم + مؤقّت أقرب منطقة مقفلة (من snapshot.zones) + شارة اتصال + جرس بعدّاد؛ لوحة طوابير بشريط تقدم UProgressBar وعدّ تنازلي لكل طابور (من snapshot.queues)؛ بطاقات إشعارات تتلاشى (قتال/منطقة/rally/بحث) + مركز إشعارات قابل للطي بسجل 20؛ شريط سفلي بأزرار مفوَّضة لـ Blueprint؛ Rok2Api: FRok2ZoneStatus/FRok2HudNotification + PushNotification مركزي + بارس queues/zones في snapshot + أحداث zone_unlocked/tech_researched/rally_launched/season_day؛ GameMode يركّب HUD فوق CityWidget (z=20)؛ 41/41 فحص بنيوي ناجح (بناء UE5 الفعلي على جهاز المطور) |
 | 2026-07-28 | P2-T7 أصول فنية أولية (KayKit CC0) | COMMIT_HASH_PLACEHOLDER | 17 GLB ذاتية الاكتفاء في Content/Art/kaykit (~2.4MB) محوّلة من KayKit Medieval Hexagon Pack (CC0، LICENSE مضمّن): 11 مبنى مدينة (castle/windmill/lumbermill/mine/market/barracks/archeryrange/tavern/tower/blacksmith) + قلعة حمراء للأعداء + 4 أعلام تحالف + مرتفعات؛ URok2ArtAssets (فهرس Id→GLB + تحميل مع fallback هندسي — لا يُكسر البناء بدون استيراد)؛ CityBuilder يرسم موديلات حقيقية بمقياس الفهرس؛ WorldRenderer: قلاع زرقاء/حمراء للمدن + تلال KayKit؛ setup_level.py يستورد GLB إلى /Game/Art/kaykit تلقائياً؛ Content/Art/README.md توثيق + ملاحظة وحدات Extra؛ 63/63 فحص ناجح (صحة GLB + تغطية الفهرس + سلامة C++) |
+| 2026-07-28 | P3-T1 جدول فتح الـ Zones كاملاً على السيرفر (Zone unlock service) | 06ab116 | data/zones.json يكسب Zone 3 unlock_schedule (CORE + 4 بوابات نهائية @يوم35، عرش @يوم40) + constants (season_day_ms=86400000، season_max_day=60) + season_service config؛ sim/zones.ts: throneUnlockDay/isThroneUnlocked من core_objective.open_day (إزالة الثابت 14)، seasonDayAt (تقدم اليوم زمنياً من season_start_ms)، seasonUnlockState/seasonSchedule؛ KingdomShard: migration v2 (season_start_ms)، تقدم اليوم تلقائياً عبر الـ tick مع بث season_day، throne.unlockDay من JSON دائماً، /do/season/schedule، snapshot + zones-status يكسبان season؛ router: GET /v1/season/schedule + ثوابت season في /v1/meta/all؛ اجتاز season_offline_test.mjs (47/47) + كل اختبارات zones/research/hospital/commanders/alliance (بدون كسر)؛ حذف tmp_binary_test.bin المتروك من جلسة سابقة |
 
 ---
 

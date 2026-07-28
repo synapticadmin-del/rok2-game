@@ -287,6 +287,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           productionLevelMult: 1.2,
           commanders: COMMANDER_CONSTANTS,
           alliance: ALLIANCE_CONSTANTS,
+          // P3-T1: ثوابت خدمة الموسم (طول اليوم + سقف الأيام) للعميل — من zones.json
+          season: {
+            dayMs: (getZones() as any).constants?.season_day_ms ?? 86_400_000,
+            maxDay: (getZones() as any).constants?.season_max_day ?? 60,
+            service: (getZones() as any).season_service ?? null,
+          },
           trainableUnits: [
             { id: "infantry_t1", name: "مشاة T1", branch: "infantry" },
             { id: "cavalry_t1", name: "فرسان T1", branch: "cavalry" },
@@ -1242,6 +1248,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/season/leaderboard" && request.method === "GET") {
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/leaderboard");
+      const data = await res.json();
+      return json(data);
+    }
+
+    // P3-T1: جدول فتح الموسم الكامل على السيرفر (Zone unlock service)
+    if (path === "/v1/season/schedule" && request.method === "GET") {
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/season/schedule");
       const data = await res.json();
       return json(data);
     }
