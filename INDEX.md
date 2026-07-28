@@ -32,6 +32,15 @@
 ## 05 خطة الطريق
 - `06-implementation/roadmap.md` — الرؤية التاريخية للمراحل (المرجع التنفيذي النهائي: `PLAN.md`)
 
+## 07 وثائق التصميم الشاملة (Game Design) ⭐
+- `07-game-design/GDD.md` — **وثيقة التصميم الشاملة — مصدر الحقيقة للتصميم**
+- `07-game-design/castle-hex-city.md` — مواصفة القلعة السداسية والبناء الحر
+- `07-game-design/civilizations-visual-design.md` — التصميم البصري للحضارات الست (عمارة، وحدات، قادة، ألوان)
+- `07-game-design/rok-features-audit.md` — توثيق مزايا RoK الأصلية الكاملة (المرجع)
+- `07-game-design/ui-ux-design-system.md` — نظام الواجهات والتجربة بأسلوب اللعبة
+- `07-game-design/power-balance-map.md` — خريطة توازن القوى والجيم بلاي (F2P/P2P)
+- `07-game-design/assets/` — 11 صورة مرجعية مولّدة (قلعة سداسية، 6 مدن حضارات، خريطة عالم، وحدات خاصة، قادة، موكاب UI)
+
 ## 06 العميل والخادم
 - `game/client-unreal/` — مشروع عميل Unreal Engine 5 (C++ & UMG)
 - `game/client-unreal/Docs/README.md` — دليل عميل UE5 التفصيلي
