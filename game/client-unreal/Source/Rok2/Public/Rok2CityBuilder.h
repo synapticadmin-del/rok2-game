@@ -1,13 +1,21 @@
-// Copyright ROK2. City building system (isometric grid + visual placement).
+// Copyright ROK2. City building system — hex castle orchestrator (P5-T1).
+//
+// يملك شاشة المدينة: يزرع ويدير CityLayoutActor (الشبكة + السور + المباني)
+// و CityEditorMode (وضع التحرير)، ويربط لمس المباني ببطاقة التفاصيل.
+// حُدّث من النظام الشبكي القديم إلى السور السداسي والبناء الحر.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Rok2HexGrid.h"
+#include "Rok2Types.h"
 #include "Rok2CityBuilder.generated.h"
 
 class URok2Api;
 class UInstancedStaticMeshComponent;
+class ARok2CityLayoutActor;
+class ARok2CityEditorMode;
 
 USTRUCT(BlueprintType)
 struct FRok2BuildingVisual
@@ -38,37 +46,48 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** Rebuild visual city from current API state. */
+	/** إعادة بناء المدينة من حالة الـ API. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Rebuild();
+
+	/** تفعيل/إيقاف وضع تحرير المدينة (يُستدعى من HUD). */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void ToggleEditMode();
+
+	/** هل وضع التحرير نشط؟ */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	bool IsEditModeActive() const;
 
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	USceneComponent* Root;
 
+	/** مدير التخطيط السداسي (الشبكة + السور + المباني). */
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
-	UInstancedStaticMeshComponent* GroundTiles;
+	ARok2CityLayoutActor* Layout;
 
-	UPROPERTY(EditAnywhere, Category = "Rok2")
+	/** وضع التحرير (سحب/إفلات/تدوير/تخطيطات). */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	ARok2CityEditorMode* Editor;
+
+	// --- إعدادات قديمة تُحفظ للتوافق مع المستوى (لا تُستخدم مع النظام الجديد) ---
+	UPROPERTY(EditAnywhere, Category = "Rok2|Legacy")
 	UStaticMesh* GroundTileMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Rok2")
+	UPROPERTY(EditAnywhere, Category = "Rok2|Legacy")
 	UMaterialInterface* GroundMaterial;
 
-	UPROPERTY(EditAnywhere, Category = "Rok2")
+	UPROPERTY(EditAnywhere, Category = "Rok2|Legacy")
 	int32 GridSize = 8;
 
-	UPROPERTY(EditAnywhere, Category = "Rok2")
+	UPROPERTY(EditAnywhere, Category = "Rok2|Legacy")
 	float TileWorldSize = 400.f;
 
-	UPROPERTY(EditAnywhere, Category = "Rok2")
+	UPROPERTY(EditAnywhere, Category = "Rok2|Legacy")
 	TArray<FRok2BuildingVisual> BuildingVisuals;
 
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
-
-	UPROPERTY(Transient)
-	TMap<FString, AActor*> SpawnedBuildings;
 
 	bool bRebuildQueued = false;
 	float RefreshTimer = 0.f;
@@ -77,5 +96,5 @@ protected:
 	void OnCityLoadedHandler(const FRok2City& City);
 
 	UFUNCTION()
-	void OnBuildingClicked(AActor* TouchedActor, FKey ButtonPressed);
+	void OnBuildingPickedHandler(const FString& BuildingId);
 };

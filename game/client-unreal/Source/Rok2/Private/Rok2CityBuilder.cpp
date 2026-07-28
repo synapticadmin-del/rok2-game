@@ -3,13 +3,11 @@
 #include "Rok2Api.h"
 #include "Rok2BuildingDetailWidget.h"
 #include "Rok2BlueprintLibrary.h"
-#include "Rok2ProceduralAssets.h"
-#include "Rok2ArtAssets.h"
+#include "Rok2CityLayoutActor.h"
+#include "Rok2CityEditorMode.h"
+#include "Rok2BuildingActor.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Blueprint/UserWidget.h"
 
 ARok2CityBuilder::ARok2CityBuilder()
@@ -18,51 +16,34 @@ ARok2CityBuilder::ARok2CityBuilder()
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
-
-	GroundTiles = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GroundTiles"));
-	GroundTiles->SetupAttachment(Root);
-	GroundTiles->SetMobility(EComponentMobility::Movable);
-
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (MeshFinder.Succeeded())
-	{
-		GroundTileMesh = MeshFinder.Object;
-	}
 }
 
 void ARok2CityBuilder::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (GroundTileMesh)
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	// زرع مدير التخطيط السداسي
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Layout = World->SpawnActor<ARok2CityLayoutActor>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+
+	// زرع وضع التحرير وربطه بالمدير
+	Editor = World->SpawnActor<ARok2CityEditorMode>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (Editor && Layout)
 	{
-		GroundTiles->SetStaticMesh(GroundTileMesh);
-		UMaterialInterface* MatToUse = GroundMaterial;
-		if (!MatToUse)
-		{
-			MatToUse = URok2ProceduralAssets::Get()->GetMaterial(ERok2MaterialType::GroundTile);
-		}
-		if (MatToUse) GroundTiles->SetMaterial(0, MatToUse);
-		GroundTiles->SetCastShadow(false);
+		Editor->SetLayout(Layout);
 	}
 
-	// Generate ground tile instances
-	if (GroundTiles && GroundTileMesh)
+	// ربط حدث لمس المبنى ببطاقة التفاصيل
+	if (Layout)
 	{
-		GroundTiles->ClearInstances();
-		int32 Half = GridSize / 2;
-		for (int32 x = 0; x < GridSize; ++x)
-		{
-			for (int32 y = 0; y < GridSize; ++y)
-			{
-				FVector Loc((x - Half) * TileWorldSize, (y - Half) * TileWorldSize, 1.f);
-				FTransform T(FQuat::Identity, Loc, FVector(TileWorldSize / 100.f, TileWorldSize / 100.f, 0.1f));
-				GroundTiles->AddInstance(T, true);
-			}
-		}
+		Layout->OnBuildingPicked.AddDynamic(this, &ARok2CityBuilder::OnBuildingPickedHandler);
 	}
 
-	if (ARok2GameMode* GM = Cast<ARok2GameMode>(GetWorld()->GetAuthGameMode()))
+	if (ARok2GameMode* GM = Cast<ARok2GameMode>(World->GetAuthGameMode()))
 	{
 		Api = GM->Api;
 		if (Api)
@@ -90,101 +71,45 @@ void ARok2CityBuilder::Tick(float DeltaSeconds)
 
 void ARok2CityBuilder::Rebuild()
 {
-	if (!Api) return;
-
-	// Remove previous building actors
-	for (auto& KV : SpawnedBuildings)
+	if (Layout)
 	{
-		if (KV.Value) KV.Value->Destroy();
-	}
-	SpawnedBuildings.Empty();
-
-	// Spawn placeholder per known building id arranged in a ring/grid
-	const TArray<FString> Order = {
-		TEXT("city_hall"), TEXT("farm"), TEXT("lumber_mill"), TEXT("quarry"), TEXT("goldmine"),
-		TEXT("barracks"), TEXT("stable"), TEXT("archery_range"), TEXT("hospital"), TEXT("wall"), TEXT("storehouse")
-	};
-	int32 idx = 0;
-	for (const FString& Id : Order)
-	{
-		int32 Level = Api->GetBuildings().Contains(Id) ? Api->GetBuildings()[Id] : 1;
-		// place building
-		float Angle = (float)idx / (float)Order.Num() * 2.f * PI;
-		float Radius = (GridSize / 2 - 1) * TileWorldSize * 0.6f;
-		FVector Loc(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, 50.f);
-
-		UStaticMesh* MeshToUse = GroundTileMesh;
-		FVector Offset = FVector::ZeroVector;
-		FRotator Rot = FRotator::ZeroRotator;
-		for (const auto& V : BuildingVisuals)
-		{
-			if (V.BuildingId == Id && V.Mesh)
-			{
-				MeshToUse = V.Mesh;
-				Offset = V.GridOffset;
-				Rot = V.Rotation;
-				break;
-			}
-		}
-
-		// P2-T7: الموديل الفني من مكتبة KayKit إن توفّر — وإلا يبقى الشكل الهندسي
-		float ArtScale = 0.f;
-		if (MeshToUse == GroundTileMesh) // لم يعيّن المستوى موديلاً مخصصاً
-		{
-			if (URok2ArtAssets* Art = URok2ArtAssets::Get())
-			{
-				if (UStaticMesh* ArtMesh = Art->LoadMesh(Id))
-				{
-					MeshToUse = ArtMesh;
-					for (const FRok2ArtEntry& E : Art->GetCatalog())
-					{
-						if (E.Id == Id) { ArtScale = E.Scale; break; }
-					}
-				}
-			}
-		}
-
-		FActorSpawnParameters P;
-		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		AStaticMeshActor* SM = GetWorld()->SpawnActor<AStaticMeshActor>(Loc + Offset, Rot, P);
-		if (SM)
-		{
-#if WITH_EDITOR
-			SM->SetActorLabel(FString::Printf(TEXT("Bldg_%s_L%d"), *Id, Level));
-#endif
-			SM->Tags.Add(FName(*Id));
-			SM->OnClicked.AddDynamic(this, &ARok2CityBuilder::OnBuildingClicked);
-
-			UStaticMeshComponent* MeshC = SM->GetStaticMeshComponent();
-			if (MeshC && MeshToUse)
-			{
-				MeshC->SetStaticMesh(MeshToUse);
-				if (ArtScale > 0.f)
-				{
-					// موديل فني حقيقي: مقياس ثابت من الفهرس (لا تمدد بالمستوى)
-					MeshC->SetWorldScale3D(FVector(ArtScale, ArtScale, ArtScale));
-				}
-				else
-				{
-					MeshC->SetWorldScale3D(FVector(0.8f, 0.8f, 1.f + Level * 0.1f));
-				}
-				MeshC->SetMobility(EComponentMobility::Movable);
-			}
-		}
-		SpawnedBuildings.Add(Id, SM);
-		idx++;
+		Layout->RebuildFromApi();
 	}
 }
 
-void ARok2CityBuilder::OnBuildingClicked(AActor* TouchedActor, FKey ButtonPressed)
+void ARok2CityBuilder::ToggleEditMode()
 {
-	if (Api && TouchedActor && TouchedActor->Tags.Num() > 0)
+	if (!Editor) return;
+	if (Editor->bActive)
 	{
-		FString BId = TouchedActor->Tags[0].ToString();
-		int32 Level = Api->GetBuildings().Contains(BId) ? Api->GetBuildings()[BId] : 1;
+		Editor->ExitEditMode(true);
+	}
+	else
+	{
+		Editor->EnterEditMode();
+	}
+}
+
+bool ARok2CityBuilder::IsEditModeActive() const
+{
+	return Editor && Editor->bActive;
+}
+
+void ARok2CityBuilder::OnBuildingPickedHandler(const FString& BuildingId)
+{
+	// في وضع التحرير: اللمس يبدأ سحباً. وإلا: يفتح بطاقة المبنى.
+	if (Editor && Editor->bActive)
+	{
+		Editor->BeginDrag(BuildingId);
+		return;
+	}
+
+	if (Api)
+	{
+		const int32 Level = Api->GetBuildings().Contains(BuildingId) ? Api->GetBuildings()[BuildingId] : 1;
 		if (URok2BuildingDetailWidget* DetailWidget = Cast<URok2BuildingDetailWidget>(URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2BuildingDetailWidget::StaticClass())))
 		{
-			DetailWidget->SetupBuilding(Api, BId, Level);
+			DetailWidget->SetupBuilding(Api, BuildingId, Level);
 			DetailWidget->AddToViewport(200);
 		}
 	}
