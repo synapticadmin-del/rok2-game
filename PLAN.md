@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P5-T6 حركات وانتقالات وأصوات (URok2AudioManager بموسيقى حسب الحضارة + حركات بناء/ترقية/كشف + أصوات أحداث).
+> **آخر تحديث:** 2026-07-28 — P4-T2 إنتاج الأصول الصوتية وبورتريهات القادة (13 WAV حقيقي مولّد إجرائياً: موسيقى لكل حضارة + 7 مؤثرات، و12 بورتريه PNG للقادة — مربوطة بالكود مع fallback).
 
 ---
 
@@ -16,7 +16,7 @@
 | بيانات JSON الموحدة | ✅ جاهزة | `data/*.json` (civilizations, zones, passes, buildings, troop_tiers, map_spec_coordinates) |
 | Backend (Cloudflare) | 🟡 Prototype يعمل | Auth ضيف + مدينة + مبانٍ + جنود + تحالفات + ممرات + تقارير قتال + WebSocket. ناجح في smoke E2E |
 | عميل UE5 (C++) | 🟡 هيكل أولي يعمل | موديول `Rok2` (Api, Camera, WorldRenderer, CityBuilder, Boot/City Widgets) — أشكال هندسية بدائية بدل الأصول الفنية |
-| الأصول الفنية 3D/UI | ❌ غير موجودة | حالياً Engine basic shapes + materials ملوّنة runtime |
+| الأصول الفنية 3D/UI | 🟡 بدأت | مبانٍ/وحدات KayKit (P2-T7 ✅) + موسيقى ومؤثرات WAV لكل حضارة + 12 بورتريه قائد (P4-T2 ✅)؛ باقي: موديلات وحدات بشرية + أصول UI نهائية |
 | الأنظمة المتقدمة | 🟡 بدأت | قادة (P2-T1 ✅) + مستشفى (P2-T2 ✅: جرحى بالسعة + شفاء زمني)؛ بحث جزئي (stubs)؛ لم تُنفّذ بعد: أحداث، مواسم، KvK، متجر، Battle Pass |
 | الاختبار الآلي | ❌ محدود | smoke.mjs فقط على الـ backend |
 
@@ -73,6 +73,7 @@
 
 ### المرحلة 4 — Live
 - [x] **P4-T1** Battle Pass موسمي (sandbox): مسار مجاني + مدفوع بالـ gems + نقاط من أفعال اللعب — ✅ تم 2026-07-28
+- [x] **P4-T2** إنتاج الأصول الصوتية + بورتريهات القادة (موسيقى/مؤثرات WAV حقيقية لكل حضارة + 12 بورتريه PNG مربوط بالعميل) — ✅ تم 2026-07-28
 - [ ] قادة إضافيون، anti-cheat، matchmaking ممالك، تحسين أداء UA
 - **🚪 بوابة النجاح:** نشر عام + مؤشرات أداء حية مستقرة.
 
@@ -139,6 +140,7 @@
 | 2026-07-28 | P5-T4 شاشة القادة الكاملة (العميل) | d103df0 | Rok2CommanderWidget أعيد كتابته بالكامل كشاشة قادة RoK-style: قائمة قادة قابلة للتمرير (يمين) ببورتريه placeholder ملوّن حسب الحضارة (من URok2CivThemes) + اسم + ندرة ملوّنة + نجوم مستوى (★/☆)؛ لوحة تفاصيل (يسار) عند اختيار قائد: بورتريه كبير بإطار ذهبي + اسم + حضارة + ندرة + مستوى/نجوم + شريط خبرة UProgressBar + إحصائيات (هجوم/دفاع/دعم) + 3 مهارات (attack ⚔️ / defense 🛡️ / passive ✨ بأيقونات وألوان) + 3 فروع مواهب stub (قتال 🔴 / دعم 🟡 / حركة 🔵 بنقاط 0/20) + 5 خانات معدات stub (سلاح/خوذة/درع/حذاء/إكسسوار) + أزرار (تعيين في مسيرة ⚔️ / ترقية مستوى ⭐ / ترقية مهارة ⚡)؛ FRok2CommanderSkillData + FRok2CommanderDetailData في Rok2CommanderWidget.h؛ LoadCommanderDetailsFromJson يقرأ data/commanders.json (12 قائداً بمهارات كاملة)؛ delegates: OnCommanderSelected + OnAssignCommander؛ لوحة ألوان ui-ux-design-system.md (برونز #1A120B، ذهب #C9A227، عاجي #F5E9D0)؛ scripts/verify_commanders_screen.mjs: 82 فحص بنيوي ناجح |
 | 2026-07-28 | P5-T5 ضباب الحرب + الكشافة (العميل) | f795b41 | URok2FogOfWar جديد: شبكة كشف للخريطة (2400×2400 بخلايا 50) كل خلية لها حالة (Unexplored/Partially/Explored)؛ RevealArea يكشف دائرة حول نقطة (للمدينة أو الكشافة)؛ IsExplored/GetFogStateAt للاستعلام؛ FRok2Scout (كشافة بموقع/هدف/وقت وصول) + UpdateScouts يكشف عند الوصول + OnScoutArrived/OnFogUpdated delegates؛ Rok2Types: FRok2ScoutEntity + Scouts في FRok2WorldSnapshot؛ Rok2Api: SendScout (POST /v1/world/scout) + ParseScoutEntity + بارس scouts في snapshot + WS scout_arrived event؛ Rok2WorldRenderer: يقرأ Fog->IsExplored — لا يرسم مدن/ممرات/عقد في مناطق غير مكتشفة (إلا مدينة اللاعب) + يكشف المنطقة حول مدينة اللاعب تلقائياً + UpdateScouts في Tick؛ Rok2MarchPanel: زر "🔭 إرسال كشافة" يرسل SendScout(ToX, ToY) بدون قوات؛ scripts/verify_fog_of_war.mjs: 58 فحص بنيوي ناجح |
 | 2026-07-28 | P5-T6 حركات وانتقالات وأصوات (العميل) | 6b36de3 | URok2AudioManager جديد: يدير الموسيقى والمؤثرات حسب حضارة اللاعب (من URok2CivThemes) — يقرأ ملفات .wav من Content/Audio/<civ>/ إن وُجدت وإلا placeholder صامت؛ ERok2AudioType (Music/BuildComplete/Upgrade/BattleVictory/BattleDefeat/MarchStart/ButtonClick/Notification) + ERok2MusicState (Stopped/Playing/Paused) + OnMusicStateChanged delegate؛ Rok2BuildingActor: PlayBuildAnimation (scale-in من 0.1 لمدة 0.6s) + PlayUpgradeAnimation (pulse ذهبي بـ sin لمدة 0.4s) + PlayRevealAnimation (fade-in من 0.01 لمدة 0.5s) + Tick override + UpdateAnimation + ComputeAnimatedScale؛ Rok2CityLayoutActor: يستدعي PlayBuildAnimation عند زرع مبنى جديد؛ Rok2WorldRenderer: يستدعي PlayRevealAnimation عند ظهور مدينة بعد ضباب + PlaySfx(MarchStart) عند انطلاق مسيرة؛ Rok2Api: InitForCiv+PlayMusic عند InitCity + PlaySfx(Upgrade) عند ترقية + PlaySfx(BattleVictory/Defeat) عند تقرير قتال؛ scripts/verify_game_feel.mjs: 59 فحص بنيوي ناجح |
+| 2026-07-28 | P4-T2 إنتاج الأصول الصوتية + بورتريهات القادة | f859748..a0fc599 | Content/Audio/<civ>/music.wav ×6 + sfx/*.wav ×7 (WAV 16-bit PCM 44.1kHz مولّد إجرائياً عبر scripts/generate_audio.py — بصمة لكل حضارة: روما fanfare/الصين خماسي/العرب حجاز/مصر فريجي/الفايكنج درون+أبواق/اليابان insen — حلقات 20-24ث بتلاشي سلس + 7 مؤثرات مشتركة)؛ Content/Art/Commanders/<id>.png ×12 (512×512 بأسلوب المرجع commanders-lineup.jpg: bust + إضاءة ذهبية + خلفية حضارية)؛ Rok2CommanderWidget يحمّل البورتريه الحقيقي من /Game/Art/Commanders/<id> في البطاقات ولوحة التفاصيل مع fallback للـ placeholder؛ setup_level.py يكسب Step 1c (فك base64 + استيراد WAV/PNG) + scripts/decode_binary_assets.py عام لكل الثنائيات + توثيق README في Audio/ وCommanders/؛ scripts/verify_produced_assets.mjs: 65 فحص بنيوي ناجح |
 ---
 
 ## 5. ملفات مرجعية سريعة
