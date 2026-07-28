@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P5-T0 وثائق التصميم الشاملة `07-game-design/` (GDD + قلعة سداسية + حضارات بصرية + RoK audit + UI/UX + توازن) + 11 صورة مرجعية.
+> **آخر تحديث:** 2026-07-28 — P5-T1 نظام السور السداسي والبناء الحر في العميل (Rok2HexGrid + HexWall + CityLayout + BuildingActor + CityEditorMode).
 
 ---
 
@@ -80,7 +80,7 @@
 الهدف: أن تبدو اللعبة وتُحسّ كلعبة RoK حقيقية — قلعة سداسية حية، حضارات مميزة بصرياً، واجهة لعبة لا واجهة موقع. المرجع: `07-game-design/`.
 
 - [x] **P5-T0** وثائق التصميم الشاملة `07-game-design/` (GDD + قلعة سداسية + حضارات بصرية + RoK audit + UI/UX + توازن) + 11 صورة مرجعية — ✅ تم 2026-07-28
-- [ ] **P5-T1** نظام السور السداسي + شبكة hex + البناء الحر (CityBuilder overhaul — مواصفة `07-game-design/castle-hex-city.md`)
+- [x] **P5-T1** نظام السور السداسي + شبكة hex + البناء الحر (CityBuilder overhaul — مواصفة `07-game-design/castle-hex-city.md`) — ✅ تم 2026-07-28
 - [ ] **P5-T2** ثيمات مباني الحضارات الست (City Hall + 5 مبانٍ أساسية لكل حضارة، مرجع `07-game-design/civilizations-visual-design.md` + `assets/`)
 - [ ] **P5-T3** HUD بأسلوب RoK كامل (شريط موارد، أزرار دائرية، دردشة، مهام — مرجع `07-game-design/ui-ux-design-system.md` + `assets/ui-city-mockup.jpg`)
 - [ ] **P5-T4** شاشة القادة الكاملة (بورتريهات، مهارات، مواهب، معدات)
@@ -132,7 +132,8 @@
 | 2026-07-28 | P3-T5 توثيق خطة Soft launch التشغيلية | 1615e95 | game/docs/SOFT_LAUNCH.md جديد: تهيئة ممالك من softlaunch.json + خطوات wrangler deploy مع migrations 0005/0006 + التحقق عبر /v1/launch/status و/v1/admin/retention + قراءة cohorts مقابل العتبات + runbook يومي + حدود معروفة (التتبع من تاريخ النشر، قياس معزول لكل worker) |
 | 2026-07-28 | P4-T1 Battle Pass موسمي (مسار مجاني + مدفوع) | 0a49941 | data/battlepass.json جديد (20 مستوى × مكافأة مجانية + مدفوعة: موارد/gems/speedups تشير لعناصر shop حقيقية + xp_sources لستة أفعال: build 10/train 5/research 15/heal 3/march 8/pass_attack 20 + constants premium 500 gems وxp_per_level 100)؛ migration 0007 (player_battlepass xp/level/premium + battlepass_claims بمفتاح فريد level+track)؛ sim/battlepass.ts يقرأ JSON فقط (bpLevelForXp خطي بسقف max + bpProgressInLevel + bpClaimableLevels)؛ endpoints: GET /v1/battlepass (حالة كاملة + claimable لكل مسار) + POST /v1/battlepass/unlock-premium (خصم gems) + POST /v1/battlepass/claim (مطالبة مرة واحدة لكل مستوى/مسار، موارد تُضاف للمدينة وspeedups للمخزون)؛ نقاط تُمنح تلقائياً عند build/train/research/heal/march/pass_attack عبر grantBpXp؛ اجتاز battlepass_offline_test.mjs (48/48) + كل الاختبارات الأوفلاين الـ11 (بدون كسر) |
 | 2026-07-28 | حذف عميل الويب القديم game/client | 4324d9c..bc78685 | 6 ملفات (index.html/styles.css/app.js/_headers/package.json/README.md) — المشروع UE5 فقط، لا لغبطة مستقبلية |
-| 2026-07-28 | P5-T0 وثائق التصميم الشاملة 07-game-design/ | f14122f | 6 وثائق تصميم: GDD.md (مصدر الحقيقة)، castle-hex-city.md (سور سداسي + بناء حر على شبكة hex)، civilizations-visual-design.md (6 حضارات بثيمات كاملة)، rok-features-audit.md (توثيق شامل لمزايا RoK: 15 حضارة، قادة، VIP، حانة، أوضاع، خريطة)، ui-ux-design-system.md (واجهة لعبة لا موقع)، power-balance-map.md (توازن القوى F2P/P2P) + 11 صورة مرجعية مولّدة في 07-game-design/assets/ (قلعة سداسية، 6 مدن حضارات، خريطة عالم، وحدات خاصة، قادة، موكاب UI) |
+| 2026-07-28 | P5-T0 وثائق التصميم الشاملة 07-game-design/ | f14122f |
+| 2026-07-28 | P5-T1 نظام السور السداسي + البناء الحر (العميل) | 8da42ca | Rok2HexGrid (axial coords + hex↔world + ring/flower/filled)؛ Rok2HexWallActor (6 أضلاع + بوابة + أبراج + مراحل مظهر L1-22)؛ Rok2CityLayoutActor (شبكة أرض hex + سور + زرع مبانٍ من API + CanPlaceAt + TryMoveBuilding + RadiusForCityHallLevel)؛ Rok2BuildingActor (بصمة 1/7/12 + حالة بصرية 5 + مؤشر عائم)؛ Rok2CityEditorMode (سحب بشبح + إفلات بتحقق + تدوير 60° + 3 تخطيطات محفوظة)؛ CityBuilder أعيد كتابته كمنسّق يزرع Layout+Editor ويربط اللمس بالبطاقة؛ ToggleEditMode للـ HUD. فحص سلامة نحوي 12/12. ملاحظة backend: endpoint مقترح POST /v1/city/layout + data/city_layout.json لبصمات المباني | 6 وثائق تصميم: GDD.md (مصدر الحقيقة)، castle-hex-city.md (سور سداسي + بناء حر على شبكة hex)، civilizations-visual-design.md (6 حضارات بثيمات كاملة)، rok-features-audit.md (توثيق شامل لمزايا RoK: 15 حضارة، قادة، VIP، حانة، أوضاع، خريطة)، ui-ux-design-system.md (واجهة لعبة لا موقع)، power-balance-map.md (توازن القوى F2P/P2P) + 11 صورة مرجعية مولّدة في 07-game-design/assets/ (قلعة سداسية، 6 مدن حضارات، خريطة عالم، وحدات خاصة، قادة، موكاب UI) |
 ---
 
 ## 5. ملفات مرجعية سريعة
