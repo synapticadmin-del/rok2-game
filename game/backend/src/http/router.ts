@@ -1,4 +1,4 @@
-import type { Env, PlayerRow, CityRow } from "../env";
+import type { Env, PlayerRow, CityRow, VipRow } from "../env";
 import { HttpError, json, readJson } from "../lib/errors";
 import { newId, nowMs } from "../lib/ids";
 import { signToken, sha256Hex, verifyToken } from "../lib/auth";
@@ -56,6 +56,40 @@ import {
   starterCommanderForCiv,
   xpForLevel,
 } from "../do/sim/commanders";
+import {
+  isKingdomOpen,
+  kingdomCapacity,
+  retentionDayBuckets,
+  retentionTargets,
+  utcDay as retentionUtcDay,
+  cohortDayOf,
+  pct,
+} from "../do/sim/retention";
+
+// P3-T4: صف VIP للاعب (يُنشأ عند أول وصول) — متوافق مع قواعد لم تُرحّل بعد
+async function getOrCreateVip(env: Env, playerId: string): Promise<VipRow> {
+  try {
+    const row = await env.DB.prepare("SELECT * FROM player_vip WHERE player_id = ?")
+      .bind(playerId)
+      .first<VipRow>();
+    if (row) return row;
+    const now = nowMs();
+    await env.DB.prepare(
+      `INSERT INTO player_vip (player_id, points, level, last_daily_gems_day, last_free_speedup_day, updated_at)
+       VALUES (?, 0, 0, -1, -1, ?)`,
+    ).bind(playerId, now).run();
+    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, updated_at: now };
+  } catch {
+    // الجدول غير موجود بعد (migration لم تُطبّق) — مستوى افتراضي 0 بدون مزايا
+    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, updated_at: 0 };
+  }
+}
+
+// P3-T4: مضاعف إنتاج الموارد من مستوى VIP (يُقرأ من data/shop.json)
+async function vipProductionMod(env: Env, playerId: string): Promise<number> {
+  const vip = await getOrCreateVip(env, playerId);
+  return vipTierForPoints(vip.points).production_mult;
+}
 
 function kingdomStub(env: Env) {
   return env.KINGDOM_SHARD.get(env.KINGDOM_SHARD.idFromName(env.KINGDOM_ID || "kingdom-1"));
@@ -398,6 +432,20 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         .first<PlayerRow>();
       if (existing) {
         return json({ ok: true, already: true, playerId: existing.id });
+      }
+
+      // P3-T5: بوابة Soft launch — الانضمام مقيد بممالك الإطلاق المفتوحة وسعتها
+      const kingdomId = env.KINGDOM_ID || "kingdom-1";
+      if (!isKingdomOpen(kingdomId)) {
+        throw new HttpError(403, "kingdom_not_open_for_launch", { kingdom: kingdomId });
+      }
+      const cap = kingdomCapacity(kingdomId);
+      if (cap !== null) {
+        const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM players")
+          .first<{ c: number }>();
+        if ((cnt?.c || 0) >= cap) {
+          throw new HttpError(403, "kingdom_full", { kingdom: kingdomId, max_players: cap });
+        }
       }
 
       const playerId = newId("plr");
@@ -1624,35 +1672,80 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
     }
 
-    return json({ error: "Not found", path }, 404);
-  } catch (err: any) {
-    if (err instanceof HttpError) {
-      return json({ error: err.message, details: err.details }, err.status);
-    }
-    console.error(err);
-    return json({ error: err?.message || "Internal error" }, 500);
-  }
-}
-stone+?, gold=gold+?, updated_at=? WHERE player_id=?`,
-      )
-        .bind(body.food || 0, body.wood || 0, body.stone || 0, body.gold || 0, nowMs(), body.playerId)
-        .run();
-      if (body.troops) {
-        const owned = await getTroopsMap(env, body.playerId);
-        for (const [u, c] of Object.entries(body.troops)) {
-          const next = (owned[u] || 0) + Number(c);
-          await env.DB.prepare(
-            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
-             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
-          )
-            .bind(body.playerId, u, next)
-            .run();
+    // P3-T5: قياس retention — DAU + رجوع cohorts عند الأيام المحددة في data/softlaunch.json
+    if (path === "/v1/admin/retention" && request.method === "GET") {
+      requireAdmin(request, env);
+      const today = retentionUtcDay(nowMs());
+      const buckets = retentionDayBuckets();
+      const targets = retentionTargets();
+      const activeThreshold = getSoftLaunch().retention.active_threshold_days;
+
+      // DAU: لاعبون نشطوا خلال آخر active_threshold_days يوم
+      const dauRow = await env.DB.prepare(
+        "SELECT COUNT(DISTINCT player_id) as c FROM player_activity WHERE day >= ?",
+      ).bind(today - (activeThreshold - 1)).first<{ c: number }>().catch(() => null);
+
+      // cohorts: حجم كل يوم إنشاء + عدد العائدين منه عند كل bucket
+      const cohortsRows = await env.DB.prepare(
+        `SELECT p.created_at as created_ms, p.id as pid,
+                (SELECT MAX(day) FROM player_activity a WHERE a.player_id = p.id) as last_day,
+                (SELECT MIN(day) FROM player_activity a WHERE a.player_id = p.id) as first_active_day
+         FROM players p`,
+      ).all<{ created_ms: number; pid: string; last_day: number | null; first_active_day: number | null }>()
+        .catch(() => ({ results: [] as any[] }));
+
+      type CohortAgg = { size: number; returned: Record<number, number> };
+      const byCohort = new Map<number, CohortAgg>();
+      for (const r of cohortsRows.results || []) {
+        const cDay = cohortDayOf(r.created_ms);
+        if (!byCohort.has(cDay)) byCohort.set(cDay, { size: 0, returned: {} });
+        const agg = byCohort.get(cDay)!;
+        agg.size++;
+        const lastDay = r.last_day ?? -1;
+        for (const n of buckets) {
+          if (cDay + n <= today && lastDay >= cDay + n) {
+            agg.returned[n] = (agg.returned[n] || 0) + 1;
+          }
         }
       }
+
+      const cohorts = [...byCohort.entries()]
+        .sort((a, b) => b[0] - a[0])
+        .slice(0, 30)
+        .map(([day, agg]) => ({
+          cohort_day: day,
+          size: agg.size,
+          retention: Object.fromEntries(
+            buckets
+              .filter((n) => day + n <= today)
+              .map((n) => [`d${n}`, pct(agg.returned[n] || 0, agg.size)]),
+          ),
+        }));
+
       return json({
         ok: true,
-        city: await refreshCity(env, body.playerId),
-        troops: await getTroopsMap(env, body.playerId),
+        today_utc_day: today,
+        dau: dauRow?.c ?? 0,
+        buckets,
+        targets,
+        cohorts,
+        tracked_players: (cohortsRows.results || []).length,
+      });
+    }
+
+    // P3-T5: حالة Soft launch — الممالك المفتوحة + إشغالها (للاعبين والمشرفين)
+    if (path === "/v1/launch/status" && request.method === "GET") {
+      const spec = getSoftLaunch();
+      const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM players")
+        .first<{ c: number }>().catch(() => null);
+      const kingdomId = env.KINGDOM_ID || "kingdom-1";
+      return json({
+        ok: true,
+        kingdom: kingdomId,
+        players: cnt?.c ?? 0,
+        kingdoms: spec.kingdoms,
+        current: spec.kingdoms.find((k: any) => k.id === kingdomId) || null,
+        success_gate: spec.success_gate,
       });
     }
 
@@ -1663,8 +1756,5 @@ stone+?, gold=gold+?, updated_at=? WHERE player_id=?`,
     }
     console.error(err);
     return json({ error: err?.message || "Internal error" }, 500);
-  }
-}
-   return json({ error: err?.message || "Internal error" }, 500);
   }
 }

@@ -5,6 +5,8 @@ import troopTiers from "../data/troop_tiers.json";
 import commanders from "../data/commanders.json";
 import techTree from "../data/research.json";
 import zonesSpec from "../data/zones.json";
+import shopSpec from "../data/shop.json";
+import softLaunchSpec from "../data/softlaunch.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -101,6 +103,11 @@ export function getZones() {
 /** P3-T4: كتالوج المتجر (speedups + مستويات VIP + ثوابت gems) — يُقرأ من data/shop.json */
 export function getShop() {
   return shopSpec;
+}
+
+/** P3-T5: إعدادات Soft launch (ممالك محدودة + عتبات retention) — تُقرأ من data/softlaunch.json */
+export function getSoftLaunch() {
+  return softLaunchSpec;
 }
 
 export function starterBuildings(): string[] {
