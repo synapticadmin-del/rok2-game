@@ -29,6 +29,17 @@ import {
 } from "../do/sim/research";
 import { healCost, healDurationSec, hospitalCapacity } from "../do/sim/hospital";
 import {
+  ALLIANCE_CONSTANTS,
+  canLaunchRally,
+  canModerate,
+  helpSpeedupSec,
+  helpsCapped,
+  isValidRank,
+  rankHas,
+  rallyFull,
+  rallyPrepMs,
+} from "../do/sim/alliance";
+import {
   addXp,
   commanderPassiveMod,
   COMMANDER_CONSTANTS,
@@ -40,6 +51,21 @@ import {
 
 function kingdomStub(env: Env) {
   return env.KINGDOM_SHARD.get(env.KINGDOM_SHARD.idFromName(env.KINGDOM_ID || "kingdom-1"));
+}
+
+/** P2-T5: رتبة اللاعب داخل تحالفه (من alliance_members؛ القائد R5 افتراضياً) */
+async function getMemberRank(env: Env, playerId: string, allianceId: string): Promise<string> {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT rank FROM alliance_members WHERE alliance_id = ? AND player_id = ?",
+    ).bind(allianceId, playerId).first<{ rank: string }>();
+    if (row?.rank) return row.rank;
+    const a = await env.DB.prepare("SELECT leader_player_id FROM alliances WHERE id = ?")
+      .bind(allianceId).first<{ leader_player_id: string }>();
+    return a?.leader_player_id === playerId ? "R5" : "R1";
+  } catch {
+    return "R1"; // الجدول قد لا يكون مُرحّلاً بعد
+  }
 }
 
 async function getBuildingsMap(env: Env, playerId: string): Promise<Record<string, number>> {
@@ -192,6 +218,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
   try {
+    // P2-T5: إطلاق حملات rally المستحقة — poller رخيص يعمل مع أي طلب (fire-and-forget)
+    try {
+      const due = await env.DB.prepare(
+        "SELECT COUNT(*) as c FROM rallies WHERE status = 'forming' AND launch_ms <= ?",
+      ).bind(nowMs()).first<{ c: number }>();
+      if ((due?.c || 0) > 0) {
+        void kingdomStub(env).fetch("https://do/process-rallies", { method: "POST" });
+      }
+    } catch {
+      // جدول rallies قد لا يكون مُرحّلاً بعد
+    }
+
     // Health
     if (path === "/v1/health" || path === "/health") {
       return json({
@@ -248,6 +286,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
           commanders: COMMANDER_CONSTANTS,
+          alliance: ALLIANCE_CONSTANTS,
           trainableUnits: [
             { id: "infantry_t1", name: "مشاة T1", branch: "infantry" },
             { id: "cavalry_t1", name: "فرسان T1", branch: "cavalry" },
@@ -845,6 +884,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             `INSERT INTO alliances (id, name, tag, leader_player_id, created_at) VALUES (?, ?, ?, ?, ?)`,
           ).bind(id, name, tag, player.id, now),
           env.DB.prepare(`UPDATE players SET alliance_id=? WHERE id=?`).bind(id, player.id),
+          env.DB.prepare(
+            `INSERT INTO alliance_members (alliance_id, player_id, rank, joined_at) VALUES (?, ?, 'R5', ?)`,
+          ).bind(id, player.id, now),
         ]);
       } catch {
         throw new HttpError(409, "Tag already exists");
@@ -869,9 +911,20 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         .bind(body.allianceId)
         .first();
       if (!a) throw new HttpError(404, "Alliance not found");
+      const count = await env.DB.prepare(
+        "SELECT COUNT(*) as c FROM alliance_members WHERE alliance_id = ?",
+      ).bind(body.allianceId).first<{ c: number }>();
+      if ((count?.c || 0) >= ALLIANCE_CONSTANTS.maxMembers) throw new HttpError(400, "alliance_full");
       await env.DB.prepare(`UPDATE players SET alliance_id=? WHERE id=?`)
         .bind(body.allianceId, player.id)
         .run();
+      try {
+        await env.DB.prepare(
+          `INSERT INTO alliance_members (alliance_id, player_id, rank, joined_at) VALUES (?, ?, 'R1', ?)`,
+        ).bind(body.allianceId, player.id, nowMs()).run();
+      } catch {
+        // الجدول قد لا يكون مُرحّلاً بعد
+      }
 
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
@@ -882,7 +935,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, allianceId: body.allianceId });
     }
 
-    // Alliance get
+    // Alliance Rally status (قبل المسار العام /v1/alliance/:id حتى لا يبتلعه)
+    if (path.startsWith("/v1/alliance/rally/") && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const id = path.split("/").pop()!;
+      const rally = await env.DB.prepare("SELECT * FROM rallies WHERE id = ?").bind(id).first<any>();
+      if (!rally || rally.alliance_id !== player.alliance_id) throw new HttpError(404, "rally_not_found");
+      const parts = await env.DB.prepare(
+        "SELECT player_id, troops_json FROM rally_participants WHERE rally_id = ?",
+      ).bind(id).all<{ player_id: string; troops_json: string }>();
+      return json({
+        rally,
+        participants: (parts.results || []).map((p) => ({ playerId: p.player_id, troops: JSON.parse(p.troops_json) })),
+      });
+    }
+
+    // Alliance get — يشمل الرتب (P2-T5)
     if (path.startsWith("/v1/alliance/") && request.method === "GET") {
       const id = path.split("/").pop()!;
       const a = await env.DB.prepare("SELECT * FROM alliances WHERE id = ?").bind(id).first();
@@ -892,35 +961,256 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       )
         .bind(id)
         .all();
-      return json({ alliance: a, members: members.results || [] });
+      let ranks: Record<string, string> = {};
+      try {
+        const rows = await env.DB.prepare(
+          "SELECT player_id, rank FROM alliance_members WHERE alliance_id = ?",
+        ).bind(id).all<{ player_id: string; rank: string }>();
+        for (const r of rows.results || []) ranks[r.player_id] = r.rank;
+      } catch {
+        // الجدول قد لا يكون مُرحّلاً بعد
+      }
+      const list = (members.results || []).map((m: any) => ({
+        ...m,
+        rank: ranks[m.id] || ((a as any).leader_player_id === m.id ? "R5" : "R1"),
+      }));
+      return json({ alliance: a, members: list });
     }
 
-    // Alliance Invite
-    if (path === "/v1/alliance/invite" && request.method === "POST") {
-      const { player } = await requirePlayer(request, env);
-      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
-      return json({ ok: true, message: "Invite sent" });
-    }
-
-    // Alliance Promote
+    // Alliance Promote (P2-T5): ترقية/تنزيل رتبة عضو — يتطلب صلاحية ورتبة أعلى من الهدف
     if (path === "/v1/alliance/promote" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
-      return json({ ok: true, message: "Promoted member" });
+      const body = await readJson<{ playerId: string; rank: string }>(request);
+      if (!body.playerId || !body.rank) throw new HttpError(400, "playerId and rank required");
+      if (!isValidRank(body.rank)) throw new HttpError(400, "invalid_rank");
+      const actorRank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rankHas(actorRank, "promote")) throw new HttpError(403, "insufficient_rank");
+      const target = await env.DB.prepare(
+        "SELECT id, alliance_id FROM players WHERE id = ?",
+      ).bind(body.playerId).first<{ id: string; alliance_id: string | null }>();
+      if (!target || target.alliance_id !== player.alliance_id) throw new HttpError(404, "member_not_found");
+      const targetRank = await getMemberRank(env, target.id, player.alliance_id);
+      if (!canModerate(actorRank, targetRank) || !canModerate(actorRank, body.rank)) {
+        throw new HttpError(403, "cannot_moderate_equal_or_higher_rank");
+      }
+      await env.DB.prepare(
+        `INSERT INTO alliance_members (alliance_id, player_id, rank, joined_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(alliance_id, player_id) DO UPDATE SET rank=excluded.rank`,
+      ).bind(player.alliance_id, target.id, body.rank, nowMs()).run();
+      return json({ ok: true, playerId: target.id, rank: body.rank });
     }
 
-    // Alliance Kick
+    // Alliance Kick (P2-T5): طرد عضو — رتبة أعلى فقط تطرد أدنى منها
     if (path === "/v1/alliance/kick" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
-      return json({ ok: true, message: "Kicked member" });
+      const body = await readJson<{ playerId: string }>(request);
+      if (!body.playerId) throw new HttpError(400, "playerId required");
+      const actorRank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rankHas(actorRank, "kick")) throw new HttpError(403, "insufficient_rank");
+      const target = await env.DB.prepare(
+        "SELECT id, alliance_id FROM players WHERE id = ?",
+      ).bind(body.playerId).first<{ id: string; alliance_id: string | null }>();
+      if (!target || target.alliance_id !== player.alliance_id) throw new HttpError(404, "member_not_found");
+      const targetRank = await getMemberRank(env, target.id, player.alliance_id);
+      if (!canModerate(actorRank, targetRank)) throw new HttpError(403, "cannot_kick_equal_or_higher_rank");
+      await env.DB.batch([
+        env.DB.prepare("UPDATE players SET alliance_id=NULL WHERE id=?").bind(target.id),
+        env.DB.prepare("DELETE FROM alliance_members WHERE alliance_id=? AND player_id=?")
+          .bind(player.alliance_id, target.id),
+      ]);
+      const stub = kingdomStub(env);
+      await stub.fetch("https://do/set-alliance", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ playerId: target.id, allianceId: null }),
+      });
+      return json({ ok: true, kicked: target.id });
     }
 
-    // Alliance Help
+    // Alliance Leave (P2-T5): مغادرة طوعية — القائد (R5) لا يغادر قبل نقل القيادة
+    if (path === "/v1/alliance/leave" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (rank === "R5") throw new HttpError(400, "leader_must_transfer_first");
+      const allianceId = player.alliance_id;
+      await env.DB.batch([
+        env.DB.prepare("UPDATE players SET alliance_id=NULL WHERE id=?").bind(player.id),
+        env.DB.prepare("DELETE FROM alliance_members WHERE alliance_id=? AND player_id=?")
+          .bind(allianceId, player.id),
+      ]);
+      const stub = kingdomStub(env);
+      await stub.fetch("https://do/set-alliance", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ playerId: player.id, allianceId: null }),
+      });
+      return json({ ok: true, left: allianceId });
+    }
+
+    // Alliance Help (P2-T5): كل مساعدة تسرّع طابور عضو حسب قواعد data/zones.json
     if (path === "/v1/alliance/help" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
-      return json({ ok: true, message: "Help sent" });
+      const body = await readJson<{ queueId: string }>(request);
+      if (!body.queueId) throw new HttpError(400, "queueId required");
+
+      // الطابور الهدف يجب أن يكون لعضو في نفس التحالف (غير المساعد نفسه)
+      const stub0 = kingdomStub(env);
+      const snap = await (await stub0.fetch("https://do/snapshot")).json<any>();
+      const q = (snap.queues || []).find((x: any) => x.id === body.queueId && x.state === "running");
+      if (!q) throw new HttpError(404, "queue_not_found");
+      if (q.playerId === player.id) throw new HttpError(400, "cannot_help_own_queue");
+      const owner = await env.DB.prepare("SELECT alliance_id FROM players WHERE id = ?")
+        .bind(q.playerId).first<{ alliance_id: string | null }>();
+      if (!owner || owner.alliance_id !== player.alliance_id) throw new HttpError(403, "not_same_alliance");
+
+      // مساعدة واحدة لكل لاعب على الطابور + سقف العدد
+      try {
+        await env.DB.prepare(
+          `INSERT INTO alliance_helps (queue_id, helper_player_id, created_at) VALUES (?, ?, ?)`,
+        ).bind(body.queueId, player.id, nowMs()).run();
+      } catch {
+        throw new HttpError(409, "already_helped");
+      }
+      const cnt = await env.DB.prepare(
+        "SELECT COUNT(*) as c FROM alliance_helps WHERE queue_id = ?",
+      ).bind(body.queueId).first<{ c: number }>();
+      const helpsCount = cnt?.c || 1;
+
+      const remainingMs = Math.max(0, q.etaMs - nowMs());
+      const sec = helpSpeedupSec(remainingMs, helpsCount);
+      // التخفيض التراكمي: الفرق بين ما تستحقه المساعدات الحالية وما طُبّق سابقاً
+      const prevSec = helpSpeedupSec(remainingMs, helpsCount - 1);
+      const deltaSec = Math.max(0, sec - prevSec);
+
+      let queue = null;
+      if (deltaSec > 0) {
+        const stub = kingdomStub(env);
+        const res = await stub.fetch("https://do/queue/speedup", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ queueId: body.queueId, seconds: deltaSec }),
+        });
+        const data = await res.json<any>();
+        if (!res.ok) throw new HttpError(res.status, data.error || "help_failed", data);
+        queue = data.queue;
+      }
+      return json({
+        ok: true,
+        queueId: body.queueId,
+        helpsCount,
+        capped: helpsCapped(helpsCount),
+        speedupSec: deltaSec,
+        totalReductionSec: sec,
+        queue,
+      });
+    }
+
+    // Alliance Rally launch (P2-T5): قائد R3+ يفتح حملة على ممر/عرش + ينضم بقواته
+    if (path === "/v1/alliance/rally" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{
+        targetType: string; targetId: string; troops: Record<string, number>; primaryCommanderId?: string;
+      }>(request);
+      if (!body.targetType || !body.targetId) throw new HttpError(400, "targetType and targetId required");
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!canLaunchRally(rank, body.targetType)) {
+        throw new HttpError(403, `rally requires rank ${ALLIANCE_CONSTANTS.rally.min_rank}+ and target in ${ALLIANCE_CONSTANTS.rally.allowed_targets.join("/")}`);
+      }
+      const troops = body.troops || {};
+      const owned = await getTroopsMap(env, player.id);
+      let total = 0;
+      for (const [u, c] of Object.entries(troops)) {
+        if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
+        total += Number(c);
+      }
+      if (total <= 0) throw new HttpError(400, "no_troops");
+
+      let commanderSkills: number[] | undefined;
+      if (body.primaryCommanderId) {
+        const cmd = await getOwnedCommander(env, player.id, String(body.primaryCommanderId));
+        if (!cmd) throw new HttpError(400, "Commander not owned");
+        commanderSkills = JSON.parse(cmd.skills_json || "[1,1,1]");
+      }
+
+      // نقل قوات القائد إلى marching
+      for (const [u, c] of Object.entries(troops)) {
+        const left = (owned[u] || 0) - Number(c);
+        await env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
+        ).bind(player.id, u, left).run();
+        await env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+        ).bind(player.id, u, Number(c)).run();
+      }
+
+      const id = newId("rally");
+      const now = nowMs();
+      await env.DB.prepare(
+        `INSERT INTO rallies (id, alliance_id, leader_player_id, target_type, target_id, status, start_ms, launch_ms, commander_id, commander_skills_json, created_at)
+         VALUES (?, ?, ?, ?, ?, 'forming', ?, ?, ?, ?, ?)`,
+      ).bind(
+        id, player.alliance_id, player.id, body.targetType, body.targetId,
+        now, now + rallyPrepMs(),
+        body.primaryCommanderId || null,
+        commanderSkills ? JSON.stringify(commanderSkills) : null,
+        now,
+      ).run();
+      await env.DB.prepare(
+        `INSERT INTO rally_participants (rally_id, player_id, troops_json, joined_at) VALUES (?, ?, ?, ?)`,
+      ).bind(id, player.id, JSON.stringify(troops), now).run();
+
+      return json({ ok: true, rally: { id, targetType: body.targetType, targetId: body.targetId, launchMs: now + rallyPrepMs(), status: "forming" } });
+    }
+
+    // Alliance Rally join (P2-T5): عضو ينضم بقواته حتى اكتمال العدد
+    if (path === "/v1/alliance/rally/join" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ rallyId: string; troops: Record<string, number> }>(request);
+      if (!body.rallyId) throw new HttpError(400, "rallyId required");
+      const rally = await env.DB.prepare("SELECT * FROM rallies WHERE id = ?")
+        .bind(body.rallyId).first<any>();
+      if (!rally || rally.alliance_id !== player.alliance_id) throw new HttpError(404, "rally_not_found");
+      if (rally.status !== "forming") throw new HttpError(400, "rally_not_forming");
+      const existing = await env.DB.prepare(
+        "SELECT COUNT(*) as c FROM rally_participants WHERE rally_id = ?",
+      ).bind(body.rallyId).first<{ c: number }>();
+      if (rallyFull(existing?.c || 0)) throw new HttpError(400, "rally_full");
+      const dup = await env.DB.prepare(
+        "SELECT 1 as x FROM rally_participants WHERE rally_id = ? AND player_id = ?",
+      ).bind(body.rallyId, player.id).first();
+      if (dup) throw new HttpError(409, "already_joined");
+
+      const troops = body.troops || {};
+      const owned = await getTroopsMap(env, player.id);
+      let total = 0;
+      for (const [u, c] of Object.entries(troops)) {
+        if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
+        total += Number(c);
+      }
+      if (total <= 0) throw new HttpError(400, "no_troops");
+      for (const [u, c] of Object.entries(troops)) {
+        const left = (owned[u] || 0) - Number(c);
+        await env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
+        ).bind(player.id, u, left).run();
+        await env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+        ).bind(player.id, u, Number(c)).run();
+      }
+      await env.DB.prepare(
+        `INSERT INTO rally_participants (rally_id, player_id, troops_json, joined_at) VALUES (?, ?, ?, ?)`,
+      ).bind(body.rallyId, player.id, JSON.stringify(troops), nowMs()).run();
+      return json({ ok: true, rallyId: body.rallyId, participants: (existing?.c || 0) + 1 });
     }
 
     // Alliance flag build

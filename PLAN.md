@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P2-T4 Zone 2 stubs (المرحلة 2).
+> **آخر تحديث:** 2026-07-28 — P2-T5 تحالف كامل (المرحلة 2).
 
 ---
 
@@ -58,7 +58,7 @@
 - [x] **P2-T2** المستشفى: استقبال الجرحى حسب السعة + شفاء زمني عبر الـ tick — ✅ تم 2026-07-28
 - [x] **P2-T3** شجرة البحث: Economic + Military tiers من `data/research.json` (إنشاء الملف) — ✅ تم 2026-07-28
 - [x] **P2-T4** Zone 2 stubs: مناطق مقفلة بمؤقّت زمني + مناطق موارد أعلى — ✅ تم 2026-07-28
-- [ ] **P2-T5** تحالف كامل: helps بين الأعضاء + rally على الممرات + رتب
+- [x] **P2-T5** تحالف كامل: helps بين الأعضاء + rally على الممرات + رتب — ✅ تم 2026-07-28
 - [ ] **P2-T6** Client: HUD موحد (موارد، طوابير، إشعارات) بأسلوب UMG احترافي
 - [ ] **P2-T7** أصول فنية أولية: استيراد موديلات مجانية (Kenney/Quaternius) للمباني والوحدات في `Content/Art/`
 - **🚪 بوابة النجاح:** جلسة لعب 30 دقيقة متواصلة بدون أخطاء قاتلة، وفيها بناء + بحث + قتال + تحالف.
@@ -108,6 +108,7 @@
 | 2026-07-28 | P2-T2 المستشفى (جرحى بالسعة + شفاء زمني) | d8d78ff | data/buildings.json يكسب hospital config (سعة 200+150/مستوى، شفاء بنصف تكلفة التدريب، 5ث/جندي)؛ sim/hospital.ts؛ KingdomShard يقبَص الجرحى الخطيرين بالسعة عند كل معركة (الفائض يموت) ويخصم الخسائر من marching + ملخص hospital في تقرير المعركة؛ /v1/city/heal بتكلفة موارد + GET /v1/city يعرض wounded + hospital{level,capacity,used,free}؛ اجتاز hospital_offline_test.mjs (11/11) + hospital_test.mjs جاهز للإنتاج |
 | 2026-07-28 | P2-T3 شجرة البحث (economy + military) | 8e61f29 | data/research.json جديد (10 تقنيات × 5 مستويات × فرعين مع prerequisites)؛ migration 0003 player_research؛ sim/research.ts يقرأ JSON؛ اكتمال طابور research يكتب المستوى ويبث tech_researched؛ GET /v1/research + /v1/city/research يقرأ المستوى من D1 ويتحقق أكاديمية/prerequisites؛ بافات مطبقة: إنتاج + تدريب + سرعة مسير + هجوم قتال؛ اجتاز research_offline_test.mjs (13/13) + research_test.mjs جاهز للإنتاج |
 | 2026-07-28 | P2-T4 Zone 2 stubs (قفل زمني + موارد أعلى) | 5452841 | data/zones.json: unlock_schedule لـ Zone2 (4 مناطق @يوم10 + 4 ممرات داخلية @يوم10 و4 @يوم14) + constants (zone2_richness_mult=1.5 ونطاقات موارد)؛ sim/zones.ts جديد يقرأ JSON فقط؛ KingdomShard: رفض المسيرات لمناطق مقفلة (zone_locked) لكل الأهداف (عقد/نقاط/مدن/عرش)، بذر حتمي لعقد Z1+Z2 (مستويات 1-4 و3-6، غنى Z2 ×1.5)، بث zone_unlocked مرة واحدة عند بلوغ اليوم، حالة zones في snapshot + GET /v1/world/zones + /v1/meta/zones + zones في /v1/meta/all؛ اجتاز zones_offline_test.mjs (30/30) ولم تتأثر اختبارات research/hospital/commanders |
+| 2026-07-28 | P2-T5 تحالف كامل (رتب + helps + rally) | COMMIT_HASH_PLACEHOLDER | data/zones.json يكسب alliance config (رتب R1-R5 بصلاحيات، help: 60ث/مساعدة ×10 كحد أقصى و30% من المدة، rally: R3+ و5 مشاركين وتجميع 300ث)؛ migration 0004 (alliance_members/alliance_helps/rallies/rally_participants)؛ sim/alliance.ts يقرأ JSON فقط؛ helps حقيقية تسرّع طوابير الأعضاء تراكمياً (مساعدة واحدة لكل لاعب/طابور)؛ رتب فعلية: promote/kick بقاعدة أعلى-يغيّر-أدنى + leave (القائد ممنوع)؛ rally على pass/throne يجمع قوات المشاركين في مسيرة واحدة بقائد + إعادة القوات عند فشل المسار + بث rally_launched + poller كل طلب؛ snapshot يكسب queues؛ اجتاز alliance_offline_test.mjs (28/28) ولم تتأثر بقية الاختبارات |
 
 ---
 

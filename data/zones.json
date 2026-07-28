@@ -7,6 +7,28 @@
     "zone2_richness_mult": 1.5,
     "barb_hp_per_level": 100
   },
+  "alliance": {
+    "max_members": 50,
+    "ranks": ["R1", "R2", "R3", "R4", "R5"],
+    "rank_permissions": {
+      "R5": ["kick", "promote", "demote", "rally", "flag", "help"],
+      "R4": ["kick", "promote", "demote", "rally", "flag", "help"],
+      "R3": ["rally", "flag", "help"],
+      "R2": ["help"],
+      "R1": ["help"]
+    },
+    "help": {
+      "speedup_per_help_sec": 60,
+      "max_helps_per_queue": 10,
+      "max_reduction_ratio": 0.30
+    },
+    "rally": {
+      "min_rank": "R3",
+      "max_participants": 5,
+      "prep_seconds": 300,
+      "allowed_targets": ["pass", "throne"]
+    }
+  },
   "zones": [
     {
       "zone_id": 1,

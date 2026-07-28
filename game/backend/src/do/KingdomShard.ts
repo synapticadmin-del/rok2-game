@@ -541,6 +541,8 @@ export class KingdomShard extends DurableObject<Env> {
       nodes: [...this.nodes.values()],
       flags: [...this.flags.values()],
       reports: this.reports.slice(0, 10),
+      // P2-T5: الطوابير الجارية (لمساعدات التحالف — تقليل المدة عبر /v1/alliance/help)
+      queues: [...this.queues.values()].filter((q) => q.state === "running"),
       map: {
         width: getMap().width,
         height: getMap().height,
@@ -975,6 +977,78 @@ export class KingdomShard extends DurableObject<Env> {
         seasonDay: this.seasonDay,
         zones: zonesStatus(this.seasonDay, this.regions),
       });
+    }
+
+    // P2-T5: معالجة حملات rally المستحقة — يستدعيها الـ worker كل ثانية
+    if (path.endsWith("/process-rallies") && request.method === "POST") {
+      const now = nowMs();
+      const launched: string[] = [];
+      try {
+        const due = await this.env.DB.prepare(
+          "SELECT * FROM rallies WHERE status = 'forming' AND launch_ms <= ?",
+        ).bind(now).all<any>();
+        for (const r of due.results || []) {
+          const parts = await this.env.DB.prepare(
+            "SELECT player_id, troops_json FROM rally_participants WHERE rally_id = ?",
+          ).bind(r.id).all<{ player_id: string; troops_json: string }>();
+          const list = parts.results || [];
+          if (list.length === 0) {
+            await this.env.DB.prepare("UPDATE rallies SET status='cancelled' WHERE id=?").bind(r.id).run();
+            continue;
+          }
+          // تجميع قوات كل المشاركين في مسيرة واحدة يقودها صاحب الـ rally
+          const merged: Troops = {};
+          for (const p of list) {
+            const t = JSON.parse(p.troops_json || "{}") as Troops;
+            for (const [u, c] of Object.entries(t)) merged[u] = (merged[u] || 0) + Number(c);
+          }
+          try {
+            const march = await this.createMarch({
+              playerId: r.leader_player_id,
+              troops: merged,
+              targetType: r.target_type,
+              targetId: r.target_id,
+              passId: r.target_id,
+              primaryCommanderId: r.commander_id || undefined,
+              commanderSkills: r.commander_skills_json ? JSON.parse(r.commander_skills_json) : undefined,
+            });
+            march.payload = { rallyId: r.id, participantIds: list.map((p) => p.player_id) };
+            this.persistMarch(march);
+            await this.env.DB.prepare(
+              "UPDATE rallies SET status='launched', march_id=? WHERE id=?",
+            ).bind(march.id, r.id).run();
+            this.broadcast({
+              type: "rally_launched",
+              rallyId: r.id,
+              allianceId: r.alliance_id,
+              targetType: r.target_type,
+              targetId: r.target_id,
+              marchId: march.id,
+              participants: list.map((p) => p.player_id),
+            });
+            launched.push(r.id);
+          } catch (e: any) {
+            await this.env.DB.prepare("UPDATE rallies SET status='failed' WHERE id=?").bind(r.id).run();
+            // فشل المسار: إعادة قوات المشاركين إلى home
+            for (const p of list) {
+              const t = JSON.parse(p.troops_json || "{}") as Troops;
+              for (const [u, c] of Object.entries(t)) {
+                await this.env.DB.prepare(
+                  `UPDATE troops SET count = MAX(0, count - ?) WHERE player_id = ? AND unit_id = ? AND status = 'marching'`,
+                ).bind(Number(c), p.player_id, u).run();
+                await this.env.DB.prepare(
+                  `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+                   ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+                ).bind(p.player_id, u, Number(c)).run();
+              }
+            }
+          }
+        }
+      } catch {
+        // الجداول قد لا تكون مُرحّلة بعد
+      }
+      this.ensureAlarm();
+      return Response.json({ ok: true, launched });
     }
 
     if (path.endsWith("/upsert-city") && request.method === "POST") {

@@ -45,7 +45,19 @@ Auth header: `Authorization: Bearer <token>`
 ## Alliance
 - `POST /v1/alliance/create` `{ name, tag }`
 - `POST /v1/alliance/join` `{ allianceId }`
-- `GET /v1/alliance/:id`
+- `GET /v1/alliance/:id` → `{ alliance, members: [{ id, name, power, region_id, rank }] }`
+
+### Alliance — P2-T5 (رتب + helps + rally) — القواعد من data/zones.json → alliance
+- **الرتب:** R1..R5 (القائد R5 عند الإنشاء، المنضم R1). الصلاحيات من rank_permissions: R4+ kick/promote، R3+ rally، الكل help
+- `POST /v1/alliance/promote` `{ playerId, rank }` — ترقية/تنزيل؛ يتطلب رتبة أعلى من الهدف ومن الرتبة الجديدة
+- `POST /v1/alliance/kick` `{ playerId }` — طرد عضو أدنى رتبة فقط
+- `POST /v1/alliance/leave` — مغادرة طوعية (القائد R5 لا يغادر قبل نقل القيادة)
+- `POST /v1/alliance/help` `{ queueId }` — كل مساعدة تخصم help.speedup_per_help_sec (60ث) من طابور عضو، بحد أقصى 10 مساعدات و30% من المدة المتبقية؛ مساعدة واحدة لكل لاعب على الطابور → `{ helpsCount, speedupSec, totalReductionSec, queue }`
+- `POST /v1/alliance/rally` `{ targetType: pass|throne, targetId, troops, primaryCommanderId? }` — إطلاق حملة (R3+)؛ تجمّع 300ث (rally.prep_seconds) ثم تنطلق مسيرة واحدة بقوات كل المشاركين (حتى 5)
+- `POST /v1/alliance/rally/join` `{ rallyId, troops }` — انضمام عضو بقواته أثناء التجميع
+- `GET /v1/alliance/rally/:id` — حالة الحملة + المشاركون
+- رسالة WS `{"type":"rally_launched","rallyId","marchId","participants"}` عند الانطلاق
+- snapshot العالم يتضمن `queues` الجارية (لعرض طوابير الأعضاء القابلة للمساعدة)
 
 ## World
 - `GET /v1/world/snapshot`
