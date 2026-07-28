@@ -63,6 +63,10 @@ public:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* RefreshButton;
 
+	/** زر فتح تقارير القتال (P1-T4) */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UButton* ReportsButton;
+
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Setup(URok2Api* InApi);
 
@@ -89,6 +93,9 @@ protected:
 
 	UFUNCTION()
 	void OnRefreshClicked();
+
+	UFUNCTION()
+	void OnReportsClicked();
 
 	UFUNCTION()
 	void OnToast(const FString& Message);

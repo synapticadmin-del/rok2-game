@@ -1,5 +1,7 @@
 #include "Rok2CityWidget.h"
 #include "Rok2Api.h"
+#include "Rok2BattleReportWidget.h"
+#include "Rok2BlueprintLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
@@ -28,6 +30,7 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 	if (CreateAllianceButton) CreateAllianceButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnCreateAllianceClicked);
 	if (MapButton) MapButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnMapClicked);
 	if (RefreshButton) RefreshButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnRefreshClicked);
+	if (ReportsButton) ReportsButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnReportsClicked);
 
 	if (TrainUnitCombo)
 	{
@@ -114,6 +117,16 @@ void URok2CityWidget::NativeConstruct()
 		UHorizontalBoxSlot* MapSlot = TopHBox->AddChildToHorizontalBox(MapButton);
 		MapSlot->SetVerticalAlignment(VAlign_Center);
 		MapSlot->SetPadding(FMargin(10, 5, 20, 5));
+
+		// Reports Button (P1-T4)
+		ReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ReportsButton"));
+		UTextBlock* RepText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RepText"));
+		RepText->SetText(FText::FromString(TEXT("📜 التقارير")));
+		RepText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		ReportsButton->AddChild(RepText);
+		UHorizontalBoxSlot* RepSlot = TopHBox->AddChildToHorizontalBox(ReportsButton);
+		RepSlot->SetVerticalAlignment(VAlign_Center);
+		RepSlot->SetPadding(FMargin(0, 5, 10, 5));
 
 		// 2. Bottom Left Panel (Buildings)
 		UBorder* LeftPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanel"));
@@ -337,6 +350,18 @@ void URok2CityWidget::OnMapClicked()
 void URok2CityWidget::OnRefreshClicked()
 {
 	if (Api) Api->LoadCity();
+}
+
+void URok2CityWidget::OnReportsClicked()
+{
+	if (!Api) return;
+	URok2BattleReportWidget* W = Cast<URok2BattleReportWidget>(
+		URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2BattleReportWidget::StaticClass()));
+	if (W)
+	{
+		W->Setup(Api);
+		W->AddToViewport(50);
+	}
 }
 
 void URok2CityWidget::OnToast(const FString& Message)

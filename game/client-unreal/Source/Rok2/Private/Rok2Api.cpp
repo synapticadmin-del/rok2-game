@@ -400,6 +400,22 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// ---- battle reports (P1-T4) ----
+	const TArray<TSharedPtr<FJsonValue>>* ReportsArr;
+	if (Obj->TryGetArrayField(TEXT("reports"), ReportsArr))
+	{
+		BattleReports.Empty();
+		for (const auto& V : *ReportsArr)
+		{
+			const TSharedPtr<FJsonObject> R = V->AsObject();
+			if (!R.IsValid()) continue;
+			FRok2BattleReport Report;
+			ParseBattleReport(R, Report);
+			BattleReports.Add(Report);
+		}
+		OnBattleReports.Broadcast(BattleReports);
+	}
+
 	OnWorldSnapshot.Broadcast(World);
 }
 
@@ -456,6 +472,78 @@ void URok2Api::UpsertMarch(const FRok2MarchEntity& E)
 		World.Marches.Add(E);
 		OnWorldSnapshot.Broadcast(World);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Battle reports (P1-T4) — parsing + استقبال لحظي من الـ WS
+// ---------------------------------------------------------------------------
+void URok2Api::ParseTroopMap(const TSharedPtr<FJsonObject>& Obj, TArray<FRok2TroopLoss>& Out)
+{
+	Out.Empty();
+	if (!Obj.IsValid()) return;
+	for (const auto& KV : Obj->Values)
+	{
+		FRok2TroopLoss E;
+		E.UnitId = FString(KV.Key);
+		E.Count = (int32)KV.Value->AsNumber();
+		if (E.Count > 0) Out.Add(E);
+	}
+	Out.Sort([](const FRok2TroopLoss& A, const FRok2TroopLoss& B) { return A.UnitId < B.UnitId; });
+}
+
+void URok2Api::ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2BattleReport& Out) const
+{
+	Out.Id = Obj->GetStringField(TEXT("id"));
+	Out.CreatedAt = (int64)Obj->GetNumberField(TEXT("createdAt"));
+	Out.Kind = Obj->GetStringField(TEXT("kind"));
+	Out.AttackerPlayerId = Obj->GetStringField(TEXT("attackerPlayerId"));
+	Out.AttackerAllianceId = Obj->GetStringField(TEXT("attackerAllianceId"));
+	Obj->TryGetStringField(TEXT("passId"), Out.PassId);
+
+	const TSharedPtr<FJsonObject>* ResultObj;
+	if (Obj->TryGetObjectField(TEXT("result"), ResultObj) && ResultObj->IsValid())
+	{
+		const TSharedPtr<FJsonObject>& R = *ResultObj;
+		Out.Winner = R->GetStringField(TEXT("winner"));
+
+		const TSharedPtr<FJsonObject>* F;
+		if (R->TryGetObjectField(TEXT("attackerLosses"), F)) ParseTroopMap(*F, Out.Attacker.Losses);
+		if (R->TryGetObjectField(TEXT("defenderLosses"), F)) ParseTroopMap(*F, Out.Defender.Losses);
+		if (R->TryGetObjectField(TEXT("attackerRemaining"), F)) ParseTroopMap(*F, Out.Attacker.Remaining);
+		if (R->TryGetObjectField(TEXT("defenderRemaining"), F)) ParseTroopMap(*F, Out.Defender.Remaining);
+
+		const TSharedPtr<FJsonObject>* Split;
+		if (R->TryGetObjectField(TEXT("attackerSplit"), Split) && Split->IsValid())
+		{
+			const TSharedPtr<FJsonObject>* S;
+			if ((*Split)->TryGetObjectField(TEXT("dead"), S)) ParseTroopMap(*S, Out.Attacker.Dead);
+			if ((*Split)->TryGetObjectField(TEXT("severely"), S)) ParseTroopMap(*S, Out.Attacker.Severely);
+			if ((*Split)->TryGetObjectField(TEXT("slightly"), S)) ParseTroopMap(*S, Out.Attacker.Slightly);
+		}
+		if (R->TryGetObjectField(TEXT("defenderSplit"), Split) && Split->IsValid())
+		{
+			const TSharedPtr<FJsonObject>* S;
+			if ((*Split)->TryGetObjectField(TEXT("dead"), S)) ParseTroopMap(*S, Out.Defender.Dead);
+			if ((*Split)->TryGetObjectField(TEXT("severely"), S)) ParseTroopMap(*S, Out.Defender.Severely);
+			if ((*Split)->TryGetObjectField(TEXT("slightly"), S)) ParseTroopMap(*S, Out.Defender.Slightly);
+		}
+
+		const TSharedPtr<FJsonObject>* PowerObj;
+		if (R->TryGetObjectField(TEXT("powerBefore"), PowerObj) && PowerObj->IsValid())
+		{
+			Out.Attacker.PowerBefore = (int32)(*PowerObj)->GetNumberField(TEXT("attacker"));
+			Out.Defender.PowerBefore = (int32)(*PowerObj)->GetNumberField(TEXT("defender"));
+		}
+	}
+}
+
+void URok2Api::AddBattleReport(const FRok2BattleReport& R)
+{
+	// استبدل بنفس الـ id إن وُجد ثم أدرج في المقدمة
+	BattleReports.RemoveAll([&R](const FRok2BattleReport& X) { return X.Id == R.Id; });
+	BattleReports.Insert(R, 0);
+	if (BattleReports.Num() > 25) BattleReports.SetNum(25);
+	OnBattleReports.Broadcast(BattleReports);
 }
 
 void URok2Api::LoadCity()
@@ -679,8 +767,18 @@ void URok2Api::ConnectWebSocket()
 		}
 		else if (Type == TEXT("battle_report"))
 		{
-			Self->EmitToast(TEXT("تقرير قتال جديد"));
-			Self->RefreshWorld();
+			Self->EmitToast(TEXT("تقرير قتال جديد ⚔️"));
+			const TSharedPtr<FJsonObject>* ReportObj;
+			if (Obj->TryGetObjectField(TEXT("report"), ReportObj) && ReportObj->IsValid())
+			{
+				FRok2BattleReport Report;
+				Self->ParseBattleReport(*ReportObj, Report);
+				Self->AddBattleReport(Report);
+			}
+			else
+			{
+				Self->RefreshWorld();
+			}
 		}
 	});
 

@@ -255,6 +255,70 @@ struct FRok2Commander
 	TArray<FString> Tags;
 };
 
+
+USTRUCT(BlueprintType)
+struct FRok2TroopLoss
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString UnitId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Count = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2BattleSide
+{
+	GENERATED_BODY()
+
+	/** خسائر كل وحدة */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Losses;
+	/** المتبقي بعد المعركة */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Remaining;
+	/** تقسيم الخسائر: قتلى */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Dead;
+	/** جرحى خطيرين (مستشفى) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Severely;
+	/** جرحى خفيفين */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Slightly;
+	/** القوة قبل المعركة */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 PowerBefore = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2BattleReport
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 CreatedAt = 0;
+	/** نوع المعركة: pass_attack / throne_attack / barb */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Kind;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString AttackerPlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString AttackerAllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PassId;
+	/** winner: attacker / defender / draw */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Winner;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FRok2BattleSide Attacker;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FRok2BattleSide Defender;
+};
+
 USTRUCT(BlueprintType)
 struct FRok2TechNode
 {

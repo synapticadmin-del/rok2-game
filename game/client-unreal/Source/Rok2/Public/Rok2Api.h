@@ -21,6 +21,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnToast, const FString&, Message);
 /** حالة اتصال العميل بالخادم — تُبث للواجهات لعرض شاشة التحميل/إعادة الاتصال */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnConnectionState, bool, bOnline, const FString&, StatusMessage);
 
+/** يُبث عند وصول تقرير قتال جديد أو تحديث قائمة التقارير (P1-T4) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattleReports, const TArray<FRok2BattleReport>&, Reports);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -111,6 +114,9 @@ public:
 	const TArray<FRok2Commander>& GetCommanders() const { return Commanders; }
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
+	const TArray<FRok2BattleReport>& GetBattleReports() const { return BattleReports; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2")
 	bool IsLoggedIn() const { return !Token.IsEmpty(); }
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
@@ -141,6 +147,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnConnectionState OnConnectionState;
 
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnBattleReports OnBattleReports;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -155,6 +164,7 @@ protected:
 	TArray<FRok2TroopEntry> Troops;
 	TMap<FString, int32> Buildings;
 	TArray<FRok2Commander> Commanders;
+	TArray<FRok2BattleReport> BattleReports;
 
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> PendingRequest;
 	TSharedPtr<IWebSocket> WebSocket;
@@ -191,6 +201,13 @@ protected:
 	void ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEntity& E) const;
 	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
 	void UpsertMarch(const FRok2MarchEntity& E);
+
+	/** يحوّل خريطة troops JSON إلى قائمة خسائر مرتبة (P1-T4) */
+	static void ParseTroopMap(const TSharedPtr<FJsonObject>& Obj, TArray<FRok2TroopLoss>& Out);
+	/** يحوّل تقرير قتال من JSON إلى FRok2BattleReport */
+	void ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2BattleReport& Out) const;
+	/** يضيف تقريراً في مقدمة القائمة (حد أقصى 25) ويبث التحديث */
+	void AddBattleReport(const FRok2BattleReport& R);
 
 	FString AuthHeader() const;
 	FString BuildUrl(const FString& Path) const;
