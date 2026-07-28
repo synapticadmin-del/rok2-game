@@ -1,5 +1,12 @@
-// Copyright ROK2. Unified HUD widget (P2-T6) — top bar, queues, notifications, bottom bar.
+// Copyright ROK2. Unified HUD widget (P5-T3) — RoK-style game HUD.
 // Built fully in code (no Blueprint asset required), layered above URok2CityWidget.
+//
+// المواصفة: 07-game-design/ui-ux-design-system.md
+//  - شريط موارد علوي ذهبي (طعام/خشب/حجر/ذهب/gems/AP) + يوم الموسم + مؤقّت المناطق + شارة اتصال + جرس.
+//  - أزرار دائرية مزخرفة أسفل يمين: البناء (مطرقة كبيرة) + القادة/التحالف/الحقيبة/الأحداث.
+//  - زر خريطة + تقارير + زر تحرير المدينة أسفل يسار/وسط.
+//  - لوحة طوابير جانبية بشريط تقدم + عدّ تنازلي.
+//  - بطاقات إشعارات تتلاشى + مركز إشعارات قابل للطي.
 
 #pragma once
 
@@ -15,46 +22,48 @@ class UButton;
 class UBorder;
 class UProgressBar;
 class UScrollBox;
+class UImage;
 
 /** حدث زر في الـ HUD — يفوَّض لـ Blueprint/GameMode */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHudAction);
 
-/**
- * HUD موحد احترافي (P2-T6):
- *  - شريط علوي: الموارد الحية (تُحدَّث كل Tick) + يوم الموسم + مؤقّت فتح المناطق + شارة الاتصال + جرس الإشعارات.
- *  - لوحة طوابير جانبية: كل طابور بشريط تقدم حي وعدّ تنازلي.
- *  - بطاقات إشعارات تتراكم يميناً وتتلاشى (قتال/مناطق/rally/أبحاث).
- *  - شريط سفلي: أزرار التنقل (خريطة/تقارير) — تفوَّض لـ Blueprint عبر أحداث.
- *  - مركز إشعارات قابل للطي يعرض السجل الكامل من URok2Api.
- */
 UCLASS(BlueprintType, Blueprintable)
 class ROK2_API URok2HudWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	/** اربط الـ HUD بمصدر البيانات */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Setup(URok2Api* InApi);
 
-	/** يُستدعى من Blueprint عند ضغط زر الخريطة في الشريط السفلي */
-	UPROPERTY(BlueprintAssignable, Category = "Rok2")
-	FOnHudAction OnMapAction;
-
-	/** يُستدعى من Blueprint عند ضغط زر التقارير */
-	UPROPERTY(BlueprintAssignable, Category = "Rok2")
-	FOnHudAction OnReportsAction;
+	// أحداث الأزرار — تفوَّض للخارج
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnMapAction;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnReportsAction;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnBuildAction;      // زر البناء الكبير
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCommandersAction; // القادة
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnAllianceAction;   // التحالف
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnItemsAction;      // الحقيبة
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnEventsAction;     // الأحداث
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnEditCityAction;   // تحرير المدينة
 
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
 
 	// شريط علوي
-	UPROPERTY(Transient) UTextBlock* HudResourcesText;
+	UPROPERTY(Transient) UTextBlock* ResFoodText;
+	UPROPERTY(Transient) UTextBlock* ResWoodText;
+	UPROPERTY(Transient) UTextBlock* ResStoneText;
+	UPROPERTY(Transient) UTextBlock* ResGoldText;
+	UPROPERTY(Transient) UTextBlock* ResGemsText;
+	UPROPERTY(Transient) UTextBlock* ResApText;
 	UPROPERTY(Transient) UTextBlock* SeasonText;
 	UPROPERTY(Transient) UTextBlock* ZoneTimerText;
 	UPROPERTY(Transient) UTextBlock* ConnText;
 	UPROPERTY(Transient) UTextBlock* BellBadgeText;
+
+	// شارة البنّاء الخامل على زر البناء
+	UPROPERTY(Transient) UTextBlock* BuildBadgeText;
 
 	// طوابير
 	UPROPERTY(Transient) UVerticalBox* QueuesBox;
@@ -69,15 +78,17 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void BuildTopBar(class UCanvasPanel* RootCanvas);
+	void BuildActionCluster(class UCanvasPanel* RootCanvas);   // أزرار دائرية أسفل يمين
+	void BuildLeftCluster(class UCanvasPanel* RootCanvas);     // خريطة/تقارير/تحرير أسفل يسار
 	void BuildQueuesPanel(class UCanvasPanel* RootCanvas);
 	void BuildToastsStack(class UCanvasPanel* RootCanvas);
-	void BuildBottomBar(class UCanvasPanel* RootCanvas);
 	void BuildNotifCenter(class UCanvasPanel* RootCanvas);
 
 	void UpdateResources();
 	void UpdateSeasonAndZones();
 	void UpdateQueues();
 	void UpdateBellBadge();
+	void UpdateBuildBadge();
 	void TickToasts(float DeltaSeconds);
 
 	UFUNCTION()
@@ -92,11 +103,15 @@ protected:
 	UFUNCTION()
 	void OnBellClicked();
 
-	UFUNCTION()
-	void OnMapBtnClicked();
-
-	UFUNCTION()
-	void OnReportsBtnClicked();
+	// معالجات أزرار الأكشن — تبثّ الأحداث المفوَّضة
+	UFUNCTION() void OnBuildClickedHandler();
+	UFUNCTION() void OnMapBtnClickedHandler();
+	UFUNCTION() void OnReportsBtnClickedHandler();
+	UFUNCTION() void OnEditCityClickedHandler();
+	UFUNCTION() void OnCommandersClickedHandler();
+	UFUNCTION() void OnAllianceClickedHandler();
+	UFUNCTION() void OnItemsClickedHandler();
+	UFUNCTION() void OnEventsClickedHandler();
 
 private:
 	struct FToastEntry
@@ -109,7 +124,7 @@ private:
 	};
 
 	UPROPERTY(Transient)
-	TArray<UBorder*> ToastCardRefs; // إبقاء بطاقات الإشعارات حية للـ GC
+	TArray<UBorder*> ToastCardRefs;
 
 	TArray<FToastEntry> ActiveToasts;
 	float QueuesRefreshTimer = 0.f;

@@ -1,5 +1,5 @@
-// Copyright ROK2. Unified HUD widget (P2-T6) — implementation.
-// Style: شريط استراتيجي داكن بخطوط واضحة — موارد حية، طوابير بتقدم، إشعارات متلاشية.
+// Copyright ROK2. Unified HUD widget (P5-T3) — implementation.
+// أسلوب RoK: برونز داكن + ذهب مزخرف، أزرار دائرية، شريط موارد RTL.
 
 #include "Rok2HudWidget.h"
 #include "Rok2Api.h"
@@ -15,19 +15,23 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Spacer.h"
+#include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
 
+// لوحة الألوان من ui-ux-design-system.md §1
 namespace Rok2HudStyle
 {
-	static const FLinearColor BarBg(0.02f, 0.05f, 0.12f, 0.94f);
-	static const FLinearColor PanelBg(0.04f, 0.07f, 0.14f, 0.90f);
-	static const FLinearColor Gold(1.0f, 0.84f, 0.2f);
-	static const FLinearColor ResGreen(0.4f, 1.0f, 0.6f);
-	static const FLinearColor InfoBlue(0.35f, 0.75f, 1.0f);
-	static const FLinearColor WarnAmber(1.0f, 0.65f, 0.25f);
-	static const FLinearColor BadRed(1.0f, 0.45f, 0.4f);
-	static const FLinearColor OkGreen(0.4f, 1.0f, 0.5f);
-	static const FLinearColor Muted(0.75f, 0.78f, 0.85f, 0.9f);
+	static const FLinearColor PanelBg(0.10f, 0.07f, 0.04f, 0.92f);      // #1A120B شبه شفاف
+	static const FLinearColor BarBg(0.08f, 0.05f, 0.03f, 0.96f);
+	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);                 // #C9A227
+	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);                // #F5E9D0
+	static const FLinearColor Danger(0.66f, 0.20f, 0.15f);               // #A93226
+	static const FLinearColor Success(0.24f, 0.49f, 0.31f);              // #3E7C4F
+	static const FLinearColor ResGreen(0.5f, 0.95f, 0.55f);
+	static const FLinearColor GemsCyan(0.45f, 0.85f, 1.0f);
+	static const FLinearColor ApPurple(0.75f, 0.55f, 1.0f);
+	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
+	static const FLinearColor InfoBlue(0.4f, 0.75f, 1.0f);
 }
 
 static FSlateFontInfo Rok2Font(UTextBlock* T, int32 Size)
@@ -49,6 +53,7 @@ void URok2HudWidget::Setup(URok2Api* InApi)
 	UpdateSeasonAndZones();
 	UpdateQueues();
 	UpdateBellBadge();
+	UpdateBuildBadge();
 }
 
 void URok2HudWidget::NativeConstruct()
@@ -60,60 +65,71 @@ void URok2HudWidget::NativeConstruct()
 	WidgetTree->RootWidget = RootCanvas;
 
 	BuildTopBar(RootCanvas);
+	BuildActionCluster(RootCanvas);
+	BuildLeftCluster(RootCanvas);
 	BuildQueuesPanel(RootCanvas);
 	BuildToastsStack(RootCanvas);
-	BuildBottomBar(RootCanvas);
 	BuildNotifCenter(RootCanvas);
 }
 
 // ---------------------------------------------------------------------------
-// البناء: شريط علوي بارتفاع 40px تحت شريط CityWidget (54px)
+// شريط الموارد العلوي الذهبي — RTL: طعام/خشب/حجر/ذهب/gems/AP + موسم + مناطق + اتصال + جرس
 // ---------------------------------------------------------------------------
 void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 {
 	UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudTopBar"));
 	Bar->SetBrushColor(Rok2HudStyle::BarBg);
+	// إطار سفلي ذهبي خفيف عبر Border thickness يُدار من المادة — نستخدم لون الخلفية فقط
 	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Bar);
 	Slot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.f));
 	Slot->SetAlignment(FVector2D(0.f, 0.f));
-	Slot->SetPosition(FVector2D(0.f, 56.f));
-	Slot->SetSize(FVector2D(0.f, 38.f));
+	Slot->SetPosition(FVector2D(0.f, 0.f));
+	Slot->SetSize(FVector2D(0.f, 46.f));
 
 	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudTopHBox"));
 	Bar->SetContent(H);
 
-	HudResourcesText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudResourcesText"));
-	HudResourcesText->SetText(FText::FromString(TEXT("🍲 0  🪵 0  🪨 0  🪙 0")));
-	HudResourcesText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::ResGreen));
-	HudResourcesText->SetFont(Rok2Font(HudResourcesText, 13));
-	H->AddChildToHorizontalBox(HudResourcesText)->SetPadding(FMargin(16, 0, 24, 0));
+	auto AddRes = [&](UTextBlock*& Out, const FString& Icon, FLinearColor Color) {
+		Out = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Out->SetText(FText::FromString(Icon + TEXT(" 0")));
+		Out->SetColorAndOpacity(FSlateColor(Color));
+		Out->SetFont(Rok2Font(Out, 14));
+		H->AddChildToHorizontalBox(Out)->SetPadding(FMargin(14, 0, 2, 0));
+	};
 
-	SeasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SeasonText"));
+	// RTL: نضيف من اليمين — الطعام أولاً
+	AddRes(ResFoodText, TEXT("🍲"), Rok2HudStyle::ResGreen);
+	AddRes(ResWoodText, TEXT("🪵"), FLinearColor(0.85f, 0.65f, 0.4f));
+	AddRes(ResStoneText, TEXT("🪨"), FLinearColor(0.75f, 0.75f, 0.78f));
+	AddRes(ResGoldText, TEXT("🪙"), Rok2HudStyle::Gold);
+	AddRes(ResGemsText, TEXT("💎"), Rok2HudStyle::GemsCyan);
+	AddRes(ResApText, TEXT("⚡"), Rok2HudStyle::ApPurple);
+
+	// فاصل
+	USpacer* Sp1 = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
+	UHorizontalBoxSlot* Sp1Slot = H->AddChildToHorizontalBox(Sp1);
+	Sp1Slot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+	SeasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	SeasonText->SetText(FText::FromString(TEXT("📅 يوم 0")));
 	SeasonText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
 	SeasonText->SetFont(Rok2Font(SeasonText, 13));
-	H->AddChildToHorizontalBox(SeasonText)->SetPadding(FMargin(0, 0, 18, 0));
+	H->AddChildToHorizontalBox(SeasonText)->SetPadding(FMargin(0, 0, 16, 0));
 
-	ZoneTimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ZoneTimerText"));
+	ZoneTimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	ZoneTimerText->SetText(FText::FromString(TEXT("")));
 	ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue));
 	ZoneTimerText->SetFont(Rok2Font(ZoneTimerText, 12));
-	H->AddChildToHorizontalBox(ZoneTimerText)->SetPadding(FMargin(0, 0, 18, 0));
+	H->AddChildToHorizontalBox(ZoneTimerText)->SetPadding(FMargin(0, 0, 16, 0));
 
-	// spacer يدفع الجرس والاتصال لليمين
-	USpacer* Sp = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("HudTopSpacer"));
-	UHorizontalBoxSlot* SpSlot = H->AddChildToHorizontalBox(Sp);
-	SpSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
-	ConnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudConnText"));
+	ConnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	ConnText->SetText(FText::FromString(TEXT("🟢")));
-	ConnText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::OkGreen));
 	ConnText->SetFont(Rok2Font(ConnText, 12));
-	H->AddChildToHorizontalBox(ConnText)->SetPadding(FMargin(0, 0, 12, 0));
+	H->AddChildToHorizontalBox(ConnText)->SetPadding(FMargin(0, 0, 10, 0));
 
-	UButton* BellBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HudBellBtn"));
+	UButton* BellBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	BellBtn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBellClicked);
-	BellBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudBellText"));
+	BellBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	BellBadgeText->SetText(FText::FromString(TEXT("🔔")));
 	BellBadgeText->SetFont(Rok2Font(BellBadgeText, 13));
 	BellBtn->AddChild(BellBadgeText);
@@ -121,7 +137,128 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 }
 
 // ---------------------------------------------------------------------------
-// لوحة الطوابير (يمين أعلى تحت الشريط) — شريط تقدم + عدّ تنازلي لكل طابور
+// مجموعة الأزرار الدائرية أسفل يمين — زر البناء الكبير + 4 أصغر (قادة/تحالف/حقيبة/أحداث)
+// ---------------------------------------------------------------------------
+void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
+{
+	UOverlay* Cluster = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("HudActionCluster"));
+	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Cluster);
+	Slot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
+	Slot->SetAlignment(FVector2D(1.f, 1.f));
+	Slot->SetPosition(FVector2D(-18.f, -18.f));
+	Slot->SetSize(FVector2D(220.f, 220.f));
+
+	// زر البناء الكبير — أسفل يمين الزاوية
+	{
+		UBorder* Circle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BuildCircle"));
+		Circle->SetBrushColor(FLinearColor(0.16f, 0.11f, 0.05f, 0.95f));
+		UCanvasPanelSlot* S = Cluster->AddChildToCanvas(Circle);
+		S->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
+		S->SetAlignment(FVector2D(1.f, 1.f));
+		S->SetPosition(FVector2D(0.f, 0.f));
+		S->SetSize(FVector2D(96.f, 96.f));
+
+		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BuildBtn"));
+		Circle->SetContent(Btn);
+		Btn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBuildClickedHandler);
+
+		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Btn->AddChild(V);
+		UTextBlock* Ico = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Ico->SetText(FText::FromString(TEXT("🔨")));
+		Ico->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		Ico->SetFont(Rok2Font(Ico, 34));
+		Ico->SetJustification(ETextJustify::Center);
+		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
+		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Lbl->SetText(FText::FromString(TEXT("بناء")));
+		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		Lbl->SetFont(Rok2Font(Lbl, 11));
+		Lbl->SetJustification(ETextJustify::Center);
+		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
+
+		// شارة البنّاء الخامل
+		BuildBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		BuildBadgeText->SetText(FText::FromString(TEXT("")));
+		BuildBadgeText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Danger));
+		BuildBadgeText->SetFont(Rok2Font(BuildBadgeText, 12));
+		V->AddChildToVerticalBox(BuildBadgeText)->SetHorizontalAlignment(HAlign_Right);
+	}
+
+	// الأزرار الأربعة الأصغر — صف أفقي فوق زر البناء
+	const float SmallD = 58.f;
+	const FVector2D StartPos(-8.f, -110.f);
+	int32 i = 0;
+
+	auto SpawnSmall = [&](const FString& Icon, const FString& Label, const FName Handler) {
+		UBorder* Circle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Circle->SetBrushColor(Rok2HudStyle::PanelBg);
+		UCanvasPanelSlot* S = Cluster->AddChildToCanvas(Circle);
+		S->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
+		S->SetAlignment(FVector2D(1.f, 1.f));
+		S->SetPosition(StartPos + FVector2D(-i * (SmallD + 8.f), 0.f));
+		S->SetSize(FVector2D(SmallD, SmallD));
+
+		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		Circle->SetContent(Btn);
+		Btn->OnClicked.AddDynamic(this, Handler);
+
+		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Btn->AddChild(V);
+		UTextBlock* Ico = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Ico->SetText(FText::FromString(Icon));
+		Ico->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		Ico->SetFont(Rok2Font(Ico, 20));
+		Ico->SetJustification(ETextJustify::Center);
+		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
+		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Lbl->SetText(FText::FromString(Label));
+		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		Lbl->SetFont(Rok2Font(Lbl, 8));
+		Lbl->SetJustification(ETextJustify::Center);
+		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
+		i++;
+	};
+
+	SpawnSmall(TEXT("🪖"), TEXT("قادة"), FName(TEXT("OnCommandersClickedHandler")));
+	SpawnSmall(TEXT("🛡️"), TEXT("تحالف"), FName(TEXT("OnAllianceClickedHandler")));
+	SpawnSmall(TEXT("🎒"), TEXT("حقيبة"), FName(TEXT("OnItemsClickedHandler")));
+	SpawnSmall(TEXT("🚩"), TEXT("أحداث"), FName(TEXT("OnEventsClickedHandler")));
+}
+
+// ---------------------------------------------------------------------------
+// مجموعة أسفل يسار/وسط — خريطة + تقارير + تحرير المدينة
+// ---------------------------------------------------------------------------
+void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
+{
+	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudLeftCluster"));
+	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(H);
+	Slot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
+	Slot->SetAlignment(FVector2D(0.f, 1.f));
+	Slot->SetPosition(FVector2D(18.f, -18.f));
+	Slot->SetSize(FVector2D(340.f, 52.f));
+
+	auto MakePill = [&](const FString& IconLabel, const FName Handler) {
+		UBorder* Pill = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Pill->SetBrushColor(Rok2HudStyle::PanelBg);
+		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		Pill->SetContent(Btn);
+		Btn->OnClicked.AddDynamic(this, Handler);
+		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		T->SetText(FText::FromString(IconLabel));
+		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		T->SetFont(Rok2Font(T, 13));
+		Btn->AddChild(T);
+		H->AddChildToHorizontalBox(Pill)->SetPadding(FMargin(0, 0, 10, 0));
+	};
+
+	MakePill(TEXT("🗺️ الخريطة"), FName(TEXT("OnMapBtnClickedHandler")));
+	MakePill(TEXT("📜 التقارير"), FName(TEXT("OnReportsBtnClickedHandler")));
+	MakePill(TEXT("🏗️ تحرير المدينة"), FName(TEXT("OnEditCityClickedHandler")));
+}
+
+// ---------------------------------------------------------------------------
+// لوحة الطوابير (يمين أعلى)
 // ---------------------------------------------------------------------------
 void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 {
@@ -130,19 +267,19 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(QueuesPanel);
 	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
 	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-12.f, 104.f));
-	Slot->SetSize(FVector2D(300.f, 150.f));
+	Slot->SetPosition(FVector2D(-14.f, 56.f));
+	Slot->SetSize(FVector2D(280.f, 150.f));
 
-	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("HudQueuesVBox"));
+	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	QueuesPanel->SetContent(V);
 
-	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudQueuesTitle"));
+	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("⏳ الطوابير")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
 	Title->SetFont(Rok2Font(Title, 13));
 	V->AddChildToVerticalBox(Title)->SetPadding(FMargin(10, 8, 10, 4));
 
-	QueuesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("HudQueuesBox"));
+	QueuesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	V->AddChildToVerticalBox(QueuesBox)->SetPadding(FMargin(10, 0, 10, 8));
 }
 
@@ -152,45 +289,8 @@ void URok2HudWidget::BuildToastsStack(UCanvasPanel* RootCanvas)
 	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(ToastsBox);
 	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
 	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-12.f, 262.f));
-	Slot->SetSize(FVector2D(320.f, 400.f));
-}
-
-void URok2HudWidget::BuildBottomBar(UCanvasPanel* RootCanvas)
-{
-	UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudBottomBar"));
-	Bar->SetBrushColor(Rok2HudStyle::BarBg);
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Bar);
-	Slot->SetAnchors(FAnchors(0.5f, 1.f, 0.5f, 1.f));
-	Slot->SetAlignment(FVector2D(0.5f, 1.f));
-	Slot->SetPosition(FVector2D(0.f, -8.f));
-	Slot->SetSize(FVector2D(360.f, 46.f));
-
-	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudBottomHBox"));
-	Bar->SetContent(H);
-
-	// زر الخريطة
-	{
-		UButton* B = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HudMapBtn"));
-		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudMapBtnText"));
-		T->SetText(FText::FromString(TEXT("🗺️ الخريطة")));
-		T->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		T->SetFont(Rok2Font(T, 13));
-		B->AddChild(T);
-		B->OnClicked.AddDynamic(this, &URok2HudWidget::OnMapBtnClicked);
-		H->AddChildToHorizontalBox(B)->SetPadding(FMargin(10, 6, 10, 6));
-	}
-	// زر التقارير
-	{
-		UButton* B = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HudReportsBtn"));
-		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudReportsBtnText"));
-		T->SetText(FText::FromString(TEXT("📜 التقارير")));
-		T->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		T->SetFont(Rok2Font(T, 13));
-		B->AddChild(T);
-		B->OnClicked.AddDynamic(this, &URok2HudWidget::OnReportsBtnClicked);
-		H->AddChildToHorizontalBox(B)->SetPadding(FMargin(10, 6, 10, 6));
-	}
+	Slot->SetPosition(FVector2D(-14.f, 216.f));
+	Slot->SetSize(FVector2D(300.f, 400.f));
 }
 
 void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
@@ -201,24 +301,24 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(NotifCenterPanel);
 	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
 	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-12.f, 104.f));
-	Slot->SetSize(FVector2D(340.f, 420.f));
+	Slot->SetPosition(FVector2D(-14.f, 56.f));
+	Slot->SetSize(FVector2D(320.f, 420.f));
 
-	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("HudNotifVBox"));
+	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	NotifCenterPanel->SetContent(V);
 
-	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HudNotifTitle"));
+	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("🔔 مركز الإشعارات")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
 	Title->SetFont(Rok2Font(Title, 14));
 	V->AddChildToVerticalBox(Title)->SetPadding(FMargin(12, 10, 12, 6));
 
-	NotifList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("HudNotifList"));
+	NotifList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	V->AddChildToVerticalBox(NotifList)->SetPadding(FMargin(12, 0, 12, 10));
 }
 
 // ---------------------------------------------------------------------------
-// Tick: موارد حية + عدّ تنازلي للطوابير + تلاشي الإشعارات
+// Tick
 // ---------------------------------------------------------------------------
 void URok2HudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
@@ -232,12 +332,13 @@ void URok2HudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		QueuesRefreshTimer = 0.f;
 		UpdateQueues();
 		UpdateSeasonAndZones();
+		UpdateBuildBadge();
 	}
 }
 
 void URok2HudWidget::UpdateResources()
 {
-	if (!Api || !HudResourcesText) return;
+	if (!Api) return;
 	const FRok2City& C = Api->GetCity();
 
 	double ElapsedSec = 0.0;
@@ -247,12 +348,25 @@ void URok2HudWidget::UpdateResources()
 		ElapsedSec = FMath::Max(0.0, (double)(NowMs - C.UpdatedAt) / 1000.0);
 	}
 	const double H = ElapsedSec / 3600.0;
-	HudResourcesText->SetText(FText::FromString(FString::Printf(
-		TEXT("🍲 %d (+%d)  🪵 %d (+%d)  🪨 %d (+%d)  🪙 %d (+%d)"),
-		(int32)(C.Resources.Food + C.Rates.Food * H), (int32)C.Rates.Food,
-		(int32)(C.Resources.Wood + C.Rates.Wood * H), (int32)C.Rates.Wood,
-		(int32)(C.Resources.Stone + C.Rates.Stone * H), (int32)C.Rates.Stone,
-		(int32)(C.Resources.Gold + C.Rates.Gold * H), (int32)C.Rates.Gold)));
+
+	auto SetRes = [&](UTextBlock* T, const FString& Icon, double Val, double Rate) {
+		if (!T) return;
+		// تنسيق مختصر (1.2M / 845K)
+		auto Fmt = [](double V) -> FString {
+			if (V >= 1e6) return FString::Printf(TEXT("%.1fM"), V / 1e6);
+			if (V >= 1e3) return FString::Printf(TEXT("%.1fK"), V / 1e3);
+			return FString::FromInt((int32)V);
+		};
+		T->SetText(FText::FromString(FString::Printf(TEXT("%s %s"), *Icon, *Fmt(Val + Rate * H))));
+	};
+
+	SetRes(ResFoodText, TEXT("🍲"), C.Resources.Food, C.Rates.Food);
+	SetRes(ResWoodText, TEXT("🪵"), C.Resources.Wood, C.Rates.Wood);
+	SetRes(ResStoneText, TEXT("🪨"), C.Resources.Stone, C.Rates.Stone);
+	SetRes(ResGoldText, TEXT("🪙"), C.Resources.Gold, C.Rates.Gold);
+	// ملاحظة: Gems و ActionPoints تُقرأ من الخادم عند إتاحتهما في FRok2City (يُسجَّل في PLAN) — تُعرض 0 مؤقتاً
+	if (ResGemsText) ResGemsText->SetText(FText::FromString(TEXT("💎 0")));
+	if (ResApText) ResApText->SetText(FText::FromString(TEXT("⚡ 0")));
 }
 
 void URok2HudWidget::UpdateSeasonAndZones()
@@ -265,7 +379,6 @@ void URok2HudWidget::UpdateSeasonAndZones()
 		SeasonText->SetText(FText::FromString(FString::Printf(TEXT("📅 يوم %d"), W.SeasonDay)));
 	}
 
-	// أقرب منطقة مقفلة → مؤقّت "Zone X يوم N"
 	if (ZoneTimerText)
 	{
 		FString Next;
@@ -281,12 +394,12 @@ void URok2HudWidget::UpdateSeasonAndZones()
 		}
 		if (BestDay != MAX_int32)
 		{
-			Next = FString::Printf(TEXT("🔒 Zone %d يُفتح يوم %d (بعد %d)"), BestZone, BestDay, BestDay - W.SeasonDay);
+			Next = FString::Printf(TEXT("🔒 Zone %d يوم %d"), BestZone, BestDay);
 			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue));
 		}
 		else
 		{
-			Next = TEXT("🗺️ كل المناطق المجدولة مفتوحة");
+			Next = TEXT("🗺️ المناطق مفتوحة");
 			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
 		}
 		ZoneTimerText->SetText(FText::FromString(Next));
@@ -313,7 +426,7 @@ void URok2HudWidget::UpdateQueues()
 	int32 Shown = 0;
 	for (const FRok2QueueEntry& Q : C.ActiveQueues)
 	{
-		if (Shown >= 3) break; // أقصى 3 في اللوحة — الباقي في مركز المدينة
+		if (Shown >= 3) break;
 		Shown++;
 
 		UVerticalBox* Item = NewObject<UVerticalBox>(this);
@@ -322,7 +435,7 @@ void URok2HudWidget::UpdateQueues()
 		FString Icon = Q.Type == TEXT("build") ? TEXT("🏗️") : Q.Type == TEXT("research") ? TEXT("🔬") : Q.Type == TEXT("heal") ? TEXT("🏥") : TEXT("⚔️");
 		const double RemainSec = FMath::Max(0.0, (double)(Q.EndMs - NowMs) / 1000.0);
 		Label->SetText(FText::FromString(FString::Printf(TEXT("%s %s Lv%d — %.0fث"), *Icon, *Q.RefId, Q.Level, RemainSec)));
-		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
 		Label->SetFont(Rok2Font(Label, 11));
 		Item->AddChildToVerticalBox(Label);
 
@@ -330,16 +443,26 @@ void URok2HudWidget::UpdateQueues()
 		const double Total = FMath::Max(1.0, (double)(Q.EndMs - Q.StartMs));
 		const float Pct = (float)FMath::Clamp((double)(NowMs - Q.StartMs) / Total, 0.0, 1.0);
 		Bar->SetPercent(Pct);
-		Bar->SetFillColorAndOpacity(Rok2HudStyle::InfoBlue);
+		Bar->SetFillColorAndOpacity(Rok2HudStyle::Gold);
 		Item->AddChildToVerticalBox(Bar)->SetPadding(FMargin(0, 2, 0, 6));
 
 		QueuesBox->AddChildToVerticalBox(Item);
 	}
 }
 
-// ---------------------------------------------------------------------------
-// إشعارات: بطاقات تتلاشى + مركز إشعارات + عدّاد الجرس
-// ---------------------------------------------------------------------------
+void URok2HudWidget::UpdateBuildBadge()
+{
+	if (!Api || !BuildBadgeText) return;
+	// بنّاء خامل؟ لا يوجد طابور build نشط
+	const FRok2City& C = Api->GetCity();
+	bool bBuilding = false;
+	for (const FRok2QueueEntry& Q : C.ActiveQueues)
+	{
+		if (Q.Type == TEXT("build")) { bBuilding = true; break; }
+	}
+	BuildBadgeText->SetText(FText::FromString(bBuilding ? TEXT("") : TEXT("!")));
+}
+
 void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 {
 	if (!ToastsBox) return;
@@ -360,14 +483,14 @@ void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 	V->AddChildToVerticalBox(Title);
 	UTextBlock* Body = NewObject<UTextBlock>(this);
 	Body->SetText(FText::FromString(N.Body));
-	Body->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+	Body->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
 	Body->SetFont(Rok2Font(Body, 11));
 	Body->SetAutoWrapText(true);
 	V->AddChildToVerticalBox(Body);
 	Card->SetContent(V);
 
 	ToastsBox->AddChildToVerticalBox(Card)->SetPadding(FMargin(0, 0, 0, 6));
-	ToastCardRefs.Add(Card); // حماية من الـ GC حتى التلاشي
+	ToastCardRefs.Add(Card);
 
 	FToastEntry E;
 	E.Id = N.Id;
@@ -375,7 +498,6 @@ void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 	E.Card = Card;
 	ActiveToasts.Add(E);
 
-	// حد أقصى 4 بطاقات ظاهرة
 	while (ActiveToasts.Num() > 4)
 	{
 		if (ActiveToasts[0].Card)
@@ -418,7 +540,7 @@ void URok2HudWidget::UpdateBellBadge()
 	BellBadgeText->SetText(FText::FromString(
 		Unread > 0 ? FString::Printf(TEXT("🔔 %d"), Unread) : TEXT("🔔")));
 	BellBadgeText->SetColorAndOpacity(FSlateColor(
-		Unread > 0 ? Rok2HudStyle::WarnAmber : Rok2HudStyle::Muted));
+		Unread > 0 ? Rok2HudStyle::Danger : Rok2HudStyle::Muted));
 }
 
 void URok2HudWidget::OnZones(const TArray<FRok2ZoneStatus>& Zones)
@@ -430,7 +552,7 @@ void URok2HudWidget::OnConnState(bool bOnline, const FString& StatusMessage)
 {
 	if (!ConnText) return;
 	ConnText->SetText(FText::FromString(bOnline ? TEXT("🟢") : TEXT("🔴")));
-	ConnText->SetColorAndOpacity(FSlateColor(bOnline ? Rok2HudStyle::OkGreen : Rok2HudStyle::BadRed));
+	ConnText->SetColorAndOpacity(FSlateColor(bOnline ? Rok2HudStyle::Success : Rok2HudStyle::Danger));
 }
 
 void URok2HudWidget::OnBellClicked()
@@ -457,19 +579,21 @@ void URok2HudWidget::OnBellClicked()
 	{
 		UTextBlock* Line = NewObject<UTextBlock>(this);
 		Line->SetText(FText::FromString(FString::Printf(TEXT("%s — %s"), *N.Title, *N.Body)));
-		Line->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+		Line->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
 		Line->SetFont(Rok2Font(Line, 11));
 		Line->SetAutoWrapText(true);
 		NotifList->AddChild(Line);
 	}
 }
 
-void URok2HudWidget::OnMapBtnClicked()
-{
-	OnMapAction.Broadcast();
-}
-
-void URok2HudWidget::OnReportsBtnClicked()
-{
-	OnReportsAction.Broadcast();
-}
+// ---------------------------------------------------------------------------
+// معالجات أزرار الأكشن — تبثّ الأحداث المفوَّضة للخارج
+// ---------------------------------------------------------------------------
+void URok2HudWidget::OnBuildClickedHandler() { OnBuildAction.Broadcast(); }
+void URok2HudWidget::OnMapBtnClickedHandler() { OnMapAction.Broadcast(); }
+void URok2HudWidget::OnReportsBtnClickedHandler() { OnReportsAction.Broadcast(); }
+void URok2HudWidget::OnEditCityClickedHandler() { OnEditCityAction.Broadcast(); }
+void URok2HudWidget::OnCommandersClickedHandler() { OnCommandersAction.Broadcast(); }
+void URok2HudWidget::OnAllianceClickedHandler() { OnAllianceAction.Broadcast(); }
+void URok2HudWidget::OnItemsClickedHandler() { OnItemsAction.Broadcast(); }
+void URok2HudWidget::OnEventsClickedHandler() { OnEventsAction.Broadcast(); }
