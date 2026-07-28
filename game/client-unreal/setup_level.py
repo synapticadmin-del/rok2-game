@@ -44,9 +44,30 @@ for cmd in console_cmds:
 # — يتخطى الموجود، ولا يؤثر على البناء بدون استيراد (fallback هندسي).
 # ---------------------------------------------------------------------------
 print(">>> Step 1b: Importing KayKit GLB art assets (P2-T7)...")
-import os
+import os, base64
 ART_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Content", "Art", "kaykit")
 ART_DST = "/Game/Art/kaykit"
+
+def _ensure_binary_glb(path):
+    """يفك ترميز GLB المخزّن نصياً (base64) إلى binary قبل الاستيراد — P2-T7 fix.
+    بعض البيئات تخزّن GLB كنص base64؛ Unreal يحتاج binary حقيقي يبدأ بـ glTF."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(4)
+        if head == b"glTF":
+            return path  # binary سليم
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        decoded = base64.b64decode(raw, validate=True)
+        if decoded[:4] != b"glTF":
+            return path  # ليس base64 GLB — اتركه كما هو
+        fixed = path + ".bin.glb"
+        with open(fixed, "wb") as fh:
+            fh.write(decoded)
+        return fixed
+    except Exception:
+        return path
+
 if os.path.isdir(ART_SRC):
     tasks = []
     for fname in sorted(os.listdir(ART_SRC)):
@@ -57,7 +78,7 @@ if os.path.isdir(ART_SRC):
         if unreal.EditorAssetLibrary.does_asset_exist(f"{ART_DST}/{dest_name}.{dest_name}"):
             continue
         task = unreal.AssetImportTask()
-        task.filename = os.path.join(ART_SRC, fname)
+        task.filename = _ensure_binary_glb(os.path.join(ART_SRC, fname))
         task.destination_path = ART_DST
         task.destination_name = dest_name
         task.replace_existing = False

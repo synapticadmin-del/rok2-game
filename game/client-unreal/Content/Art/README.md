@@ -36,6 +36,20 @@
 - للاستيراد في المحرر: شغّل `setup_level.py` (يستورد كل GLB إلى
   `/Game/Art/kaykit` كـ uasset) أو اسحب الملفات إلى Content Browser.
 
+## ملاحظة تخزين (base64)
+
+ملفات `.glb` على الفرع مخزّنة حالياً كنص base64 (يفك ترميزها إلى GLB صالح).
+`setup_level.py` يفك ترميزها تلقائياً إلى binary قبل الاستيراد (خطوة
+`_ensure_binary_glb`)، فلا يُكسر البناء. لإعادة توليد binary محلياً دفعةً واحدة:
+
+```python
+import base64, glob
+for p in glob.glob("Content/Art/kaykit/*.glb"):
+    raw = open(p, "rb").read()
+    if raw[:4] != b"glTF":                       # نص base64؟
+        open(p, "wb").write(base64.b64decode(raw))
+```
+
 ## الوحدات (units)
 
 ملفات الوحدات البشرية غير مضمّنة في النسخة المجانية من الحزمة (تأتي في نسخة
