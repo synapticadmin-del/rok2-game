@@ -7,6 +7,7 @@ import techTree from "../data/research.json";
 import zonesSpec from "../data/zones.json";
 import shopSpec from "../data/shop.json";
 import softLaunchSpec from "../data/softlaunch.json";
+import battlePassSpec from "../data/battlepass.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -189,4 +190,9 @@ export function getCommanders() {
 
 export function getTechTree() {
   return techTree;
+}
+
+/** P4-T1: مواصفة Battle Pass (مستويات + مكافآت + نقاط الأفعال) — تُقرأ من data/battlepass.json */
+export function getBattlePass() {
+  return battlePassSpec;
 }

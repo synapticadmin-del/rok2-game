@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "description": "P4-T1: Battle Pass موسمي (sandbox) — مسار مجاني للجميع + مسار مدفوع يُفتح بالـ gems. نقاط الخبرة (BP XP) تُمنح عن أفعال اللعب (بناء/تدريب/بحث/شفاء/مسيرة/هجوم ممر) وتُرفع المستوى. كل مستوى له مكافأة مجانية ومكافأة مدفوعة تُطالب كلٌّ على حدة. كل القيم تُقرأ من هنا — لا ثوابت في الكود.",
+  "season_id": "alpha_s1",
+  "constants": {
+    "premium_cost_gems": 500,
+    "xp_per_level": 100,
+    "max_level": 20
+  },
+  "xp_sources": {
+    "build": 10,
+    "train": 5,
+    "research": 15,
+    "heal": 3,
+    "march": 8,
+    "pass_attack": 20
+  },
+  "reward_types": ["food", "wood", "stone", "gold", "gems", "speedup"],
+  "levels": [
+    { "level": 1,  "free": { "type": "food",    "amount": 2000 },                  "premium": { "type": "gems",    "amount": 100 } },
+    { "level": 2,  "free": { "type": "wood",    "amount": 2000 },                  "premium": { "type": "speedup", "item_id": "speedup_15m", "count": 2 } },
+    { "level": 3,  "free": { "type": "stone",   "amount": 1500 },                  "premium": { "type": "gold",    "amount": 3000 } },
+    { "level": 4,  "free": { "type": "gold",    "amount": 1000 },                  "premium": { "type": "gems",    "amount": 150 } },
+    { "level": 5,  "free": { "type": "speedup", "item_id": "speedup_5m", "count": 3 }, "premium": { "type": "speedup", "item_id": "speedup_1h", "count": 2 } },
+    { "level": 6,  "free": { "type": "food",    "amount": 3000 },                  "premium": { "type": "gems",    "amount": 200 } },
+    { "level": 7,  "free": { "type": "wood",    "amount": 3000 },                  "premium": { "type": "speedup", "item_id": "speedup_3h", "count": 1 } },
+    { "level": 8,  "free": { "type": "stone",   "amount": 2500 },                  "premium": { "type": "gold",    "amount": 5000 } },
+    { "level": 9,  "free": { "type": "gold",    "amount": 2000 },                  "premium": { "type": "gems",    "amount": 250 } },
+    { "level": 10, "free": { "type": "speedup", "item_id": "speedup_15m", "count": 2 }, "premium": { "type": "speedup", "item_id": "speedup_8h", "count": 1 } },
+    { "level": 11, "free": { "type": "food",    "amount": 4000 },                  "premium": { "type": "gems",    "amount": 300 } },
+    { "level": 12, "free": { "type": "wood",    "amount": 4000 },                  "premium": { "type": "speedup", "item_id": "speedup_3h", "count": 2 } },
+    { "level": 13, "free": { "type": "stone",   "amount": 3500 },                  "premium": { "type": "gold",    "amount": 8000 } },
+    { "level": 14, "free": { "type": "gold",    "amount": 3000 },                  "premium": { "type": "gems",    "amount": 350 } },
+    { "level": 15, "free": { "type": "speedup", "item_id": "speedup_1h", "count": 1 }, "premium": { "type": "speedup", "item_id": "speedup_8h", "count": 2 } },
+    { "level": 16, "free": { "type": "food",    "amount": 6000 },                  "premium": { "type": "gems",    "amount": 400 } },
+    { "level": 17, "free": { "type": "wood",    "amount": 6000 },                  "premium": { "type": "speedup", "item_id": "speedup_24h", "count": 1 } },
+    { "level": 18, "free": { "type": "stone",   "amount": 5000 },                  "premium": { "type": "gold",    "amount": 12000 } },
+    { "level": 19, "free": { "type": "gold",    "amount": 4000 },                  "premium": { "type": "gems",    "amount": 500 } },
+    { "level": 20, "free": { "type": "speedup", "item_id": "speedup_3h", "count": 1 }, "premium": { "type": "speedup", "item_id": "speedup_24h", "count": 2 } }
+  ]
+}

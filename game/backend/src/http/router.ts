@@ -67,6 +67,51 @@ import {
   cohortDayOf,
   pct,
 } from "../do/sim/retention";
+import {
+  bpConstants,
+  bpSeasonId,
+  bpLevels,
+  bpXpFor,
+  bpLevelForXp,
+  bpXpRequiredFor,
+  bpProgressInLevel,
+  bpRewardFor,
+  bpClaimableLevels,
+} from "../do/sim/battlepass";
+
+// P4-T1: صف Battle Pass للاعب (يُنشأ عند أول وصول) — متوافق مع قواعد لم تُرحّل بعد
+async function getOrCreateBp(env: Env, playerId: string): Promise<{ player_id: string; season_id: string; xp: number; level: number; premium: number; updated_at: number }> {
+  const seasonId = bpSeasonId();
+  try {
+    const row = await env.DB.prepare("SELECT * FROM player_battlepass WHERE player_id = ? AND season_id = ?")
+      .bind(playerId, seasonId)
+      .first<{ player_id: string; season_id: string; xp: number; level: number; premium: number; updated_at: number }>();
+    if (row) return row;
+    const now = nowMs();
+    await env.DB.prepare(
+      `INSERT INTO player_battlepass (player_id, season_id, xp, level, premium, updated_at) VALUES (?, ?, 0, 0, 0, ?)`,
+    ).bind(playerId, seasonId, now).run();
+    return { player_id: playerId, season_id: seasonId, xp: 0, level: 0, premium: 0, updated_at: now };
+  } catch {
+    return { player_id: playerId, season_id: seasonId, xp: 0, level: 0, premium: 0, updated_at: 0 };
+  }
+}
+
+// P4-T1: منح نقاط Battle Pass عن فعل لعب (build/train/research/heal/march/pass_attack).
+// يحدّث XP + المستوى المحسوب منه. لا يعطّل الفعل عند فشله (جدول قد لا يكون مرحّلاً).
+async function grantBpXp(env: Env, playerId: string, action: string): Promise<void> {
+  try {
+    const gain = bpXpFor(action);
+    if (gain <= 0) return;
+    const bp = await getOrCreateBp(env, playerId);
+    const newXp = bp.xp + gain;
+    const newLevel = bpLevelForXp(newXp);
+    await env.DB.prepare("UPDATE player_battlepass SET xp=?, level=?, updated_at=? WHERE player_id=? AND season_id=?")
+      .bind(newXp, newLevel, nowMs(), playerId, bpSeasonId()).run();
+  } catch {
+    // الجدول غير موجود بعد — النقاط اختيارية
+  }
+}
 
 // P3-T4: صف VIP للاعب (يُنشأ عند أول وصول) — متوافق مع قواعد لم تُرحّل بعد
 async function getOrCreateVip(env: Env, playerId: string): Promise<VipRow> {
@@ -620,6 +665,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
 
       city = await refreshCity(env, player.id);
+      // P4-T1: نقاط Battle Pass عن البناء
+      await grantBpXp(env, player.id, "build");
       return json({
         ok: true,
         buildingId: body.buildingId,
@@ -669,6 +716,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       const all = await getTroopsMap(env, player.id);
       city = await refreshCity(env, player.id);
+      // P4-T1: نقاط Battle Pass عن التدريب
+      await grantBpXp(env, player.id, "train");
       return json({ ok: true, unit, count: count, queueId, city, troops: all });
     }
 
@@ -819,6 +868,103 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, queueId: body.queueId, seconds, source });
     }
 
+    // ═══ P4-T1: Battle Pass (sandbox — مسار مجاني + مدفوع بالـ gems) ═══
+
+    // حالة Battle Pass: XP + مستوى + تقدم + مكافآت قابلة للمطالبة لكل مسار
+    if (path === "/v1/battlepass" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const bp = await getOrCreateBp(env, player.id);
+      const progress = bpProgressInLevel(bp.xp);
+      const claimRows = await env.DB.prepare(
+        "SELECT level, track FROM battlepass_claims WHERE player_id = ? AND season_id = ?",
+      ).bind(player.id, bpSeasonId()).all<{ level: number; track: string }>()
+        .catch(() => ({ results: [] as any[] }));
+      const claimed = new Set((claimRows.results || []).map((r) => `${r.level}:${r.track}`));
+      const claimable = bpClaimableLevels(bp.level);
+      return json({
+        ok: true,
+        season_id: bp.season_id,
+        xp: bp.xp,
+        level: bp.level,
+        premium: bp.premium === 1,
+        progress,
+        xp_for_next: progress.atMax ? null : bpXpRequiredFor(bp.level + 1) - bp.xp,
+        levels: bpLevels().map((l) => ({
+          level: l.level,
+          unlocked: bp.level >= l.level,
+          free: { reward: l.free, claimed: claimed.has(`${l.level}:free`), claimable: bp.level >= l.level && !claimed.has(`${l.level}:free`) },
+          premium: { reward: l.premium, claimed: claimed.has(`${l.level}:premium`), claimable: bp.premium === 1 && bp.level >= l.level && !claimed.has(`${l.level}:premium`) },
+        })),
+        claimable_levels: claimable,
+        constants: bpConstants(),
+      });
+    }
+
+    // فتح المسار المدفوع بالـ gems (sandbox)
+    if (path === "/v1/battlepass/unlock-premium" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const bp = await getOrCreateBp(env, player.id);
+      if (bp.premium === 1) throw new HttpError(400, "Premium already unlocked");
+      const cost = bpConstants().premium_cost_gems;
+      const city = await refreshCity(env, player.id);
+      if (city.gems < cost) throw new HttpError(400, "Not enough gems", { cost, gems: city.gems });
+      const now = nowMs();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+          .bind(city.gems - cost, now, player.id),
+        env.DB.prepare("UPDATE player_battlepass SET premium=1, updated_at=? WHERE player_id=? AND season_id=?")
+          .bind(now, player.id, bpSeasonId()),
+      ]);
+      return json({ ok: true, premium: true, spent_gems: cost, gems: city.gems - cost });
+    }
+
+    // المطالبة بمكافأة مستوى (مسار مجاني أو مدفوع)
+    if (path === "/v1/battlepass/claim" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ level: number; track: string }>(request);
+      const level = Math.floor(Number(body.level) || 0);
+      const track = body.track === "premium" ? "premium" : "free";
+      if (level < 1 || level > bpConstants().max_level) throw new HttpError(400, "Invalid level");
+
+      const bp = await getOrCreateBp(env, player.id);
+      if (bp.level < level) throw new HttpError(400, "Level not reached", { have: bp.level, need: level });
+      if (track === "premium" && bp.premium !== 1) throw new HttpError(400, "Premium not unlocked");
+
+      const reward = bpRewardFor(level, track);
+      if (!reward) throw new HttpError(404, "No reward for this level/track");
+
+      // المطالبة مرة واحدة لكل (مستوى, مسار)
+      const now = nowMs();
+      try {
+        await env.DB.prepare(
+          "INSERT INTO battlepass_claims (player_id, season_id, level, track, claimed_at) VALUES (?, ?, ?, ?, ?)",
+        ).bind(player.id, bpSeasonId(), level, track, now).run();
+      } catch {
+        throw new HttpError(409, "Reward already claimed");
+      }
+
+      // منح المكافأة حسب نوعها
+      const city = await refreshCity(env, player.id);
+      if (reward.type === "speedup") {
+        const itemId = reward.item_id!;
+        const count = reward.count || 1;
+        await env.DB.prepare(
+          `INSERT INTO player_inventory (player_id, item_id, count, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(player_id, item_id) DO UPDATE SET count=count+?, updated_at=?`,
+        ).bind(player.id, itemId, count, now, count, now).run();
+        return json({ ok: true, level, track, reward: { type: "speedup", item_id: itemId, count } });
+      }
+
+      const res = ["food", "wood", "stone", "gold", "gems"];
+      if (!res.includes(reward.type)) throw new HttpError(400, "Unknown reward type");
+      const amount = reward.amount || 0;
+      const next = { ...city, [reward.type]: (city as any)[reward.type] + amount };
+      await env.DB.prepare(
+        `UPDATE cities SET food=?, wood=?, stone=?, gold=?, gems=?, updated_at=? WHERE player_id=?`,
+      ).bind(next.food, next.wood, next.stone, next.gold, (next as any).gems, now, player.id).run();
+      return json({ ok: true, level, track, reward: { type: reward.type, amount }, city: next });
+    }
+
     // Heal — P2-T2: شفاء الجرحى الخطيرين مقابل نصف تكلفة التدريب + مدة من data/buildings.json
     if (path === "/v1/city/heal" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
@@ -867,6 +1013,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
 
       city = await refreshCity(env, player.id);
+      // P4-T1: نقاط Battle Pass عن الشفاء
+      await grantBpXp(env, player.id, "heal");
       return json({ ok: true, queueId, healSeconds: duration, cost, city });
     }
 
@@ -946,6 +1094,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
 
       city = await refreshCity(env, player.id);
+      // P4-T1: نقاط Battle Pass عن البحث
+      await grantBpXp(env, player.id, "research");
       return json({ ok: true, techId: body.techId, level: nextLevel, durationSec: duration, queueId, cost, city });
     }
 
@@ -1560,6 +1710,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "march_failed", data);
+      // P4-T1: نقاط Battle Pass عن المسيرة
+      await grantBpXp(env, player.id, "march");
       return json(data);
     }
 
@@ -1610,6 +1762,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "attack_failed", data);
+      // P4-T1: نقاط Battle Pass عن هجوم الممر
+      await grantBpXp(env, player.id, "pass_attack");
       return json(data);
     }
 
