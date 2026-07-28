@@ -101,7 +101,7 @@
 | 2026-07-28 | P1-T2 شاشة تحميل + إعادة اتصال + معالجة أخطاء الشبكة | 8f0df32 | URok2Api: HTTP retry backoff + WS auto-reconnect + OnConnectionState؛ BootWidget: شاشة تحميل؛ CityWidget: شارة اتصال |
 | 2026-07-28 | P1-T3 مسيرات الجيوش مرئية على الخريطة | c9b951e | ParseWorld يقرأ marches؛ أحداث WS (march_created/returning/update)؛ WorldRenderer: اتجاه + ألوان تحالف + حالة returning |
 | 2026-07-28 | P1-T4 واجهة تقرير القتال | 0bc5eda | Rok2Types: FRok2BattleReport؛ Api: بارس reports + WS battle_report لحظي؛ Widget كامل: قائمة + تفاصيل خسائر (قتلى/خطير/خفيف)؛ زر 📜 في CityWidget |
-| 2026-07-28 | P1-T5 شريط موارد حي عبر WebSocket | — | FRok2City.Rates من المباني؛ LoadCity تلقائي كل 30s عند اتصال WS؛ حدث city_upsert يزامن فورياً؛ عدادات +X/س في CityWidget |
+| 2026-07-28 | P1-T5 شريط موارد حي عبر WebSocket | 6376641 | FRok2City.Rates من المباني؛ LoadCity تلقائي كل 30s عند اتصال WS؛ حدث city_upsert يزامن فورياً؛ عدادات +X/س في CityWidget |
 
 ---
 
