@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P4-T3 موسيقى معركة لكل حضارة (battle.wav ×6 بنبض أسرع وأسلوب قتالي) + حالة قتال في URok2AudioManager (EnterBattleMode/ExitBattleMode بعودة تلقائية) مربوطة بتقارير القتال.
+> **آخر تحديث:** 2026-07-28 — P4-T4 مؤثرات أحداث اللعب (gather/research/heal/zone_unlock/rally × WAV) مربوطة بأحداث WebSocket ودالة HealWounded جديدة في URok2Api.
 
 ---
 
@@ -75,6 +75,7 @@
 - [x] **P4-T1** Battle Pass موسمي (sandbox): مسار مجاني + مدفوع بالـ gems + نقاط من أفعال اللعب — ✅ تم 2026-07-28
 - [x] **P4-T2** إنتاج الأصول الصوتية + بورتريهات القادة (موسيقى/مؤثرات WAV حقيقية لكل حضارة + 12 بورتريه PNG مربوط بالعميل) — ✅ تم 2026-07-28
 - [x] **P4-T3** موسيقى معركة منفصلة لكل حضارة (battle.wav) + حالة قتال في URok2AudioManager مربوطة بتقارير القتال — ✅ تم 2026-07-28
+- [x] **P4-T4** مؤثرات أحداث اللعب (جمع موارد/اكتمال بحث/شفاء جرحى/فتح منطقة/rally) مربوطة بالأحداث — ✅ تم 2026-07-28
 - [ ] قادة إضافيون، anti-cheat، matchmaking ممالك، تحسين أداء UA
 - **🚪 بوابة النجاح:** نشر عام + مؤشرات أداء حية مستقرة.
 
@@ -143,6 +144,7 @@
 | 2026-07-28 | P5-T6 حركات وانتقالات وأصوات (العميل) | 6b36de3 | URok2AudioManager جديد: يدير الموسيقى والمؤثرات حسب حضارة اللاعب (من URok2CivThemes) — يقرأ ملفات .wav من Content/Audio/<civ>/ إن وُجدت وإلا placeholder صامت؛ ERok2AudioType (Music/BuildComplete/Upgrade/BattleVictory/BattleDefeat/MarchStart/ButtonClick/Notification) + ERok2MusicState (Stopped/Playing/Paused) + OnMusicStateChanged delegate؛ Rok2BuildingActor: PlayBuildAnimation (scale-in من 0.1 لمدة 0.6s) + PlayUpgradeAnimation (pulse ذهبي بـ sin لمدة 0.4s) + PlayRevealAnimation (fade-in من 0.01 لمدة 0.5s) + Tick override + UpdateAnimation + ComputeAnimatedScale؛ Rok2CityLayoutActor: يستدعي PlayBuildAnimation عند زرع مبنى جديد؛ Rok2WorldRenderer: يستدعي PlayRevealAnimation عند ظهور مدينة بعد ضباب + PlaySfx(MarchStart) عند انطلاق مسيرة؛ Rok2Api: InitForCiv+PlayMusic عند InitCity + PlaySfx(Upgrade) عند ترقية + PlaySfx(BattleVictory/Defeat) عند تقرير قتال؛ scripts/verify_game_feel.mjs: 59 فحص بنيوي ناجح |
 | 2026-07-28 | P4-T2 إنتاج الأصول الصوتية + بورتريهات القادة | f859748..a0fc599 | Content/Audio/<civ>/music.wav ×6 + sfx/*.wav ×7 (WAV 16-bit PCM 44.1kHz مولّد إجرائياً عبر scripts/generate_audio.py — بصمة لكل حضارة: روما fanfare/الصين خماسي/العرب حجاز/مصر فريجي/الفايكنج درون+أبواق/اليابان insen — حلقات 20-24ث بتلاشي سلس + 7 مؤثرات مشتركة)؛ Content/Art/Commanders/<id>.png ×12 (512×512 بأسلوب المرجع commanders-lineup.jpg: bust + إضاءة ذهبية + خلفية حضارية)؛ Rok2CommanderWidget يحمّل البورتريه الحقيقي من /Game/Art/Commanders/<id> في البطاقات ولوحة التفاصيل مع fallback للـ placeholder؛ setup_level.py يكسب Step 1c (فك base64 + استيراد WAV/PNG) + scripts/decode_binary_assets.py عام لكل الثنائيات + توثيق README في Audio/ وCommanders/؛ scripts/verify_produced_assets.mjs: 65 فحص بنيوي ناجح |
 | 2026-07-28 | P4-T3 موسيقى معركة لكل حضارة + حالة قتال | ba176e0..45f10c6 | Content/Audio/<civ>/battle.wav ×6 (نسخة قتالية من سلم كل حضارة: 126-150 BPM مقابل 70-110 في السلام، طبول حرب مكثفة بأوف-بيت مزدوج، نغمات قصيرة متصاعدة — حلقات 20ث)؛ URok2AudioManager: ERok2MusicMode (Peace/Battle) + BattleMusicPaths + EnterBattleMode/ExitBattleMode + PlayCurrentModeMusic يبدّل المسار حسب النمط + BattleModeTimeout (30ث) بمؤقت FTimerHandle للعودة التلقائية + IsInBattleMode؛ Rok2Api: EnterBattleMode() عند وصول battle_report (يمدّد المهلة عند تقارير متتالية)؛ scripts/verify_produced_assets.mjs موسّع (أقسام 1b/6b/6c): 113 فحص بنيوي ناجح |
+| 2026-07-28 | P4-T4 مؤثرات أحداث اللعب الخمسة | 73ba38e | Content/Audio/sfx/ يكسب gather_complete (رنين عملات حصاد)/research_complete (وميض اكتشاف صاعد)/heal_complete (وتد دافئ)/zone_unlock (طبلة + فنفار مهيب)/rally_launch (بوقا تجمع + طبول مسير)؛ ERok2AudioType يكسب 5 أنواع + SfxPaths؛ Rok2Api: PlaySfx عند zone_unlocked/tech_researched/rally_launched (WS) وmarch_returning من نوع gather/node للاعب نفسه + HealWounded جديدة (POST /v1/city/heal بـ troops JSON + صوت HealComplete عند النجاح + توست) — يملأ فجوة عدم وجود عميل لـ endpoint الشفاء؛ scripts/verify_produced_assets.mjs موسّع (أقسام 2b/6d): 143 فحص بنيوي ناجح |
 ---
 
 ## 5. ملفات مرجعية سريعة
