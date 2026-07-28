@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P3-T3 أحداث يومية/أسبوعية (barbarians, resource rush, war_fever).
+> **آخر تحديث:** 2026-07-28 — P5-T0 وثائق التصميم الشاملة `07-game-design/` (GDD + قلعة سداسية + حضارات بصرية + RoK audit + UI/UX + توازن) + 11 صورة مرجعية.
 
 ---
 
@@ -12,7 +12,7 @@
 
 | المكوّن | الحالة | الملاحظات |
 |---------|--------|-----------|
-| التوثيق والتصميم | ✅ شبه مكتمل | خريطة 2400²، 6 حضارات، أنظمة أساسية موثقة في `01`–`06` |
+| التوثيق والتصميم | ✅ شبه مكتمل | خريطة 2400²، 6 حضارات، أنظمة أساسية موثقة في `01`–`06` + **وثائق التصميم الشاملة `07-game-design/`** (GDD، قلعة سداسية، حضارات بصرية، RoK audit، UI/UX، توازن) |
 | بيانات JSON الموحدة | ✅ جاهزة | `data/*.json` (civilizations, zones, passes, buildings, troop_tiers, map_spec_coordinates) |
 | Backend (Cloudflare) | 🟡 Prototype يعمل | Auth ضيف + مدينة + مبانٍ + جنود + تحالفات + ممرات + تقارير قتال + WebSocket. ناجح في smoke E2E |
 | عميل UE5 (C++) | 🟡 هيكل أولي يعمل | موديول `Rok2` (Api, Camera, WorldRenderer, CityBuilder, Boot/City Widgets) — أشكال هندسية بدائية بدل الأصول الفنية |
@@ -76,6 +76,18 @@
 - [ ] قادة إضافيون، anti-cheat، matchmaking ممالك، تحسين أداء UA
 - **🚪 بوابة النجاح:** نشر عام + مؤشرات أداء حية مستقرة.
 
+### المرحلة 5 — Game Feel & Visual Identity ⬅️ *المرحلة الجديدة*
+الهدف: أن تبدو اللعبة وتُحسّ كلعبة RoK حقيقية — قلعة سداسية حية، حضارات مميزة بصرياً، واجهة لعبة لا واجهة موقع. المرجع: `07-game-design/`.
+
+- [x] **P5-T0** وثائق التصميم الشاملة `07-game-design/` (GDD + قلعة سداسية + حضارات بصرية + RoK audit + UI/UX + توازن) + 11 صورة مرجعية — ✅ تم 2026-07-28
+- [ ] **P5-T1** نظام السور السداسي + شبكة hex + البناء الحر (CityBuilder overhaul — مواصفة `07-game-design/castle-hex-city.md`)
+- [ ] **P5-T2** ثيمات مباني الحضارات الست (City Hall + 5 مبانٍ أساسية لكل حضارة، مرجع `07-game-design/civilizations-visual-design.md` + `assets/`)
+- [ ] **P5-T3** HUD بأسلوب RoK كامل (شريط موارد، أزرار دائرية، دردشة، مهام — مرجع `07-game-design/ui-ux-design-system.md` + `assets/ui-city-mockup.jpg`)
+- [ ] **P5-T4** شاشة القادة الكاملة (بورتريهات، مهارات، مواهب، معدات)
+- [ ] **P5-T5** ضباب الحرب + الكشافة على الخريطة
+- [ ] **P5-T6** حركات وانتقالات وأصوات (بناء يُشيّد، جنود تسير، احتفال ترقية، موسيقى حسب الحضارة)
+- **🚪 بوابة النجاح:** لاعب يدخل اللعبة ويشعر أنها RoK — قلعته السداسية بثيم حضارته، يحرك مبانيه بحرية، واجهة لعبة كاملة.
+
 ---
 
 ## 3. ترتيب بناء الخريطة تقنياً (قاعدة ثابتة)
@@ -119,12 +131,21 @@
 | 2026-07-28 | P3-T5 Soft launch + قياس retention | adb816c | data/softlaunch.json جديد (مملكتان: kingdom-1 مفتوحة بسعة 500 + kingdom-2 احتياطية مغلقة + عتبات retention D1=40%/D7=15%/D30=5% + success_gate)؛ migration 0006 (player_activity يوم-لاعب + last_seen_at على accounts + فهرس اليوم)؛ sim/retention.ts جديد يقرأ JSON فقط (openKingdoms/isKingdomOpen/kingdomCapacity/cohortDayOf/pct)؛ بوابة الانضمام في city/init (kingdom_not_open_for_launch + kingdom_full عند السعة)؛ تتبع النشاط في lib/context.ts (requireAuth + requirePlayer → upsert يومي، بمعرّف واحد)؛ GET /v1/admin/retention (DAU + رجوع cohorts عند D1/D3/D7/D14/D30 مقابل العتبات) + GET /v1/launch/status عام؛ إصلاح حرج: ملف router.ts على main كان تالفاً (ذيل مكرر + تعريفات VIP مفقودة) — أعيد بناؤه نظيفاً؛ اجتاز retention_offline_test.mjs (37/37) + كل الاختبارات الأوفلاين العشرة (بدون كسر). الجزء التشغيلي (دعوة لاعبين فعليين لمملكة الإطلاق) خارج نطاق الكود ويتطلب wrangler deploy |
 | 2026-07-28 | P3-T5 توثيق خطة Soft launch التشغيلية | 1615e95 | game/docs/SOFT_LAUNCH.md جديد: تهيئة ممالك من softlaunch.json + خطوات wrangler deploy مع migrations 0005/0006 + التحقق عبر /v1/launch/status و/v1/admin/retention + قراءة cohorts مقابل العتبات + runbook يومي + حدود معروفة (التتبع من تاريخ النشر، قياس معزول لكل worker) |
 | 2026-07-28 | P4-T1 Battle Pass موسمي (مسار مجاني + مدفوع) | 0a49941 | data/battlepass.json جديد (20 مستوى × مكافأة مجانية + مدفوعة: موارد/gems/speedups تشير لعناصر shop حقيقية + xp_sources لستة أفعال: build 10/train 5/research 15/heal 3/march 8/pass_attack 20 + constants premium 500 gems وxp_per_level 100)؛ migration 0007 (player_battlepass xp/level/premium + battlepass_claims بمفتاح فريد level+track)؛ sim/battlepass.ts يقرأ JSON فقط (bpLevelForXp خطي بسقف max + bpProgressInLevel + bpClaimableLevels)؛ endpoints: GET /v1/battlepass (حالة كاملة + claimable لكل مسار) + POST /v1/battlepass/unlock-premium (خصم gems) + POST /v1/battlepass/claim (مطالبة مرة واحدة لكل مستوى/مسار، موارد تُضاف للمدينة وspeedups للمخزون)؛ نقاط تُمنح تلقائياً عند build/train/research/heal/march/pass_attack عبر grantBpXp؛ اجتاز battlepass_offline_test.mjs (48/48) + كل الاختبارات الأوفلاين الـ11 (بدون كسر) |
+| 2026-07-28 | حذف عميل الويب القديم game/client | 4324d9c..bc78685 | 6 ملفات (index.html/styles.css/app.js/_headers/package.json/README.md) — المشروع UE5 فقط، لا لغبطة مستقبلية |
+| 2026-07-28 | P5-T0 وثائق التصميم الشاملة 07-game-design/ | f14122f | 6 وثائق تصميم: GDD.md (مصدر الحقيقة)، castle-hex-city.md (سور سداسي + بناء حر على شبكة hex)، civilizations-visual-design.md (6 حضارات بثيمات كاملة)، rok-features-audit.md (توثيق شامل لمزايا RoK: 15 حضارة، قادة، VIP، حانة، أوضاع، خريطة)، ui-ux-design-system.md (واجهة لعبة لا موقع)، power-balance-map.md (توازن القوى F2P/P2P) + 11 صورة مرجعية مولّدة في 07-game-design/assets/ (قلعة سداسية، 6 مدن حضارات، خريطة عالم، وحدات خاصة، قادة، موكاب UI) |
 ---
 
 ## 5. ملفات مرجعية سريعة
 
 - `README.md` — مدخل المشروع
 - `INDEX.md` — فهرس كل الوثائق
+- `07-game-design/GDD.md` — **وثيقة التصميم الشاملة (مصدر الحقيقة للتصميم)**
+- `07-game-design/castle-hex-city.md` — مواصفة القلعة السداسية والبناء الحر
+- `07-game-design/civilizations-visual-design.md` — التصميم البصري للحضارات الست
+- `07-game-design/rok-features-audit.md` — توثيق مزايا RoK الأصلية (المرجع)
+- `07-game-design/ui-ux-design-system.md` — نظام الواجهات بأسلوب اللعبة
+- `07-game-design/power-balance-map.md` — خريطة توازن القوى والجيم بلاي
+- `07-game-design/assets/` — 11 صورة مرجعية مولّدة (قلعة، حضارات، وحدات، قادة، UI)
 - `UNREAL_ENGINE_GUIDE.md` — تشغيل وبناء عميل UE5
 - `game/docs/API.md` — مرجع الـ REST/WebSocket API
 - `game/docs/RUN.md` — تشغيل ونشر الـ backend
