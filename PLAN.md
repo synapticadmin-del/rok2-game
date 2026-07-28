@@ -49,7 +49,7 @@
 - [x] **P1-T3** Client: مسيرات الجيوش مرئية على الخريطة (أيقونة متحركة من المدينة للهدف حسب زمن الـ march) — ✅ تم 2026-07-28
 - [x] **P1-T4** Client: واجهة تقرير القتال (`URok2BattleReportWidget`) تعرض الخسائر من الـ API — ✅ تم 2026-07-28
 - [x] **P1-T5** Client: شريط موارد حي يتحدث عبر WebSocket بدون polling يدوي — ✅ تم 2026-07-28
-- [ ] **P1-T6** Backend: endpoint لسحب بيانات `data/*.json` (buildings/civs/tiers) بدل القيم الثابتة
+- [x] **P1-T6** Backend: endpoint لسحب بيانات `data/*.json` (buildings/civs/tiers) بدل القيم الثابتة — ✅ تم 2026-07-28
 - [ ] **P1-T7** اختبار لاعبين: سيناريو موثق في `game/docs/E2E_TWO_PLAYERS.md` + نجاحه فعلياً
 - **🚪 بوابة النجاح:** لاعبان على جهازين مختلفين يتنافسان على ممر ويستلم كل منهما تقرير قتال صحيحاً.
 
@@ -102,6 +102,7 @@
 | 2026-07-28 | P1-T3 مسيرات الجيوش مرئية على الخريطة | c9b951e | ParseWorld يقرأ marches؛ أحداث WS (march_created/returning/update)؛ WorldRenderer: اتجاه + ألوان تحالف + حالة returning |
 | 2026-07-28 | P1-T4 واجهة تقرير القتال | 0bc5eda | Rok2Types: FRok2BattleReport؛ Api: بارس reports + WS battle_report لحظي؛ Widget كامل: قائمة + تفاصيل خسائر (قتلى/خطير/خفيف)؛ زر 📜 في CityWidget |
 | 2026-07-28 | P1-T5 شريط موارد حي عبر WebSocket | 6376641 | FRok2City.Rates من المباني؛ LoadCity تلقائي كل 30s عند اتصال WS؛ حدث city_upsert يزامن فورياً؛ عدادات +X/س في CityWidget |
+| 2026-07-28 | P1-T6 endpoint بيانات JSON الموحدة | — | /v1/meta/all في router.ts؛ URok2Api::FetchMeta يسحب عند Init مع fallback؛ معدلات الإنتاج وقائمة وحدات التدريب من الخادم؛ API.md محدث |
 
 ---
 

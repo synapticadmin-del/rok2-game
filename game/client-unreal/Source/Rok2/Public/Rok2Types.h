@@ -322,6 +322,55 @@ struct FRok2BattleReport
 	FRok2BattleSide Defender;
 };
 
+
+USTRUCT(BlueprintType)
+struct FRok2TrainableUnit
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Branch;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2BuildingMeta
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Category;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Desc;
+};
+
+/** بيانات التوازن الموحدة من /v1/meta/all (P1-T6) */
+USTRUCT(BlueprintType)
+struct FRok2GameMeta
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TrainableUnit> TrainableUnits;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2BuildingMeta> Buildings;
+	/** معدلات الإنتاج الأساسية لكل مبنى (من الخادم) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TMap<FString, double> ProductionBase;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double ProductionLevelMult = 1.2;
+	/** هل تم السحب من الخادم فعلاً؟ (false = قيم fallback محلية) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bLoaded = false;
+};
+
 USTRUCT(BlueprintType)
 struct FRok2TechNode
 {

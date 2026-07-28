@@ -24,6 +24,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnConnectionState, bool, bOnline, 
 /** يُبث عند وصول تقرير قتال جديد أو تحديث قائمة التقارير (P1-T4) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattleReports, const TArray<FRok2BattleReport>&, Reports);
 
+/** يُبث عند اكتمال سحب بيانات التوازن من الخادم (P1-T6) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaLoaded, bool, bFromServer);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -33,6 +36,10 @@ public:
 	// Lifecycle
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Init(const FString& ApiBaseUrl, const FString& KingdomId, const FString& AdminKey);
+
+	/** يسحب بيانات التوازن الموحدة من /v1/meta/all (P1-T6) — تُستدعى تلقائياً من Init */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void FetchMeta();
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void LoginAsGuest();
@@ -117,6 +124,9 @@ public:
 	const TArray<FRok2BattleReport>& GetBattleReports() const { return BattleReports; }
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
+	const FRok2GameMeta& GetMeta() const { return Meta; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2")
 	bool IsLoggedIn() const { return !Token.IsEmpty(); }
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
@@ -150,6 +160,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnBattleReports OnBattleReports;
 
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnMetaLoaded OnMetaLoaded;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -165,6 +178,7 @@ protected:
 	TMap<FString, int32> Buildings;
 	TArray<FRok2Commander> Commanders;
 	TArray<FRok2BattleReport> BattleReports;
+	FRok2GameMeta Meta;
 
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> PendingRequest;
 	TSharedPtr<IWebSocket> WebSocket;

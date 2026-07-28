@@ -37,7 +37,94 @@ void URok2Api::Init(const FString& ApiBaseUrl, const FString& InKingdomId, const
 		FFileHelper::LoadFileToString(DeviceId, *DeviceIdPath);
 	}
 
+	// قيم fallback محلية لبيانات التوازن — تُستبدل ببيانات الخادم عند FetchMeta (P1-T6)
+	Meta.bLoaded = false;
+	Meta.ProductionLevelMult = 1.2;
+	Meta.ProductionBase.Add(TEXT("farm"), 100.0);
+	Meta.ProductionBase.Add(TEXT("lumber_mill"), 100.0);
+	Meta.ProductionBase.Add(TEXT("quarry"), 70.0);
+	Meta.ProductionBase.Add(TEXT("goldmine"), 40.0);
+	Meta.TrainableUnits.Add({TEXT("infantry_t1"), TEXT("مشاة T1"), TEXT("infantry")});
+	Meta.TrainableUnits.Add({TEXT("cavalry_t1"), TEXT("فرسان T1"), TEXT("cavalry")});
+	Meta.TrainableUnits.Add({TEXT("archer_t1"), TEXT("رماة T1"), TEXT("archer")});
+
 	UE_LOG(LogRok2, Log, TEXT("Rok2Api init: %s device=%s"), *BaseUrl, *DeviceId);
+
+	FetchMeta();
+}
+
+// ---------------------------------------------------------------------------
+// P1-T6: سحب بيانات التوازن الموحدة من الخادم بدل القيم الثابتة
+// ---------------------------------------------------------------------------
+void URok2Api::FetchMeta()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/meta/all"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+
+		// وحدات قابلة للتدريب
+		const TSharedPtr<FJsonObject>* ConstObj;
+		if (Obj->TryGetObjectField(TEXT("constants"), ConstObj) && ConstObj->IsValid())
+		{
+			const TSharedPtr<FJsonObject>* ProdObj;
+			if ((*ConstObj)->TryGetObjectField(TEXT("productionBase"), ProdObj) && ProdObj->IsValid())
+			{
+				Self->Meta.ProductionBase.Empty();
+				for (const auto& KV : (*ProdObj)->Values)
+				{
+					Self->Meta.ProductionBase.Add(FString(KV.Key), KV.Value->AsNumber());
+				}
+			}
+			Self->Meta.ProductionLevelMult = (*ConstObj)->GetNumberField(TEXT("productionLevelMult"));
+
+			const TArray<TSharedPtr<FJsonValue>>* UnitsArr;
+			if ((*ConstObj)->TryGetArrayField(TEXT("trainableUnits"), UnitsArr))
+			{
+				Self->Meta.TrainableUnits.Empty();
+				for (const auto& V : *UnitsArr)
+				{
+					const TSharedPtr<FJsonObject> U = V->AsObject();
+					if (!U.IsValid()) continue;
+					FRok2TrainableUnit Unit;
+					Unit.Id = U->GetStringField(TEXT("id"));
+					Unit.Name = U->GetStringField(TEXT("name"));
+					Unit.Branch = U->GetStringField(TEXT("branch"));
+					Self->Meta.TrainableUnits.Add(Unit);
+				}
+			}
+		}
+
+		// المباني
+		const TSharedPtr<FJsonObject>* BldObj;
+		if (Obj->TryGetObjectField(TEXT("buildings"), BldObj) && BldObj->IsValid())
+		{
+			const TArray<TSharedPtr<FJsonValue>>* BldArr;
+			if ((*BldObj)->TryGetArrayField(TEXT("buildings"), BldArr))
+			{
+				Self->Meta.Buildings.Empty();
+				for (const auto& V : *BldArr)
+				{
+					const TSharedPtr<FJsonObject> B = V->AsObject();
+					if (!B.IsValid()) continue;
+					FRok2BuildingMeta BM;
+					BM.Id = B->GetStringField(TEXT("id"));
+					BM.Category = B->GetStringField(TEXT("category"));
+					BM.Name = B->GetStringField(TEXT("name"));
+					BM.Desc = B->GetStringField(TEXT("desc"));
+					Self->Meta.Buildings.Add(BM);
+				}
+			}
+		}
+
+		Self->Meta.bLoaded = true;
+		// أعد حساب المعدلات من بيانات الخادم لو المباني محمّلة
+		Self->RecomputeResourceRates();
+		UE_LOG(LogRok2, Log, TEXT("Meta loaded from server: %d units, %d buildings"),
+			Self->Meta.TrainableUnits.Num(), Self->Meta.Buildings.Num());
+		Self->OnMetaLoaded.Broadcast(true);
+	});
 }
 
 FString URok2Api::BuildUrl(const FString& Path) const
@@ -325,17 +412,6 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 // ---------------------------------------------------------------------------
 // معدلات الإنتاج (P1-T5) — نفس معادلة الخادم: base * 1.2^(level-1)
 // ---------------------------------------------------------------------------
-static float Rok2ProductionPerHour(const FString& BuildingId, int32 Level)
-{
-	float Base = 0.f;
-	if (BuildingId == TEXT("farm")) Base = 100.f;
-	else if (BuildingId == TEXT("lumber_mill")) Base = 100.f;
-	else if (BuildingId == TEXT("quarry")) Base = 70.f;
-	else if (BuildingId == TEXT("goldmine")) Base = 40.f;
-	else return 0.f;
-	return Base * FMath::Pow(1.2f, (float)FMath::Max(0, Level - 1));
-}
-
 void URok2Api::RecomputeResourceRates()
 {
 	auto Lvl = [this](const FString& Id) -> int32
@@ -343,10 +419,16 @@ void URok2Api::RecomputeResourceRates()
 		const int32* P = Buildings.Find(Id);
 		return P ? *P : 1; // الخادم يعامل المباني المفقودة كمستوى 1
 	};
-	City.Rates.Food = Rok2ProductionPerHour(TEXT("farm"), Lvl(TEXT("farm")));
-	City.Rates.Wood = Rok2ProductionPerHour(TEXT("lumber_mill"), Lvl(TEXT("lumber_mill")));
-	City.Rates.Stone = Rok2ProductionPerHour(TEXT("quarry"), Lvl(TEXT("quarry")));
-	City.Rates.Gold = Rok2ProductionPerHour(TEXT("goldmine"), Lvl(TEXT("goldmine")));
+	auto Rate = [this](const FString& Id, int32 Level) -> float
+	{
+		const double* Base = Meta.ProductionBase.Find(Id);
+		if (!Base) return 0.f;
+		return (float)(*Base) * FMath::Pow((float)Meta.ProductionLevelMult, (float)FMath::Max(0, Level - 1));
+	};
+	City.Rates.Food = Rate(TEXT("farm"), Lvl(TEXT("farm")));
+	City.Rates.Wood = Rate(TEXT("lumber_mill"), Lvl(TEXT("lumber_mill")));
+	City.Rates.Stone = Rate(TEXT("quarry"), Lvl(TEXT("quarry")));
+	City.Rates.Gold = Rate(TEXT("goldmine"), Lvl(TEXT("goldmine")));
 }
 
 void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)

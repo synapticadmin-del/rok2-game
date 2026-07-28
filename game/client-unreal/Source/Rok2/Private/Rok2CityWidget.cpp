@@ -35,9 +35,21 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 	if (TrainUnitCombo)
 	{
 		TrainUnitCombo->ClearOptions();
-		TrainUnitCombo->AddOption(TEXT("infantry_t1|مشاة T1"));
-		TrainUnitCombo->AddOption(TEXT("cavalry_t1|فرسان T1"));
-		TrainUnitCombo->AddOption(TEXT("archer_t1|رماة T1"));
+		// قائمة الوحدات من بيانات الخادم الموحدة /v1/meta/all (P1-T6) — مع fallback محلي
+		const FRok2GameMeta& Meta = Api->GetMeta();
+		if (Meta.TrainableUnits.Num() > 0)
+		{
+			for (const FRok2TrainableUnit& U : Meta.TrainableUnits)
+			{
+				TrainUnitCombo->AddOption(FString::Printf(TEXT("%s|%s"), *U.Id, *U.Name));
+			}
+		}
+		else
+		{
+			TrainUnitCombo->AddOption(TEXT("infantry_t1|مشاة T1"));
+			TrainUnitCombo->AddOption(TEXT("cavalry_t1|فرسان T1"));
+			TrainUnitCombo->AddOption(TEXT("archer_t1|رماة T1"));
+		}
 		TrainUnitCombo->SetSelectedIndex(0);
 	}
 	if (TrainCountSpin) TrainCountSpin->SetValue(50.f);

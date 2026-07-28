@@ -136,6 +136,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/meta/techtree" && request.method === "GET") {
       return json(getTechTree());
     }
+    // P1-T6: endpoint موحد لكل بيانات التوازن — يقرأها العميل مرة واحدة عند البدء
+    if (path === "/v1/meta/all" && request.method === "GET") {
+      return json({
+        version: 1,
+        civilizations: getCivilizations(),
+        buildings: getBuildings(),
+        troops: getTroops(),
+        commanders: getCommanders(),
+        techTree: getTechTree(),
+        constants: {
+          productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
+          productionLevelMult: 1.2,
+          trainableUnits: [
+            { id: "infantry_t1", name: "مشاة T1", branch: "infantry" },
+            { id: "cavalry_t1", name: "فرسان T1", branch: "cavalry" },
+            { id: "archer_t1", name: "رماة T1", branch: "archer" },
+          ],
+        },
+      });
+    }
 
     // Auth guest
     if (path === "/v1/auth/guest" && request.method === "POST") {

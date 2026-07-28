@@ -10,6 +10,9 @@ Auth header: `Authorization: Bearer <token>`
 - `GET /v1/meta/civilizations`
 - `GET /v1/meta/buildings`
 - `GET /v1/meta/troops`
+- `GET /v1/meta/commanders`
+- `GET /v1/meta/techtree`
+- `GET /v1/meta/all` — **بيانات التوازن الموحدة (P1-T6):** civilizations + buildings + troops + commanders + techTree + constants (productionBase, productionLevelMult, trainableUnits). يقرأها العميل مرة واحدة عند البدء بدل القيم الثابتة.
 
 ## Auth
 - `POST /v1/auth/guest` `{ deviceId?, name? }` → `{ token, accountId, player? }`
