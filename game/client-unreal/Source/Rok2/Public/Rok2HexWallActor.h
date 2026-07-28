@@ -1,8 +1,9 @@
-// Copyright ROK2. Hexagonal city wall actor (P5-T1).
+// Copyright ROK2. Hexagonal city wall actor (P5-T1 / P5-T2).
 //
 // يرسم سوراً سداسياً حول المدينة: 6 أضلاع + بوابة رئيسية على ضلع واحد + أبراج.
 // مظهره يتغير مع مستوى السور (خشب → حجر → محصّن → ذهبي) ومتانته تُقرأ من الخادم.
-// المواصفة: 07-game-design/castle-hex-city.md §2.2 و §5.
+// P5-T2: يضيف ثيم الحضارة (لون + زخارف) للسور والبوابة والأبراج.
+// المواصفة: 07-game-design/castle-hex-city.md §2.2 و §5 + 07-game-design/civilizations-visual-design.md.
 
 #pragma once
 
@@ -73,6 +74,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	float Durability01 = 1.f;
 
+	/** حضارة مالك المدينة — تحدد لون السور والزخارف (P5-T2). */
+	UPROPERTY(EditAnywhere, Category = "Rok2")
+	FString CivId = TEXT("rome");
+
 	/** يعيد بناء السور بالكامل بالمستوى والمتانة الحاليين. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RebuildWall();
@@ -90,5 +95,9 @@ protected:
 	void OnWallCellClicked(AActor* TouchedActor, FKey ButtonPressed);
 
 	void ApplyTierMaterials();
+
+	/** يطبق ثيم الحضارة على مواد السور والبوابة والأبراج. */
+	void ApplyCivTheme();
+
 	float TierScale() const;
 };

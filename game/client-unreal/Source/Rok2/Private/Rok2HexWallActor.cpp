@@ -1,4 +1,7 @@
+// Copyright ROK2. Hexagonal city wall actor (P5-T1 / P5-T2) — implementation.
+
 #include "Rok2HexWallActor.h"
+#include "Rok2CivThemes.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
@@ -130,6 +133,7 @@ void ARok2HexWallActor::RebuildWall()
 	}
 
 	ApplyTierMaterials();
+	ApplyCivTheme();
 }
 
 void ARok2HexWallActor::ApplyTierMaterials()
@@ -141,6 +145,39 @@ void ARok2HexWallActor::ApplyTierMaterials()
 	// ملاحظة: تلوين فعلي يحتاج مادة بـ Parameter؛ نتركه hook للمستوى عبر Tags.
 	Tags.Add(FName(*FString::Printf(TEXT("wall_tier_%d"), (int32)TierForLevel(WallLevel))));
 	Tags.Add(FName(*FString::Printf(TEXT("wall_damage_%d"), FMath::RoundToInt(Damage * 4.f))));
+}
+
+void ARok2HexWallActor::ApplyCivTheme()
+{
+	URok2CivThemes* Themes = URok2CivThemes::Get();
+	if (!Themes) return;
+
+	const FRok2CivTheme& Theme = Themes->GetTheme(CivId);
+
+	// السور: لون الحضارة الأساسي (حجر/خشب)
+	// البوابة: لون الحضارة الثانوي (ذهب/زخارف)
+	// الأبراج: لون التمييز (Accent)
+
+	// نستخدم CreateAndSetMaterialInstanceDynamic على كل HISM
+	if (UMaterialInstanceDynamic* Dyn = WallSegments->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
+	}
+
+	if (UMaterialInstanceDynamic* Dyn = Gate->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Secondary);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Secondary);
+		// توهج خفيف للبوابة (تكون بارزة)
+		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Secondary * 0.3f);
+	}
+
+	if (UMaterialInstanceDynamic* Dyn = Towers->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Accent);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Accent);
+	}
 }
 
 void ARok2HexWallActor::OnWallCellClicked(AActor* TouchedActor, FKey ButtonPressed)

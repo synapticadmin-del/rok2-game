@@ -1,8 +1,11 @@
+// Copyright ROK2. City layout manager actor (P5-T1 / P5-T2) — implementation.
+
 #include "Rok2CityLayoutActor.h"
 #include "Rok2GameMode.h"
 #include "Rok2Api.h"
 #include "Rok2HexWallActor.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2CivThemes.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
@@ -92,6 +95,11 @@ void ARok2CityLayoutActor::SpawnWall()
 	{
 		Wall->CityRadiusCells = CityRadiusCells;
 		Wall->HexSize = HexSize;
+		// P5-T2: تمرير حضارة اللاعب للسور
+		if (Api && Api->HasPlayer())
+		{
+			Wall->CivId = Api->GetPlayer().Civ;
+		}
 		Wall->RebuildWall();
 	}
 }
@@ -160,6 +168,9 @@ void ARok2CityLayoutActor::RebuildFromApi()
 	if (!Api) return;
 	ClearBuildings();
 
+	// P5-T2: جلب حضارة اللاعب لتمريرها لكل مبنى
+	const FString PlayerCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
+
 	const TMap<FString, int32>& ApiBuildings = Api->GetBuildings();
 	TArray<FString> Order = { TEXT("city_hall"), TEXT("farm"), TEXT("lumber_mill"), TEXT("quarry"), TEXT("goldmine"), TEXT("barracks"), TEXT("stable"), TEXT("archery_range"), TEXT("hospital"), TEXT("wall"), TEXT("storehouse") };
 
@@ -174,7 +185,7 @@ void ARok2CityLayoutActor::RebuildFromApi()
 		ARok2BuildingActor* B = GetWorld()->SpawnActor<ARok2BuildingActor>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 		if (B)
 		{
-			B->Setup(Id, Level, Cell, HexSize);
+			B->SetupWithCiv(Id, Level, Cell, HexSize, PlayerCiv);
 
 			// أصل فني إن توفر (KayKit) — وإلا يبقى placeholder
 			if (URok2ArtAssets* Art = URok2ArtAssets::Get())
@@ -182,10 +193,13 @@ void ARok2CityLayoutActor::RebuildFromApi()
 				if (UStaticMesh* ArtMesh = Art->LoadMesh(Id))
 				{
 					B->Mesh->SetStaticMesh(ArtMesh);
+					B->bUsingArtAsset = true;
 					for (const FRok2ArtEntry& E : Art->GetCatalog())
 					{
 						if (E.Id == Id) { B->Mesh->SetWorldScale3D(FVector(E.Scale)); break; }
 					}
+					// إعادة تطبيق الثيم للأصل الفني (تلوين خفيف)
+					B->ApplyCivTheme();
 				}
 			}
 

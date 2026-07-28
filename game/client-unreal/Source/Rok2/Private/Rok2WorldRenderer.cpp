@@ -5,6 +5,7 @@
 #include "Rok2Api.h"
 #include "Rok2ProceduralAssets.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2CivThemes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -187,6 +188,11 @@ void ARok2WorldRenderer::RefreshFromApi()
 	if (ResourceNodeHISM) ResourceNodeHISM->ClearInstances();
 	if (BarbarianNodeHISM) BarbarianNodeHISM->ClearInstances();
 
+	// P5-T2: جلب ثيم حضارة اللاعب لتلوين مدينته الخاصة
+	URok2CivThemes* CivThemes = URok2CivThemes::Get();
+	const FString MyCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
+	const FRok2CivTheme& MyTheme = CivThemes->GetTheme(MyCiv);
+
 	for (const FRok2CityEntity& C : W.Cities)
 	{
 		FVector Loc(C.X * WorldToUnrealScale, C.Y * WorldToUnrealScale, CityZ);
@@ -203,7 +209,13 @@ void ARok2WorldRenderer::RefreshFromApi()
 		}
 		if (CastleMesh)
 		{
-			SpawnMarker(CastleMesh, Loc, FString::Printf(TEXT("CityArt_%s"), *C.PlayerId), FLinearColor::White);
+			// P5-T2: لو كانت مدينتي، نستخدم لون حضارتي؛ وإلا نستخدم اللون الافتراضي للأصل
+			FLinearColor CityColor = FLinearColor::White;
+			if (C.PlayerId == Api->GetPlayer().Id)
+			{
+				CityColor = MyTheme.Primary; // لون حضارتي للمدينة الخاصة بي
+			}
+			SpawnMarker(CastleMesh, Loc, FString::Printf(TEXT("CityArt_%s"), *C.PlayerId), CityColor);
 			if (AActor* Last = SpawnedActors.Num() ? SpawnedActors.Last() : nullptr)
 			{
 				Last->SetActorScale3D(FVector(CastleScale));
@@ -211,7 +223,17 @@ void ARok2WorldRenderer::RefreshFromApi()
 		}
 		else if (CityHISM)
 		{
-			CityHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector::OneVector));
+			// P5-T2: للـ placeholder، نضيف لون الحضارة عبر CustomData (لو المادة تدعم)
+			// أو نستخدم SpawnMarker بلون الحضارة للمدينة الخاصة بي
+			if (C.PlayerId == Api->GetPlayer().Id)
+			{
+				// مدينتي: نستخدم SpawnMarker بلون الحضارة بدلاً من HISM العادي
+				SpawnMarker(CityMesh, Loc, FString::Printf(TEXT("City_%s"), *C.PlayerId), MyTheme.Primary);
+			}
+			else
+			{
+				CityHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector::OneVector));
+			}
 		}
 	}
 

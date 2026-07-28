@@ -1,4 +1,8 @@
+// Copyright ROK2. Single city building actor (P5-T1 / P5-T2) — implementation.
+
 #include "Rok2BuildingActor.h"
+#include "Rok2CivThemes.h"
+#include "Rok2ProceduralAssets.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -13,6 +17,18 @@ ARok2BuildingActor::ARok2BuildingActor()
 	Mesh->SetupAttachment(Root);
 	Mesh->SetMobility(EComponentMobility::Movable);
 
+	RoofMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RoofMesh"));
+	RoofMesh->SetupAttachment(Root);
+	RoofMesh->SetMobility(EComponentMobility::Movable);
+
+	TrimMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TrimMesh"));
+	TrimMesh->SetupAttachment(Root);
+	TrimMesh->SetMobility(EComponentMobility::Movable);
+
+	AccentMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AccentMesh"));
+	AccentMesh->SetupAttachment(Root);
+	AccentMesh->SetMobility(EComponentMobility::Movable);
+
 	StatusIndicator = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StatusIndicator"));
 	StatusIndicator->SetupAttachment(Root);
 	StatusIndicator->SetMobility(EComponentMobility::Movable);
@@ -23,7 +39,22 @@ ARok2BuildingActor::ARok2BuildingActor()
 	{
 		Mesh->SetStaticMesh(CubeFinder.Object);
 		StatusIndicator->SetStaticMesh(CubeFinder.Object);
+		TrimMesh->SetStaticMesh(CubeFinder.Object);
+		AccentMesh->SetStaticMesh(CubeFinder.Object);
 	}
+
+	// سقف placeholder: نستخدم Cylinder لمعظم الأنماط، Cone للقباب/الأسقف المدببة
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConeFinder(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (CylinderFinder.Succeeded()) RoofMesh->SetStaticMesh(CylinderFinder.Object);
+	if (ConeFinder.Succeeded()) { /* نحتفظ به للاستخدام في ApplyArchStyleToRoof */ }
+	if (SphereFinder.Succeeded()) { /* للقباب */ }
+
+	// إخفاء الأجزاء الإضافية افتراضياً (تظهر فقط في placeholder mode)
+	RoofMesh->SetVisibility(false);
+	TrimMesh->SetVisibility(false);
+	AccentMesh->SetVisibility(false);
 }
 
 void ARok2BuildingActor::BeginPlay()
@@ -59,10 +90,17 @@ float ARok2BuildingActor::FootprintWorldScale() const
 
 void ARok2BuildingActor::Setup(const FString& InId, int32 InLevel, const FRok2HexCell& InCell, float HexSize)
 {
+	// الاحتفاظ بالحضارة الافتراضية (روما) إذا لم تُحدد
+	SetupWithCiv(InId, InLevel, InCell, HexSize, TEXT("rome"));
+}
+
+void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const FRok2HexCell& InCell, float HexSize, const FString& InCivId)
+{
 	BuildingId = InId;
 	Level = FMath::Max(1, InLevel);
 	AnchorCell = InCell;
 	CachedHexSize = HexSize;
+	CivId = InCivId;
 
 	// بصمة افتراضية حسب النوع (تُستبدل بقراءة data/city_layout.json لاحقاً)
 	static const TSet<FString> Medium = { TEXT("barracks"), TEXT("stable"), TEXT("archery_range"), TEXT("siege_workshop"), TEXT("hospital"), TEXT("academy"), TEXT("tavern"), TEXT("trading_post"), TEXT("alliance_center"), TEXT("builders_hut") };
@@ -77,9 +115,192 @@ void ARok2BuildingActor::Setup(const FString& InId, int32 InLevel, const FRok2He
 	const FVector Loc = URok2HexGrid::HexToWorld(AnchorCell, HexSize);
 	SetActorLocation(Loc);
 
+	// تطبيق ثيم الحضارة (لون + نمط)
+	ApplyCivTheme();
+
 	// مقياس المبنى placeholder (يتدرج قليلاً مع المستوى لو لا أصل فني)
 	const float S = FootprintWorldScale();
-	Mesh->SetWorldScale3D(FVector(S, S, 0.8f + Level * 0.1f));
+	if (!bUsingArtAsset)
+	{
+		Mesh->SetWorldScale3D(FVector(S, S, 0.8f + Level * 0.1f));
+	}
+}
+
+void ARok2BuildingActor::ApplyCivTheme()
+{
+	URok2CivThemes* Themes = URok2CivThemes::Get();
+	if (!Themes) return;
+
+	const FRok2CivTheme& Theme = Themes->GetTheme(CivId);
+
+	// لو نستخدم أصل فني حقيقي (GLB)، نكتفي بتلوين الجسم الرئيسي بلون خفيف
+	// وإلا نبني الشكل المركّب placeholder (جسم + سقف + زخارف + تمييز)
+	if (bUsingArtAsset)
+	{
+		// تلوين خفيف للأصل الفني (لا نغطي التفاصيل)
+		if (UMaterialInstanceDynamic* Dyn = Mesh->CreateAndSetMaterialInstanceDynamic(0))
+		{
+			Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
+			Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
+		}
+		return;
+	}
+
+	// --- Placeholder composite mode ---
+	RoofMesh->SetVisibility(true);
+	TrimMesh->SetVisibility(true);
+	AccentMesh->SetVisibility(true);
+
+	// الجسم الرئيسي بلون الحضارة الأساسي
+	if (UMaterialInstanceDynamic* Dyn = Mesh->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
+		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Primary * 0.3f);
+	}
+
+	// شريط الزخارف/القاعدة بلون الحضارة الثانوي
+	if (UMaterialInstanceDynamic* Dyn = TrimMesh->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Secondary);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Secondary);
+		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Secondary * 0.4f);
+	}
+
+	// عنصر التمييز بلون الـ Accent (ذهب/نحاس...)
+	if (UMaterialInstanceDynamic* Dyn = AccentMesh->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Accent);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Accent);
+		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Accent * 0.6f); // توهج خفيف للذهب
+	}
+
+	// ضبط أشكال الأجزاء حسب نمط العمارة
+	ApplyArchStyleToRoof();
+}
+
+void ARok2BuildingActor::ApplyArchStyleToRoof()
+{
+	URok2CivThemes* Themes = URok2CivThemes::Get();
+	if (!Themes) return;
+
+	const FRok2CivTheme& Theme = Themes->GetTheme(CivId);
+	const float S = FootprintWorldScale();
+	const float BaseHeight = 0.8f + Level * 0.1f;
+
+	// تحميل المش المناسب للسقف حسب النمط
+	UStaticMesh* RoofMeshAsset = nullptr;
+	FVector RoofScale = FVector::OneVector;
+	FVector RoofLoc = FVector::ZeroVector;
+
+	switch (Theme.ArchStyle)
+	{
+	case ERok2ArchStyle::ArchesMarble:
+		// روما: سقف قرميد أحمر مسطح قليلاً (مكعب منخفض) + أعمدة (Trim رفيع)
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofScale = FVector(S * 0.9f, S * 0.9f, 0.25f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 15.f);
+		// الزخارف: شريط رفيع أسفل السقف
+		TrimMesh->SetWorldScale3D(FVector(S * 0.95f, S * 0.95f, 0.15f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 5.f));
+		// التمييز: نسر ذهبي صغير (مكعب صغير)
+		AccentMesh->SetWorldScale3D(FVector(0.3f, 0.3f, 0.5f));
+		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 35.f));
+		break;
+
+	case ERok2ArchStyle::CurvedRoofs:
+		// الصين: أسقف منحنية بطبقات (اسطوانة رفيعة واسعة) + ذهب إمبراطوري
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		RoofScale = FVector(S * 1.1f, S * 1.1f, 0.35f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 20.f);
+		// طبقة ثانية أصغر فوقها
+		TrimMesh->SetWorldScale3D(FVector(S * 0.7f, S * 0.7f, 0.25f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 40.f));
+		// فانوس ذهبي
+		AccentMesh->SetWorldScale3D(FVector(0.25f, 0.25f, 0.4f));
+		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 55.f));
+		break;
+
+	case ERok2ArchStyle::DomesArches:
+		// العرب: قبة فيروزية/ذهبية (كرة) + أقواس حدوة حصان
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		RoofScale = FVector(S * 0.7f, S * 0.7f, S * 0.7f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + S * 30.f);
+		// قاعدة القبة
+		TrimMesh->SetWorldScale3D(FVector(S * 0.8f, S * 0.8f, 0.2f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 10.f));
+		// هلال/نجمة ذهبية صغيرة فوق القبة
+		AccentMesh->SetWorldScale3D(FVector(0.2f, 0.2f, 0.35f));
+		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + S * 30.f + 25.f));
+		break;
+
+	case ERok2ArchStyle::ObelisksColumns:
+		// مصر: مسلة ذهبية (مخروط رفيع طويل) + أعمدة بردي
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+		RoofScale = FVector(S * 0.4f, S * 0.4f, 1.2f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 60.f);
+		// قاعدة المعبد
+		TrimMesh->SetWorldScale3D(FVector(S * 0.9f, S * 0.9f, 0.3f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 10.f));
+		// قرص شمس ذهبي
+		AccentMesh->SetWorldScale3D(FVector(0.35f, 0.35f, 0.1f));
+		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 90.f));
+		break;
+
+	case ERok2ArchStyle::CarvedWood:
+		// الفايكنج: سقف خشبي طويل (مكعب مستطيل) بعوارض منحوتة
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofScale = FVector(S * 1.2f, S * 0.8f, 0.4f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 20.f);
+		// عوارض التنين
+		TrimMesh->SetWorldScale3D(FVector(S * 1.3f, S * 0.9f, 0.15f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 35.f));
+		// رأس تنين خشبي
+		AccentMesh->SetWorldScale3D(FVector(0.3f, 0.3f, 0.6f));
+		AccentMesh->SetRelativeLocation(FVector(S * 50.f, 0, BaseHeight * 100.f + 45.f));
+		break;
+
+	case ERok2ArchStyle::TempleWood:
+		// اليابان: قلعة tenshu خشبية داكنة (طبقات متدرجة) بقوادم منحنية
+		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofScale = FVector(S * 1.0f, S * 1.0f, 0.3f);
+		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 18.f);
+		// طبقة ثانية أصغر
+		TrimMesh->SetWorldScale3D(FVector(S * 0.75f, S * 0.75f, 0.25f));
+		TrimMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 38.f));
+		// قوادم ذهبية (shachi)
+		AccentMesh->SetWorldScale3D(FVector(0.2f, 0.2f, 0.3f));
+		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 52.f));
+		break;
+	}
+
+	if (RoofMeshAsset)
+	{
+		RoofMesh->SetStaticMesh(RoofMeshAsset);
+	}
+	RoofMesh->SetWorldScale3D(RoofScale);
+	RoofMesh->SetRelativeLocation(RoofLoc);
+
+	// تلوين السقف بلون الحضارة الثانوي (أو Accent للقباب)
+	if (UMaterialInstanceDynamic* Dyn = RoofMesh->CreateAndSetMaterialInstanceDynamic(0))
+	{
+		FLinearColor RoofColor = Theme.Secondary;
+		if (Theme.ArchStyle == ERok2ArchStyle::DomesArches)
+		{
+			RoofColor = Theme.Accent; // قبة ذهبية/فيروزية
+		}
+		else if (Theme.ArchStyle == ERok2ArchStyle::CurvedRoofs)
+		{
+			RoofColor = Theme.Secondary; // ذهب إمبراطوري
+		}
+		else if (Theme.ArchStyle == ERok2ArchStyle::TempleWood)
+		{
+			RoofColor = Theme.Primary; // خشب داكن
+		}
+		Dyn->SetVectorParameterValue(TEXT("Color"), RoofColor);
+		Dyn->SetVectorParameterValue(TEXT("BaseColor"), RoofColor);
+		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), RoofColor * 0.4f);
+	}
 }
 
 TArray<FRok2HexCell> ARok2BuildingActor::OccupiedCells() const

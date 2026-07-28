@@ -1,8 +1,9 @@
-// Copyright ROK2. Single city building actor (P5-T1).
+// Copyright ROK2. Single city building actor (P5-T1 / P5-T2).
 //
 // مبنى واحد داخل المدينة السداسية: له بصمة hex، مستوى، حالة بصرية
 // (قيد البناء/مكتمل/إنتاج جاهز/تدريب/جرحى)، وقابل للنقر والسحب في وضع التحرير.
-// المواصفة: 07-game-design/castle-hex-city.md §4.
+// P5-T2: يضيف ثيم الحضارة (لون + نمط عمارة) لجعل المبنى يعكس حضارة اللاعب.
+// المواصفة: 07-game-design/castle-hex-city.md §4 + 07-game-design/civilizations-visual-design.md.
 
 #pragma once
 
@@ -46,8 +47,21 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	USceneComponent* Root;
 
+	/** الجسم الرئيسي للمبنى (placeholder أو أصل فني). */
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	UStaticMeshComponent* Mesh;
+
+	/** سقف المبنى — يتشكل حسب نمط عمارة الحضارة (قبة/منحني/هرمي...). */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	UStaticMeshComponent* RoofMesh;
+
+	/** شريط الزخارف/القاعدة — يُلوّن بلون الحضارة الثانوي/الذهبي. */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	UStaticMeshComponent* TrimMesh;
+
+	/** عنصر التمييز (تمثال/علم/فانوس...) — يُلوّن بلون الـ Accent. */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	UStaticMeshComponent* AccentMesh;
 
 	/** مؤشر الحالة العائم (فقاعة/صليب/أعلام) — مكعب placeholder حالياً. */
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
@@ -81,9 +95,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	bool bIsStatic = false;
 
+	/** حضارة مالك المبنى — تحدد اللون والنمط (P5-T2). */
+	UPROPERTY(EditAnywhere, Category = "Rok2")
+	FString CivId = TEXT("rome");
+
 	/** تهيئة المبنى بمعرفه ومستواه وخليته. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Setup(const FString& InId, int32 InLevel, const FRok2HexCell& InCell, float HexSize);
+
+	/** تهيئة المبنى مع حضارة محددة (تُستدعى من CityLayoutActor). */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void SetupWithCiv(const FString& InId, int32 InLevel, const FRok2HexCell& InCell, float HexSize, const FString& InCivId);
 
 	/** ضبط الحالة البصرية وتحديث المؤشر العائم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
@@ -110,5 +132,15 @@ protected:
 	void OnClicked(AActor* TouchedActor, FKey ButtonPressed);
 
 	void UpdateStatusIndicator();
+
+	/** يطبق ثيم الحضارة على الأجزاء المرئية (يُستدعى عند Setup أو تغيير CivId). */
+	void ApplyCivTheme();
+
+	/** يضبط شكل السقف حسب نمط عمارة الحضارة. */
+	void ApplyArchStyleToRoof();
+
 	float FootprintWorldScale() const;
+
+	/** هل يوجد أصل فني حقيقي (GLB) مستخدم حالياً؟ */
+	bool bUsingArtAsset = false;
 };
