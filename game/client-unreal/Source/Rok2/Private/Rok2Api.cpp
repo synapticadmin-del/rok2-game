@@ -2,6 +2,7 @@
 // P1-T2: معالجة أخطاء الشبكة + إعادة الاتصال التلقائي + بث حالة الاتصال للواجهات.
 
 #include "Rok2Api.h"
+#include "Rok2AudioManager.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -323,6 +324,12 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 			Self->OnPlayerLoaded.Broadcast(Self->Player);
 		}
 		Self->EmitToast(TEXT("تم تأسيس المدينة"));
+		// P5-T6: تشغيل موسيقى الحضارة
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->InitForCiv(Civ);
+			Audio->PlayMusic();
+		}
 		Self->LoadCity();
 	});
 }
@@ -747,6 +754,10 @@ void URok2Api::UpgradeBuilding(const FString& BuildingId)
 	{
 		ParseCity(Obj);
 		EmitToast(TEXT("تمت الترقية"));
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::Upgrade);
+		}
 	});
 }
 
@@ -984,6 +995,13 @@ void URok2Api::ConnectWebSocket()
 				FRok2BattleReport Report;
 				Self->ParseBattleReport(*ReportObj, Report);
 				Self->AddBattleReport(Report);
+				// P5-T6: صوت نصر/هزيمة
+				if (URok2AudioManager* Audio = URok2AudioManager::Get())
+				{
+					const bool bVictory = (Report.Winner == TEXT("attacker") && Report.AttackerPlayerId == Self->Player.Id) ||
+						(Report.Winner == TEXT("defender") && Report.AttackerPlayerId != Self->Player.Id);
+					Audio->PlaySfx(bVictory ? ERok2AudioType::BattleVictory : ERok2AudioType::BattleDefeat);
+				}
 				Self->PushNotification(TEXT("combat"), TEXT("⚔️ تقرير قتال"),
 					FString::Printf(TEXT("%s — %s"), *Report.Kind, *Report.Winner), 8.f);
 			}

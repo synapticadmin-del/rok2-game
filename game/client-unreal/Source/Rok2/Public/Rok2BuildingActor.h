@@ -43,6 +43,7 @@ public:
 	ARok2BuildingActor();
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	USceneComponent* Root;
@@ -143,4 +144,39 @@ protected:
 
 	/** هل يوجد أصل فني حقيقي (GLB) مستخدم حالياً؟ */
 	bool bUsingArtAsset = false;
+
+	// ---- P5-T6: حركات البناء والترقية ----
+	/** يشغّل حركة بناء (scale-in من 0 إلى الحجم الكامل) — تُستدعى عند إنشاء المبنى. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void PlayBuildAnimation();
+
+	/** يشغّل حركة ترقية (pulse ذهبي سريع) — تُستدعى عند اكتمال ترقية. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void PlayUpgradeAnimation();
+
+	/** يشغّل حركة ظهور عند الكشف (fade-in من شفاف) — تُستدعى عند ظهور المبنى بعد ضباب. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void PlayRevealAnimation();
+
+	/** هل حركة البناء/الترقية/الكشف نشطة؟ */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	bool bIsAnimating = false;
+
+	/** نوع الحركة الجارية (0=لا، 1=بناء، 2=ترقية، 3=كشف). */
+	UPROPERTY(VisibleAnywhere, Category = "Rok2")
+	int32 ActiveAnimType = 0;
+
+	/** مؤقّت الحركة الجارية. */
+	float AnimTimer = 0.f;
+
+	/** مدة الحركة (ثانية). */
+	static constexpr float BuildAnimDuration = 0.6f;
+	static constexpr float UpgradeAnimDuration = 0.4f;
+	static constexpr float RevealAnimDuration = 0.5f;
+
+	/** يحدّث الحركة الجارية (يُستدعى من Tick). */
+	void UpdateAnimation(float DeltaSeconds);
+
+	/** يعيد حساب مقياس المبنى الحالي حسب الحركة. */
+	FVector ComputeAnimatedScale() const;
 };

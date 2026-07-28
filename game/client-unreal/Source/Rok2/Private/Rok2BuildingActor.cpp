@@ -65,6 +65,12 @@ void ARok2BuildingActor::BeginPlay()
 	UpdateStatusIndicator();
 }
 
+void ARok2BuildingActor::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	UpdateAnimation(DeltaSeconds);
+}
+
 int32 ARok2BuildingActor::FootprintRadius() const
 {
 	switch (Footprint)
@@ -366,4 +372,109 @@ void ARok2BuildingActor::UpdateStatusIndicator()
 void ARok2BuildingActor::OnClicked(AActor* TouchedActor, FKey ButtonPressed)
 {
 	// يُعاد توجيهه إلى CityLayoutActor عبر حدث عام — ربط في LayoutActor عند الزرع.
+}
+
+// ---------------------------------------------------------------------------
+// P5-T6: حركات البناء والترقية والكشف
+// ---------------------------------------------------------------------------
+
+void ARok2BuildingActor::PlayBuildAnimation()
+{
+	bIsAnimating = true;
+	ActiveAnimType = 1; // بناء
+	AnimTimer = 0.f;
+	PrimaryActorTick.bCanEverTick = true;
+	SetActorTickEnabled(true);
+}
+
+void ARok2BuildingActor::PlayUpgradeAnimation()
+{
+	bIsAnimating = true;
+	ActiveAnimType = 2; // ترقية
+	AnimTimer = 0.f;
+	PrimaryActorTick.bCanEverTick = true;
+	SetActorTickEnabled(true);
+}
+
+void ARok2BuildingActor::PlayRevealAnimation()
+{
+	bIsAnimating = true;
+	ActiveAnimType = 3; // كشف
+	AnimTimer = 0.f;
+	PrimaryActorTick.bCanEverTick = true;
+	SetActorTickEnabled(true);
+}
+
+void ARok2BuildingActor::UpdateAnimation(float DeltaSeconds)
+{
+	if (!bIsAnimating) return;
+
+	AnimTimer += DeltaSeconds;
+
+	float Duration = 0.5f;
+	if (ActiveAnimType == 1) Duration = BuildAnimDuration;
+	else if (ActiveAnimType == 2) Duration = UpgradeAnimDuration;
+	else if (ActiveAnimType == 3) Duration = RevealAnimDuration;
+
+	const float Progress = FMath::Clamp(AnimTimer / Duration, 0.f, 1.f);
+	const FVector NewScale = ComputeAnimatedScale();
+
+	// تطبيق المقياس على الجسم الرئيسي
+	if (Mesh)
+	{
+		Mesh->SetWorldScale3D(NewScale);
+	}
+
+	// إخفاء/إظهار حسب نوع الحركة
+	if (ActiveAnimType == 3) // كشف (fade-in)
+	{
+		// نستخدم الشفافية عبر المقياس Z (تقريب — لا يوجد shader fade بسيط)
+		// المقياس يكبر من 0.01 إلى الحجم الكامل
+	}
+
+	// انتهت الحركة؟
+	if (Progress >= 1.f)
+	{
+		bIsAnimating = false;
+		ActiveAnimType = 0;
+		PrimaryActorTick.bCanEverTick = false;
+		SetActorTickEnabled(false);
+	}
+}
+
+FVector ARok2BuildingActor::ComputeAnimatedScale() const
+{
+	const float S = FootprintWorldScale();
+	const float BaseZ = 0.8f + Level * 0.1f;
+
+	if (!bIsAnimating)
+	{
+		return FVector(S, S, BaseZ);
+	}
+
+	float Duration = 0.5f;
+	if (ActiveAnimType == 1) Duration = BuildAnimDuration;
+	else if (ActiveAnimType == 2) Duration = UpgradeAnimDuration;
+	else if (ActiveAnimType == 3) Duration = RevealAnimDuration;
+
+	const float Progress = FMath::Clamp(AnimTimer / Duration, 0.f, 1.f);
+
+	if (ActiveAnimType == 1) // بناء: scale-in من 0.1 إلى 1.0
+	{
+		const float Scale = FMath::Lerp(0.1f, 1.0f, Progress);
+		return FVector(S * Scale, S * Scale, BaseZ * Scale);
+	}
+	else if (ActiveAnimType == 2) // ترقية: pulse ذهبي (يكبر ثم يصغر)
+	{
+		const float Pulse = FMath::Sin(Progress * PI) * 0.15f; // 0 → 0.15 → 0
+		const float Scale = 1.0f + Pulse;
+		return FVector(S * Scale, S * Scale, BaseZ * Scale);
+	}
+	else if (ActiveAnimType == 3) // كشف: fade-in من 0.01 إلى 1.0
+	{
+		const float Scale = FMath::Lerp(0.01f, 1.0f, Progress);
+		return FVector(S * Scale, S * Scale, BaseZ * Scale);
+	}
+
+	return FVector(S, S, BaseZ);
 }

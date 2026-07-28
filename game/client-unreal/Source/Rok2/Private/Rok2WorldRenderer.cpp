@@ -7,6 +7,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
 #include "Rok2FogOfWar.h"
+#include "Rok2AudioManager.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -255,7 +256,15 @@ void ARok2WorldRenderer::RefreshFromApi()
 			if (C.PlayerId == Api->GetPlayer().Id)
 			{
 				// مدينتي: نستخدم SpawnMarker بلون الحضارة بدلاً من HISM العادي
-				SpawnMarker(CityMesh, Loc, FString::Printf(TEXT("City_%s"), *C.PlayerId), MyTheme.Primary);
+				AActor* CityActor = SpawnMarkerActor(CityMesh, Loc, FString::Printf(TEXT("City_%s"), *C.PlayerId), MyTheme.Primary);
+			if (CityActor)
+			{
+				// P5-T6: حركة كشف (fade-in) عند ظهور المدينة بعد ضباب
+				if (ARok2BuildingActor* BuildingActor = Cast<ARok2BuildingActor>(CityActor))
+				{
+					BuildingActor->PlayRevealAnimation();
+				}
+			}
 			}
 			else
 			{
@@ -355,6 +364,10 @@ void ARok2WorldRenderer::RefreshFromApi()
 				Col = FLinearColor(0.55f, 0.65f, 0.75f);
 			}
 
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::MarchStart);
+			}
 			AActor* NewMarch = SpawnMarkerActor(
 				MarchMesh,
 				FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),

@@ -187,6 +187,9 @@ void ARok2CityLayoutActor::RebuildFromApi()
 		{
 			B->SetupWithCiv(Id, Level, Cell, HexSize, PlayerCiv);
 
+			// P5-T6: حركة بناء عند الزرع (scale-in من 0)
+			B->PlayBuildAnimation();
+
 			// أصل فني إن توفر (KayKit) — وإلا يبقى placeholder
 			if (URok2ArtAssets* Art = URok2ArtAssets::Get())
 			{
