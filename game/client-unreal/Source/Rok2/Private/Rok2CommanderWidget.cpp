@@ -23,8 +23,34 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Engine/Texture2D.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2Cmdr, Log, All);
+
+// ---------------------------------------------------------------------------
+// P4-T2: تحميل بورتريه قائد حقيقي من /Game/Art/Commanders/<id> (مستورد من PNG)
+// يعيد nullptr إن لم يُستورد — فيبقى الـ placeholder الملوّن (لا يُكسر العرض).
+// ---------------------------------------------------------------------------
+static UTexture2D* LoadCommanderPortrait(const FString& CommanderId)
+{
+	if (CommanderId.IsEmpty()) return nullptr;
+	const FString AssetPath = FString::Printf(TEXT("/Game/Art/Commanders/%s.%s"), *CommanderId, *CommanderId);
+	UTexture2D* Tex = LoadObject<UTexture2D>(nullptr, *AssetPath);
+	if (!Tex)
+	{
+		UE_LOG(LogRok2Cmdr, Verbose, TEXT("Portrait not imported (placeholder stays): %s"), *AssetPath);
+	}
+	return Tex;
+}
+
+/** يبني UImage من بورتريه حقيقي مع إطار ذهبي، أو يرجع placeholder عند غيابه. */
+static UImage* MakePortraitImage(UWidgetTree* Tree, UTexture2D* Tex, float Size)
+{
+	UImage* Img = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+	Img->SetBrushFromTexture(Tex);
+	Img->SetDesiredSizeOverride(FVector2D(Size, Size));
+	return Img;
+}
 
 // ---------------------------------------------------------------------------
 // ألوان الندرة (RoK)
@@ -321,8 +347,16 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	UHorizontalBox* CardBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	CardBorder->SetContent(CardBox);
 
-	// بورتريه placeholder (مربع ملوّن بحرف الاسم)
-	UWidget* Portrait = BuildPortraitPlaceholder(Cmd.Name, Cmd.Nation, 56.f);
+	// بورتريه: حقيقي من /Game/Art/Commanders/<id> إن استُورد، وإلا placeholder ملوّن
+	UWidget* Portrait = nullptr;
+	if (UTexture2D* Tex = LoadCommanderPortrait(Cmd.Id))
+	{
+		Portrait = MakePortraitImage(WidgetTree, Tex, 56.f);
+	}
+	else
+	{
+		Portrait = BuildPortraitPlaceholder(Cmd.Name, Cmd.Nation, 56.f);
+	}
 	CardBox->AddChildToHorizontalBox(Portrait);
 
 	// معلومات (عمودي)
@@ -431,6 +465,16 @@ void URok2CommanderWidget::SelectCommander(const FString& CommanderId)
 // ---------------------------------------------------------------------------
 void URok2CommanderWidget::PopulateDetailPanel(const FRok2CommanderDetailData& Detail)
 {
+	// بورتريه التفاصيل الكبير: حقيقي إن استُورد
+	if (DetailPortraitImage)
+	{
+		if (UTexture2D* Tex = LoadCommanderPortrait(Detail.Id))
+		{
+			DetailPortraitImage->SetBrushFromTexture(Tex);
+			DetailPortraitImage->SetDesiredSizeOverride(FVector2D(160.f, 160.f));
+		}
+	}
+
 	if (DetailNameText) DetailNameText->SetText(FText::FromString(Detail.Name));
 	if (DetailRarityText)
 	{

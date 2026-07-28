@@ -91,6 +91,62 @@ if os.path.isdir(ART_SRC):
 else:
     print("    no kaykit folder found — geometric fallback stays active.")
 
+# ---------------------------------------------------------------------------
+# P4-T2: فك ترميز الأصول الثنائية المخزنة base64 (WAV/PNG) ثم استيرادها:
+#   Content/Audio/<civ>/music.wav + Content/Audio/sfx/*.wav  → /Game/Audio/...
+#   Content/Art/Commanders/<id>.png                          → /Game/Art/Commanders
+# ---------------------------------------------------------------------------
+print(">>> Step 1c: Decoding + importing audio (WAV) and commander portraits (PNG) — P4-T2...")
+CONTENT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Content")
+
+def _ensure_binary(path, magic):
+    """يفك base64 إن لزم (نفس نمط _ensure_binary_glb) ويعيد مساراً binary صالحاً."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(len(magic))
+        if head == magic:
+            return path
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        decoded = base64.b64decode(raw, validate=True)
+        if decoded[: len(magic)] != magic:
+            return path
+        fixed = path + ".bin"
+        with open(fixed, "wb") as fh:
+            fh.write(decoded)
+        return fixed
+    except Exception:
+        return path
+
+def _import_tree(src_root, dst_root, exts_magics):
+    """يستورد كل ملفات exts من src_root إلى dst_root (متكرر، يتخطى الموجود)."""
+    imported = 0
+    if not os.path.isdir(src_root):
+        return 0
+    for dirpath, _dirs, files in os.walk(src_root):
+        for fname in sorted(files):
+            ext = os.path.splitext(fname)[1].lower()
+            magic = exts_magics.get(ext)
+            if not magic:
+                continue
+            dest_name = os.path.splitext(fname)[0]
+            if unreal.EditorAssetLibrary.does_asset_exist(f"{dst_root}/{dest_name}.{dest_name}"):
+                continue
+            task = unreal.AssetImportTask()
+            task.filename = _ensure_binary(os.path.join(dirpath, fname), magic)
+            task.destination_path = dst_root
+            task.destination_name = dest_name
+            task.replace_existing = False
+            task.automated = True
+            task.save = True
+            unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+            imported += 1
+    return imported
+
+_n_audio = _import_tree(os.path.join(CONTENT_ROOT, "Audio"), "/Game/Audio", {".wav": b"RIFF"})
+_n_portraits = _import_tree(os.path.join(CONTENT_ROOT, "Art", "Commanders"), "/Game/Art/Commanders", {".png": b"\x89PNG"})
+print(f"    imported {_n_audio} WAV + {_n_portraits} commander portraits (skipped existing).")
+
 print(">>> Step 2: Cleaning ALL old duplicated actors from level...")
 all_actors = editor_subsys.get_all_level_actors()
 deleted_count = 0
