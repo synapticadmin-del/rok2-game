@@ -512,6 +512,21 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// ---- scouts (P5-T5) ----
+	World.Scouts.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* ScoutsArr;
+	if (Obj->TryGetArrayField(TEXT("scouts"), ScoutsArr))
+	{
+		for (const auto& V : *ScoutsArr)
+		{
+			const TSharedPtr<FJsonObject> S = V->AsObject();
+			if (!S.IsValid()) continue;
+			FRok2ScoutEntity E;
+			ParseScoutEntity(S, E);
+			World.Scouts.Add(E);
+		}
+	}
+
 	// ---- battle reports (P1-T4) ----
 	const TArray<TSharedPtr<FJsonValue>>* ReportsArr;
 	if (Obj->TryGetArrayField(TEXT("reports"), ReportsArr))
@@ -604,6 +619,19 @@ void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEnti
 			E.Troops.Add(FString(KV.Key), (int32)KV.Value->AsNumber());
 		}
 	}
+}
+
+void URok2Api::ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const
+{
+	E.Id = S->GetStringField(TEXT("id"));
+	E.OwnerPlayerId = S->GetStringField(TEXT("ownerPlayerId"));
+	E.FromX = S->GetNumberField(TEXT("fromX"));
+	E.FromY = S->GetNumberField(TEXT("fromY"));
+	E.ToX = S->GetNumberField(TEXT("toX"));
+	E.ToY = S->GetNumberField(TEXT("toY"));
+	E.StartMs = (int64)S->GetNumberField(TEXT("startMs"));
+	E.EtaMs = (int64)S->GetNumberField(TEXT("etaMs"));
+	E.State = S->GetStringField(TEXT("state"));
 }
 
 void URok2Api::UpsertMarch(const FRok2MarchEntity& E)
@@ -798,6 +826,24 @@ void URok2Api::DispatchMarch(const FString& TargetType, const FString& TargetId,
 	});
 }
 
+void URok2Api::SendScout(double ToX, double ToY)
+{
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetNumberField(TEXT("toX"), ToX);
+	Body->SetNumberField(TEXT("toY"), ToY);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+
+	Post(TEXT("/v1/world/scout"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		EmitToast(TEXT("انطلقت الكشافة 🔭"));
+		ForceTick();
+		RefreshWorld();
+	});
+}
+
 void URok2Api::AllianceHelp()
 {
 	Post(TEXT("/v1/alliance/help"), TEXT("{}"), true, [this](const TSharedPtr<FJsonObject>& Obj)
@@ -978,6 +1024,15 @@ void URok2Api::ConnectWebSocket()
 			Self->World.SeasonDay = Day;
 			Self->PushNotification(TEXT("zone"), TEXT("📅 يوم جديد في الموسم"),
 				FString::Printf(TEXT("اليوم %d"), Day), 5.f);
+		}
+		else if (Type == TEXT("scout_arrived"))
+		{
+			// وصول كشافة (P5-T5) — إشعار + كشف منطقة
+			const FString ScoutId = Obj->GetStringField(TEXT("scoutId"));
+			const double ToX = Obj->GetNumberField(TEXT("toX"));
+			const double ToY = Obj->GetNumberField(TEXT("toY"));
+			Self->PushNotification(TEXT("toast"), TEXT("🔭 عادت الكشافة"),
+				FString::Printf(TEXT("كشفت المنطقة حول (%.0f, %.0f)"), ToX, ToY), 6.f);
 		}
 	});
 

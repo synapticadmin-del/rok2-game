@@ -118,10 +118,23 @@ void URok2MarchPanel::NativeConstruct()
 		UVerticalBoxSlot* SpacerSlot = VBox->AddChildToVerticalBox(Spacer);
 		SpacerSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
+		// P5-T5: زر استكشاف (يرسل كشافة بدون قوات)
+		UButton* ScoutButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ScoutButton"));
+		ScoutButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.5f, 0.8f));
+		UVerticalBoxSlot* ScoutSlot = VBox->AddChildToVerticalBox(ScoutButton);
+		ScoutSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
+
+		UTextBlock* ScoutText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ScoutText"));
+		ScoutText->SetText(FText::FromString(TEXT("🔭 إرسال كشافة (Scout)")));
+		ScoutText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		ScoutText->Font.Size = 16;
+		ScoutButton->AddChild(ScoutText);
+		ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
+
 		DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
 		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
 		UVerticalBoxSlot* BtnSlot = VBox->AddChildToVerticalBox(DispatchButton);
-		BtnSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 20.f));
+		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
 		BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 		UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
@@ -154,7 +167,7 @@ void URok2MarchPanel::OnDispatchClicked()
 
 	if (TargetType == TEXT("pass"))
 	{
-		Api->AttackPass(TargetId, TroopsMap); // Pass doesn't take commanders in current API maybe, or we update it?
+		Api->AttackPass(TargetId, TroopsMap);
 	}
 	else
 	{
@@ -163,5 +176,14 @@ void URok2MarchPanel::OnDispatchClicked()
 		Api->DispatchMarch(TargetType, TargetId, TroopsMap, PrimaryCmd, SecondaryCmd);
 	}
 
+	RemoveFromParent();
+}
+
+void URok2MarchPanel::OnScoutClicked()
+{
+	if (!Api) return;
+
+	// P5-T5: إرسال كشافة للنقطة المحددة (بدون قوات)
+	Api->SendScout(ToX, ToY);
 	RemoveFromParent();
 }

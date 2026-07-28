@@ -80,6 +80,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void DispatchMarch(const FString& TargetType, const FString& TargetId, const TMap<FString, int32>& Troops, const FString& PrimaryCommander, const FString& SecondaryCommander);
 
+	/** يرسل كشافة لنقطة على الخريطة (P5-T5) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void SendScout(double ToX, double ToY);
+
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void AllianceHelp();
 
@@ -253,6 +257,10 @@ protected:
 
 	/** يحوّل كائن march من JSON إلى FRok2MarchEntity (P1-T3) */
 	void ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEntity& E) const;
+
+	/** يحوّل كائن scout من JSON إلى FRok2ScoutEntity (P5-T5) */
+	void ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const;
+
 	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
 	void UpsertMarch(const FRok2MarchEntity& E);
 

@@ -65,4 +65,8 @@ protected:
 
 	UFUNCTION()
 	void OnDispatchClicked();
+
+	/** P5-T5: يرسل كشافة للنقطة المحددة */
+	UFUNCTION()
+	void OnScoutClicked();
 };

@@ -192,6 +192,32 @@ struct FRok2NodeEntity
 	double Remaining = 0;
 };
 
+/** كشافة واحدة على الخريطة (P5-T5) */
+USTRUCT(BlueprintType)
+struct FRok2ScoutEntity
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString OwnerPlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double FromX = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double FromY = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double ToX = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double ToY = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 StartMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 EtaMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString State; // "marching" / "arrived" / "returned"
+};
+
 USTRUCT(BlueprintType)
 struct FRok2WorldSnapshot
 {
@@ -211,6 +237,10 @@ struct FRok2WorldSnapshot
 	/** حالة قفل/فتح المناطق (P2-T4) — يملؤه الـ HUD لعرض مؤقت المناطق (P2-T6) */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2ZoneStatus> Zones;
+
+	/** الكشافة النشطة على الخريطة (P5-T5) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2ScoutEntity> Scouts;
 };
 
 USTRUCT(BlueprintType)

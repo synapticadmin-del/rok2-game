@@ -6,6 +6,7 @@
 #include "Rok2ProceduralAssets.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
+#include "Rok2FogOfWar.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -91,6 +92,13 @@ void ARok2WorldRenderer::OnWorldSnapshotHandler(const FRok2WorldSnapshot& Snapsh
 void ARok2WorldRenderer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// P5-T5: تحديث الكشافة من نظام ضباب الحرب
+	if (URok2FogOfWar* Fog = URok2FogOfWar::Get())
+	{
+		const int64 NowMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
+		Fog->UpdateScouts(NowMs);
+	}
 
 	// Animate marches — موضع حسب التقدم الزمني + اتجاه الأيقونة ناحية الهدف (P1-T3)
 	int64 NowMs = FDateTime::UtcNow().ToUnixTimestamp() * 1000;
@@ -193,10 +201,29 @@ void ARok2WorldRenderer::RefreshFromApi()
 	const FString MyCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
 	const FRok2CivTheme& MyTheme = CivThemes->GetTheme(MyCiv);
 
+	// P5-T5: جلب نظام ضباب الحرب
+	URok2FogOfWar* Fog = URok2FogOfWar::Get();
+	if (Fog && !Fog->IsExplored(Api->GetPlayer().X, Api->GetPlayer().Y))
+	{
+		// كشف المنطقة حول مدينة اللاعب تلقائياً (أول مرة)
+		Fog->RevealArea(Api->GetPlayer().X, Api->GetPlayer().Y, Fog->CityRevealRadius, true);
+	}
+
 	for (const FRok2CityEntity& C : W.Cities)
 	{
 		FVector Loc(C.X * WorldToUnrealScale, C.Y * WorldToUnrealScale, CityZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
+
+		// P5-T5: لا نرسم مدناً في مناطق غير مكتشفة (إلا إذا كانت مدينة اللاعب أو حليفه)
+		if (Fog && C.PlayerId != Api->GetPlayer().Id)
+		{
+			const double WorldX = C.X * WorldToUnrealScale;
+			const double WorldY = C.Y * WorldToUnrealScale;
+			if (!Fog->IsExplored(WorldX, WorldY))
+			{
+				continue; // مدينة في ضباب — لا نرسمها
+			}
+		}
 
 		// P2-T7: قلعة KayKit حقيقية إن توفرت (زرقاء لي/لتحالفي، حمراء للأعداء) — وإلا الـ HISM المكعّب
 		UStaticMesh* CastleMesh = nullptr;
@@ -242,6 +269,12 @@ void ARok2WorldRenderer::RefreshFromApi()
 		FVector Loc(P.X * WorldToUnrealScale, P.Y * WorldToUnrealScale, PassZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
 
+		// P5-T5: لا نرسم ممرات في ضباب
+		if (Fog && !Fog->IsExplored(P.X * WorldToUnrealScale, P.Y * WorldToUnrealScale))
+		{
+			continue;
+		}
+
 		if (PassHISM)
 		{
 			PassHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(1.5f, 1.5f, 1.5f)));
@@ -252,6 +285,12 @@ void ARok2WorldRenderer::RefreshFromApi()
 	{
 		FVector Loc(N.X * WorldToUnrealScale, N.Y * WorldToUnrealScale, NodeZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
+
+		// P5-T5: لا نرسم عقداً في ضباب
+		if (Fog && !Fog->IsExplored(N.X * WorldToUnrealScale, N.Y * WorldToUnrealScale))
+		{
+			continue;
+		}
 
 		if (N.Kind == TEXT("barb"))
 		{
