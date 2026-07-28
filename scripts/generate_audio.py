@@ -315,6 +315,74 @@ def sfx_notification():
 
 
 # ----------------------------------------------------------------------------
+# P4-T4: مؤثرات أحداث اللعب — جمع/بحث/شفاء/فتح منطقة/rally
+# ----------------------------------------------------------------------------
+
+def sfx_gather_complete():
+    """جمع موارد مكتمل: رنين عملات/حصاد مرح."""
+    n = int(1.0 * SR)
+    out = np.zeros(n)
+    # رنات عالية متتالية (عملات)
+    for k, f in enumerate([1318.51, 1567.98, 1760.0, 2093.0]):
+        paste(out, pluck(f, 0.35, 5, 0.7), 0.08 + k * 0.11, 0.4)
+    # خلفية حصاد خفيفة (خشخشة)
+    rng = np.random.default_rng(21)
+    t_arr = np.arange(n) / SR
+    rustle = rng.standard_normal(n) * np.sin(np.pi * t_arr / 1.0) ** 4 * 0.06
+    out += rustle
+    return out
+
+
+def sfx_research_complete():
+    """اكتمال بحث: وميض اكتشاف سحري صاعد."""
+    n = int(1.5 * SR)
+    out = np.zeros(n)
+    for k, f in enumerate([523.25, 659.25, 783.99, 1046.5, 1318.51]):
+        paste(out, pluck(f, 0.6, 6, 0.6), k * 0.14, 0.5)
+    # ذيل متلألئ
+    for k in range(4):
+        paste(out, pluck(1567.98 + k * 200, 0.4, 4, 0.4), 0.75 + k * 0.12, 0.25)
+    return out
+
+
+def sfx_heal_complete():
+    """شفاء جرحى: نغمة دافئة هادئة صاعدة (بلسم)."""
+    n = int(1.3 * SR)
+    out = np.zeros(n)
+    # وتد هارموني دافئ (دو مي صول) متتابع بنعومة
+    for k, f in enumerate([261.63, 329.63, 392.0]):
+        paste(out, flute_tone(f, 1.0, 3.5, 0.004), k * 0.25, 0.5)
+    paste(out, flute_tone(523.25, 0.9, 4.0, 0.005), 0.7, 0.4)
+    return out
+
+
+def sfx_zone_unlock():
+    """فتح منطقة: طبلة عميقة + فنفار قصير مَهيب."""
+    n = int(2.2 * SR)
+    out = np.zeros(n)
+    paste(out, drum(65, 0.7, 3.5), 0.0, 0.85)
+    for k, f in enumerate([196.0, 261.63, 329.63, 392.0]):
+        paste(out, chord([f, f * 1.5], 0.9, "flute"), 0.35 + k * 0.38, 0.6)
+    paste(out, drum(90, 0.3, 6), 1.6, 0.5)
+    return out
+
+
+def sfx_rally_launch():
+    """انطلاق rally: أبواق حرب متعاقبة + طبول مسير حماسية."""
+    n = int(2.5 * SR)
+    out = np.zeros(n)
+    # بوقان متعاقبان (نداء التجمع)
+    paste(out, pluck(220.0, 1.0, 8, 0.95), 0.0, 0.65)
+    paste(out, pluck(293.66, 1.2, 8, 0.95), 0.55, 0.65)
+    # طبول مسير سريعة
+    beat = 0.24
+    for k in range(7):
+        paste(out, drum(110, 0.12, 8), 1.0 + k * beat, 0.45)
+    paste(out, drum(70, 0.5, 4), 1.0 + 7 * beat, 0.6)
+    return out
+
+
+# ----------------------------------------------------------------------------
 # P4-T3: موسيقى معركة لكل حضارة — نسخ قتالية أسرع/أعنف من موسيقى السلام
 # (نفس سلم الحضارة، طبول مكثفة بنبض أعلى، نغمات عدوانية قصيرة متكررة)
 # ----------------------------------------------------------------------------
@@ -446,6 +514,12 @@ if __name__ == "__main__":
         "victory": sfx_victory, "defeat": sfx_defeat,
         "march_start": sfx_march_start, "button_click": sfx_button_click,
         "notification": sfx_notification,
+        # P4-T4: أحداث اللعب
+        "gather_complete": sfx_gather_complete,
+        "research_complete": sfx_research_complete,
+        "heal_complete": sfx_heal_complete,
+        "zone_unlock": sfx_zone_unlock,
+        "rally_launch": sfx_rally_launch,
     }
     for name, fn in sfx.items():
         print(f"[sfx/{name}]")

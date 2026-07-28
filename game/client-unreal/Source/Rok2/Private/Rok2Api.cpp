@@ -781,6 +781,31 @@ void URok2Api::Train(const FString& UnitId, int32 Count)
 	});
 }
 
+void URok2Api::HealWounded(const TMap<FString, int32>& TroopsMap)
+{
+	// P4-T4: شفاء الجرحى (P2-T2 backend) + صوت HealComplete عند نجاح الطلب
+	FString TroopsJson;
+	{
+		const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TroopsJson);
+		Writer->WriteObjectStart();
+		for (const TPair<FString, int32>& Pair : TroopsMap)
+		{
+			if (Pair.Value > 0) Writer->WriteValue(Pair.Key, Pair.Value);
+		}
+		Writer->WriteObjectEnd();
+	}
+	const FString Body = FString::Printf(TEXT("{\"troops\":%s}"), *TroopsJson);
+	Post(TEXT("/v1/city/heal"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		ParseCity(Obj);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::HealComplete);
+		}
+		EmitToast(TEXT("🏥 بدأ شفاء الجرحى"));
+	});
+}
+
 void URok2Api::CreateAlliance(const FString& Name, const FString& Tag)
 {
 	FString Body = FString::Printf(TEXT("{\"name\":\"%s\",\"tag\":\"%s\"}"), *Name, *Tag);
@@ -951,6 +976,15 @@ void URok2Api::ConnectWebSocket()
 				{
 					Self->EmitToast(TEXT("انطلقت المسيرة ⚔️"));
 				}
+				// P4-T4: عودة مسيرة جمع بموارد — صوت حصاد للاعب صاحب المسيرة
+				if (Type == TEXT("march_returning") && E.OwnerPlayerId == Self->Player.Id &&
+					(E.Kind.Contains(TEXT("gather")) || E.Kind.Contains(TEXT("node"))))
+				{
+					if (URok2AudioManager* Audio = URok2AudioManager::Get())
+					{
+						Audio->PlaySfx(ERok2AudioType::GatherComplete);
+					}
+				}
 			}
 		}
 		else if (Type == TEXT("march_update"))
@@ -1018,6 +1052,10 @@ void URok2Api::ConnectWebSocket()
 			const int32 ZoneId = (int32)Obj->GetNumberField(TEXT("zoneId"));
 			Self->PushNotification(TEXT("zone"), TEXT("🗺️ انفتحت منطقة جديدة"),
 				FString::Printf(TEXT("Zone %d — %s أصبحت متاحة الآن"), ZoneId, *RegionId), 10.f);
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::ZoneUnlock); // P4-T4
+			}
 			Self->RefreshWorld();
 		}
 		else if (Type == TEXT("tech_researched"))
@@ -1027,6 +1065,10 @@ void URok2Api::ConnectWebSocket()
 			const int32 Level = (int32)Obj->GetNumberField(TEXT("level"));
 			Self->PushNotification(TEXT("toast"), TEXT("🔬 اكتمل البحث"),
 				FString::Printf(TEXT("%s → مستوى %d"), *TechId, Level), 6.f);
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::ResearchComplete); // P4-T4
+			}
 			Self->LoadCity();
 		}
 		else if (Type == TEXT("rally_launched"))
@@ -1035,6 +1077,10 @@ void URok2Api::ConnectWebSocket()
 			const FString TargetId = Obj->GetStringField(TEXT("targetId"));
 			Self->PushNotification(TEXT("rally"), TEXT("🚩 انطلقت حملة التحالف"),
 				FString::Printf(TEXT("rally على %s"), *TargetId), 8.f);
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::RallyLaunch); // P4-T4
+			}
 			Self->RefreshWorld();
 		}
 		else if (Type == TEXT("season_day"))

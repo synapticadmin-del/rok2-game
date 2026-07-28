@@ -30,6 +30,16 @@
 build_complete, upgrade, victory, defeat, march_start, button_click,
 notification — كلها مؤثرات قصيرة (0.1-2 ثانية) مشتركة بين الحضارات.
 
+## مؤثرات أحداث اللعب (P4-T4)
+
+| الملف | الحدث المربوط |
+|---|---|
+| gather_complete.wav | عودة مسيرة جمع بالموارد (march_returning بـ kind gather/node) |
+| research_complete.wav | اكتمال بحث (WS tech_researched) |
+| heal_complete.wav | بدء شفاء جرحى (URok2Api::HealWounded → POST /v1/city/heal) |
+| zone_unlock.wav | فتح منطقة جديدة (WS zone_unlocked) |
+| rally_launch.wav | انطلاق حملة rally (WS rally_launched) |
+
 ## التخزين (base64)
 
 الملفات على الفرع مخزّنة نصياً base64 (نفس اصطلاح P2-T7 للـ GLB).

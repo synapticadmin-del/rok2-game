@@ -25,7 +25,13 @@ enum class ERok2AudioType : uint8
 	BattleDefeat,   // هزيمة
 	MarchStart,     // انطلاق مسيرة
 	ButtonClick,    // لمس زر
-	Notification    // إشعار
+	Notification,   // إشعار
+	// P4-T4: أحداث اللعب
+	GatherComplete, // عودة مسيرة جمع بالموارد
+	ResearchComplete, // اكتمال بحث (tech_researched)
+	HealComplete,   // بدء شفاء جرحى
+	ZoneUnlock,     // فتح منطقة جديدة (zone_unlocked)
+	RallyLaunch     // انطلاق حملة rally (rally_launched)
 };
 
 /** حالة الموسيقى الحالية. */

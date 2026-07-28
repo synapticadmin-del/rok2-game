@@ -65,6 +65,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Train(const FString& UnitId, int32 Count);
 
+	/** يبدأ شفاء جرحى خطيرين (P4-T4 — backend P2-T2) + صوت HealComplete. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void HealWounded(const TMap<FString, int32>& Troops);
+
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void CreateAlliance(const FString& Name, const FString& Tag);
 

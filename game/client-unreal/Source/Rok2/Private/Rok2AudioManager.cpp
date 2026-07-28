@@ -60,6 +60,12 @@ void URok2AudioManager::BuildAudioPaths()
 	SfxPaths.Add(ERok2AudioType::MarchStart,     TEXT("Audio/sfx/march_start"));
 	SfxPaths.Add(ERok2AudioType::ButtonClick,    TEXT("Audio/sfx/button_click"));
 	SfxPaths.Add(ERok2AudioType::Notification,   TEXT("Audio/sfx/notification"));
+	// P4-T4: أحداث اللعب
+	SfxPaths.Add(ERok2AudioType::GatherComplete,   TEXT("Audio/sfx/gather_complete"));
+	SfxPaths.Add(ERok2AudioType::ResearchComplete, TEXT("Audio/sfx/research_complete"));
+	SfxPaths.Add(ERok2AudioType::HealComplete,     TEXT("Audio/sfx/heal_complete"));
+	SfxPaths.Add(ERok2AudioType::ZoneUnlock,       TEXT("Audio/sfx/zone_unlock"));
+	SfxPaths.Add(ERok2AudioType::RallyLaunch,      TEXT("Audio/sfx/rally_launch"));
 }
 
 USoundWave* URok2AudioManager::LoadSound(const FString& Path) const

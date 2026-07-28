@@ -30,6 +30,7 @@ function check(name, condition, detail = '') { condition ? ok(name) : fail(name,
 
 const CIVS = ['rome', 'china', 'arabia', 'egypt', 'vikings', 'japan'];
 const SFX = ['build_complete', 'upgrade', 'victory', 'defeat', 'march_start', 'button_click', 'notification'];
+const SFX_P4T4 = ['gather_complete', 'research_complete', 'heal_complete', 'zone_unlock', 'rally_launch'];
 
 function checkBinaryOrB64(path, magic, label) {
   if (!existsSync(path)) { fail(`${label} exists`, path); return; }
@@ -65,6 +66,15 @@ console.log('\n[2] SFX WAV files');
 for (const sfx of SFX) {
   const p = join(ROOT, 'game/client-unreal/Content/Audio/sfx', `${sfx}.wav`);
   checkBinaryOrB64(p, [0x52, 0x49, 0x46, 0x46], `Audio/sfx/${sfx}.wav`);
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n[2b] P4-T4 gameplay event SFX WAV files');
+// ---------------------------------------------------------------------------
+for (const sfx of SFX_P4T4) {
+  const p = join(ROOT, 'game/client-unreal/Content/Audio/sfx', `${sfx}.wav`);
+  checkBinaryOrB64(p, [0x52, 0x49, 0x46, 0x46], `Audio/sfx/${sfx}.wav`);
+  if (existsSync(p)) check(`Audio/sfx/${sfx}.wav non-trivial size`, statSync(p).size > 5000, `${statSync(p).size} bytes`);
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +171,37 @@ if (existsSync(apiCpp)) {
 }
 
 // ---------------------------------------------------------------------------
+console.log('\n[6d] P4-T4 gameplay event SFX wiring');
+// ---------------------------------------------------------------------------
+const amH2 = join(ROOT, 'game/client-unreal/Source/Rok2/Public/Rok2AudioManager.h');
+if (existsSync(amH2)) {
+  const c = readFileSync(amH2, 'utf8');
+  for (const t of ['GatherComplete', 'ResearchComplete', 'HealComplete', 'ZoneUnlock', 'RallyLaunch'])
+    check(`ERok2AudioType has ${t}`, c.includes(t));
+}
+if (existsSync(amCpp)) {
+  const c = readFileSync(amCpp, 'utf8');
+  for (const s of SFX_P4T4)
+    check(`AudioManager maps sfx/${s}`, c.includes(`Audio/sfx/${s}`));
+}
+if (existsSync(apiCpp)) {
+  const c = readFileSync(apiCpp, 'utf8');
+  check('plays ZoneUnlock on zone_unlocked', c.includes('PlaySfx(ERok2AudioType::ZoneUnlock)'));
+  check('plays ResearchComplete on tech_researched', c.includes('PlaySfx(ERok2AudioType::ResearchComplete)'));
+  check('plays RallyLaunch on rally_launched', c.includes('PlaySfx(ERok2AudioType::RallyLaunch)'));
+  check('plays GatherComplete on march_returning gather', c.includes('PlaySfx(ERok2AudioType::GatherComplete)'));
+  check('gather check looks for gather/node kind', c.includes('gather') && c.includes('march_returning'));
+  check('has HealWounded method', c.includes('void URok2Api::HealWounded'));
+  check('HealWounded posts to /v1/city/heal', c.includes('/v1/city/heal'));
+  check('HealWounded plays HealComplete on success', c.includes('PlaySfx(ERok2AudioType::HealComplete)'));
+}
+const apiH = join(ROOT, 'game/client-unreal/Source/Rok2/Public/Rok2Api.h');
+if (existsSync(apiH)) {
+  const c = readFileSync(apiH, 'utf8');
+  check('Rok2Api.h declares HealWounded', c.includes('HealWounded'));
+}
+
+// ---------------------------------------------------------------------------
 console.log('\n[7] Generation script reproducibility');
 // ---------------------------------------------------------------------------
 const gen = join(ROOT, 'scripts/generate_audio.py');
@@ -171,6 +212,7 @@ if (existsSync(gen)) {
   check('generates all 7 sfx', SFX.every(s => c.includes(s)));
   check('writes 16-bit PCM WAV', c.includes('setsampwidth(2)'));
   check('generates battle music for all civs (P4-T3)', CIVS.every(v => c.includes(`battle_${v}`)) && c.includes('battle.wav'));
+  check('generates P4-T4 event sfx', SFX_P4T4.every(s => c.includes(`"${s}"`)));
 }
 const decode = join(ROOT, 'scripts/decode_binary_assets.py');
 check('scripts/decode_binary_assets.py exists', existsSync(decode));
