@@ -22,6 +22,7 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 
 	Api->OnCityLoaded.AddDynamic(this, &URok2CityWidget::OnCityLoaded);
 	Api->OnToast.AddDynamic(this, &URok2CityWidget::OnToast);
+	Api->OnConnectionState.AddDynamic(this, &URok2CityWidget::OnConnectionState);
 
 	if (TrainButton) TrainButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnTrainClicked);
 	if (CreateAllianceButton) CreateAllianceButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnCreateAllianceClicked);
@@ -82,6 +83,17 @@ void URok2CityWidget::NativeConstruct()
 		UHorizontalBoxSlot* ResSlot = TopHBox->AddChildToHorizontalBox(ResourcesText);
 		ResSlot->SetVerticalAlignment(VAlign_Center);
 		ResSlot->SetPadding(FMargin(20, 0, 20, 0));
+
+		// Connection status badge (P1-T2)
+		ConnectionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionText"));
+		ConnectionText->SetText(FText::FromString(TEXT("🟢 متصل")));
+		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
+		FSlateFontInfo ConnFont = ConnectionText->GetFont();
+		ConnFont.Size = 12;
+		ConnectionText->SetFont(ConnFont);
+		UHorizontalBoxSlot* ConnSlot = TopHBox->AddChildToHorizontalBox(ConnectionText);
+		ConnSlot->SetVerticalAlignment(VAlign_Center);
+		ConnSlot->SetPadding(FMargin(10, 0, 10, 0));
 
 		// Refresh Button
 		RefreshButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RefreshButton"));
@@ -330,6 +342,21 @@ void URok2CityWidget::OnRefreshClicked()
 void URok2CityWidget::OnToast(const FString& Message)
 {
 	// could show a toast text block
+}
+
+void URok2CityWidget::OnConnectionState(bool bOnline, const FString& StatusMessage)
+{
+	if (!ConnectionText) return;
+	if (bOnline)
+	{
+		ConnectionText->SetText(FText::FromString(TEXT("🟢 متصل")));
+		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
+	}
+	else
+	{
+		ConnectionText->SetText(FText::FromString(FString::Printf(TEXT("🔴 %s"), *StatusMessage)));
+		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.5f, 0.4f)));
+	}
 }
 
 void URok2QueueBtnHandler::OnClick()

@@ -1,4 +1,4 @@
-// Copyright ROK2. Boot UI widget (login + civ select).
+// Copyright ROK2. Boot UI widget (login + civ select + loading/connection status).
 
 #pragma once
 
@@ -10,6 +10,8 @@ class URok2Api;
 class UComboBoxString;
 class UEditableTextBox;
 class UButton;
+class UTextBlock;
+class UBorder;
 
 UCLASS()
 class URok2BootWidget : public UUserWidget
@@ -29,6 +31,17 @@ public:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* StartButton;
 
+	/** شاشة التحميل: نص الحالة أسفل البطاقة (جاري الاتصال / إعادة المحاولة / فشل) */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* StatusText;
+
+	/** حاوية مؤشر التحميل — تظهر أثناء أي عملية شبكة */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UBorder* LoadingPanel;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* LoadingText;
+
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Setup(URok2Api* InApi);
 
@@ -37,6 +50,7 @@ protected:
 	URok2Api* Api;
 
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UFUNCTION()
 	void OnEnterClicked();
@@ -52,4 +66,15 @@ protected:
 
 	UFUNCTION()
 	void OnPlayerLoaded(const FRok2Player& Player);
+
+	UFUNCTION()
+	void OnConnectionState(bool bOnline, const FString& StatusMessage);
+
+	/** إظهار/إخفاء مؤشر التحميل مع نص اختياري */
+	void SetLoading(bool bShow, const FString& Message = TEXT(""));
+
+	/** نقاط متحركة لمؤشر التحميل */
+	float LoadingDotsTimer = 0.f;
+	FString LoadingBaseMessage;
+	bool bLoadingVisible = false;
 };

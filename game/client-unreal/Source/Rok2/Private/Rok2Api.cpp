@@ -1,4 +1,5 @@
 // Copyright ROK2. Cloudflare API + WebSocket client impl.
+// P1-T2: معالجة أخطاء الشبكة + إعادة الاتصال التلقائي + بث حالة الاتصال للواجهات.
 
 #include "Rok2Api.h"
 #include "HttpModule.h"
@@ -51,69 +52,169 @@ FString URok2Api::AuthHeader() const
 	return Token.IsEmpty() ? FString() : FString::Printf(TEXT("Bearer %s"), *Token);
 }
 
-void URok2Api::Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk)
+void URok2Api::SetOnline(bool bNewOnline, const FString& Reason)
 {
+	OnConnectionState.Broadcast(bNewOnline, Reason);
+}
+
+// ---------------------------------------------------------------------------
+// HTTP مع retry backoff — يعيد المحاولة فقط على أخطاء الشبكة (لا استجابة/مهلة)
+// وأخطاء 5xx المؤقتة. أخطاء 4xx منطقية تُمرر فوراً بدون إعادة.
+// ---------------------------------------------------------------------------
+void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const FString& JsonBody, bool bAuth,
+	TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr, int32 MaxRetries)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(BuildUrl(Path));
-	Req->SetVerb(TEXT("GET"));
+	Req->SetVerb(Verb);
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	if (!Token.IsEmpty()) Req->SetHeader(TEXT("Authorization"), AuthHeader());
-	Req->OnProcessRequestComplete().BindLambda([OnOk](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
+	Req->SetTimeout(HttpTimeoutSeconds);
+	if (bAuth && !Token.IsEmpty()) Req->SetHeader(TEXT("Authorization"), AuthHeader());
+	if (!JsonBody.IsEmpty()) Req->SetContentAsString(JsonBody);
+
+	const FString UrlCopy = Req->GetURL();
+	const int32 Attempt = 0;
+
+	Req->OnProcessRequestComplete().BindLambda(
+		[WeakThis, OnOk, OnErr, MaxRetries, UrlCopy, Verb, Path, JsonBody, bAuth, Attempt]
+		(FHttpRequestPtr DoneReq, FHttpResponsePtr Resp, bool bSuccess) mutable
 	{
-		if (!bSuccess || !Resp.IsValid())
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+
+		const bool bHasResponse = Resp.IsValid();
+		const int32 Code = bHasResponse ? Resp->GetResponseCode() : 0;
+		const FString Body = bHasResponse ? Resp->GetContentAsString() : FString();
+
+		// نجاح مؤكد
+		if (bSuccess && bHasResponse && Code < 400)
 		{
-			UE_LOG(LogRok2, Error, TEXT("GET failed: %s"), *Req->GetURL());
+			TSharedPtr<FJsonObject> Obj;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
+			if (FJsonSerializer::Deserialize(Reader, Obj) && Obj.IsValid())
+			{
+				Self->SetOnline(true, TEXT("متصل"));
+				OnOk(Obj);
+				return;
+			}
+			// JSON تالف من الخادم — خطأ فعلي
+			FString Err = FString::Printf(TEXT("استجابة غير صالحة من الخادم (HTTP %d)"), Code);
+			UE_LOG(LogRok2, Error, TEXT("%s %s -> bad json"), *Verb, *UrlCopy);
+			Self->EmitError(Err);
+			if (OnErr) OnErr(Err);
 			return;
 		}
-		int32 Code = Resp->GetResponseCode();
-		FString Body = Resp->GetContentAsString();
-		TSharedPtr<FJsonObject> Obj;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-		if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+
+		// هل الخطأ يستحق إعادة المحاولة؟ (انقطاع شبكة أو 5xx)
+		const bool bRetryable = (!bHasResponse) || (Code == 0) || (Code >= 500);
+		if (bRetryable && Attempt < MaxRetries)
 		{
-			UE_LOG(LogRok2, Error, TEXT("GET bad json (%d): %s"), Code, *Body.Left(200));
-			return;
+			const int32 NextAttempt = Attempt + 1;
+			const float Delay = FMath::Pow(2.f, (float)NextAttempt); // 2s, 4s, ...
+			UE_LOG(LogRok2, Warning, TEXT("%s %s failed (code=%d) — retry %d/%d in %.0fs"),
+				*Verb, *UrlCopy, Code, NextAttempt, MaxRetries, Delay);
+			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال — إعادة المحاولة %d/%d..."), NextAttempt, MaxRetries));
+
+			FTimerHandle TimerHandle;
+			FTimerDelegate D;
+			D.BindLambda([WeakThis, Verb, Path, JsonBody, bAuth, OnOk, OnErr, MaxRetries, NextAttempt]() mutable
+			{
+				if (!WeakThis.IsValid()) return;
+				// إعادة بناء الطلب بنفس المعطيات مع رفع عداد المحاولات
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> RetryReq = FHttpModule::Get().CreateRequest();
+				RetryReq->SetURL(WeakThis->BuildUrl(Path));
+				RetryReq->SetVerb(Verb);
+				RetryReq->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+				RetryReq->SetTimeout(URok2Api::HttpTimeoutSeconds);
+				if (bAuth && !WeakThis->GetToken().IsEmpty())
+					RetryReq->SetHeader(TEXT("Authorization"), WeakThis->AuthHeader());
+				if (!JsonBody.IsEmpty()) RetryReq->SetContentAsString(JsonBody);
+
+				RetryReq->OnProcessRequestComplete().BindLambda(
+					[WeakThis, OnOk, OnErr, MaxRetries, Verb, Path, JsonBody, bAuth, NextAttempt]
+					(FHttpRequestPtr R2, FHttpResponsePtr Resp2, bool bSuccess2) mutable
+				{
+					if (!WeakThis.IsValid()) return;
+					URok2Api* Self2 = WeakThis.Get();
+					const bool bHasResp2 = Resp2.IsValid();
+					const int32 Code2 = bHasResp2 ? Resp2->GetResponseCode() : 0;
+					const FString Body2 = bHasResp2 ? Resp2->GetContentAsString() : FString();
+
+					if (bSuccess2 && bHasResp2 && Code2 < 400)
+					{
+						TSharedPtr<FJsonObject> Obj2;
+						TSharedRef<TJsonReader<>> Reader2 = TJsonReaderFactory<>::Create(Body2);
+						if (FJsonSerializer::Deserialize(Reader2, Obj2) && Obj2.IsValid())
+						{
+							Self2->SetOnline(true, TEXT("تمت استعادة الاتصال"));
+							OnOk(Obj2);
+							return;
+						}
+					}
+
+					const bool bRetryable2 = (!bHasResp2) || (Code2 == 0) || (Code2 >= 500);
+					if (bRetryable2 && NextAttempt < MaxRetries)
+					{
+						// سلسلة إعادة المحاولة تستمر عبر استدعاء جديد بنفس العداد
+						Self2->RequestWithRetry(Verb, Path, JsonBody, bAuth, OnOk, OnErr, MaxRetries);
+						return;
+					}
+
+					// فشل نهائي
+					FString Err2;
+					if (bHasResp2)
+					{
+						TSharedPtr<FJsonObject> ObjE;
+						TSharedRef<TJsonReader<>> ReaderE = TJsonReaderFactory<>::Create(Body2);
+						if (FJsonSerializer::Deserialize(ReaderE, ObjE) && ObjE.IsValid())
+							ObjE->TryGetStringField(TEXT("error"), Err2);
+					}
+					if (Err2.IsEmpty()) Err2 = FString::Printf(TEXT("فشل الاتصال بالخادم (HTTP %d)"), Code2);
+					UE_LOG(LogRok2, Error, TEXT("%s %s -> %s (final)"), *Verb, *Path, *Err2);
+					Self2->SetOnline(false, TEXT("تعذر الاتصال بالخادم"));
+					Self2->EmitError(Err2);
+					if (OnErr) OnErr(Err2);
+				});
+				RetryReq->ProcessRequest();
+			});
+
+			if (UWorld* W = Self->GetWorld())
+			{
+				W->GetTimerManager().SetTimer(TimerHandle, D, Delay, false);
+				return;
+			}
+			// بلا عالم صالح — فشل مباشر
 		}
-		if (Code >= 400)
+
+		// خطأ غير قابل لإعادة المحاولة (4xx) أو استنفاد المحاولات
+		FString Err;
+		if (bHasResponse)
 		{
-			FString Err;
-			Obj->TryGetStringField(TEXT("error"), Err);
-			UE_LOG(LogRok2, Warning, TEXT("GET %s -> %d %s"), *Req->GetURL(), Code, *Err);
-			return;
+			TSharedPtr<FJsonObject> Obj;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
+			if (FJsonSerializer::Deserialize(Reader, Obj) && Obj.IsValid())
+				Obj->TryGetStringField(TEXT("error"), Err);
 		}
-		OnOk(Obj);
+		if (Err.IsEmpty()) Err = FString::Printf(TEXT("فشل الطلب (HTTP %d)"), Code);
+		UE_LOG(LogRok2, Warning, TEXT("%s %s -> %s"), *Verb, *UrlCopy, *Err);
+		if (bRetryable) Self->SetOnline(false, TEXT("تعذر الاتصال بالخادم"));
+		Self->EmitError(Err);
+		if (OnErr) OnErr(Err);
 	});
 	Req->ProcessRequest();
+}
+
+void URok2Api::Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk)
+{
+	RequestWithRetry(TEXT("GET"), Path, FString(), !Token.IsEmpty(), OnOk, nullptr, HttpMaxRetries);
 }
 
 void URok2Api::Post(const FString& Path, const FString& JsonBody, bool bAuth,
 	TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr)
 {
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(BuildUrl(Path));
-	Req->SetVerb(TEXT("POST"));
-	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	if (bAuth && !Token.IsEmpty()) Req->SetHeader(TEXT("Authorization"), AuthHeader());
-	Req->SetContentAsString(JsonBody);
-	Req->OnProcessRequestComplete().BindLambda([OnOk, OnErr](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
-	{
-		FString Body = Resp.IsValid() ? Resp->GetContentAsString() : FString();
-		int32 Code = Resp.IsValid() ? Resp->GetResponseCode() : 0;
-		TSharedPtr<FJsonObject> Obj;
-		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Body);
-		bool bParsed = FJsonSerializer::Deserialize(Reader, Obj);
-		if (!bSuccess || !bParsed || !Obj.IsValid() || Code >= 400)
-		{
-			FString Err;
-			if (Obj.IsValid()) Obj->TryGetStringField(TEXT("error"), Err);
-			if (Err.IsEmpty()) Err = FString::Printf(TEXT("HTTP %d"), Code);
-			UE_LOG(LogRok2, Warning, TEXT("POST %s -> %s"), *Req->GetURL(), *Err);
-			if (OnErr) OnErr(Err);
-			return;
-		}
-		OnOk(Obj);
-	});
-	Req->ProcessRequest();
+	RequestWithRetry(TEXT("POST"), Path, JsonBody, bAuth, OnOk, OnErr, HttpMaxRetries);
 }
 
 void URok2Api::LoginAsGuest()
@@ -133,6 +234,11 @@ void URok2Api::LoginAsGuest()
 		UE_LOG(LogRok2, Log, TEXT("Login ok token=%s player=%s"), *Self->Token.Left(12), *Self->Player.Id);
 		Self->OnLoginComplete.Broadcast(Self->Token);
 		Self->EmitToast(TEXT("تم تسجيل الدخول"));
+	},
+	[WeakThis](const FString& Err)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->EmitError(FString::Printf(TEXT("فشل تسجيل الدخول: %s"), *Err));
 	});
 }
 
@@ -418,6 +524,7 @@ void URok2Api::ForceTick()
 	Req->SetVerb(TEXT("POST"));
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Req->SetHeader(TEXT("x-admin-key"), AdminKey);
+	Req->SetTimeout(HttpTimeoutSeconds);
 	Req->SetContentAsString(TEXT("{\"force\":true}"));
 	Req->ProcessRequest();
 }
@@ -430,12 +537,17 @@ void URok2Api::SetSeasonDay(int32 Day)
 	Req->SetVerb(TEXT("POST"));
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	Req->SetHeader(TEXT("x-admin-key"), AdminKey);
+	Req->SetTimeout(HttpTimeoutSeconds);
 	Req->SetContentAsString(Body);
 	Req->ProcessRequest();
 }
 
+// ---------------------------------------------------------------------------
+// WebSocket مع إعادة اتصال تلقائي (backoff أسّي) — P1-T2
+// ---------------------------------------------------------------------------
 void URok2Api::ConnectWebSocket()
 {
+	bWsDesired = true;
 	if (bWsConnected && WebSocket.IsValid()) return;
 
 	FString WsUrl = BaseUrl;
@@ -445,22 +557,31 @@ void URok2Api::ConnectWebSocket()
 
 	WebSocket = FModuleManager::LoadModuleChecked<FWebSocketsModule>(TEXT("WebSockets")).CreateWebSocket(WsUrl);
 
-	WebSocket->OnConnected().AddLambda([this]()
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+
+	WebSocket->OnConnected().AddLambda([WeakThis]()
 	{
-		bWsConnected = true;
-		EmitToast(TEXT("اتصال حي ✓"));
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->bWsConnected = true;
+		Self->WsReconnectDelay = 2.f; // reset backoff on success
+		Self->WsReconnectTimer = 0.f;
+		Self->SetOnline(true, TEXT("اتصال حي ✓"));
+		Self->EmitToast(TEXT("اتصال حي ✓"));
 		// hello
 		TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
 		Msg->SetStringField(TEXT("type"), TEXT("hello"));
-		Msg->SetStringField(TEXT("playerId"), Player.Id);
+		Msg->SetStringField(TEXT("playerId"), Self->Player.Id);
 		FString Str;
 		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
 		FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
-		WebSocket->Send(Str);
+		Self->WebSocket->Send(Str);
 	});
 
-	WebSocket->OnMessage().AddLambda([this](const FString& Message)
+	WebSocket->OnMessage().AddLambda([WeakThis](const FString& Message)
 	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
 		TSharedPtr<FJsonObject> Obj;
 		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Message);
 		if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid()) return;
@@ -469,29 +590,39 @@ void URok2Api::ConnectWebSocket()
 
 		if (Type == TEXT("snapshot") || Obj->HasField(TEXT("cities")))
 		{
-			ParseWorld(Obj);
+			Self->ParseWorld(Obj);
 		}
 		else if (Type == TEXT("pass_owner_changed"))
 		{
-			EmitToast(TEXT("تغير مالك ممر!"));
-			RefreshWorld();
+			Self->EmitToast(TEXT("تغير مالك ممر!"));
+			Self->RefreshWorld();
 		}
 		else if (Type == TEXT("battle_report"))
 		{
-			EmitToast(TEXT("تقرير قتال جديد"));
-			RefreshWorld();
+			Self->EmitToast(TEXT("تقرير قتال جديد"));
+			Self->RefreshWorld();
 		}
 	});
 
-	WebSocket->OnConnectionError().AddLambda([this](const FString& Err)
+	WebSocket->OnConnectionError().AddLambda([WeakThis](const FString& Err)
 	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
 		UE_LOG(LogRok2, Error, TEXT("WS error: %s"), *Err);
-		EmitToast(TEXT("WS خطأ"));
+		Self->bWsConnected = false;
+		Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
+		// سيُعاد الاتصال من PumpEvents بعد WsReconnectDelay
 	});
 
-	WebSocket->OnClosed().AddLambda([this](int32 Code, const FString& Reason, bool bWasClean)
+	WebSocket->OnClosed().AddLambda([WeakThis](int32 Code, const FString& Reason, bool bWasClean)
 	{
-		bWsConnected = false;
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->bWsConnected = false;
+		if (Self->bWsDesired)
+		{
+			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال الحي — إعادة خلال %.0f ث"), Self->WsReconnectDelay));
+		}
 	});
 
 	WebSocket->Connect();
@@ -499,6 +630,7 @@ void URok2Api::ConnectWebSocket()
 
 void URok2Api::DisconnectWebSocket()
 {
+	bWsDesired = false; // لا إعادة اتصال بعد الفصل اليدوي
 	if (WebSocket.IsValid())
 	{
 		WebSocket->Close();
@@ -509,7 +641,21 @@ void URok2Api::DisconnectWebSocket()
 
 void URok2Api::PumpEvents(float DeltaSeconds)
 {
-	// Periodic world refresh if WS not connected (fallback polling)
+	// 1) إعادة اتصال WebSocket التلقائية بـ backoff أسّي
+	if (bWsDesired && !bWsConnected)
+	{
+		WsReconnectTimer += DeltaSeconds;
+		if (WsReconnectTimer >= WsReconnectDelay)
+		{
+			WsReconnectTimer = 0.f;
+			UE_LOG(LogRok2, Log, TEXT("WS reconnect attempt (delay was %.0fs)"), WsReconnectDelay);
+			ConnectWebSocket();
+			// backoff للمحاولة القادمة في حال الفشل
+			WsReconnectDelay = FMath::Min(WsReconnectDelay * 2.f, WsReconnectMaxDelay);
+		}
+	}
+
+	// 2) Periodic world refresh if WS not connected (fallback polling)
 	if (!bWsConnected)
 	{
 		WorldPollTimer += DeltaSeconds;

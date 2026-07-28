@@ -26,6 +26,10 @@ public:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* PlayerInfoText;
 
+	/** شارة حالة الاتصال في الشريط العلوي (متصل / إعادة اتصال / غير متصل) — P1-T2 */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ConnectionText;
+
 	UPROPERTY(meta = (BindWidgetOptional))
 	UVerticalBox* BuildingsList;
 
@@ -88,6 +92,9 @@ protected:
 
 	UFUNCTION()
 	void OnToast(const FString& Message);
+
+	UFUNCTION()
+	void OnConnectionState(bool bOnline, const FString& StatusMessage);
 
 	UPROPERTY(Transient)
 	TArray<URok2QueueBtnHandler*> QueueHandlers;
