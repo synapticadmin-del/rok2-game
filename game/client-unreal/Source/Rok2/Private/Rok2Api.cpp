@@ -995,9 +995,10 @@ void URok2Api::ConnectWebSocket()
 				FRok2BattleReport Report;
 				Self->ParseBattleReport(*ReportObj, Report);
 				Self->AddBattleReport(Report);
-				// P5-T6: صوت نصر/هزيمة
+				// P5-T6: صوت نصر/هزيمة + P4-T3: تبديل لموسيقى القتال
 				if (URok2AudioManager* Audio = URok2AudioManager::Get())
 				{
+					Audio->EnterBattleMode();
 					const bool bVictory = (Report.Winner == TEXT("attacker") && Report.AttackerPlayerId == Self->Player.Id) ||
 						(Report.Winner == TEXT("defender") && Report.AttackerPlayerId != Self->Player.Id);
 					Audio->PlaySfx(bVictory ? ERok2AudioType::BattleVictory : ERok2AudioType::BattleDefeat);

@@ -314,6 +314,117 @@ def sfx_notification():
     return out
 
 
+# ----------------------------------------------------------------------------
+# P4-T3: موسيقى معركة لكل حضارة — نسخ قتالية أسرع/أعنف من موسيقى السلام
+# (نفس سلم الحضارة، طبول مكثفة بنبض أعلى، نغمات عدوانية قصيرة متكررة)
+# ----------------------------------------------------------------------------
+
+def _war_drums(dur, bpm, base_freq=70, offbeat=True):
+    """طبول حرب مكثفة: ضربة قوية كل نبضة + أوف-بيت مزدوج."""
+    n = int(dur * SR)
+    base = np.zeros(n)
+    beat = 60.0 / bpm
+    t = 0.0
+    while t < dur:
+        paste(base, drum(base_freq, 0.3, 5), t, 0.9)
+        if offbeat:
+            paste(base, drum(base_freq * 2.2, 0.1, 10), t + beat * 0.5, 0.35)
+            paste(base, drum(base_freq * 2.2, 0.08, 12), t + beat * 0.75, 0.3)
+        t += beat
+    return base
+
+
+def battle_rome():
+    """روما قتال: طبول ليجيون رباعية + فنفار نحاسية صاعدة متكررة."""
+    dur, bpm = 20.0, 132
+    n = int(dur * SR)
+    beat = 60.0 / bpm
+    base = _war_drums(dur, bpm, 75)
+    mel = np.zeros(n)
+    phrase = [220.0, 293.66, 329.63, 392.0, 329.63, 293.66]
+    for k, f in enumerate(phrase * 5):
+        paste(mel, chord([f, f * 1.5], beat * 1.2, "flute"), k * beat * 2, 0.6)
+    return loop_fade(mix(base, mel), 1.0)
+
+
+def battle_china():
+    """الصين قتال: طبول تانغ + نغمات خماسية سريعة متصاعدة."""
+    dur, bpm = 20.0, 140
+    n = int(dur * SR)
+    beat = 60.0 / bpm
+    base = _war_drums(dur, bpm, 80)
+    mel = np.zeros(n)
+    scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25]
+    seq = [0, 2, 4, 3, 1, 5, 4, 2]
+    for k, idx in enumerate(seq * 4):
+        paste(mel, pluck(scale[idx % 6] * 1.5, beat * 0.9, 7, 0.95), k * beat, 0.55)
+    return loop_fade(mix(base, mel), 1.0)
+
+
+def battle_arabia():
+    """العرب قتال: إيقاع مقسوم سريع + ناي حجاز هجومي متلاحق."""
+    dur, bpm = 20.0, 150
+    n = int(dur * SR)
+    beat = 60.0 / bpm
+    base = np.zeros(n)
+    t = 0.0
+    while t < dur:
+        paste(base, drum(95, 0.18, 7), t, 0.85)
+        paste(base, drum(210, 0.09, 12), t + beat * 0.33, 0.35)
+        paste(base, drum(210, 0.09, 12), t + beat * 0.66, 0.35)
+        t += beat
+    hijaz = [293.66, 311.13, 369.99, 392.0, 440.0, 466.16, 587.33]
+    mel = np.zeros(n)
+    seq = [0, 1, 2, 3, 4, 3, 2, 3, 4, 5, 6, 5]
+    for k, idx in enumerate(seq * 3):
+        paste(mel, flute_tone(hijaz[idx % 7], beat * 0.95, 6.0, 0.005), k * beat, 0.5)
+    return loop_fade(mix(base, mel), 1.0)
+
+
+def battle_egypt():
+    """مصر قتال: قرع عميق سريع + ناي فريجي حاد متصاعد."""
+    dur, bpm = 20.0, 138
+    n = int(dur * SR)
+    beat = 60.0 / bpm
+    base = _war_drums(dur, bpm, 68)
+    mel = np.zeros(n)
+    phrygian = [329.63, 349.23, 392.0, 440.0, 493.88, 659.25]
+    seq = [0, 1, 0, 2, 3, 4, 5, 4]
+    for k, idx in enumerate(seq * 4):
+        paste(mel, flute_tone(phrygian[idx % 6], beat * 1.1, 7.0, 0.009), k * beat * 1.5, 0.55)
+    return loop_fade(mix(base, mel), 1.0)
+
+
+def battle_vikings():
+    """فايكنج قتال: طبول حرب ثقيلة سريعة + أبواق متعاقبة + درون غاضب."""
+    dur, bpm = 20.0, 126
+    n = int(dur * SR)
+    t_arr = np.arange(n) / SR
+    drone = (np.sin(2 * np.pi * 82.41 * t_arr) * 0.25
+             + np.sin(2 * np.pi * 110.0 * t_arr) * 0.18
+             + 0.03 * np.random.default_rng(9).standard_normal(n))
+    base = _war_drums(dur, bpm, 62)
+    mel = np.zeros(n)
+    beat = 60.0 / bpm
+    for k, f in enumerate([164.81, 196.0, 220.0, 246.94, 220.0, 196.0] * 2):
+        paste(mel, pluck(f, beat * 2.5, 8, 1.0), k * beat * 4, 0.6)
+    return loop_fade(mix(drone, base, mel), 1.0)
+
+
+def battle_japan():
+    """اليابان قتال: طبول تايكو متسارعة + كوتو حاد سريع + شاكوهاشي صارخ."""
+    dur, bpm = 20.0, 144
+    n = int(dur * SR)
+    beat = 60.0 / bpm
+    base = _war_drums(dur, bpm, 78)
+    mel = np.zeros(n)
+    insen = [246.94, 261.63, 329.63, 349.23, 392.0, 493.88]
+    seq = [0, 2, 5, 4, 1, 3, 4, 5]
+    for k, idx in enumerate(seq * 4):
+        paste(mel, pluck(insen[idx % 6] * 2, beat * 0.8, 6, 0.9), k * beat, 0.5)
+    return loop_fade(mix(base, mel), 1.0)
+
+
 if __name__ == "__main__":
     print("== ROK2 audio generation ==")
     civs = {
@@ -323,6 +434,13 @@ if __name__ == "__main__":
     for civ, fn in civs.items():
         print(f"[{civ}]")
         write_wav(f"{OUT}/{civ}/music.wav", fn())
+    battles = {
+        "rome": battle_rome, "china": battle_china, "arabia": battle_arabia,
+        "egypt": battle_egypt, "vikings": battle_vikings, "japan": battle_japan,
+    }
+    for civ, fn in battles.items():
+        print(f"[{civ}/battle]")
+        write_wav(f"{OUT}/{civ}/battle.wav", fn())
     sfx = {
         "build_complete": sfx_build_complete, "upgrade": sfx_upgrade,
         "victory": sfx_victory, "defeat": sfx_defeat,

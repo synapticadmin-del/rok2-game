@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "TimerManager.h"
 #include "Rok2AudioManager.generated.h"
 
 class USoundWave;
@@ -36,6 +37,14 @@ enum class ERok2MusicState : uint8
 	Paused
 };
 
+/** نمط الموسيقى: سلام (مدينة) أو قتال — P4-T3. */
+UENUM(BlueprintType)
+enum class ERok2MusicMode : uint8
+{
+	Peace = 0,  // music.wav (الوضع الافتراضي)
+	Battle      // battle.wav (أثناء/بعد تقرير قتال)
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMusicStateChanged, ERok2MusicState, NewState);
 
 UCLASS(BlueprintType)
@@ -59,6 +68,22 @@ public:
 	/** يوقف الموسيقى. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void StopMusic();
+
+	/** يدخل وضع القتال: يبدّل الموسيقى إلى battle.wav ويعود للسلام تلقائياً بعد المهلة. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void EnterBattleMode();
+
+	/** يخرج من وضع القتال فوراً ويعود لموسيقى السلام. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void ExitBattleMode();
+
+	/** هل الموسيقى الحالية في وضع قتال؟ */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	bool IsInBattleMode() const { return MusicMode == ERok2MusicMode::Battle; }
+
+	/** مهلة العودة التلقائية لموسيقى السلام بعد آخر قتال (ثوانٍ). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
+	float BattleModeTimeout = 30.f;
 
 	/** يشغّل مؤثراً صوتياً لمرة واحدة. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
@@ -91,6 +116,12 @@ protected:
 	/** حالة الموسيقى. */
 	ERok2MusicState MusicState = ERok2MusicState::Stopped;
 
+	/** نمط الموسيقى الحالي (سلام/قتال) — P4-T3. */
+	ERok2MusicMode MusicMode = ERok2MusicMode::Peace;
+
+	/** مؤقت العودة التلقائية لموسيقى السلام بعد القتال. */
+	FTimerHandle BattleModeTimer;
+
 	/** مكون الموسيقى (إن وُجدت ملفات). */
 	UPROPERTY(Transient)
 	UAudioComponent* MusicComponent;
@@ -98,8 +129,11 @@ protected:
 	/** خريطة نوع الصوت → مسار الملف. */
 	TMap<ERok2AudioType, FString> SfxPaths;
 
-	/** خريطة حضارة → مسار ملف الموسيقى. */
+	/** خريطة حضارة → مسار ملف الموسيقى (سلام). */
 	TMap<FString, FString> MusicPaths;
+
+	/** خريطة حضارة → مسار ملف موسيقى القتال — P4-T3. */
+	TMap<FString, FString> BattleMusicPaths;
 
 	/** يبني خريطة المسارات الافتراضية من Content/Audio/. */
 	void BuildAudioPaths();
@@ -109,6 +143,9 @@ protected:
 
 	/** يشغّل صوتاً من مسار (إن وُجد). */
 	void PlaySoundAtPath(const FString& Path, float Volume);
+
+	/** يشغّل الموسيقى حسب النمط الحالي (سلام/قتال) — P4-T3. */
+	void PlayCurrentModeMusic();
 
 	bool bInitialized = false;
 };

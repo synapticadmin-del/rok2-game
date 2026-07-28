@@ -1,4 +1,4 @@
-# Produced Audio Assets — ROK2 (P4-T2)
+# Produced Audio Assets — ROK2 (P4-T2 + P4-T3)
 
 أصول صوتية حقيقية مولّدة إجرائياً (procedural synthesis) خصيصاً للمشروع —
 لا أصول طرف ثالث، فلا قيود ترخيص. التوليد عبر `scripts/generate_audio.py`
@@ -18,6 +18,13 @@
 
 كل موسيقى حلقة 20-24 ثانية بتلاشي نهائي (تتكرر بسلاسة في `URok2AudioManager`).
 
+## موسيقى المعركة (P4-T3)
+
+`battle.wav` لكل حضارة: نسخة قتالية من نفس سلم الحضارة — نبض أسرع
+(126-150 BPM مقابل 70-110)، طبول حرب مكثفة، نغمات قصيرة عدوانية متصاعدة.
+`URok2AudioManager::EnterBattleMode()` يبدّل إليها عند تقرير قتال ويعود
+تلقائياً لموسيقى السلام بعد `BattleModeTimeout` (30 ثانية افتراضياً).
+
 ## المؤثرات (sfx/)
 
 build_complete, upgrade, victory, defeat, march_start, button_click,
@@ -34,5 +41,5 @@ notification — كلها مؤثرات قصيرة (0.1-2 ثانية) مشترك�
 ## إعادة التوليد
 
 ```bash
-python3 scripts/generate_audio.py   # يعيد بناء كل WAV إجرائياً
+python3 scripts/generate_audio.py   # يعيد بناء كل WAV (سلام + معركة + مؤثرات)
 ```

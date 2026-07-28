@@ -42,6 +42,15 @@ void URok2AudioManager::BuildAudioPaths()
 	MusicPaths.Add(TEXT("vikings"), TEXT("Audio/vikings/music"));
 	MusicPaths.Add(TEXT("japan"),   TEXT("Audio/japan/music"));
 
+	// مسارات موسيقى القتال لكل حضارة (Content/Audio/<civ>/battle.wav) — P4-T3
+	BattleMusicPaths.Empty();
+	BattleMusicPaths.Add(TEXT("rome"),    TEXT("Audio/rome/battle"));
+	BattleMusicPaths.Add(TEXT("china"),   TEXT("Audio/china/battle"));
+	BattleMusicPaths.Add(TEXT("arabia"),  TEXT("Audio/arabia/battle"));
+	BattleMusicPaths.Add(TEXT("egypt"),   TEXT("Audio/egypt/battle"));
+	BattleMusicPaths.Add(TEXT("vikings"), TEXT("Audio/vikings/battle"));
+	BattleMusicPaths.Add(TEXT("japan"),   TEXT("Audio/japan/battle"));
+
 	// مسارات المؤثرات (مشتركة لكل الحضارات، أو مخصصة لاحقاً)
 	SfxPaths.Empty();
 	SfxPaths.Add(ERok2AudioType::BuildComplete,  TEXT("Audio/sfx/build_complete"));
@@ -70,11 +79,17 @@ void URok2AudioManager::PlayMusic()
 {
 	if (!bAudioEnabled) return;
 	if (MusicState == ERok2MusicState::Playing) return;
+	PlayCurrentModeMusic();
+}
 
-	const FString* Path = MusicPaths.Find(CurrentCivId);
+void URok2AudioManager::PlayCurrentModeMusic()
+{
+	// P4-T3: يختار مسار الموسيقى حسب النمط (سلام/قتال)
+	const TMap<FString, FString>& Paths = (MusicMode == ERok2MusicMode::Battle) ? BattleMusicPaths : MusicPaths;
+	const FString* Path = Paths.Find(CurrentCivId);
 	if (!Path)
 	{
-		UE_LOG(LogRok2Audio, Warning, TEXT("No music path for civ: %s"), *CurrentCivId);
+		UE_LOG(LogRok2Audio, Warning, TEXT("No music path for civ: %s (mode %d)"), *CurrentCivId, (int32)MusicMode);
 		return;
 	}
 
@@ -87,6 +102,12 @@ void URok2AudioManager::PlayMusic()
 		return;
 	}
 
+	// إيقاف أي موسيقى سابقة قبل التبديل
+	if (MusicComponent && MusicComponent->IsPlaying())
+	{
+		MusicComponent->Stop();
+	}
+
 	// تشغيل الموسيقى (تتكرر)
 	if (UWorld* World = GetWorld())
 	{
@@ -95,8 +116,54 @@ void URok2AudioManager::PlayMusic()
 		{
 			MusicState = ERok2MusicState::Playing;
 			OnMusicStateChanged.Broadcast(MusicState);
-			UE_LOG(LogRok2Audio, Log, TEXT("Playing music for civ: %s"), *CurrentCivId);
+			UE_LOG(LogRok2Audio, Log, TEXT("Playing %s music for civ: %s"),
+				MusicMode == ERok2MusicMode::Battle ? TEXT("battle") : TEXT("peace"), *CurrentCivId);
 		}
+	}
+}
+
+void URok2AudioManager::EnterBattleMode()
+{
+	if (MusicMode == ERok2MusicMode::Battle)
+	{
+		// مدّد مهلة العودة فقط
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(BattleModeTimer);
+			World->GetTimerManager().SetTimer(BattleModeTimer, this,
+				&URok2AudioManager::ExitBattleMode, BattleModeTimeout, false);
+		}
+		return;
+	}
+	MusicMode = ERok2MusicMode::Battle;
+	UE_LOG(LogRok2Audio, Log, TEXT("Entering battle music mode"));
+
+	if (MusicState == ERok2MusicState::Playing)
+	{
+		PlayCurrentModeMusic();
+	}
+
+	// جدولة العودة التلقائية للسلام
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(BattleModeTimer, this,
+			&URok2AudioManager::ExitBattleMode, BattleModeTimeout, false);
+	}
+}
+
+void URok2AudioManager::ExitBattleMode()
+{
+	if (MusicMode == ERok2MusicMode::Peace) return;
+	MusicMode = ERok2MusicMode::Peace;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BattleModeTimer);
+	}
+	UE_LOG(LogRok2Audio, Log, TEXT("Exiting battle music mode — back to peace"));
+
+	if (MusicState == ERok2MusicState::Playing)
+	{
+		PlayCurrentModeMusic();
 	}
 }
 

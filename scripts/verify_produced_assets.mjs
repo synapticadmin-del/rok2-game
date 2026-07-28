@@ -51,6 +51,15 @@ for (const civ of CIVS) {
 }
 
 // ---------------------------------------------------------------------------
+console.log('\n[1b] Per-civ battle music WAV files (P4-T3)');
+// ---------------------------------------------------------------------------
+for (const civ of CIVS) {
+  const p = join(ROOT, 'game/client-unreal/Content/Audio', civ, 'battle.wav');
+  checkBinaryOrB64(p, [0x52, 0x49, 0x46, 0x46], `Audio/${civ}/battle.wav`);
+  if (existsSync(p)) check(`Audio/${civ}/battle.wav non-trivial size`, statSync(p).size > 10000, `${statSync(p).size} bytes`);
+}
+
+// ---------------------------------------------------------------------------
 console.log('\n[2] SFX WAV files');
 // ---------------------------------------------------------------------------
 for (const sfx of SFX) {
@@ -116,6 +125,42 @@ if (existsSync(amCpp)) {
 }
 
 // ---------------------------------------------------------------------------
+console.log('\n[6b] AudioManager battle mode (P4-T3)');
+// ---------------------------------------------------------------------------
+const amH = join(ROOT, 'game/client-unreal/Source/Rok2/Public/Rok2AudioManager.h');
+check('Rok2AudioManager.h exists', existsSync(amH));
+if (existsSync(amH)) {
+  const c = readFileSync(amH, 'utf8');
+  check('has ERok2MusicMode enum (Peace/Battle)', c.includes('ERok2MusicMode') && c.includes('Battle'));
+  check('has EnterBattleMode method', c.includes('EnterBattleMode'));
+  check('has ExitBattleMode method', c.includes('ExitBattleMode'));
+  check('has IsInBattleMode method', c.includes('IsInBattleMode'));
+  check('has BattleMusicPaths map', c.includes('BattleMusicPaths'));
+  check('has BattleModeTimeout property', c.includes('BattleModeTimeout'));
+  check('has BattleModeTimer handle', c.includes('BattleModeTimer'));
+}
+if (existsSync(amCpp)) {
+  const c = readFileSync(amCpp, 'utf8');
+  for (const civ of CIVS) check(`AudioManager references Audio/${civ}/battle`, c.includes(`Audio/${civ}/battle`));
+  check('implements EnterBattleMode', c.includes('void URok2AudioManager::EnterBattleMode'));
+  check('implements ExitBattleMode', c.includes('void URok2AudioManager::ExitBattleMode'));
+  check('implements PlayCurrentModeMusic', c.includes('void URok2AudioManager::PlayCurrentModeMusic'));
+  check('battle mode switches path by mode', c.includes('MusicMode == ERok2MusicMode::Battle') && c.includes('BattleMusicPaths'));
+  check('battle mode uses timer for auto-return', c.includes('SetTimer(BattleModeTimer'));
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n[6c] Rok2Api battle music hook (P4-T3)');
+// ---------------------------------------------------------------------------
+const apiCpp = join(ROOT, 'game/client-unreal/Source/Rok2/Private/Rok2Api.cpp');
+check('Rok2Api.cpp exists', existsSync(apiCpp));
+if (existsSync(apiCpp)) {
+  const c = readFileSync(apiCpp, 'utf8');
+  check('calls EnterBattleMode on battle_report', c.includes('EnterBattleMode'));
+  check('still plays victory/defeat sfx', c.includes('BattleVictory') && c.includes('BattleDefeat'));
+}
+
+// ---------------------------------------------------------------------------
 console.log('\n[7] Generation script reproducibility');
 // ---------------------------------------------------------------------------
 const gen = join(ROOT, 'scripts/generate_audio.py');
@@ -125,6 +170,7 @@ if (existsSync(gen)) {
   check('generates all 6 civs', CIVS.every(v => c.includes(`"${v}"`)));
   check('generates all 7 sfx', SFX.every(s => c.includes(s)));
   check('writes 16-bit PCM WAV', c.includes('setsampwidth(2)'));
+  check('generates battle music for all civs (P4-T3)', CIVS.every(v => c.includes(`battle_${v}`)) && c.includes('battle.wav'));
 }
 const decode = join(ROOT, 'scripts/decode_binary_assets.py');
 check('scripts/decode_binary_assets.py exists', existsSync(decode));
