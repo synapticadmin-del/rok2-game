@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P5-T3 HUD بأسلوب RoK (شريط موارد ذهبي + أزرار دائرية + بطاقة مبنى Bottom Sheet + قائمة بناء بفئات).
+> **آخر تحديث:** 2026-07-28 — P5-T2 ثيمات مباني الحضارات الست (URok2CivThemes + بناء مركّب مثيّم + تلوين السور والخريطة).
 
 ---
 
@@ -81,7 +81,7 @@
 
 - [x] **P5-T0** وثائق التصميم الشاملة `07-game-design/` (GDD + قلعة سداسية + حضارات بصرية + RoK audit + UI/UX + توازن) + 11 صورة مرجعية — ✅ تم 2026-07-28
 - [x] **P5-T1** نظام السور السداسي + شبكة hex + البناء الحر (CityBuilder overhaul — مواصفة `07-game-design/castle-hex-city.md`) — ✅ تم 2026-07-28
-- [ ] **P5-T2** ثيمات مباني الحضارات الست (City Hall + 5 مبانٍ أساسية لكل حضارة، مرجع `07-game-design/civilizations-visual-design.md` + `assets/`)
+- [x] **P5-T2** ثيمات مباني الحضارات الست (City Hall + 5 مبانٍ أساسية لكل حضارة، مرجع `07-game-design/civilizations-visual-design.md` + `assets/`) — ✅ تم 2026-07-28
 - [x] **P5-T3** HUD بأسلوب RoK كامل (شريط موارد، أزرار دائرية، دردشة، مهام — مرجع `07-game-design/ui-ux-design-system.md` + `assets/ui-city-mockup.jpg`) — ✅ تم 2026-07-28
 - [ ] **P5-T4** شاشة القادة الكاملة (بورتريهات، مهارات، مواهب، معدات)
 - [ ] **P5-T5** ضباب الحرب + الكشافة على الخريطة
@@ -134,7 +134,8 @@
 | 2026-07-28 | حذف عميل الويب القديم game/client | 4324d9c..bc78685 | 6 ملفات (index.html/styles.css/app.js/_headers/package.json/README.md) — المشروع UE5 فقط، لا لغبطة مستقبلية |
 | 2026-07-28 | P5-T0 وثائق التصميم الشاملة 07-game-design/ | f14122f |
 | 2026-07-28 | P5-T1 نظام السور السداسي + البناء الحر (العميل) | 8da42ca |
-| 2026-07-28 | P5-T3 HUD بأسلوب RoK (العميل) | b258978 | Rok2HudWidget أعيد كتابته بالكامل: شريط موارد علوي ذهبي RTL (طعام/خشب/حجر/ذهب/gems/AP بتنسيق مختصر K/M) + أزرار دائرية مزخرفة أسفل يمين (بناء 🔨 بشارة بنّاء خامل + قادة/تحالف/حقيبة/أحداث) + مجموعة يسار (خريطة/تقارير/تحرير المدينة) + طوابير/إشعارات/مركز إشعارات — كل الأحداث تفوَّض لـ Blueprint (OnBuild/OnCommanders/OnAlliance/OnItems/OnEvents/OnEditCity/OnMap/OnReports)؛ Rok2BuildingDetailWidget أعيد كتابته كبطاقة مبنى Bottom Sheet تنزلق من أسفل (مقبض سحب + عنوان + وصف + مستوى + تكلفة/وقت + شريط طابور + زر ترقية + زر ثانوي حسب النوع: تدريب/شفاء/بحث/صناديق + خلفية معتمة للإغلاق)؛ Rok2BuildMenuWidget جديد: قائمة بناء بثلاث فئات (اقتصاد/عسكري/زخرفة) بشبكة UUniformGridPanel + وسيط URok2BuildButtonProxy لكل زر (يخزن id ويعيد بثّ الضغط)؛ لوحة ألوان ui-ux-design-system.md (برونز #1A120B، ذهب #C9A227، عاجي #F5E9D0)؛ فحص سلامة 6/6. ملاحظة: gems/AP تُعرض 0 مؤقتاً حتى إتاحتها في FRok2City من الـ backend | Rok2HexGrid (axial coords + hex↔world + ring/flower/filled)؛ Rok2HexWallActor (6 أضلاع + بوابة + أبراج + مراحل مظهر L1-22)؛ Rok2CityLayoutActor (شبكة أرض hex + سور + زرع مبانٍ من API + CanPlaceAt + TryMoveBuilding + RadiusForCityHallLevel)؛ Rok2BuildingActor (بصمة 1/7/12 + حالة بصرية 5 + مؤشر عائم)؛ Rok2CityEditorMode (سحب بشبح + إفلات بتحقق + تدوير 60° + 3 تخطيطات محفوظة)؛ CityBuilder أعيد كتابته كمنسّق يزرع Layout+Editor ويربط اللمس بالبطاقة؛ ToggleEditMode للـ HUD. فحص سلامة نحوي 12/12. ملاحظة backend: endpoint مقترح POST /v1/city/layout + data/city_layout.json لبصمات المباني | 6 وثائق تصميم: GDD.md (مصدر الحقيقة)، castle-hex-city.md (سور سداسي + بناء حر على شبكة hex)، civilizations-visual-design.md (6 حضارات بثيمات كاملة)، rok-features-audit.md (توثيق شامل لمزايا RoK: 15 حضارة، قادة، VIP، حانة، أوضاع، خريطة)، ui-ux-design-system.md (واجهة لعبة لا موقع)، power-balance-map.md (توازن القوى F2P/P2P) + 11 صورة مرجعية مولّدة في 07-game-design/assets/ (قلعة سداسية، 6 مدن حضارات، خريطة عالم، وحدات خاصة، قادة، موكاب UI) |
+| 2026-07-28 | P5-T2 ثيمات مباني الحضارات الست (العميل) | e9e4d19..80e1efe | URok2CivThemes جديد: يقرأ data/civilizations.json (أو fallback مدمج) ويقدّم لوحة الألوان والنمط المعماري لكل حضارة (روما/الصين/العرب/مصر/الفايكنج/اليابان)؛ Rok2BuildingActor: بناء مركّب placeholder (جسم + سقف مميز حسب النمط + شريط زخارف + عنصر تمييز) يُلوّن ويُشكّل حسب ثيم الحضارة — مع fallback للـ GLB عند توفره (تلوين خفيف)؛ Rok2CityLayoutActor: يقرأ حضارة اللاعب من Api->GetPlayer().Civ ويمررها لكل مبنى + السور عند الزرع؛ Rok2HexWallActor: يستقبل CivId ويضيف ثيم الحضارة للسور (لون أساسي) والبوابة (لون ثانوي) والأبراج (لون تمييز)؛ Rok2WorldRenderer: يستخدم ثيم حضارة اللاعب لتلوين مدينته الخاصة على الخريطة؛ scripts/verify_civ_themes.mjs: 68 فحص بنيوي ناجح |
+| 2026-07-28 | P5-T3 HUD بأسلوب RoK (العميل) | b258978 | Rok2HudWidget أعيد كتابته بالكامل: شريط موارد علوي ذهبي RTL (طعام/خشب/حجر/ذهب/gems/AP بتنسيق مختصر K/M) + أزرار دائرية مزخرفة أسفل يمين (بناء 🔨 بشارة بنّاء خامل + قادة/تحالف/حقيبة/أحداث) + مجموعة يسار (خريطة/تقارير/تحرير المدينة) + طوابير/إشعارات/مركز إشعارات — كل الأحداث تفوَّض لـ Blueprint (OnBuild/OnCommanders/OnAlliance/OnItems/OnEvents/OnEditCity/OnMap/OnReports)؛ Rok2BuildingDetailWidget أعيد كتابته كبطاقة مبنى Bottom Sheet تنزلق من أسفل (مقبض سحب + عنوان + وصف + مستوى + تكلفة/وقت + شريط طابور + زر ترقية + زر ثانوي حسب النوع: تدريب/شفاء/بحث/صناديق + خلفية معتمة للإغلاق)؛ Rok2BuildMenuWidget جديد: قائمة بناء بثلاث فئات (اقتصاد/عسكري/زخرفة) بشبكة UUniformGridPanel + وسيط URok2BuildButtonProxy لكل زر (يخزن id ويعيد بثّ الضغط)؛ لوحة ألوان ui-ux-design-system.md (برونز #1A120B، ذهب #C9A227، عاجي #F5E9D0)؛ فحص سلامة 6/6. ملاحظة: gems/AP تُعرض 0 مؤقتاً حتى إتاحتها في FRok2City من الـ backend |
 ---
 
 ## 5. ملفات مرجعية سريعة
