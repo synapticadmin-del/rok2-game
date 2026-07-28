@@ -17,6 +17,14 @@ import {
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
 import {
+  shopConstants,
+  shopCatalog,
+  getSpeedup,
+  vipTierForPoints,
+  vipPointsForPurchase,
+  utcDay,
+} from "../do/sim/shop";
+import {
   academyReq,
   getTech,
   getTechTree,
@@ -162,11 +170,15 @@ async function refreshCity(env: Env, playerId: string): Promise<CityRow> {
     .bind(playerId)
     .first<CityRow>();
   if (!city) throw new HttpError(404, "City not found");
+  // P3-T4: توافقية مع قواعد لم تُرحّل بعد (بدون عمود gems)
+  if (city.gems === undefined || city.gems === null) city.gems = shopConstants().sandbox_starting_gems;
   const buildings = await getBuildingsMap(env, playerId);
   const now = nowMs();
   // P2-T3: باف إنتاج الموارد من أبحاث الاقتصاد
   const research = await getResearchLevels(env, playerId);
-  const productionMod = 1 + researchBuff(research, "resource_production");
+  // P3-T4: مضاعف إنتاج VIP (تراكمي مع الأبحاث)
+  const vipMod = await vipProductionMod(env, playerId);
+  const productionMod = (1 + researchBuff(research, "resource_production")) * vipMod;
   const next = applyProduction(
     {
       food: city.food,
@@ -435,6 +447,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         }
       }
 
+      // P3-T4: منحة gems الأولى (sandbox) — تُقرأ من data/shop.json؛ متوافق مع قواعد لم تُرحّل بعد
+      try {
+        await env.DB.prepare("UPDATE cities SET gems = ? WHERE player_id = ?")
+          .bind(shopConstants().sandbox_starting_gems, playerId).run();
+      } catch {
+        // عمود gems غير موجود بعد — لا نفشل إنشاء المدينة
+      }
+
       // re-sign token with player id
       const token = await signToken(
         { accountId: auth.accountId, playerId, exp: now + 1000 * 60 * 60 * 24 * 30 },
@@ -579,7 +599,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
       ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
 
-      const duration = Math.max(1, Math.floor(10 * count / (1 + researchBuff(await getResearchLevels(env, player.id), "training_speed"))));
+      // P3-T4: مضاعف سرعة التدريب من مستوى VIP (تراكمي مع أبحاث training_speed)
+      const vipT = vipTierForPoints((await getOrCreateVip(env, player.id)).points);
+      const duration = Math.max(1, Math.floor(10 * count / ((1 + researchBuff(await getResearchLevels(env, player.id), "training_speed")) * vipT.train_speed_mult)));
       const queueId = newId("q");
       const stub = kingdomStub(env);
       await stub.fetch("https://do/queue/add", {
@@ -605,6 +627,146 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const { player } = await requirePlayer(request, env);
       const city = await refreshCity(env, player.id);
       return json({ ok: true, city });
+    }
+
+    // ═══ P3-T4: متجر sandbox + speedups + VIP (بدون مدفوعات حقيقية) ═══
+
+    // كتالوج المتجر: speedups + رصيد gems + مخزون اللاعب
+    if (path === "/v1/shop/catalog" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const city = await refreshCity(env, player.id);
+      const invRows = await env.DB.prepare("SELECT item_id, count FROM player_inventory WHERE player_id = ?")
+        .bind(player.id).all<{ item_id: string; count: number }>().catch(() => ({ results: [] as any[] }));
+      const inventory: Record<string, number> = {};
+      for (const r of invRows.results || []) inventory[r.item_id] = r.count;
+      const vip = await getOrCreateVip(env, player.id);
+      return json({
+        ok: true,
+        gems: city.gems,
+        speedups: shopCatalog(),
+        inventory,
+        vip: { ...vipTierForPoints(vip.points), points: vip.points },
+        constants: shopConstants(),
+      });
+    }
+
+    // حالة VIP: المستوى الحالي + المزايا + التقدم نحو المستوى التالي
+    if (path === "/v1/vip/status" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const vip = await getOrCreateVip(env, player.id);
+      const tier = vipTierForPoints(vip.points);
+      const nextTier = vipTiers().find((t) => t.points_required > vip.points) || null;
+      const day = utcDay(nowMs());
+      return json({
+        ok: true,
+        points: vip.points,
+        level: tier.level,
+        perks: tier,
+        next: nextTier ? { level: nextTier.level, points_required: nextTier.points_required, points_to_go: nextTier.points_required - vip.points } : null,
+        daily_gems_available: vip.last_daily_gems_day < day,
+        free_speedup_available: tier.free_speedup_sec_per_day > 0 && vip.last_free_speedup_day < day,
+      });
+    }
+
+    // المنحة اليومية المجانية من gems (sandbox)
+    if (path === "/v1/shop/daily-gems" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const vip = await getOrCreateVip(env, player.id);
+      const day = utcDay(nowMs());
+      if (vip.last_daily_gems_day >= day) throw new HttpError(400, "Daily gems already claimed");
+      const grant = shopConstants().sandbox_daily_gems;
+      const city = await refreshCity(env, player.id);
+      const now = nowMs();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+          .bind(city.gems + grant, now, player.id),
+        env.DB.prepare("UPDATE player_vip SET last_daily_gems_day=?, updated_at=? WHERE player_id=?")
+          .bind(day, now, player.id),
+      ]);
+      return json({ ok: true, granted: grant, gems: city.gems + grant });
+    }
+
+    // شراء speedup من المتجر بالـ gems — كل عملية شراء تمنح نقاط VIP
+    if (path === "/v1/shop/buy" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ itemId: string; count?: number }>(request);
+      const item = getSpeedup(body.itemId);
+      if (!item) throw new HttpError(400, "Unknown shop item");
+      const count = Math.max(1, Math.min(99, Math.floor(Number(body.count) || 1)));
+      const totalCost = item.cost_gems * count;
+
+      const city = await refreshCity(env, player.id);
+      if (city.gems < totalCost) throw new HttpError(400, "Not enough gems", { cost: totalCost, gems: city.gems });
+
+      const vip = await getOrCreateVip(env, player.id);
+      const pointsGain = vipPointsForPurchase(totalCost);
+      const newPoints = vip.points + pointsGain;
+      const newTier = vipTierForPoints(newPoints);
+      const now = nowMs();
+
+      await env.DB.batch([
+        env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+          .bind(city.gems - totalCost, now, player.id),
+        env.DB.prepare(
+          `INSERT INTO player_inventory (player_id, item_id, count, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(player_id, item_id) DO UPDATE SET count=count+?, updated_at=?`,
+        ).bind(player.id, item.id, count, now, count, now),
+        env.DB.prepare("UPDATE player_vip SET points=?, level=?, updated_at=? WHERE player_id=?")
+          .bind(newPoints, newTier.level, now, player.id),
+      ]);
+
+      return json({
+        ok: true,
+        itemId: item.id,
+        count,
+        spent_gems: totalCost,
+        gems: city.gems - totalCost,
+        vip: { points: newPoints, level: newTier.level, leveled_up: newTier.level > vipTierForPoints(vip.points).level },
+      });
+    }
+
+    // استخدام speedup من المخزون على طابور جاري + المطالبة بالتسريع المجاني اليومي من VIP
+    if (path === "/v1/shop/use-speedup" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ queueId: string; itemId?: string; useFreeDaily?: boolean }>(request);
+      if (!body.queueId) throw new HttpError(400, "queueId required");
+
+      let seconds = 0;
+      let source: string;
+      const now = nowMs();
+
+      if (body.useFreeDaily) {
+        // التسريع المجاني اليومي من مزايا VIP
+        const vip = await getOrCreateVip(env, player.id);
+        const tier = vipTierForPoints(vip.points);
+        const day = utcDay(now);
+        if (tier.free_speedup_sec_per_day <= 0) throw new HttpError(400, "No free daily speedup at your VIP level");
+        if (vip.last_free_speedup_day >= day) throw new HttpError(400, "Free daily speedup already used");
+        seconds = tier.free_speedup_sec_per_day;
+        source = "vip_free_daily";
+        await env.DB.prepare("UPDATE player_vip SET last_free_speedup_day=?, updated_at=? WHERE player_id=?")
+          .bind(day, now, player.id).run();
+      } else {
+        const item = getSpeedup(body.itemId || "");
+        if (!item) throw new HttpError(400, "Unknown speedup item");
+        const inv = await env.DB.prepare("SELECT count FROM player_inventory WHERE player_id = ? AND item_id = ?")
+          .bind(player.id, item.id).first<{ count: number }>();
+        if (!inv || inv.count < 1) throw new HttpError(400, "Item not in inventory");
+        seconds = item.seconds;
+        source = item.id;
+        await env.DB.prepare("UPDATE player_inventory SET count=count-1, updated_at=? WHERE player_id=? AND item_id=?")
+          .bind(now, player.id, item.id).run();
+      }
+
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/queue/speedup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ queueId: body.queueId, seconds }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
+      return json({ ok: true, queueId: body.queueId, seconds, source });
     }
 
     // Heal — P2-T2: شفاء الجرحى الخطيرين مقابل نصف تكلفة التدريب + مدة من data/buildings.json
@@ -1469,5 +1631,40 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
     console.error(err);
     return json({ error: err?.message || "Internal error" }, 500);
+  }
+}
+stone+?, gold=gold+?, updated_at=? WHERE player_id=?`,
+      )
+        .bind(body.food || 0, body.wood || 0, body.stone || 0, body.gold || 0, nowMs(), body.playerId)
+        .run();
+      if (body.troops) {
+        const owned = await getTroopsMap(env, body.playerId);
+        for (const [u, c] of Object.entries(body.troops)) {
+          const next = (owned[u] || 0) + Number(c);
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
+          )
+            .bind(body.playerId, u, next)
+            .run();
+        }
+      }
+      return json({
+        ok: true,
+        city: await refreshCity(env, body.playerId),
+        troops: await getTroopsMap(env, body.playerId),
+      });
+    }
+
+    return json({ error: "Not found", path }, 404);
+  } catch (err: any) {
+    if (err instanceof HttpError) {
+      return json({ error: err.message, details: err.details }, err.status);
+    }
+    console.error(err);
+    return json({ error: err?.message || "Internal error" }, 500);
+  }
+}
+   return json({ error: err?.message || "Internal error" }, 500);
   }
 }

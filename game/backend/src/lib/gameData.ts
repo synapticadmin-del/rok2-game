@@ -98,6 +98,11 @@ export function getZones() {
   return zonesSpec;
 }
 
+/** P3-T4: كتالوج المتجر (speedups + مستويات VIP + ثوابت gems) — يُقرأ من data/shop.json */
+export function getShop() {
+  return shopSpec;
+}
+
 export function starterBuildings(): string[] {
   return [
     "city_hall",

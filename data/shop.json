@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "description": "متجر sandbox + speedups + VIP أساسي (P3-T4) — بدون مدفوعات حقيقية. العملة gems تُمنح مجاناً (منحة أولى + منحة يومية) وتُصرف على speedups. كل شراء يمنح نقاط VIP ترفع المستوى بمزايا تراكمية. كل القيم تُقرأ من هنا — لا ثوابت في الكود.",
+  "constants": {
+    "sandbox_starting_gems": 1000,
+    "sandbox_daily_gems": 200,
+    "vip_points_per_gem": 1
+  },
+  "speedups": [
+    { "id": "speedup_1m",  "name": "تسريع دقيقة",     "seconds": 60,    "cost_gems": 5,    "vip_points": 5 },
+    { "id": "speedup_5m",  "name": "تسريع 5 دقائق",   "seconds": 300,   "cost_gems": 20,   "vip_points": 20 },
+    { "id": "speedup_15m", "name": "تسريع 15 دقيقة",  "seconds": 900,   "cost_gems": 50,   "vip_points": 50 },
+    { "id": "speedup_1h",  "name": "تسريع ساعة",      "seconds": 3600,  "cost_gems": 150,  "vip_points": 150 },
+    { "id": "speedup_3h",  "name": "تسريع 3 ساعات",   "seconds": 10800, "cost_gems": 400,  "vip_points": 400 },
+    { "id": "speedup_8h",  "name": "تسريع 8 ساعات",   "seconds": 28800, "cost_gems": 900,  "vip_points": 900 },
+    { "id": "speedup_24h", "name": "تسريع يوم",       "seconds": 86400, "cost_gems": 2200, "vip_points": 2200 }
+  ],
+  "vip_tiers": [
+    { "level": 0, "points_required": 0,    "production_mult": 1.0,  "build_speed_mult": 1.0,  "train_speed_mult": 1.0,  "free_speedup_sec_per_day": 0 },
+    { "level": 1, "points_required": 100,  "production_mult": 1.02, "build_speed_mult": 1.02, "train_speed_mult": 1.0,  "free_speedup_sec_per_day": 60 },
+    { "level": 2, "points_required": 300,  "production_mult": 1.04, "build_speed_mult": 1.04, "train_speed_mult": 1.02, "free_speedup_sec_per_day": 180 },
+    { "level": 3, "points_required": 700,  "production_mult": 1.06, "build_speed_mult": 1.06, "train_speed_mult": 1.04, "free_speedup_sec_per_day": 300 },
+    { "level": 4, "points_required": 1500, "production_mult": 1.09, "build_speed_mult": 1.08, "train_speed_mult": 1.06, "free_speedup_sec_per_day": 600 },
+    { "level": 5, "points_required": 3000, "production_mult": 1.12, "build_speed_mult": 1.10, "train_speed_mult": 1.08, "free_speedup_sec_per_day": 900 },
+    { "level": 6, "points_required": 6000, "production_mult": 1.15, "build_speed_mult": 1.12, "train_speed_mult": 1.10, "free_speedup_sec_per_day": 1800 }
+  ]
+}

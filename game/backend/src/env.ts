@@ -41,5 +41,16 @@ export type CityRow = {
   wood: number;
   stone: number;
   gold: number;
+  gems: number;
+  updated_at: number;
+};
+
+// P3-T4: صف VIP للاعب (جدول player_vip)
+export type VipRow = {
+  player_id: string;
+  points: number;
+  level: number;
+  last_daily_gems_day: number;
+  last_free_speedup_day: number;
   updated_at: number;
 };
