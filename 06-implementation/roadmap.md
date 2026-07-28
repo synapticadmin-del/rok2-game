@@ -1,9 +1,11 @@
 # خطة التنفيذ (Roadmap) — ROK2
 
+> **ملاحظة:** هذا الملف يحفظ الرؤية التاريخية للمراحل كما صيغت أول مرة. **المرجع التنفيذي النهائي للتقدم والبنود هو [`PLAN.md`](../PLAN.md) في جذر المشروع** — اقرأه وحدّثه في كل جلسة.
+
 ## المرحلة 0 — تثبيت الرؤية (أسبوع 1–2)
 - [x] بحث أنظمة + تفكيك تثبيت
 - [ ] اختيار اسم وهوية (عربي فانتازي / تاريخ بديل)
-- [ ] قفل Map Spec: Zone1=8 + جبال/ممرات، Zone2=4، Zone3=1
+- [x] قفل Map Spec: Zone1=8 + جبال/ممرات، Zone2=4، Zone3=1
 - [ ] GDD مختصر 15–25 صفحة من هذه الملفات
 
 ## المرحلة 1 — Prototype خريطة + مدينة (أسبوع 3–10)
@@ -60,18 +62,10 @@
 
 ---
 
-## فريق أدنى للـ Prototype
-- 1 Game designer
-- 2 Unity
-- 1–2 Backend
-- 1 Artist UI/map
-- 1 Producer/QA part-time
-
----
-
 ## ملفات بيانات جاهزة
 - `data/civilizations.json`
 - `data/zones.json`
 - `data/passes.json`
 - `data/buildings.json`
 - `data/troop_tiers.json`
+- `data/map_spec_coordinates.json`
