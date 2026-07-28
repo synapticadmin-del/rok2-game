@@ -1,76 +1,32 @@
-# ROK2 — Master Unreal Engine Project Report (تقرير التسليم النهائي الشامل)
+# ROK2 — تقرير حالة المشروع (Status Report)
 
-**تاريخ الإكمال:** 2026-07-23  
-**المسار الرئيسي لمشروع اللعبة:** `c:\Users\kayf\Desktop\rok2\game\client-unreal`  
-**العميل الرسمي والوحيد:** **Unreal Engine 5.8 (PC & Android)**  
-**السيرفر المباشر (Production API):** [https://rok2-api.lolelarap.workers.dev](https://rok2-api.lolelarap.workers.dev)  
+> **ملاحظة مهمة:** هذا التقرير كان بعنوان "تقرير التسليم النهائي" ويقدّم المشروع كمكتمل 100% — **هذا غير دقيق**. تم تحديثه ليعكس الحالة الحقيقية. المرجع التنفيذي النهائي للتقدم هو **[PLAN.md](PLAN.md)**.
 
----
-
-## 1. التوجه المعماري والقرار التقني (Architectural Decision)
-
-تم اعتماد **Unreal Engine 5** رسمياً كعميل وحيد وأساسي للعبة **ROK2**، مع إلغاء تركيز الويب وتوثيق النظام بالكامل ليعمل كـ Authoritative Cloud Backend متصل بعميل Unreal Engine 5 مبني بلغة C++.
-
-### أهداف المشروع المحققة:
-1. **تفكيك أنظمة Rise of Kingdoms الأصلية (IL2CPP Audit):** فحص 9,600+ نظام برمجي وتحديد خوارزميات حركة الجيوش والمباني واحتلال الممرات.
-2. **عميل Unreal Engine 5 كامل بلغة C++:** موديول `Rok2` شاملاً جميع الكلاسات البرمجية (`Rok2Api`, `Rok2WorldRenderer`, `Rok2CityBuilder`, `Rok2IsometricCamera`, `Rok2Types`).
-3. **تصميم الخريطة الإحداثية (Map Spec 2400²):** 8 مناطق في Zone 1، و4 مناطق في Zone 2، والمنطقة الوسطى Zone 3 مع الممرات الجبلية (Passes).
-4. **مصفوفة الحضارات الـ 6 الكاملة:** روما، العرب، الصين، بيزنطة، الفايكنج، اليابان (البونصات، القادة، والوحدات الخاصة).
-5. **الخادم السحابي الحي (Authoritative Backend):** محاكاة زمن حي (Atomic 1-second Tick Engine) على Cloudflare Workers & Durable Objects المربوطة بعميل UE5.
+**تاريخ التحديث:** 2026-07-28
 
 ---
 
-## 2. هيكلية المجلدات الرئيسية للمشروع
+## 1. القرار المعماري (مقفل)
 
-```
-c:\Users\kayf\Desktop\rok2\
-├── UNREAL_ENGINE_GUIDE.md    # الدليل التشغيلي والتطويري الشامل لـ Unreal Engine 5
-├── PROJECT_COMPLETION_REPORT.md # هذا التقرير النهائي
-├── README.md                 # دليل المشروع الرئيسي
-├── 01-map/                   # مواصفات الخريطة والإحداثيات 2400²
-├── 02-civilizations/         # مصفوفة الحضارات والقادة والخصائص
-├── 03-systems/               # أنظمة الاقتصاد والقتال
-├── 04-values-theme/          # الهوية البصرية والثيم
-├── 05-tech-from-install/     # نتائج تفكيك الهندسة العكسية
-├── 06-implementation/         # خطة الطريق والبيانات الموحدة
-├── data/                     # جداول البيانات الموحدة JSON
-└── game/
-    ├── client-unreal/        # العميل الرئيسي والوحيد للعبة على Unreal Engine 5
-    └── backend/              # الخادم السحابي Serverless Authoritative API
-```
+- **العميل الرسمي والوحيد:** Unreal Engine 5 (C++) — PC + Android. لا عميل ويب.
+- **الخادم:** Authoritative Cloud Backend على Cloudflare Workers + D1 + Durable Objects، مباشر على `https://rok2-api.lolelarap.workers.dev`.
 
----
+## 2. ما اكتمل فعلاً ✅
 
-## 3. معماريّة عميل Unreal Engine 5 (C++ Client Architecture)
+1. **تفكيك أنظمة Rise of Kingdoms الأصلية (IL2CPP Audit):** فحص 9,600+ نظام وتحديد خوارزميات حركة الجيوش والمباني واحتلال الممرات — موثق في `05-tech-from-install/`.
+2. **مواصفات الخريطة 2400²:** 8 مناطق في Zone 1، و4 في Zone 2، ومنطقة وسطى Zone 3 مع الممرات الجبلية — في `01-map/` و `data/map_spec_coordinates.json`.
+3. **مصفوفة الحضارات الـ 6:** روما، العرب، الصين، بيزنطة، الفايكنج، اليابان — في `02-civilizations/` و `data/civilizations.json`.
+4. **خادم سحابي حي (Prototype):** auth ضيف، مدينة، ترقية مبانٍ، تدريب قوات، تحالفات، خريطة مشتركة بممرات، مسيرات + قتال ممرات + تقارير، WebSocket live updates — مع smoke E2E ناجح (`game/backend/scripts/smoke.mjs`).
+5. **هيكل عميل UE5 (C++):** موديول `Rok2` يشمل `Rok2Api`, `Rok2WorldRenderer`, `Rok2CityBuilder`, `Rok2IsometricCamera`, `Rok2PlayerController`, وواجهات `Rok2BootWidget`/`Rok2CityWidget` — قابل للتشغيل والبناء.
 
-تم بناء العميل في `game/client-unreal` باستخدام لغة C++ ومكتبات Unreal Engine الأساسية:
+## 3. ما لم يكتمل بعد ❌
 
-| كلاس C++ | الوظيفة البرمجية |
-|----------|------------------|
-| `URok2Api` | كلاس الشبكة المسئول عن ارسال طلبات HTTP REST والتواصل مع السيرفر عبر WebSockets |
-| `ARok2IsometricCamera` | كاميرا استراتيجية بزاوية 50- درجة مع تحكم سلس بالماوس/اللمس (Pan & Zoom) |
-| `ARok2CityBuilder` | محرك بناء وتثبيت المباني التفاعلية في رقعة المدينة 3D |
-| `ARok2WorldRenderer` | محرك رسم وتحديث كائنات العالم 2400² (المدن، الممرات، مناجم الموارد، الجيوش) |
-| `ARok2PlayerController` | متحكم مدخلات اللاعب للـ PC وهواتف الأندرويد |
-| `URok2BootWidget` | واجهة UMG لتسجيل الدخول واختيار إحدى الحضارات الـ 6 |
-| `URok2CityWidget` | واجهة UMG لعرض الموارد وتدريب القوات وإنشاء التحالفات |
+- مسيرات الجيوش المرئية على خريطة العميل، وواجهة تقارير القتال، ومعالجة أخطاء الشبكة (بنود المرحلة 1 المتبقية).
+- الأنظمة المتقدمة: القادة، البحث، المستشفى، الأحداث، المواسم، المتجر.
+- الأصول الفنية 3D/UI — حالياً أشكال هندسية بدائية وخامات ملوّنة runtime.
+- الاختبار الآلي للعميل.
 
----
-
-## 4. خطة البناء والتحزيم (PC & Android Build Guide)
-
-1. **التشغيل والمشاهدة:** افتح `game/client-unreal/Rok2.uproject` بواسطة **Unreal Engine 5.4+**.
-2. **بناء نسخة الكومبيوتر (Windows PC):** `Platforms` ➔ `Windows` ➔ `Package Project`.
-3. **بناء نسخة الأندرويد (Android APK):** `Platforms` ➔ `Android` ➔ `Package Project (ASTC)` لتوليد ملف APK جاهز للتثبيت على الهواتف في المجلد:
-   `game/client-unreal/Binaries/Android/Rok2-arm64.apk`.
-
-التفاصيل الشاملة متوفرة في: [UNREAL_ENGINE_GUIDE.md](file:///c:/Users/kayf/Desktop/rok2/UNREAL_ENGINE_GUIDE.md).
-
----
-
-## 5. نتائج التحقق والاختبار (E2E Verification)
-
-تم التأكد من عمل السيرفر السحابي المباشر المتصل بعميل Unreal Engine 5 بنسبة نجاح 100%:
+## 4. نتائج التحقق الأخيرة (Backend Smoke E2E)
 
 ```
 ROK2 smoke against https://rok2-api.lolelarap.workers.dev
@@ -83,11 +39,25 @@ OK  : guest auth & city init
 OK  : city building upgrade & troop training
 OK  : alliance creation & pass attack simulation
 OK  : battle reports & live websocket updates
-
 ==== RESULT ====
 ALL SMOKE TESTS PASSED
 ```
 
+## 5. هيكلية المشروع
+
+```
+rok2-game/
+├── PLAN.md                     # خطة التنفيذ الرئيسية (ابدأ من هنا)
+├── AGENTS.md                   # بروتوكول جلسات التطوير
+├── README.md / INDEX.md        # المدخل والفهرس
+├── UNREAL_ENGINE_GUIDE.md      # دليل UE5
+├── 01-map/ … 06-implementation/ # وثائق التصميم
+├── data/                       # بيانات التوازن الموحدة JSON
+└── game/
+    ├── client-unreal/          # عميل UE5 (C++ & UMG)
+    └── backend/                # الخادم السحابي (Cloudflare)
+```
+
 ---
 
-**مشروع ROK2 مكتمل وموثق بالكامل ليكون لعبة استراتيجية ضخمة على محرك Unreal Engine 5.**
+**الخطوة التالية:** تنفيذ بنود المرحلة 1 المتبقية في [PLAN.md](PLAN.md) حتى بوابة "لاعبان حقيقيان يتنازعان ممراً".

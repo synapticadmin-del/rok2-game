@@ -1,94 +1,82 @@
-# دليل تطوير وبناء لعبة ROK2 على محرك Unreal Engine 5 (UE5 Master Guide)
+# دليل تطوير وبناء لعبة ROK2 على محرك Unreal Engine 5 (UE5 Guide)
 
-**المسار المباشر لمشروع المحرك:**  
-`C:\Users\kayf\Desktop\rok2\game\client-unreal`
-
----
-
-## 1. الرؤية الهندسية ومحرك اللعبة (Engine Vision)
-
-بناءً على التوجيه التقني المباشر، تم اعتماد **Unreal Engine 5.8** كعميل وحيد ورئيسي للعبة **ROK2**. يعتمد العميل على لغة **C++** من أجل تحقيق أعلى أداء ورسوميات 3D فاخرة تنافس ألعاب الفئة الأولى (4X Strategy MMO).
-
-### المميزات التقنية المدمجة في C++ (Unreal Engine 5.8):
-1. **نظام الاتصال الشبكي (Rok2Api C++ Module):** متصل ومباشر مع سيرفر Cloudflare Worker API والسيرفر الحي (WebSockets) لقراءة الخريطة 2400² وإرسال مسيرات الهجوم.
-2. **الكاميرا الاستراتيجية المنظورية (Rok2IsometricCamera):** كاميرا استراتيجية بزاوية (-50 درجة) تدعم السحب التكتيكي والتكبير/التصغير (Pan & Zoom) بسلاسة.
-3. **متحكم اللاعب (Rok2PlayerController):** دعم المدخلات التفاعلية للماوس على الكومبيوتر واللمس على هواتف الأندرويد.
-4. **رسم عالم اللعبة 3D (Rok2WorldRenderer):** توليد وتحريك مجسمات المدن والممرات والموارد والجيوش على الخريطة.
-5. **منشئ المدينة (Rok2CityBuilder):** بناء وتثبيت المباني التفاعلية في رقعة المدينة الخاصة باللاعب.
-6. **واجهات UMG الاحترافية (Rok2BootWidget & Rok2CityWidget):** واجهات تسجيل الدخول، اختيار الحضارات الـ 6، ترقية المباني، تدريب القوات، وعرض شارات الموارد والتحالفات.
+**مسار مشروع المحرك داخل الريبو:** `game/client-unreal/`
+**نسخة المحرك:** Unreal Engine 5.4 أو أحدث (أي نسخة UE5 مستقرة ≥ 5.4 — الكود لا يعتمد على ميزات نسخة بعينها).
 
 ---
 
-## 2. هيكلية ملفات C++ في Unreal Engine
+## 1. الرؤية الهندسية
+
+العميل الرسمي والوحيد للعبة **ROK2** مبني على **Unreal Engine 5** بلغة **C++** لتحقيق أعلى أداء ورسوميات 3D تنافس ألعاب الـ 4X Strategy MMO.
+
+### المكوّنات البرمجية (C++):
+
+1. **`URok2Api`** — الاتصال بالخادم: HTTP REST + WebSocket حي (قراءة الخريطة 2400²، إرسال المسيرات).
+2. **`ARok2IsometricCamera`** — كاميرا استراتيجية بزاوية -50 درجة مع Pan & Zoom سلس.
+3. **`ARok2PlayerController`** — مدخلات الماوس (PC) واللمس (Android).
+4. **`ARok2WorldRenderer`** — رسم كائنات العالم: المدن، الممرات، الموارد، الجيوش.
+5. **`ARok2CityBuilder`** — بناء وتثبيت المباني في رقعة المدينة.
+6. **`URok2BootWidget` / `URok2CityWidget`** — واجهات UMG: تسجيل الدخول، اختيار الحضارات الـ 6، الموارد، التدريب، التحالفات.
+
+---
+
+## 2. هيكلية ملفات C++
 
 ```
 game/client-unreal/Source/Rok2/
-├── Rok2.Build.cs              # إدارة التبعيات (HTTP, WebSockets, Json, JsonUtilities, UMG)
-├── Rok2.cpp                   # الملف الرئيسي للموديول
+├── Rok2.Build.cs              # تبعيات الموديول (HTTP, WebSockets, Json, UMG)
+├── Rok2.cpp                   # تنفيذ الموديول
 ├── Public/
-│   ├── Rok2Types.h            # الهياكل البرمجية (DTOs: FPlayerState, FCityState, FPassState...)
-│   ├── Rok2Api.h              # كلاس الاتصال بالـ REST API والـ WebSockets
-│   ├── Rok2GameMode.h         # GameMode الرئيسي لإدارة الدورة البرمجية
-│   ├── Rok2PlayerController.h # متحكم المدخلات واللمس
-│   ├── Rok2IsometricCamera.h  # كاميرا الاستراتيجية المنظورية
-│   ├── Rok2CityBuilder.h      # كلاس بناء رقعة المدينة والمباني 3D
-│   ├── Rok2WorldRenderer.h    # كلاس رسم عناصر خريطة العالم 2400²
-│   ├── Rok2ProceduralAssets.h # توليد الخامات والألوان ديناميكياً
-│   ├── Rok2BootWidget.h       # واجهة البداية وااختيار الحضارات
-│   ├── Rok2CityWidget.h       # واجهة إدارة المدينة والجيوش
-│   └── Rok2BlueprintLibrary.h # مكتبة دالات Blueprints للـ Nodes والإحداثيات والحضارات
-└── Private/                   # التنفيذ البرمجي لجميع الملفات أعلاه
+│   ├── Rok2Types.h            # DTOs (FPlayerState, FCityState, FPassState...)
+│   ├── Rok2Api.h              # REST API + WebSockets
+│   ├── Rok2GameMode.h         # إدارة دورة اللعبة
+│   ├── Rok2PlayerController.h # المدخلات واللمس
+│   ├── Rok2IsometricCamera.h  # الكاميرا الاستراتيجية
+│   ├── Rok2CityBuilder.h      # رقعة المدينة والمباني
+│   ├── Rok2WorldRenderer.h    # رسم خريطة العالم 2400²
+│   ├── Rok2ProceduralAssets.h # خامات وألوان ديناميكية
+│   ├── Rok2BootWidget.h       # واجهة البداية
+│   ├── Rok2CityWidget.h       # واجهة المدينة والجيوش
+│   └── Rok2BlueprintLibrary.h # دالات Blueprints
+└── Private/                   # تنفيذ جميع الملفات أعلاه
 ```
 
 ---
 
-## 3. كيفية تشغيل المشروع داخل Unreal Engine Editor
+## 3. التشغيل داخل Unreal Editor
 
-1. افتح مجلد المشروع:
-   `C:\Users\kayf\Desktop\rok2\game\client-unreal`
-2. اضغط مرتين على ملف **`Rok2.uproject`**.
-3. إذا طلب المحرك اختيار النسخة، اختر **Unreal Engine 5.8**.
-4. سيقوم المحرك بتوليد ملفات الـ Visual Studio وتجميع كود الـ C++ تلقائياً.
-5. داخل محرر Unreal Editor، اضغط على زر **Play (PIE)** لتجربة اللعبة مباشرة داخل المحرر.
+1. افتح `game/client-unreal/Rok2.uproject` بنقرة مزدوجة.
+2. إذا سأل المحرك عن النسخة، اختر أحدث UE5 مثبت لديك (≥ 5.4).
+3. سيتولى المحرك توليد ملفات Visual Studio وتجميع كود C++ تلقائياً.
+4. اضغط **Play (PIE)** للتجربة داخل المحرر.
 
 ---
 
-## 4. خطة بناء اللعبة لأجهزة الكومبيوتر (Windows PC)
+## 4. بناء نسخة الكومبيوتر (Windows PC)
 
-1. داخل Unreal Editor، اذهب إلى قائمة:  
-   `Platforms` → `Windows`.
-2. اختر `Binary Configuration` ➔ `Shipping` (أو `Development` للاختبار).
-3. اضغط على **`Package Project`**.
-4. حدد مجلد الإخراج (مثلاً `Binaries/Win64`).
-5. ستقوم العملية بتوليد ملف `Rok2.exe` جاهز للتشغيل والتحزيم.
+1. في المحرر: `Platforms` → `Windows`.
+2. `Binary Configuration` → `Shipping` (أو `Development` للاختبار).
+3. `Package Project` → حدد مجلد الإخراج (مثلاً `Binaries/Win64`).
+4. الناتج: `Rok2.exe` جاهز للتحزيم.
 
 ---
 
-## 5. خطة بناء اللعبة لهواتف الأندرويد (Android APK)
+## 5. بناء نسخة الأندرويد (Android APK)
 
-### المتطلبات المسبقة:
-- تثبيت **Android Studio** (نسخة معتمدة لـ UE 5.4).
-- ضبط **Android SDK & NDK** داخل Unreal Editor:  
-  `Edit` → `Project Settings` → `Platforms` → `Android SDK`.
+التفاصيل الكاملة في [game/client-unreal/Docs/BUILD_ANDROID.md](game/client-unreal/Docs/BUILD_ANDROID.md). باختصار:
 
-### خطوات البناء:
-1. اذهب إلى قائمة:  
-   `Platforms` → `Android`.
-2. اضغط على **`Package Project`** واختيار `Android (ASTC)`.
-3. سيتولّد ملف **`Rok2-arm64.apk`** في المسار:
-   `game/client-unreal/Binaries/Android/`
-4. انقل ملف الـ APK إلى هاتفك وثبته مباشرة للاستمتاع باللعبة على الجوال!
+1. ثبّت **Android Studio** واضبط SDK/NDK من: `Edit` → `Project Settings` → `Platforms` → `Android SDK`.
+2. `Platforms` → `Android` → `Package Project` → `Android (ASTC)`.
+3. الناتج: `Rok2-arm64.apk` في `game/client-unreal/Binaries/Android/` — انقله للهاتف وثبّته.
 
 ---
 
-## 6. ربط السيرفر السحابي المباشر (Production API)
+## 6. الربط بالخادم السحابي
 
-مشروع Unreal Engine موصول ومعد تلقائياً للاتصال بالسيرفر السحابي المباشر:
-- **REST API Base URL:** `https://rok2-api.lolelarap.workers.dev`
-- **WebSocket Streaming URL:** `wss://rok2-api.lolelarap.workers.dev/v1/world/ws`
-
-يمكنك تعديل المسار في أي وقت عبر متغير `ApiBaseUrl` في كلاس `URok2Api`.
+- **REST API:** `https://rok2-api.lolelarap.workers.dev`
+- **WebSocket:** `wss://rok2-api.lolelarap.workers.dev/v1/world/ws`
+- المسار قابل للتعديل عبر `ApiBaseUrl` في كلاس `URok2Api`.
 
 ---
 
-**مشروع Unreal Engine 5 جاهز ومكتمل ومعد للتطوير والتجميع المباشر.**
+*للمهام التنفيذية القادمة على العميل، راجع بنود المرحلة الحالية في [PLAN.md](PLAN.md).*
