@@ -87,6 +87,9 @@ protected:
 
 	float RefreshTimer = 0.f;
 
+	/** P2-T7: هل زُرعت مرتفعات KayKit حول المدن؟ (مرة واحدة) */
+	bool bArtHillsSpawned = false;
+
 	void ClearActors();
 	AActor* SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
 	void SpawnMarker(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);

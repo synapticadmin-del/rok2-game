@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P2-T6 HUD موحد في العميل (المرحلة 2).
+> **آخر تحديث:** 2026-07-28 — P2-T7 أصول فنية أولية (اكتمال بنود المرحلة 2).
 
 ---
 
@@ -60,7 +60,7 @@
 - [x] **P2-T4** Zone 2 stubs: مناطق مقفلة بمؤقّت زمني + مناطق موارد أعلى — ✅ تم 2026-07-28
 - [x] **P2-T5** تحالف كامل: helps بين الأعضاء + rally على الممرات + رتب — ✅ تم 2026-07-28
 - [x] **P2-T6** Client: HUD موحد (موارد، طوابير، إشعارات) بأسلوب UMG احترافي — ✅ تم 2026-07-28
-- [ ] **P2-T7** أصول فنية أولية: استيراد موديلات مجانية (Kenney/Quaternius) للمباني والوحدات في `Content/Art/`
+- [x] **P2-T7** أصول فنية أولية: استيراد موديلات مجانية (Kenney/Quaternius) للمباني والوحدات في `Content/Art/` — ✅ تم 2026-07-28
 - **🚪 بوابة النجاح:** جلسة لعب 30 دقيقة متواصلة بدون أخطاء قاتلة، وفيها بناء + بحث + قتال + تحالف.
 
 ### المرحلة 3 — Season Alpha
@@ -110,6 +110,7 @@
 | 2026-07-28 | P2-T4 Zone 2 stubs (قفل زمني + موارد أعلى) | 5452841 | data/zones.json: unlock_schedule لـ Zone2 (4 مناطق @يوم10 + 4 ممرات داخلية @يوم10 و4 @يوم14) + constants (zone2_richness_mult=1.5 ونطاقات موارد)؛ sim/zones.ts جديد يقرأ JSON فقط؛ KingdomShard: رفض المسيرات لمناطق مقفلة (zone_locked) لكل الأهداف (عقد/نقاط/مدن/عرش)، بذر حتمي لعقد Z1+Z2 (مستويات 1-4 و3-6، غنى Z2 ×1.5)، بث zone_unlocked مرة واحدة عند بلوغ اليوم، حالة zones في snapshot + GET /v1/world/zones + /v1/meta/zones + zones في /v1/meta/all؛ اجتاز zones_offline_test.mjs (30/30) ولم تتأثر اختبارات research/hospital/commanders |
 | 2026-07-28 | P2-T5 تحالف كامل (رتب + helps + rally) | 9aa251d | data/zones.json يكسب alliance config (رتب R1-R5 بصلاحيات، help: 60ث/مساعدة ×10 كحد أقصى و30% من المدة، rally: R3+ و5 مشاركين وتجميع 300ث)؛ migration 0004 (alliance_members/alliance_helps/rallies/rally_participants)؛ sim/alliance.ts يقرأ JSON فقط؛ helps حقيقية تسرّع طوابير الأعضاء تراكمياً (مساعدة واحدة لكل لاعب/طابور)؛ رتب فعلية: promote/kick بقاعدة أعلى-يغيّر-أدنى + leave (القائد ممنوع)؛ rally على pass/throne يجمع قوات المشاركين في مسيرة واحدة بقائد + إعادة القوات عند فشل المسار + بث rally_launched + poller كل طلب؛ snapshot يكسب queues؛ اجتاز alliance_offline_test.mjs (28/28) ولم تتأثر بقية الاختبارات |
 | 2026-07-28 | P2-T6 HUD موحد في العميل (موارد + طوابير + إشعارات) | d5cae1e | URok2HudWidget جديد يُبنى بالكود (بدون Blueprint): شريط علوي بموارد حية (تحديث كل Tick من Rates) + يوم الموسم + مؤقّت أقرب منطقة مقفلة (من snapshot.zones) + شارة اتصال + جرس بعدّاد؛ لوحة طوابير بشريط تقدم UProgressBar وعدّ تنازلي لكل طابور (من snapshot.queues)؛ بطاقات إشعارات تتلاشى (قتال/منطقة/rally/بحث) + مركز إشعارات قابل للطي بسجل 20؛ شريط سفلي بأزرار مفوَّضة لـ Blueprint؛ Rok2Api: FRok2ZoneStatus/FRok2HudNotification + PushNotification مركزي + بارس queues/zones في snapshot + أحداث zone_unlocked/tech_researched/rally_launched/season_day؛ GameMode يركّب HUD فوق CityWidget (z=20)؛ 41/41 فحص بنيوي ناجح (بناء UE5 الفعلي على جهاز المطور) |
+| 2026-07-28 | P2-T7 أصول فنية أولية (KayKit CC0) | COMMIT_HASH_PLACEHOLDER | 17 GLB ذاتية الاكتفاء في Content/Art/kaykit (~2.4MB) محوّلة من KayKit Medieval Hexagon Pack (CC0، LICENSE مضمّن): 11 مبنى مدينة (castle/windmill/lumbermill/mine/market/barracks/archeryrange/tavern/tower/blacksmith) + قلعة حمراء للأعداء + 4 أعلام تحالف + مرتفعات؛ URok2ArtAssets (فهرس Id→GLB + تحميل مع fallback هندسي — لا يُكسر البناء بدون استيراد)؛ CityBuilder يرسم موديلات حقيقية بمقياس الفهرس؛ WorldRenderer: قلاع زرقاء/حمراء للمدن + تلال KayKit؛ setup_level.py يستورد GLB إلى /Game/Art/kaykit تلقائياً؛ Content/Art/README.md توثيق + ملاحظة وحدات Extra؛ 63/63 فحص ناجح (صحة GLB + تغطية الفهرس + سلامة C++) |
 
 ---
 

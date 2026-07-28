@@ -4,6 +4,7 @@
 #include "Rok2BuildingDetailWidget.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Rok2ProceduralAssets.h"
+#include "Rok2ArtAssets.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
@@ -126,6 +127,23 @@ void ARok2CityBuilder::Rebuild()
 			}
 		}
 
+		// P2-T7: الموديل الفني من مكتبة KayKit إن توفّر — وإلا يبقى الشكل الهندسي
+		float ArtScale = 0.f;
+		if (MeshToUse == GroundTileMesh) // لم يعيّن المستوى موديلاً مخصصاً
+		{
+			if (URok2ArtAssets* Art = URok2ArtAssets::Get())
+			{
+				if (UStaticMesh* ArtMesh = Art->LoadMesh(Id))
+				{
+					MeshToUse = ArtMesh;
+					for (const FRok2ArtEntry& E : Art->GetCatalog())
+					{
+						if (E.Id == Id) { ArtScale = E.Scale; break; }
+					}
+				}
+			}
+		}
+
 		FActorSpawnParameters P;
 		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		AStaticMeshActor* SM = GetWorld()->SpawnActor<AStaticMeshActor>(Loc + Offset, Rot, P);
@@ -141,7 +159,15 @@ void ARok2CityBuilder::Rebuild()
 			if (MeshC && MeshToUse)
 			{
 				MeshC->SetStaticMesh(MeshToUse);
-				MeshC->SetWorldScale3D(FVector(0.8f, 0.8f, 1.f + Level * 0.1f));
+				if (ArtScale > 0.f)
+				{
+					// موديل فني حقيقي: مقياس ثابت من الفهرس (لا تمدد بالمستوى)
+					MeshC->SetWorldScale3D(FVector(ArtScale, ArtScale, ArtScale));
+				}
+				else
+				{
+					MeshC->SetWorldScale3D(FVector(0.8f, 0.8f, 1.f + Level * 0.1f));
+				}
 				MeshC->SetMobility(EComponentMobility::Movable);
 			}
 		}

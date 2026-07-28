@@ -39,6 +39,37 @@ for cmd in console_cmds:
     if world:
         unreal.SystemLibrary.execute_console_command(world, cmd)
 
+# ---------------------------------------------------------------------------
+# P2-T7: استيراد أصول KayKit (GLB) إلى /Game/Art/kaykit كـ uasset
+# — يتخطى الموجود، ولا يؤثر على البناء بدون استيراد (fallback هندسي).
+# ---------------------------------------------------------------------------
+print(">>> Step 1b: Importing KayKit GLB art assets (P2-T7)...")
+import os
+ART_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Content", "Art", "kaykit")
+ART_DST = "/Game/Art/kaykit"
+if os.path.isdir(ART_SRC):
+    tasks = []
+    for fname in sorted(os.listdir(ART_SRC)):
+        if not fname.lower().endswith(".glb"):
+            continue
+        dest_name = fname[:-4]
+        # تخطَّ المستورد مسبقاً
+        if unreal.EditorAssetLibrary.does_asset_exist(f"{ART_DST}/{dest_name}.{dest_name}"):
+            continue
+        task = unreal.AssetImportTask()
+        task.filename = os.path.join(ART_SRC, fname)
+        task.destination_path = ART_DST
+        task.destination_name = dest_name
+        task.replace_existing = False
+        task.automated = True
+        task.save = True
+        tasks.append(task)
+    if tasks:
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
+    print(f"    imported {len(tasks)} GLB assets (skipped existing).")
+else:
+    print("    no kaykit folder found — geometric fallback stays active.")
+
 print(">>> Step 2: Cleaning ALL old duplicated actors from level...")
 all_actors = editor_subsys.get_all_level_actors()
 deleted_count = 0

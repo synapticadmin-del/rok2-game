@@ -4,6 +4,7 @@
 #include "Rok2GameMode.h"
 #include "Rok2Api.h"
 #include "Rok2ProceduralAssets.h"
+#include "Rok2ArtAssets.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -130,6 +131,7 @@ void ARok2WorldRenderer::ClearActors()
 		if (A) A->Destroy();
 	}
 	SpawnedActors.Empty();
+	bArtHillsSpawned = false; // P2-T7: تُعاد زراعة المرتفعات مع إعادة الرسم
 }
 
 AActor* ARok2WorldRenderer::SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color)
@@ -190,7 +192,24 @@ void ARok2WorldRenderer::RefreshFromApi()
 		FVector Loc(C.X * WorldToUnrealScale, C.Y * WorldToUnrealScale, CityZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
 
-		if (CityHISM)
+		// P2-T7: قلعة KayKit حقيقية إن توفرت (زرقاء لي/لتحالفي، حمراء للأعداء) — وإلا الـ HISM المكعّب
+		UStaticMesh* CastleMesh = nullptr;
+		float CastleScale = 2.2f;
+		const bool bMineOrAlly = (C.PlayerId == Api->GetPlayer().Id) ||
+			(!Api->GetPlayer().AllianceId.IsEmpty() && C.AllianceId == Api->GetPlayer().AllianceId);
+		if (URok2ArtAssets* Art = URok2ArtAssets::Get())
+		{
+			CastleMesh = Art->LoadMesh(bMineOrAlly ? TEXT("city_hall") : TEXT("city_enemy"));
+		}
+		if (CastleMesh)
+		{
+			SpawnMarker(CastleMesh, Loc, FString::Printf(TEXT("CityArt_%s"), *C.PlayerId), FLinearColor::White);
+			if (AActor* Last = SpawnedActors.Num() ? SpawnedActors.Last() : nullptr)
+			{
+				Last->SetActorScale3D(FVector(CastleScale));
+			}
+		}
+		else if (CityHISM)
 		{
 			CityHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector::OneVector));
 		}
@@ -219,6 +238,28 @@ void ARok2WorldRenderer::RefreshFromApi()
 		else
 		{
 			if (ResourceNodeHISM) ResourceNodeHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(0.8f, 0.8f, 0.8f)));
+		}
+	}
+
+	// P2-T7: مرتفعات KayKit عند زوايا مناطق Zone1 (مرة واحدة — علامات حدود بصرية)
+	if (!bArtHillsSpawned)
+	{
+		if (URok2ArtAssets* Art = URok2ArtAssets::Get())
+		{
+			if (UStaticMesh* Hills = Art->LoadMesh(TEXT("hills")))
+			{
+				for (const FRok2CityEntity& C : W.Cities)
+				{
+					// تلال خلف كل مدينة كنقطة ارتكاز بصرية للتضاريس
+					FVector HillLoc(C.X * WorldToUnrealScale + 350.f, C.Y * WorldToUnrealScale + 350.f, CityZ);
+					SpawnMarker(Hills, HillLoc, TEXT("ArtHill"), FLinearColor::White);
+					if (AActor* Last = SpawnedActors.Num() ? SpawnedActors.Last() : nullptr)
+					{
+						Last->SetActorScale3D(FVector(2.0f));
+					}
+				}
+				bArtHillsSpawned = true;
+			}
 		}
 	}
 
