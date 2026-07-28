@@ -99,7 +99,7 @@
 | 2026-07-28 | إنشاء PLAN.md + AGENTS.md + تحديث التوثيق الجذري | 49b07fe | البداية الرسمية للخطة التنفيذية |
 | 2026-07-28 | P1-T1 توحيد نسخة المحرك والتوثيق | 49b07fe | حسم التضارب: UE 5.4+ في كل الملفات |
 | 2026-07-28 | P1-T2 شاشة تحميل + إعادة اتصال + معالجة أخطاء الشبكة | 8f0df32 | URok2Api: HTTP retry backoff + WS auto-reconnect + OnConnectionState؛ BootWidget: شاشة تحميل؛ CityWidget: شارة اتصال |
-| 2026-07-28 | P1-T3 مسيرات الجيوش مرئية على الخريطة | — | ParseWorld يقرأ marches؛ أحداث WS (march_created/returning/update)؛ WorldRenderer: اتجاه + ألوان تحالف + حالة returning |
+| 2026-07-28 | P1-T3 مسيرات الجيوش مرئية على الخريطة | c9b951e | ParseWorld يقرأ marches؛ أحداث WS (march_created/returning/update)؛ WorldRenderer: اتجاه + ألوان تحالف + حالة returning |
 
 ---
 
