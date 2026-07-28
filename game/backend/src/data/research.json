@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "notes": "ROK2 research tree (P2-T3). Two branches: economy + military. Per-level cost/duration scale by level via cost_mult and duration_mult. academy_req(level) = academy_base_req * level. Buffs apply per researched level: buff.value * level. Prerequisites must be at prereq_level or higher before starting a new level.",
+  "cost_mult": 1.6,
+  "duration_mult": 1.5,
+  "technologies": [
+    {
+      "id": "eco_production",
+      "name": "Agriculture",
+      "branch": "economy",
+      "max_level": 5,
+      "base_cost": { "food": 400, "wood": 400, "stone": 100, "gold": 50 },
+      "base_duration_sec": 60,
+      "academy_base_req": 1,
+      "prerequisites": [],
+      "buff": { "stat": "resource_production", "per_level": 0.03 },
+      "description": "Increases all resource production by 3% per level."
+    },
+    {
+      "id": "eco_gathering",
+      "name": "Sickle",
+      "branch": "economy",
+      "max_level": 5,
+      "base_cost": { "food": 300, "wood": 300, "stone": 0, "gold": 0 },
+      "base_duration_sec": 45,
+      "academy_base_req": 1,
+      "prerequisites": [],
+      "buff": { "stat": "gather_speed", "per_level": 0.05 },
+      "description": "Increases gathering speed by 5% per level."
+    },
+    {
+      "id": "eco_masonry",
+      "name": "Masonry",
+      "branch": "economy",
+      "max_level": 5,
+      "base_cost": { "food": 350, "wood": 350, "stone": 200, "gold": 0 },
+      "base_duration_sec": 60,
+      "academy_base_req": 2,
+      "prerequisites": [{ "id": "eco_production", "level": 2 }],
+      "buff": { "stat": "building_speed", "per_level": 0.04 },
+      "description": "Increases building speed by 4% per level."
+    },
+    {
+      "id": "eco_logistics",
+      "name": "Logistics",
+      "branch": "economy",
+      "max_level": 5,
+      "base_cost": { "food": 500, "wood": 500, "stone": 100, "gold": 100 },
+      "base_duration_sec": 90,
+      "academy_base_req": 2,
+      "prerequisites": [{ "id": "eco_gathering", "level": 2 }],
+      "buff": { "stat": "troop_load", "per_level": 0.06 },
+      "description": "Increases troop load by 6% per level."
+    },
+    {
+      "id": "eco_training",
+      "name": "Military Training",
+      "branch": "economy",
+      "max_level": 5,
+      "base_cost": { "food": 600, "wood": 600, "stone": 200, "gold": 100 },
+      "base_duration_sec": 120,
+      "academy_base_req": 3,
+      "prerequisites": [{ "id": "eco_masonry", "level": 3 }],
+      "buff": { "stat": "training_speed", "per_level": 0.05 },
+      "description": "Increases training speed by 5% per level."
+    },
+    {
+      "id": "mil_attack",
+      "name": "Military Discipline",
+      "branch": "military",
+      "max_level": 5,
+      "base_cost": { "food": 500, "wood": 500, "stone": 100, "gold": 100 },
+      "base_duration_sec": 60,
+      "academy_base_req": 1,
+      "prerequisites": [],
+      "buff": { "stat": "troop_attack", "per_level": 0.02 },
+      "description": "Increases troop attack by 2% per level."
+    },
+    {
+      "id": "mil_defense",
+      "name": "Iron Armor",
+      "branch": "military",
+      "max_level": 5,
+      "base_cost": { "food": 500, "wood": 500, "stone": 150, "gold": 100 },
+      "base_duration_sec": 60,
+      "academy_base_req": 1,
+      "prerequisites": [],
+      "buff": { "stat": "troop_defense", "per_level": 0.02 },
+      "description": "Increases troop defense by 2% per level."
+    },
+    {
+      "id": "mil_march",
+      "name": "Pathfinding",
+      "branch": "military",
+      "max_level": 5,
+      "base_cost": { "food": 400, "wood": 400, "stone": 0, "gold": 50 },
+      "base_duration_sec": 45,
+      "academy_base_req": 2,
+      "prerequisites": [],
+      "buff": { "stat": "march_speed", "per_level": 0.04 },
+      "description": "Increases march speed by 4% per level."
+    },
+    {
+      "id": "mil_health",
+      "name": "Field Medicine",
+      "branch": "military",
+      "max_level": 5,
+      "base_cost": { "food": 600, "wood": 300, "stone": 200, "gold": 100 },
+      "base_duration_sec": 90,
+      "academy_base_req": 2,
+      "prerequisites": [{ "id": "mil_defense", "level": 2 }],
+      "buff": { "stat": "troop_health", "per_level": 0.03 },
+      "description": "Increases troop health by 3% per level."
+    },
+    {
+      "id": "mil_tactics",
+      "name": "Advanced Tactics",
+      "branch": "military",
+      "max_level": 5,
+      "base_cost": { "food": 800, "wood": 800, "stone": 300, "gold": 200 },
+      "base_duration_sec": 120,
+      "academy_base_req": 3,
+      "prerequisites": [{ "id": "mil_attack", "level": 3 }, { "id": "mil_defense", "level": 3 }],
+      "buff": { "stat": "troop_attack", "per_level": 0.04 },
+      "description": "Increases troop attack by 4% per level."
+    }
+  ]
+}

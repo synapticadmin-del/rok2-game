@@ -9,14 +9,23 @@ import {
   getBuildings,
   getTroops,
   getCommanders,
-  getTechTree,
   starterBuildings,
   upgradeCost,
   trainCost,
   unitPower,
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
-import { TECHNOLOGIES } from "../do/sim/research";
+import {
+  academyReq,
+  getTech,
+  getTechTree,
+  isValidTech,
+  prereqsMet,
+  researchBuff,
+  researchCost,
+  researchDurationSec,
+  type ResearchLevels,
+} from "../do/sim/research";
 import { healCost, healDurationSec, hospitalCapacity } from "../do/sim/hospital";
 import {
   addXp,
@@ -48,6 +57,19 @@ async function getTroopsMap(env: Env, playerId: string): Promise<Record<string, 
   const out: Record<string, number> = {};
   for (const r of rows.results || []) out[r.unit_id] = r.count;
   return out;
+}
+
+/** P2-T3: مستويات أبحاث اللاعب المكتملة */
+async function getResearchLevels(env: Env, playerId: string): Promise<ResearchLevels> {
+  try {
+    const rows = await env.DB.prepare("SELECT tech_id, level FROM player_research WHERE player_id = ?")
+      .bind(playerId).all<{ tech_id: string; level: number }>();
+    const out: ResearchLevels = {};
+    for (const r of rows.results || []) out[r.tech_id] = r.level;
+    return out;
+  } catch {
+    return {}; // الجدول قد لا يكون مُرحّلاً بعد
+  }
 }
 
 /** P2-T1: قائد مملوك للاعب */
@@ -115,6 +137,9 @@ async function refreshCity(env: Env, playerId: string): Promise<CityRow> {
   if (!city) throw new HttpError(404, "City not found");
   const buildings = await getBuildingsMap(env, playerId);
   const now = nowMs();
+  // P2-T3: باف إنتاج الموارد من أبحاث الاقتصاد
+  const research = await getResearchLevels(env, playerId);
+  const productionMod = 1 + researchBuff(research, "resource_production");
   const next = applyProduction(
     {
       food: city.food,
@@ -125,6 +150,7 @@ async function refreshCity(env: Env, playerId: string): Promise<CityRow> {
     },
     buildings,
     now,
+    productionMod,
   );
   await env.DB.prepare(
     `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
@@ -502,7 +528,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
       ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
 
-      const duration = 10 * count;
+      const duration = Math.max(1, Math.floor(10 * count / (1 + researchBuff(await getResearchLevels(env, player.id), "training_speed"))));
       const queueId = newId("q");
       const stub = kingdomStub(env);
       await stub.fetch("https://do/queue/add", {
@@ -581,35 +607,66 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, queueId, healSeconds: duration, cost, city });
     }
 
-    // Research
+    // P2-T3: شجرة البحث مع مستويات اللاعب المكتملة
+    if (path === "/v1/research" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const levels = await getResearchLevels(env, player.id);
+      const buildings = await getBuildingsMap(env, player.id);
+      const academyLevel = buildings["academy"] || 0;
+      const tree = (getTechTree() as any).technologies as any[];
+      return json({
+        academyLevel,
+        technologies: tree.map((t) => ({
+          id: t.id,
+          name: t.name,
+          branch: t.branch,
+          maxLevel: t.max_level,
+          level: levels[t.id] || 0,
+          buff: t.buff,
+          description: t.description,
+          prerequisites: t.prerequisites,
+          nextLevel: (levels[t.id] || 0) < t.max_level ? {
+            level: (levels[t.id] || 0) + 1,
+            cost: researchCost(t.id, (levels[t.id] || 0) + 1),
+            durationSec: researchDurationSec(t.id, (levels[t.id] || 0) + 1),
+            academyReq: academyReq(t.id, (levels[t.id] || 0) + 1),
+          } : null,
+        })),
+      });
+    }
+
+    // Research — P2-T3: يقرأ المستوى من D1 + يتحقق prerequisites + تكلفة/مدة من data/research.json
     if (path === "/v1/city/research" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       const body = await readJson<{ techId: string }>(request);
       if (!body.techId) throw new HttpError(400, "techId required");
+      if (!isValidTech(body.techId)) throw new HttpError(404, "Technology not found");
 
-      const tech = TECHNOLOGIES[body.techId];
-      if (!tech) throw new HttpError(404, "Technology not found");
-
+      const tech = getTech(body.techId)!;
       let city = await refreshCity(env, player.id);
       const buildings = await getBuildingsMap(env, player.id);
       const academyLvl = buildings["academy"] || 0;
 
-      // Dummy check for current tech level. (Usually from DB, assume 0 for now)
-      const currentTechLevel = 0; // Prototype stub
+      const levels = await getResearchLevels(env, player.id);
+      const currentTechLevel = levels[body.techId] || 0;
       const nextLevel = currentTechLevel + 1;
-      
-      if (nextLevel > tech.maxLevel) throw new HttpError(400, "Max tech level reached");
-      if (academyLvl < tech.academyLevelReq(nextLevel)) throw new HttpError(400, "Academy level too low");
 
-      const cost = tech.cost(nextLevel);
-      if (!canAfford(city, cost)) throw new HttpError(400, "Not enough resources");
+      if (nextLevel > tech.max_level) throw new HttpError(400, "Max tech level reached");
+      if (academyLvl < academyReq(body.techId, nextLevel)) {
+        throw new HttpError(400, "Academy level too low", { required: academyReq(body.techId, nextLevel), have: academyLvl });
+      }
+      const pre = prereqsMet(body.techId, levels);
+      if (!pre.ok) throw new HttpError(400, "Prerequisites not met", { missing: pre.missing });
+
+      const cost = researchCost(body.techId, nextLevel);
+      if (!canAfford(city, cost)) throw new HttpError(400, "Not enough resources", { cost });
 
       const spent = spend(city, cost);
       await env.DB.prepare(
         `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
       ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
 
-      const duration = tech.duration(nextLevel);
+      const duration = researchDurationSec(body.techId, nextLevel);
       const queueId = newId("q");
       const stub = kingdomStub(env);
       await stub.fetch("https://do/queue/add", {
@@ -626,7 +683,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
 
       city = await refreshCity(env, player.id);
-      return json({ ok: true, techId: body.techId, level: nextLevel, queueId, city });
+      return json({ ok: true, techId: body.techId, level: nextLevel, durationSec: duration, queueId, cost, city });
     }
 
     // P2-T1: قائمة قادة اللاعب المملوكين (مع بياناتهم من data/commanders.json)

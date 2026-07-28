@@ -3,7 +3,7 @@ import civilizations from "../data/civilizations.json";
 import buildings from "../data/buildings.json";
 import troopTiers from "../data/troop_tiers.json";
 import commanders from "../data/commanders.json";
-import techTree from "../data/tech_tree.json";
+import techTree from "../data/research.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 

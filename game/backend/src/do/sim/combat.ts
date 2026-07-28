@@ -67,7 +67,7 @@ export function totalTroops(troops: Troops): number {
   return Object.values(troops).reduce((s, n) => s + Math.max(0, n || 0), 0);
 }
 
-export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub): CombatResult {
+export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub, attackerResearchMod: number = 0, defenderResearchMod: number = 0): CombatResult {
   const aPower = Math.max(1, troopPower(attacker.troops));
   const dPower = Math.max(1, troopPower(defender.troops));
 
@@ -83,8 +83,9 @@ export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId
   if (samples > 0) aMult = aMult / (samples + 1);
 
   // P2-T1: مهارة attack للطرفين + مهارة defense تخفض فعالية المهاجم ضد المدافع
-  const aCommMod = 1 + commanderAttackMod(attackerCommander);
-  const dCommMod = 1 + commanderAttackMod(defenderCommander);
+  // P2-T3: باف أبحاث العسكر (troop_attack) يضاف للطرفين
+  const aCommMod = 1 + commanderAttackMod(attackerCommander) + attackerResearchMod;
+  const dCommMod = 1 + commanderAttackMod(defenderCommander) + defenderResearchMod;
   const dDefMod = 1 - Math.min(0.5, commanderDefenseMod(defenderCommander));
 
   const aEff = aPower * aMult * aCommMod * dDefMod;

@@ -6,6 +6,7 @@ import { resolveCombat, totalTroops, troopPower } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
+import { researchBuff } from "./sim/research";
 
 type CityEntity = {
   playerId: string;
@@ -590,6 +591,17 @@ export class KingdomShard extends DurableObject<Env> {
              ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`
           ).bind(q.playerId, u, Number(count)).run();
         }
+      } else if (q.type === "research") {
+        // P2-T3: اكتمال البحث يكتب المستوى في D1
+        try {
+          await this.env.DB.prepare(
+            `INSERT INTO player_research (player_id, tech_id, level, updated_at) VALUES (?, ?, ?, ?)
+             ON CONFLICT(player_id, tech_id) DO UPDATE SET level=excluded.level, updated_at=excluded.updated_at`,
+          ).bind(q.playerId, q.data.techId, q.data.level, now).run();
+          this.broadcast({ type: "tech_researched", playerId: q.playerId, techId: q.data.techId, level: q.data.level });
+        } catch {
+          // الجدول قد لا يكون مُرحّلاً بعد
+        }
       }
     }
 
@@ -682,6 +694,7 @@ export class KingdomShard extends DurableObject<Env> {
 
       // P2-T1: القائد المرافق للمسيرة يمنح باف هجوم من مهاراته
       const attackerCommander = await this.fetchMarchCommander(m.id);
+      const attackerResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -689,6 +702,8 @@ export class KingdomShard extends DurableObject<Env> {
         1,
         attackerCommander,
         undefined,
+        attackerResearchMod,
+        0,
       );
 
       const report = {
@@ -753,6 +768,7 @@ export class KingdomShard extends DurableObject<Env> {
       }
 
       const throneAttackerCommander = await this.fetchMarchCommander(m.id);
+      const throneResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -760,6 +776,8 @@ export class KingdomShard extends DurableObject<Env> {
         3,
         throneAttackerCommander,
         undefined,
+        throneResearchMod,
+        0,
       );
 
       const report = {
@@ -804,7 +822,8 @@ export class KingdomShard extends DurableObject<Env> {
         if (node.kind === "barb") {
           const def: Troops = { infantry_t1: 40 * node.level };
           const barbCommander = await this.fetchMarchCommander(m.id);
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined);
+          const barbResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0);
           const report = {
             id: newId("br"),
             createdAt: now,
@@ -965,7 +984,7 @@ export class KingdomShard extends DurableObject<Env> {
     if (path.endsWith("/march") && request.method === "POST") {
       const body = await request.json<any>();
       try {
-        const march = this.createMarch(body);
+        const march = await this.createMarch(body);
         this.ensureAlarm();
         return Response.json({ ok: true, march });
       } catch (e: any) {
@@ -976,7 +995,7 @@ export class KingdomShard extends DurableObject<Env> {
     if (path.endsWith("/pass-attack") && request.method === "POST") {
       const body = await request.json<any>();
       try {
-        const march = this.createMarch({
+        const march = await this.createMarch({
           ...body,
           targetType: "pass",
           targetId: body.passId,
@@ -1051,7 +1070,7 @@ export class KingdomShard extends DurableObject<Env> {
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
 
-  private createMarch(body: any): MarchEntity {
+  private async createMarch(body: any): Promise<MarchEntity> {
     const playerId = body.playerId as string;
     const city = this.cities.get(playerId);
     if (!city) throw new Error("player_city_not_on_map");
@@ -1142,8 +1161,11 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (!plan.ok) throw new Error(plan.reason || "illegal_path");
 
+    // P2-T3: باف سرعة المسير من أبحاث العسكر (march_speed)
+    const marchSpeedMod = 1 + (await this.fetchMarchSpeedMod(playerId));
+
     const start = nowMs();
-    const eta = start + marchDurationMs(plan.distance, 40);
+    const eta = start + marchDurationMs(plan.distance, 40 * marchSpeedMod);
     const march: MarchEntity = {
       id: newId("m"),
       ownerPlayerId: playerId,
@@ -1279,6 +1301,32 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
+  /** P2-T3: باف هجوم القوات من أبحاث العسكر للاعب (troop_attack) */
+  private async fetchResearchAttackMod(playerId: string): Promise<number> {
+    try {
+      const rows = await this.env.DB.prepare("SELECT tech_id, level FROM player_research WHERE player_id = ?")
+        .bind(playerId).all<{ tech_id: string; level: number }>();
+      const levels: Record<string, number> = {};
+      for (const r of rows.results || []) levels[r.tech_id] = r.level;
+      return researchBuff(levels, "troop_attack");
+    } catch {
+      return 0; // الجدول قد لا يكون مُرحّلاً بعد
+    }
+  }
+
+  /** P2-T3: باف سرعة المسير من أبحاث العسكر (march_speed) */
+  private async fetchMarchSpeedMod(playerId: string): Promise<number> {
+    try {
+      const rows = await this.env.DB.prepare("SELECT tech_id, level FROM player_research WHERE player_id = ?")
+        .bind(playerId).all<{ tech_id: string; level: number }>();
+      const levels: Record<string, number> = {};
+      for (const r of rows.results || []) levels[r.tech_id] = r.level;
+      return researchBuff(levels, "march_speed");
+    } catch {
+      return 0;
+    }
+  }
+
   private regionOf(x: number, y: number): string | null {
     for (const r of this.regions) {
       const [x0, y0, x1, y1] = r.aabb;
@@ -1336,7 +1384,7 @@ export class KingdomShard extends DurableObject<Env> {
           primaryCommanderId: msg.primaryCommanderId,
           commanderSkills: msg.commanderSkills,
         };
-        const march = this.createMarch(body);
+        const march = await this.createMarch(body);
         this.ensureAlarm();
         ws.send(JSON.stringify({ type: "march_ok", march }));
       } catch (e: any) {

@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P2-T2 المستشفى (المرحلة 2).
+> **آخر تحديث:** 2026-07-28 — P2-T3 شجرة البحث (المرحلة 2).
 
 ---
 
@@ -56,7 +56,7 @@
 ### المرحلة 2 — Vertical Slice
 - [x] **P2-T1** نظام القادة: بيانات `data/commanders.json` + عمولات/مهارات أساسية (attack/defense/passive واحدة لكل قائد) — ✅ تم 2026-07-28
 - [x] **P2-T2** المستشفى: استقبال الجرحى حسب السعة + شفاء زمني عبر الـ tick — ✅ تم 2026-07-28
-- [ ] **P2-T3** شجرة البحث: Economic + Military tiers من `data/research.json` (إنشاء الملف)
+- [x] **P2-T3** شجرة البحث: Economic + Military tiers من `data/research.json` (إنشاء الملف) — ✅ تم 2026-07-28
 - [ ] **P2-T4** Zone 2 stubs: مناطق مقفلة بمؤقّت زمني + مناطق موارد أعلى
 - [ ] **P2-T5** تحالف كامل: helps بين الأعضاء + rally على الممرات + رتب
 - [ ] **P2-T6** Client: HUD موحد (موارد، طوابير، إشعارات) بأسلوب UMG احترافي
@@ -106,6 +106,7 @@
 | 2026-07-28 | P1-T7 اختبار لاعبين E2E — بوابة المرحلة 1 محققة | 6588337 | scripts/e2e_two_players.mjs + game/docs/E2E_TWO_PLAYERS.md؛ نجح ضد الإنتاج (لاعبان/تحالفان/نزاع ممر/تقارير صحيحة)؛ تحذير: الـ API المُنشر أقدم من main — يحتاج wrangler deploy |
 | 2026-07-28 | P2-T1 نظام القادة (بيانات + مهارات + باف قتال) | e9621fc | data/commanders.json (12 قائداً، لكلٍ attack/defense/passive) + migration 0002 (player_commanders/march_commanders)؛ sim/commanders.ts يحسب بافات من JSON ويربطها في resolveCombat (هجوم للطرفين + دفاع للمدافع بسقف 50%)؛ endpoints: GET /v1/commanders، summon/levelup/skill/assign + starter commander مع city/init + خبرة من القتال؛ اجتاز commanders_offline_test.mjs (10/10) + commanders_test.mjs جاهز للإنتاج |
 | 2026-07-28 | P2-T2 المستشفى (جرحى بالسعة + شفاء زمني) | d8d78ff | data/buildings.json يكسب hospital config (سعة 200+150/مستوى، شفاء بنصف تكلفة التدريب، 5ث/جندي)؛ sim/hospital.ts؛ KingdomShard يقبَص الجرحى الخطيرين بالسعة عند كل معركة (الفائض يموت) ويخصم الخسائر من marching + ملخص hospital في تقرير المعركة؛ /v1/city/heal بتكلفة موارد + GET /v1/city يعرض wounded + hospital{level,capacity,used,free}؛ اجتاز hospital_offline_test.mjs (11/11) + hospital_test.mjs جاهز للإنتاج |
+| 2026-07-28 | P2-T3 شجرة البحث (economy + military) | COMMIT_HASH_PLACEHOLDER | data/research.json جديد (10 تقنيات × 5 مستويات × فرعين مع prerequisites)؛ migration 0003 player_research؛ sim/research.ts يقرأ JSON؛ اكتمال طابور research يكتب المستوى ويبث tech_researched؛ GET /v1/research + /v1/city/research يقرأ المستوى من D1 ويتحقق أكاديمية/prerequisites؛ بافات مطبقة: إنتاج + تدريب + سرعة مسير + هجوم قتال؛ اجتاز research_offline_test.mjs (13/13) + research_test.mjs جاهز للإنتاج |
 
 ---
 

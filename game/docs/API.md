@@ -26,6 +26,11 @@ Auth header: `Authorization: Bearer <token>`
 - `POST /v1/city/collect`
 - `POST /v1/city/heal` `{ troops }` — شفاء الجرحى الخطيرين (P2-T2): نصف تكلفة التدريب + مدة من data/buildings.json → `{ queueId, healSeconds, cost, city }`
 
+## Research (P2-T3) — راجع game/docs/RESEARCH.md
+- `GET /v1/research` — شجرة data/research.json (economy + military × 5) مع مستويات اللاعب وتفاصيل المستوى التالي
+- `POST /v1/city/research` `{ techId }` — بدء بحث (تحقق: أكاديمية + prerequisites + موارد) → `{ level, durationSec, queueId, cost }`
+- البافات تُطبق فعلياً: إنتاج الموارد، سرعة التدريب، سرعة المسير، هجوم القوات في القتال
+
 ## Hospital (P2-T2) — راجع game/docs/HOSPITAL.md
 - `GET /v1/city` يعيد `wounded` (الجرحى الخطيرون) + `hospital { level, capacity, used, free }`
 - تقارير المعركة تحمل `hospital { admitted, died, capacity }` — الفائض فوق السعة يموت
