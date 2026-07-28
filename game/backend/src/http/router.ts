@@ -9,6 +9,7 @@ import {
   getBuildings,
   getTroops,
   getCommanders,
+  getZones,
   starterBuildings,
   upgradeCost,
   trainCost,
@@ -229,6 +230,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/meta/techtree" && request.method === "GET") {
       return json(getTechTree());
     }
+    // P2-T4: مواصفة المناطق (فتح زمني + نطاقات موارد) من data/zones.json
+    if (path === "/v1/meta/zones" && request.method === "GET") {
+      return json(getZones());
+    }
     // P1-T6: endpoint موحد لكل بيانات التوازن — يقرأها العميل مرة واحدة عند البدء
     if (path === "/v1/meta/all" && request.method === "GET") {
       return json({
@@ -238,6 +243,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         troops: getTroops(),
         commanders: getCommanders(),
         techTree: getTechTree(),
+        zones: getZones(),
         constants: {
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
@@ -946,6 +952,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/season/leaderboard" && request.method === "GET") {
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/leaderboard");
+      const data = await res.json();
+      return json(data);
+    }
+
+    // P2-T4: حالة فتح/قفل المناطق (مؤقت Zone 2 stubs)
+    if (path === "/v1/world/zones" && request.method === "GET") {
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/zones-status");
       const data = await res.json();
       return json(data);
     }

@@ -4,6 +4,7 @@ import buildings from "../data/buildings.json";
 import troopTiers from "../data/troop_tiers.json";
 import commanders from "../data/commanders.json";
 import techTree from "../data/research.json";
+import zonesSpec from "../data/zones.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -90,6 +91,11 @@ export function getBuildings() {
 
 export function getTroops() {
   return troopTiers;
+}
+
+/** P2-T4: مواصفة المناطق الموحدة (فتح زمني + نطاقات موارد) — تُقرأ من data/zones.json */
+export function getZones() {
+  return zonesSpec;
 }
 
 export function starterBuildings(): string[] {

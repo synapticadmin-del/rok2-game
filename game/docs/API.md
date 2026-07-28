@@ -62,6 +62,14 @@ Auth header: `Authorization: Bearer <token>`
 {"type":"ping"}
 ```
 
+## Zones (P2-T4) — مناطق مقفلة بمؤقّت زمني + موارد أعلى
+- `GET /v1/meta/zones` — مواصفة data/zones.json (unlock_schedule + resource_level_range + constants)
+- `GET /v1/world/zones` → `{ seasonDay, zones: [{ zoneId, regionId, unlocked, unlockDay }] }` — حالة قفل/فتح كل منطقة الآن
+- snapshot العالم يتضمن `zones` بنفس البنية، ورسالة WS `{"type":"zone_unlocked","zoneId","regionId","seasonDay"}` تُبث عند بلوغ يوم الفتح
+- المسيرات لأهداف داخل منطقة مقفلة (موارد/برابرة/نقاط/مدن) تُرفض بخطأ `zone_locked` حتى يوم الفتح
+- عقد الموارد: مستويات ضمن resource_level_range لكل منطقة (Zone1 [1,4]، Zone2 [3,6]) وغنى Zone2 = × constants.zone2_richness_mult (1.5)
+- `GET /v1/meta/all` يتضمن `zones` أيضاً
+
 ## Admin (`x-admin-key`)
 - `POST /v1/admin/tick`
 - `POST /v1/admin/set-time` `{ day }`

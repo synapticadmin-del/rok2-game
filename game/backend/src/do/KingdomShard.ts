@@ -7,6 +7,13 @@ import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
 import { researchBuff } from "./sim/research";
+import {
+  isRegionUnlocked,
+  nodeLevelForRegion,
+  nodeRichness,
+  passUnlockDay,
+  zonesStatus,
+} from "./sim/zones";
 
 type CityEntity = {
   playerId: string;
@@ -65,6 +72,8 @@ type NodeEntity = {
   x: number;
   y: number;
   remaining: number;
+  regionId?: string;
+  zoneId?: number;
 };
 
 type ThroneEntity = {
@@ -107,6 +116,8 @@ export class KingdomShard extends DurableObject<Env> {
   private flags = new Map<string, AllianceFlag>();
   private queues = new Map<string, QueueEntity>();
   private reports: any[] = [];
+  // P2-T4: المناطق التي بُثّ فتحها مسبقاً (لا يُعاد بث zone_unlocked لها)
+  private zoneUnlockAnnounced = new Set<string>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -371,36 +382,44 @@ export class KingdomShard extends DurableObject<Env> {
       );
     }
 
-    // seed a few resource nodes near each zone1 spawn
+    // P2-T4: بذر عقد موارد حتمية في كل المناطق (Z1 + Z2 stubs).
+    // Zone 1: مستويات ضمن resource_level_range [1,4]؛ Zone 2: [3,6] مع غنى مضاعف.
+    // العقدة تقع في منطقة مقفلة زمنياً تبقى مرئية لكن لا يمكن استهدافها قبل الفتح.
     const kinds: Array<NodeEntity["kind"]> = ["food", "wood", "stone", "gold", "barb"];
-    let i = 0;
-    for (const r of this.regions.filter((z) => z.zone_id === 1)) {
-      const anchor = r.spawn_anchor || [ (r.aabb[0]+r.aabb[2])/2, (r.aabb[1]+r.aabb[3])/2 ];
-      for (let k = 0; k < 5; k++) {
+    const NODES_PER_REGION = 5;
+    const MIN_GAP = 8;
+    const placed: Array<{ x: number; y: number }> = [];
+    for (const r of this.regions) {
+      if (r.zone_id > 2) continue; // Zone 3: لا عقد عشوائية (CORE أهداف خاصة)
+      const [x0, y0, x1, y1] = r.aabb;
+      const w = x1 - x0;
+      const h = y1 - y0;
+      const cx = x0 + w / 2;
+      const cy = y0 + h / 2;
+      const rx = w / 2 - MIN_GAP;
+      const ry = h / 2 - MIN_GAP;
+      for (let k = 0; k < NODES_PER_REGION; k++) {
         const kind = kinds[k % kinds.length];
         const id = `node_${r.id}_${k}`;
+        const level = nodeLevelForRegion(r.id, r.zone_id, id);
+        const gx = Math.floor(k / 2) - 0.5; // -0.5, 0.5, 0.5
+        const gy = (k % 2) - 0.5;           // -0.5, 0.5 متناوبة
         const ent: NodeEntity = {
           id,
           kind,
-          level: 1 + (k % 3),
-          x: anchor[0] + (k - 2) * 15,
-          y: anchor[1] + ((k % 2) * 12 - 6),
-          remaining: kind === "barb" ? 100 : 5000,
+          level,
+          x: cx + gx * rx,
+          y: cy + gy * ry,
+          remaining: nodeRichness(kind, level, r.zone_id),
+          regionId: r.id,
+          zoneId: r.zone_id,
         };
+        placed.push({ x: ent.x, y: ent.y });
         this.nodes.set(id, ent);
-        this.ctx.storage.sql.exec(
-          `INSERT OR REPLACE INTO resource_nodes (id, kind, level, x, y, remaining) VALUES (?, ?, ?, ?, ?, ?)`,
-          ent.id,
-          ent.kind,
-          ent.level,
-          ent.x,
-          ent.y,
-          ent.remaining,
-        );
-        i++;
+        this.persistNode(ent);
       }
     }
-  }
+    void placed;
 
   private persistCity(c: CityEntity) {
     this.ctx.storage.sql.exec(
@@ -527,6 +546,8 @@ export class KingdomShard extends DurableObject<Env> {
         height: getMap().height,
         regions: this.regions.map((r) => ({ id: r.id, zone_id: r.zone_id, name: r.name, aabb: r.aabb })),
       },
+      // P2-T4: حالة قفل/فتح كل منطقة + يوم الفتح (لرسم المؤقت في العميل)
+      zones: zonesStatus(this.seasonDay, this.regions),
     };
   }
 
@@ -632,6 +653,21 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     // capture decay if contested idle? keep simple: no decay
+
+    // P2-T4: بث فتح المناطق عند بلوغ يوم الفتح (مرة واحدة لكل منطقة)
+    for (const r of this.regions) {
+      if (this.zoneUnlockAnnounced.has(r.id)) continue;
+      if (!isRegionUnlocked(r.id, r.zone_id, this.seasonDay)) continue;
+      this.zoneUnlockAnnounced.add(r.id);
+      this.broadcast({
+        type: "zone_unlocked",
+        zoneId: r.zone_id,
+        regionId: r.id,
+        seasonDay: this.seasonDay,
+        unlockDay: this.seasonDay,
+      });
+      changed = true;
+    }
 
     if (this.throne.ownerAllianceId && this.seasonDay >= this.throne.unlockDay) {
       const current = this.throneScores.get(this.throne.ownerAllianceId) || 0;
@@ -933,6 +969,14 @@ export class KingdomShard extends DurableObject<Env> {
       return Response.json({ scores });
     }
 
+    // P2-T4: حالة فتح/قفل المناطق مع يوم الفتح لكل منطقة
+    if (path.endsWith("/zones-status") && request.method === "GET") {
+      return Response.json({
+        seasonDay: this.seasonDay,
+        zones: zonesStatus(this.seasonDay, this.regions),
+      });
+    }
+
     if (path.endsWith("/upsert-city") && request.method === "POST") {
       const body = await request.json<any>();
       const c: CityEntity = {
@@ -1103,6 +1147,10 @@ export class KingdomShard extends DurableObject<Env> {
       if (!node) throw new Error("node_not_found");
       toX = node.x;
       toY = node.y;
+      // P2-T4: عقدة في منطقة مقفلة زمنياً تُرفض (stub حتى يوم الفتح)
+      if (node.regionId && node.zoneId != null && !isRegionUnlocked(node.regionId, node.zoneId, this.seasonDay)) {
+        throw new Error("zone_locked");
+      }
       if (node.kind === "barb") {
         targetType = "barb";
         // AP deduction
@@ -1121,6 +1169,15 @@ export class KingdomShard extends DurableObject<Env> {
       if (!enemy) throw new Error("target_city_not_found");
       toX = enemy.x;
       toY = enemy.y;
+    }
+
+    // P2-T4: أي هدف (نقطة/مدينة/عرش) داخل منطقة مقفلة زمنياً يُرفض
+    if (targetType === "point" || targetType === "city" || targetType === "throne") {
+      const tRegion = this.regionOf(toX, toY);
+      if (tRegion) {
+        const tZone = this.regions.find((r) => r.id === tRegion)?.zone_id ?? 1;
+        if (!isRegionUnlocked(tRegion, tZone, this.seasonDay)) throw new Error("zone_locked");
+      }
     }
 
     if (!Number.isFinite(toX) || !Number.isFinite(toY)) throw new Error("bad_target_coords");
