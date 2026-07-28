@@ -1,5 +1,12 @@
 {
   "resources": ["food", "wood", "stone", "gold"],
+  "hospital": {
+    "base_capacity": 200,
+    "capacity_per_level": 150,
+    "heal_cost_factor": 0.5,
+    "heal_seconds_per_troop": 5,
+    "notes": "P2-T2: capacity = base_capacity + capacity_per_level * (level - 1). heal cost = trainCost * heal_cost_factor per unit. Severely wounded above capacity die."
+  },
   "buildings": [
     {"id": "city_hall", "category": "core", "name": "City Hall", "desc": "Caps almost every progression gate"},
     {"id": "farm", "category": "economic", "name": "Farm", "produces": "food"},

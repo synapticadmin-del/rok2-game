@@ -17,6 +17,7 @@ import {
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
 import { TECHNOLOGIES } from "../do/sim/research";
+import { healCost, healDurationSec, hospitalCapacity } from "../do/sim/hospital";
 import {
   addXp,
   commanderPassiveMod,
@@ -400,7 +401,29 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const city = await refreshCity(env, player.id);
       const buildings = await getBuildingsMap(env, player.id);
       const troops = await getTroopsMap(env, player.id);
-      return json({ player, city, buildings, troops });
+
+      // P2-T2: الجرحى وسعة المستشفى
+      const wRows = await env.DB.prepare("SELECT unit_id, count FROM troops WHERE player_id = ? AND status = 'severely_wounded'")
+        .bind(player.id).all<{ unit_id: string; count: number }>();
+      const wounded: Record<string, number> = {};
+      let woundedTotal = 0;
+      for (const r of wRows.results || []) { wounded[r.unit_id] = r.count; woundedTotal += r.count; }
+      const hospitalLevel = buildings["hospital"] || 0;
+      const capacity = hospitalCapacity(hospitalLevel);
+
+      return json({
+        player,
+        city,
+        buildings,
+        troops,
+        wounded,
+        hospital: {
+          level: hospitalLevel,
+          capacity,
+          used: woundedTotal,
+          free: Math.max(0, capacity - woundedTotal),
+        },
+      });
     }
 
     // City upgrade
@@ -507,7 +530,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, city });
     }
 
-    // Heal
+    // Heal — P2-T2: شفاء الجرحى الخطيرين مقابل نصف تكلفة التدريب + مدة من data/buildings.json
     if (path === "/v1/city/heal" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       const body = await readJson<{ troops: Record<string, number> }>(request);
@@ -523,13 +546,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         if ((wounded[u] || 0) < Number(c)) throw new HttpError(400, `Not enough severely wounded ${u}`);
       }
 
+      // تكلفة الشفاء من الموارد (نصف تكلفة التدريب — من data/buildings.json)
+      let city = await refreshCity(env, player.id);
+      const cost = healCost(body.troops as Record<string, number>);
+      if (!canAfford(city, cost)) throw new HttpError(400, "Not enough resources to heal", { cost });
+      const spent = spend(city, cost);
+      await env.DB.prepare(
+        `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
+      ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
+
       for (const [u, c] of Object.entries(body.troops || {})) {
         await env.DB.prepare(
           `UPDATE troops SET count=count-? WHERE player_id=? AND unit_id=? AND status='severely_wounded'`
         ).bind(Number(c), player.id, u).run();
       }
 
-      const duration = 5 * count; // 5s per troop for prototype
+      const duration = healDurationSec(count);
       const queueId = newId("q");
       const stub = kingdomStub(env);
       await stub.fetch("https://do/queue/add", {
@@ -545,7 +577,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         })
       });
 
-      return json({ ok: true, queueId });
+      city = await refreshCity(env, player.id);
+      return json({ ok: true, queueId, healSeconds: duration, cost, city });
     }
 
     // Research

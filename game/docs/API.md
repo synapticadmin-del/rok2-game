@@ -24,6 +24,11 @@ Auth header: `Authorization: Bearer <token>`
 - `POST /v1/city/upgrade` `{ buildingId }`
 - `POST /v1/city/train` `{ unit: infantry_t1|cavalry_t1|archer_t1, count }`
 - `POST /v1/city/collect`
+- `POST /v1/city/heal` `{ troops }` — شفاء الجرحى الخطيرين (P2-T2): نصف تكلفة التدريب + مدة من data/buildings.json → `{ queueId, healSeconds, cost, city }`
+
+## Hospital (P2-T2) — راجع game/docs/HOSPITAL.md
+- `GET /v1/city` يعيد `wounded` (الجرحى الخطيرون) + `hospital { level, capacity, used, free }`
+- تقارير المعركة تحمل `hospital { admitted, died, capacity }` — الفائض فوق السعة يموت
 
 ## Commanders (P2-T1) — راجع game/docs/COMMANDERS.md
 - `GET /v1/commanders` → قادة اللاعب المملوكين + الـ roster الكامل + الثوابت

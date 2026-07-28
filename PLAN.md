@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P2-T1 نظام القادة (بداية المرحلة 2).
+> **آخر تحديث:** 2026-07-28 — P2-T2 المستشفى (المرحلة 2).
 
 ---
 
@@ -17,7 +17,7 @@
 | Backend (Cloudflare) | 🟡 Prototype يعمل | Auth ضيف + مدينة + مبانٍ + جنود + تحالفات + ممرات + تقارير قتال + WebSocket. ناجح في smoke E2E |
 | عميل UE5 (C++) | 🟡 هيكل أولي يعمل | موديول `Rok2` (Api, Camera, WorldRenderer, CityBuilder, Boot/City Widgets) — أشكال هندسية بدائية بدل الأصول الفنية |
 | الأصول الفنية 3D/UI | ❌ غير موجودة | حالياً Engine basic shapes + materials ملوّنة runtime |
-| الأنظمة المتقدمة | 🟡 بدأت | قادة (P2-T1 ✅: بيانات + مهارات + باف قتال + خبرة)؛ بحث جزئي (stubs)؛ لم تُنفّذ بعد: مستشفى كامل، أحداث، مواسم، KvK، متجر، Battle Pass |
+| الأنظمة المتقدمة | 🟡 بدأت | قادة (P2-T1 ✅) + مستشفى (P2-T2 ✅: جرحى بالسعة + شفاء زمني)؛ بحث جزئي (stubs)؛ لم تُنفّذ بعد: أحداث، مواسم، KvK، متجر، Battle Pass |
 | الاختبار الآلي | ❌ محدود | smoke.mjs فقط على الـ backend |
 
 **الخلاصة:** المشروع في نهاية المرحلة 1 (Prototype) وليس "مكتملاً 100%". أي تقرير يقول غير ذلك قديم.
@@ -55,7 +55,7 @@
 
 ### المرحلة 2 — Vertical Slice
 - [x] **P2-T1** نظام القادة: بيانات `data/commanders.json` + عمولات/مهارات أساسية (attack/defense/passive واحدة لكل قائد) — ✅ تم 2026-07-28
-- [ ] **P2-T2** المستشفى: استقبال الجرحى حسب السعة + شفاء زمني عبر الـ tick
+- [x] **P2-T2** المستشفى: استقبال الجرحى حسب السعة + شفاء زمني عبر الـ tick — ✅ تم 2026-07-28
 - [ ] **P2-T3** شجرة البحث: Economic + Military tiers من `data/research.json` (إنشاء الملف)
 - [ ] **P2-T4** Zone 2 stubs: مناطق مقفلة بمؤقّت زمني + مناطق موارد أعلى
 - [ ] **P2-T5** تحالف كامل: helps بين الأعضاء + rally على الممرات + رتب
@@ -105,6 +105,7 @@
 | 2026-07-28 | P1-T6 endpoint بيانات JSON الموحدة | 8bc3b12 | /v1/meta/all في router.ts؛ URok2Api::FetchMeta يسحب عند Init مع fallback؛ معدلات الإنتاج وقائمة وحدات التدريب من الخادم؛ API.md محدث |
 | 2026-07-28 | P1-T7 اختبار لاعبين E2E — بوابة المرحلة 1 محققة | 6588337 | scripts/e2e_two_players.mjs + game/docs/E2E_TWO_PLAYERS.md؛ نجح ضد الإنتاج (لاعبان/تحالفان/نزاع ممر/تقارير صحيحة)؛ تحذير: الـ API المُنشر أقدم من main — يحتاج wrangler deploy |
 | 2026-07-28 | P2-T1 نظام القادة (بيانات + مهارات + باف قتال) | e9621fc | data/commanders.json (12 قائداً، لكلٍ attack/defense/passive) + migration 0002 (player_commanders/march_commanders)؛ sim/commanders.ts يحسب بافات من JSON ويربطها في resolveCombat (هجوم للطرفين + دفاع للمدافع بسقف 50%)؛ endpoints: GET /v1/commanders، summon/levelup/skill/assign + starter commander مع city/init + خبرة من القتال؛ اجتاز commanders_offline_test.mjs (10/10) + commanders_test.mjs جاهز للإنتاج |
+| 2026-07-28 | P2-T2 المستشفى (جرحى بالسعة + شفاء زمني) | COMMIT_HASH_PLACEHOLDER | data/buildings.json يكسب hospital config (سعة 200+150/مستوى، شفاء بنصف تكلفة التدريب، 5ث/جندي)؛ sim/hospital.ts؛ KingdomShard يقبَص الجرحى الخطيرين بالسعة عند كل معركة (الفائض يموت) ويخصم الخسائر من marching + ملخص hospital في تقرير المعركة؛ /v1/city/heal بتكلفة موارد + GET /v1/city يعرض wounded + hospital{level,capacity,used,free}؛ اجتاز hospital_offline_test.mjs (11/11) + hospital_test.mjs جاهز للإنتاج |
 
 ---
 

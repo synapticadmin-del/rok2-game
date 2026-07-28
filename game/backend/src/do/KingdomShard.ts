@@ -5,6 +5,7 @@ import { newId, nowMs, dist } from "../lib/ids";
 import { resolveCombat, totalTroops, troopPower } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
+import { admitWounded, hospitalCapacity } from "./sim/hospital";
 
 type CityEntity = {
   playerId: string;
@@ -702,6 +703,12 @@ export class KingdomShard extends DurableObject<Env> {
       this.saveReport(report);
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
 
+      // P2-T2: الجرحى الخطيرون للمستشفى حسب السعة (الفائض يموت)
+      const hospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
+      report.hospital = hospital;
+      // كل الخسائر (موتى + جرحى) خرجت من رصيد المسيرة
+      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
         // if attacking enemy-owned, reset then gain
@@ -766,6 +773,10 @@ export class KingdomShard extends DurableObject<Env> {
       this.saveReport(report);
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
 
+      const throneHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
+      report.hospital = throneHospital;
+      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
         if (this.throne.ownerAllianceId && this.throne.ownerAllianceId !== m.allianceId) {
@@ -804,6 +815,9 @@ export class KingdomShard extends DurableObject<Env> {
           };
           this.saveReport(report);
           await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
+          const barbHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
+          report.hospital = barbHospital;
+          await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
           m.troops = result.attackerRemaining;
           if (result.winner === "attacker") {
             node.remaining = Math.max(0, node.remaining - 50);
@@ -1215,7 +1229,58 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
-  private regionOf(x: number, y: number): string | null {    for (const r of this.regions) {
+  /**
+   * P2-T2: استقبال الجرحى الخطيرين في مستشفى اللاعب حسب السعة.
+   * المقبولون يُسجلون status='severely_wounded'؛ الفائض يموت.
+   * يعيد ملخصاً يُضمَّن في تقرير المعركة.
+   */
+  private async admitToHospital(
+    playerId: string,
+    severely: Troops,
+  ): Promise<{ admitted: Troops; died: Troops; capacity: number }> {
+    const zero: Troops = {};
+    try {
+      if (totalTroops(severely) <= 0) return { admitted: zero, died: zero, capacity: 0 };
+
+      const bRows = await this.env.DB.prepare(
+        "SELECT level FROM buildings WHERE player_id = ? AND building_id = 'hospital'",
+      ).bind(playerId).first<{ level: number }>();
+      const hospitalLevel = bRows?.level || 0;
+
+      const wRows = await this.env.DB.prepare(
+        "SELECT unit_id, count FROM troops WHERE player_id = ? AND status = 'severely_wounded'",
+      ).bind(playerId).all<{ unit_id: string; count: number }>();
+      const already: Troops = {};
+      for (const r of wRows.results || []) already[r.unit_id] = r.count;
+
+      const { admitted, died } = admitWounded(severely, already, hospitalLevel);
+
+      for (const [u, c] of Object.entries(admitted)) {
+        await this.env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'severely_wounded', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+        ).bind(playerId, u, Number(c)).run();
+      }
+
+      const capacity = hospitalCapacity(hospitalLevel);
+      return { admitted, died, capacity };
+    } catch {
+      return { admitted: zero, died: zero, capacity: 0 };
+    }
+  }
+
+  /** P2-T2: خصم خسائر المعركة من رصيد 'marching' (الناجون يُخصمون لاحقاً عند العودة للمدينة) */
+  private async deductMarchLosses(playerId: string, losses: Troops) {
+    for (const [u, c] of Object.entries(losses)) {
+      if (Number(c) <= 0) continue;
+      await this.env.DB.prepare(
+        `UPDATE troops SET count = MAX(0, count - ?) WHERE player_id = ? AND unit_id = ? AND status = 'marching'`,
+      ).bind(Number(c), playerId, u).run();
+    }
+  }
+
+  private regionOf(x: number, y: number): string | null {
+    for (const r of this.regions) {
       const [x0, y0, x1, y1] = r.aabb;
       if (x >= x0 && x <= x1 && y >= y0 && y <= y1) return r.id;
     }
