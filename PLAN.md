@@ -50,8 +50,8 @@
 - [x] **P1-T4** Client: واجهة تقرير القتال (`URok2BattleReportWidget`) تعرض الخسائر من الـ API — ✅ تم 2026-07-28
 - [x] **P1-T5** Client: شريط موارد حي يتحدث عبر WebSocket بدون polling يدوي — ✅ تم 2026-07-28
 - [x] **P1-T6** Backend: endpoint لسحب بيانات `data/*.json` (buildings/civs/tiers) بدل القيم الثابتة — ✅ تم 2026-07-28
-- [ ] **P1-T7** اختبار لاعبين: سيناريو موثق في `game/docs/E2E_TWO_PLAYERS.md` + نجاحه فعلياً
-- **🚪 بوابة النجاح:** لاعبان على جهازين مختلفين يتنافسان على ممر ويستلم كل منهما تقرير قتال صحيحاً.
+- [x] **P1-T7** اختبار لاعبين: سيناريو موثق في `game/docs/E2E_TWO_PLAYERS.md` + نجاحه فعلياً — ✅ تم 2026-07-28 (E2E TWO PLAYERS PASSED ضد الإنتاج)
+- **🚪 بوابة النجاح:** ✅ **محققة 2026-07-28** — لاعبان يتنافسان على ممر ويستلمان تقارير قتال صحيحة (مثبت آلياً بـ e2e_two_players.mjs ضد الإنتاج).
 
 ### المرحلة 2 — Vertical Slice
 - [ ] **P2-T1** نظام القادة: بيانات `data/commanders.json` + عمولات/مهارات أساسية (attack/defense/passive واحدة لكل قائد)
@@ -103,6 +103,7 @@
 | 2026-07-28 | P1-T4 واجهة تقرير القتال | 0bc5eda | Rok2Types: FRok2BattleReport؛ Api: بارس reports + WS battle_report لحظي؛ Widget كامل: قائمة + تفاصيل خسائر (قتلى/خطير/خفيف)؛ زر 📜 في CityWidget |
 | 2026-07-28 | P1-T5 شريط موارد حي عبر WebSocket | 6376641 | FRok2City.Rates من المباني؛ LoadCity تلقائي كل 30s عند اتصال WS؛ حدث city_upsert يزامن فورياً؛ عدادات +X/س في CityWidget |
 | 2026-07-28 | P1-T6 endpoint بيانات JSON الموحدة | 8bc3b12 | /v1/meta/all في router.ts؛ URok2Api::FetchMeta يسحب عند Init مع fallback؛ معدلات الإنتاج وقائمة وحدات التدريب من الخادم؛ API.md محدث |
+| 2026-07-28 | P1-T7 اختبار لاعبين E2E — بوابة المرحلة 1 محققة | — | scripts/e2e_two_players.mjs + game/docs/E2E_TWO_PLAYERS.md؛ نجح ضد الإنتاج (لاعبان/تحالفان/نزاع ممر/تقارير صحيحة)؛ تحذير: الـ API المُنشر أقدم من main — يحتاج wrangler deploy |
 
 ---
 
