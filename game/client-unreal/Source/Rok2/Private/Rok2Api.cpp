@@ -61,25 +61,36 @@ void URok2Api::SetOnline(bool bNewOnline, const FString& Reason)
 // HTTP مع retry backoff — يعيد المحاولة فقط على أخطاء الشبكة (لا استجابة/مهلة)
 // وأخطاء 5xx المؤقتة. أخطاء 4xx منطقية تُمرر فوراً بدون إعادة.
 // ---------------------------------------------------------------------------
-void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const FString& JsonBody, bool bAuth,
-	TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr, int32 MaxRetries)
+
+/** سياق طلب واحد قابل لإعادة المحاولة — يحمل كل ما يلزم لإعادة بناء الطلب */
+struct FRok2RetryCtx
 {
-	TWeakObjectPtr<URok2Api> WeakThis(this);
+	FString Verb;
+	FString Path;
+	FString JsonBody;
+	bool bAuth = false;
+	int32 MaxRetries = 0;
+	int32 Attempt = 0;
+	TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk;
+	TFunction<void(const FString&)> OnErr;
+};
+
+static void Rok2SendRequest(URok2Api* Self, TSharedPtr<FRok2RetryCtx> Ctx)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(Self);
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(BuildUrl(Path));
-	Req->SetVerb(Verb);
+	Req->SetURL(Self->BuildUrl(Ctx->Path));
+	Req->SetVerb(Ctx->Verb);
 	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-	Req->SetTimeout(HttpTimeoutSeconds);
-	if (bAuth && !Token.IsEmpty()) Req->SetHeader(TEXT("Authorization"), AuthHeader());
-	if (!JsonBody.IsEmpty()) Req->SetContentAsString(JsonBody);
-
-	const FString UrlCopy = Req->GetURL();
-	const int32 Attempt = 0;
+	Req->SetTimeout(URok2Api::HttpTimeoutSeconds);
+	if (Ctx->bAuth && !Self->GetToken().IsEmpty())
+		Req->SetHeader(TEXT("Authorization"), Self->AuthHeader());
+	if (!Ctx->JsonBody.IsEmpty())
+		Req->SetContentAsString(Ctx->JsonBody);
 
 	Req->OnProcessRequestComplete().BindLambda(
-		[WeakThis, OnOk, OnErr, MaxRetries, UrlCopy, Verb, Path, JsonBody, bAuth, Attempt]
-		(FHttpRequestPtr DoneReq, FHttpResponsePtr Resp, bool bSuccess) mutable
+		[WeakThis, Ctx](FHttpRequestPtr DoneReq, FHttpResponsePtr Resp, bool bSuccess)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
@@ -96,88 +107,32 @@ void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const 
 			if (FJsonSerializer::Deserialize(Reader, Obj) && Obj.IsValid())
 			{
 				Self->SetOnline(true, TEXT("متصل"));
-				OnOk(Obj);
+				Ctx->OnOk(Obj);
 				return;
 			}
-			// JSON تالف من الخادم — خطأ فعلي
 			FString Err = FString::Printf(TEXT("استجابة غير صالحة من الخادم (HTTP %d)"), Code);
-			UE_LOG(LogRok2, Error, TEXT("%s %s -> bad json"), *Verb, *UrlCopy);
+			UE_LOG(LogRok2, Error, TEXT("%s %s -> bad json"), *Ctx->Verb, *Ctx->Path);
 			Self->EmitError(Err);
-			if (OnErr) OnErr(Err);
+			if (Ctx->OnErr) Ctx->OnErr(Err);
 			return;
 		}
 
-		// هل الخطأ يستحق إعادة المحاولة؟ (انقطاع شبكة أو 5xx)
+		// هل الخطأ يستحق إعادة المحاولة؟ (انقطاع شبكة/مهلة أو 5xx مؤقت)
 		const bool bRetryable = (!bHasResponse) || (Code == 0) || (Code >= 500);
-		if (bRetryable && Attempt < MaxRetries)
+		if (bRetryable && Ctx->Attempt < Ctx->MaxRetries)
 		{
-			const int32 NextAttempt = Attempt + 1;
-			const float Delay = FMath::Pow(2.f, (float)NextAttempt); // 2s, 4s, ...
+			Ctx->Attempt++;
+			const float Delay = FMath::Pow(2.f, (float)Ctx->Attempt); // 2s, 4s, ...
 			UE_LOG(LogRok2, Warning, TEXT("%s %s failed (code=%d) — retry %d/%d in %.0fs"),
-				*Verb, *UrlCopy, Code, NextAttempt, MaxRetries, Delay);
-			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال — إعادة المحاولة %d/%d..."), NextAttempt, MaxRetries));
+				*Ctx->Verb, *Ctx->Path, Code, Ctx->Attempt, Ctx->MaxRetries, Delay);
+			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال — إعادة المحاولة %d/%d..."), Ctx->Attempt, Ctx->MaxRetries));
 
 			FTimerHandle TimerHandle;
 			FTimerDelegate D;
-			D.BindLambda([WeakThis, Verb, Path, JsonBody, bAuth, OnOk, OnErr, MaxRetries, NextAttempt]() mutable
+			D.BindLambda([WeakThis, Ctx]()
 			{
 				if (!WeakThis.IsValid()) return;
-				// إعادة بناء الطلب بنفس المعطيات مع رفع عداد المحاولات
-				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> RetryReq = FHttpModule::Get().CreateRequest();
-				RetryReq->SetURL(WeakThis->BuildUrl(Path));
-				RetryReq->SetVerb(Verb);
-				RetryReq->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-				RetryReq->SetTimeout(URok2Api::HttpTimeoutSeconds);
-				if (bAuth && !WeakThis->GetToken().IsEmpty())
-					RetryReq->SetHeader(TEXT("Authorization"), WeakThis->AuthHeader());
-				if (!JsonBody.IsEmpty()) RetryReq->SetContentAsString(JsonBody);
-
-				RetryReq->OnProcessRequestComplete().BindLambda(
-					[WeakThis, OnOk, OnErr, MaxRetries, Verb, Path, JsonBody, bAuth, NextAttempt]
-					(FHttpRequestPtr R2, FHttpResponsePtr Resp2, bool bSuccess2) mutable
-				{
-					if (!WeakThis.IsValid()) return;
-					URok2Api* Self2 = WeakThis.Get();
-					const bool bHasResp2 = Resp2.IsValid();
-					const int32 Code2 = bHasResp2 ? Resp2->GetResponseCode() : 0;
-					const FString Body2 = bHasResp2 ? Resp2->GetContentAsString() : FString();
-
-					if (bSuccess2 && bHasResp2 && Code2 < 400)
-					{
-						TSharedPtr<FJsonObject> Obj2;
-						TSharedRef<TJsonReader<>> Reader2 = TJsonReaderFactory<>::Create(Body2);
-						if (FJsonSerializer::Deserialize(Reader2, Obj2) && Obj2.IsValid())
-						{
-							Self2->SetOnline(true, TEXT("تمت استعادة الاتصال"));
-							OnOk(Obj2);
-							return;
-						}
-					}
-
-					const bool bRetryable2 = (!bHasResp2) || (Code2 == 0) || (Code2 >= 500);
-					if (bRetryable2 && NextAttempt < MaxRetries)
-					{
-						// سلسلة إعادة المحاولة تستمر عبر استدعاء جديد بنفس العداد
-						Self2->RequestWithRetry(Verb, Path, JsonBody, bAuth, OnOk, OnErr, MaxRetries);
-						return;
-					}
-
-					// فشل نهائي
-					FString Err2;
-					if (bHasResp2)
-					{
-						TSharedPtr<FJsonObject> ObjE;
-						TSharedRef<TJsonReader<>> ReaderE = TJsonReaderFactory<>::Create(Body2);
-						if (FJsonSerializer::Deserialize(ReaderE, ObjE) && ObjE.IsValid())
-							ObjE->TryGetStringField(TEXT("error"), Err2);
-					}
-					if (Err2.IsEmpty()) Err2 = FString::Printf(TEXT("فشل الاتصال بالخادم (HTTP %d)"), Code2);
-					UE_LOG(LogRok2, Error, TEXT("%s %s -> %s (final)"), *Verb, *Path, *Err2);
-					Self2->SetOnline(false, TEXT("تعذر الاتصال بالخادم"));
-					Self2->EmitError(Err2);
-					if (OnErr) OnErr(Err2);
-				});
-				RetryReq->ProcessRequest();
+				Rok2SendRequest(WeakThis.Get(), Ctx);
 			});
 
 			if (UWorld* W = Self->GetWorld())
@@ -185,10 +140,10 @@ void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const 
 				W->GetTimerManager().SetTimer(TimerHandle, D, Delay, false);
 				return;
 			}
-			// بلا عالم صالح — فشل مباشر
+			// بلا عالم صالح — نكمل للفشل النهائي أدناه
 		}
 
-		// خطأ غير قابل لإعادة المحاولة (4xx) أو استنفاد المحاولات
+		// استخراج رسالة الخطأ من جسم الاستجابة إن وُجد
 		FString Err;
 		if (bHasResponse)
 		{
@@ -197,13 +152,32 @@ void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const 
 			if (FJsonSerializer::Deserialize(Reader, Obj) && Obj.IsValid())
 				Obj->TryGetStringField(TEXT("error"), Err);
 		}
-		if (Err.IsEmpty()) Err = FString::Printf(TEXT("فشل الطلب (HTTP %d)"), Code);
-		UE_LOG(LogRok2, Warning, TEXT("%s %s -> %s"), *Verb, *UrlCopy, *Err);
+		if (Err.IsEmpty())
+		{
+			Err = bHasResponse
+				? FString::Printf(TEXT("فشل الطلب (HTTP %d)"), Code)
+				: TEXT("فشل الاتصال بالخادم — تحقق من الشبكة");
+		}
+		UE_LOG(LogRok2, Warning, TEXT("%s %s -> %s"), *Ctx->Verb, *Ctx->Path, *Err);
 		if (bRetryable) Self->SetOnline(false, TEXT("تعذر الاتصال بالخادم"));
 		Self->EmitError(Err);
-		if (OnErr) OnErr(Err);
+		if (Ctx->OnErr) Ctx->OnErr(Err);
 	});
 	Req->ProcessRequest();
+}
+
+void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const FString& JsonBody, bool bAuth,
+	TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr, int32 MaxRetries)
+{
+	TSharedPtr<FRok2RetryCtx> Ctx = MakeShared<FRok2RetryCtx>();
+	Ctx->Verb = Verb;
+	Ctx->Path = Path;
+	Ctx->JsonBody = JsonBody;
+	Ctx->bAuth = bAuth;
+	Ctx->MaxRetries = MaxRetries;
+	Ctx->OnOk = MoveTemp(OnOk);
+	Ctx->OnErr = MoveTemp(OnErr);
+	Rok2SendRequest(this, Ctx);
 }
 
 void URok2Api::Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk)
