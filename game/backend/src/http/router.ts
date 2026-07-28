@@ -1268,6 +1268,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json(data);
     }
 
+    // P3-T3: الأحداث النشطة والمجدولة اليوم (barbarians / resource_rush / war_fever)
+    if (path === "/v1/events/active" && request.method === "GET") {
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/events");
+      const data = await res.json();
+      return json(data);
+    }
+
     // P2-T4: حالة فتح/قفل المناطق (مؤقت Zone 2 stubs)
     if (path === "/v1/world/zones" && request.method === "GET") {
       const stub = kingdomStub(env);

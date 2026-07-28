@@ -26,6 +26,14 @@ import {
   coreContestActive,
   type CoreObjectiveKind,
 } from "./sim/zones";
+import {
+  eventsStatus,
+  activeEvents,
+  eventBuff,
+  barbExtraPerRegion,
+  barbLevelBonus,
+  EVENT_CONSTANTS,
+} from "./sim/events";
 
 type CityEntity = {
   playerId: string;
@@ -138,6 +146,8 @@ export class KingdomShard extends DurableObject<Env> {
   private throneScores = new Map<string, number>();
   // P3-T2: أهداف قلب Zone 3 (4 حصون خارجية + 4 مذابح جانبية) — تسجيل نقاط الموسم
   private coreObjectives = new Map<string, CoreObjective>();
+  // P3-T3: الأحداث التي أُعلن بدؤها في هذا اليوم (لا يُعاد بث event_started لها)
+  private eventsAnnouncedStarted = new Set<string>();
   private passes = new Map<string, PassEntity>();
   private marches = new Map<string, MarchEntity>();
   private nodes = new Map<string, NodeEntity>();
@@ -531,6 +541,43 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  // P3-T3: تكثيف البرابرة أثناء حدث "غزو البرابرة" — يزرع معسكرات إضافية حتمياً
+  // (id يعتمد على اليوم فلا يتكرر الزرع كل tick). يعيد true إن زرع شيئاً جديداً.
+  private seedEventBarbarians(extraPerRegion: number): boolean {
+    let spawned = false;
+    const tickInDay = this.seasonStartMs > 0 ? Math.floor((nowMs() - this.seasonStartMs) / 1000) % 86_400 : 0;
+    const lvlBonus = barbLevelBonus(this.seasonDay, tickInDay);
+    const hpMult = eventBuff(this.seasonDay, tickInDay, "barb_hp_mult");
+    for (const r of this.regions) {
+      if (r.zone_id > 2) continue; // البرابرة في Zone 1/2 فقط
+      if (!isRegionUnlocked(r.id, r.zone_id, this.seasonDay)) continue;
+      const [x0, y0, x1, y1] = r.aabb;
+      const w = x1 - x0, h = y1 - y0;
+      const cx = x0 + w / 2, cy = y0 + h / 2;
+      for (let k = 0; k < extraPerRegion; k++) {
+        const id = `event_barb_${this.seasonDay}_${r.id}_${k}`;
+        if (this.nodes.has(id)) continue;
+        // موقع حتمي من id (زوايا مختلفة داخل المنطقة)
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+        const fx = ((hash % 100) / 100 - 0.5) * (w / 2 - 10);
+        const fy = (((hash >> 8) % 100) / 100 - 0.5) * (h / 2 - 10);
+        const level = EVENT_CONSTANTS.barbBaseLevel + lvlBonus + (hash % 3);
+        const ent: NodeEntity = {
+          id, kind: "barb", level,
+          x: cx + fx, y: cy + fy,
+          remaining: Math.floor(nodeRichness("barb", level, r.zone_id) * hpMult),
+          regionId: r.id, zoneId: r.zone_id,
+        };
+        this.nodes.set(id, ent);
+        this.persistNode(ent);
+        spawned = true;
+      }
+    }
+    if (spawned) this.broadcast({ type: "barb_horde", seasonDay: this.seasonDay, extraPerRegion });
+    return spawned;
+  }
+
   private persistCity(c: CityEntity) {
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO map_cities (player_id, name, alliance_id, x, y, hall_level, region_id)
@@ -664,6 +711,8 @@ export class KingdomShard extends DurableObject<Env> {
       zones: zonesStatus(this.seasonDay, this.regions),
       // P3-T1: حالة الموسم الكاملة (ميزات الجدول + قفل العرش) — خدمة فتح المناطق
       season: seasonUnlockState(this.seasonDay),
+      // P3-T3: حالة الأحداث اليومية/الأسبوعية (نشطة/مجدولة + مؤقت) — barbarians/resource_rush/war_fever
+      events: eventsStatus(this.seasonDay, this.seasonStartMs > 0 ? Math.floor((nowMs() - this.seasonStartMs) / 1000) % 86_400 : 0),
     };
   }
 
@@ -708,6 +757,28 @@ export class KingdomShard extends DurableObject<Env> {
         changed = true;
       }
     }
+
+    // P3-T3: أحداث يومية/أسبوعية — حساب tick داخل اليوم + بث بدء/انتهاء + تكثيف البرابرة.
+    // tickInDay حتمي من season_start_ms: عدد ثوانٍ داخل اليوم الحالي (tick = 1s).
+    const tickInDay = this.seasonStartMs > 0
+      ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400
+      : 0;
+    const activeNow = new Set(activeEvents(this.seasonDay, tickInDay).map((e) => e.id));
+    for (const ev of eventsStatus(this.seasonDay, tickInDay)) {
+      const key = `${this.seasonDay}:${ev.id}`;
+      if (ev.active && !this.eventsAnnouncedStarted.has(key)) {
+        this.eventsAnnouncedStarted.add(key);
+        this.broadcast({ type: "event_started", event: ev, seasonDay: this.seasonDay });
+        changed = true;
+      } else if (!ev.active && ev.scheduledToday && this.eventsAnnouncedStarted.has(key)) {
+        this.eventsAnnouncedStarted.delete(key);
+        this.broadcast({ type: "event_ended", eventId: ev.id, seasonDay: this.seasonDay });
+        changed = true;
+      }
+    }
+    // تكثيف البرابرة أثناء حدث البرابرة (حتمي: يُزرع مرة واحدة لكل منطقة/يوم)
+    const extraBarbs = barbExtraPerRegion(this.seasonDay, tickInDay);
+    if (extraBarbs > 0) changed = this.seedEventBarbarians(extraBarbs) || changed;
 
     // Process Queues
     const completedQueues = [];
@@ -763,10 +834,21 @@ export class KingdomShard extends DurableObject<Env> {
         if (now >= m.etaMs) {
           const node = this.nodes.get(m.targetId);
           if (node) {
-            const gathered = node.remaining;
+            // P3-T3: باف اندفاع الموارد — عقد أغنى أثناء الحدث
+            const tickInDay3 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
+            const richMult = eventBuff(this.seasonDay, tickInDay3, "resource_richness_mult");
+            const gathered = Math.floor(node.remaining * richMult);
             node.remaining = 0;
             this.persistNode(node);
             m.payload = { kind: node.kind, amount: gathered };
+            // نقاط الجمع أثناء اندفاع الموارد
+            const gatherScore = eventBuff(this.seasonDay, tickInDay3, "gather_score", true);
+            if (gatherScore > 0 && m.allianceId) {
+              const pts = gatherScore * node.level;
+              const cur = this.throneScores.get(m.allianceId) || 0;
+              this.throneScores.set(m.allianceId, cur + pts);
+              this.persistThroneScore(m.allianceId, cur + pts);
+            }
           }
           this.spawnReturnMarch(m, now);
           changed = true;
@@ -1103,6 +1185,16 @@ export class KingdomShard extends DurableObject<Env> {
           await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
           m.troops = result.attackerRemaining;
           if (result.winner === "attacker") {
+            // P3-T3: نقاط قتل البرابرة أثناء حدث غزو البرابرة
+            const tickInDay2 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
+            const killScore = eventBuff(this.seasonDay, tickInDay2, "barb_kill_score", true);
+            if (killScore > 0 && m.allianceId) {
+              const pts = killScore * node.level;
+              const cur = this.throneScores.get(m.allianceId) || 0;
+              this.throneScores.set(m.allianceId, cur + pts);
+              this.persistThroneScore(m.allianceId, cur + pts);
+              report.barbKillScore = pts;
+            }
             node.remaining = Math.max(0, node.remaining - 50);
             this.persistNode(node);
           }
@@ -1110,7 +1202,10 @@ export class KingdomShard extends DurableObject<Env> {
           this.spawnReturnMarch(m, now);
         } else {
           m.state = "gathering";
-          const rate = 0.5 * totalTroops(m.troops); // units/sec
+          // P3-T3: باف اندفاع الموارد — جمع أسرع أثناء الحدث
+          const tickInDay2 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
+          const gatherMult = eventBuff(this.seasonDay, tickInDay2, "gather_rate_mult");
+          const rate = 0.5 * totalTroops(m.troops) * gatherMult; // units/sec
           const durationSec = node.remaining / rate;
           m.etaMs = now + durationSec * 1000;
           this.persistMarch(m);
@@ -1207,6 +1302,17 @@ export class KingdomShard extends DurableObject<Env> {
       });
     }
 
+    // P3-T3: الأحداث النشطة والمجدولة اليوم (barbarians / resource_rush / war_fever)
+    if (path.endsWith("/events") && request.method === "GET") {
+      const tickInDay = this.seasonStartMs > 0 ? Math.floor((nowMs() - this.seasonStartMs) / 1000) % 86_400 : 0;
+      return Response.json({
+        seasonDay: this.seasonDay,
+        tickInDay,
+        events: eventsStatus(this.seasonDay, tickInDay),
+        activeIds: activeEvents(this.seasonDay, tickInDay).map((e) => e.id),
+      });
+    }
+
     // P3-T1: جدول فتح الموسم الكامل (Zone unlock service) — مناطق + ممرات + عرش + ميزات
     if (path.endsWith("/season/schedule") && request.method === "GET") {
       const sched = seasonSchedule(
@@ -1221,8 +1327,7 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     // P3-T2: لوحة نقاط الموسم الكاملة — أهداف قلب Zone 3 + النقاط الحالية + المتصدر
-    if (path.endsWith("/season/scoreboard") && request.method === "GET") {
-      const scores = [...this.throneScores.entries()]
+    if (path.endsWith("/season/scoreboard") && request.method === "GET") {      const scores = [...this.throneScores.entries()]
         .map(([allianceId, points]) => ({ allianceId, points: Math.round(points * 100) / 100 }))
         .sort((a, b) => b.points - a.points);
       return Response.json({

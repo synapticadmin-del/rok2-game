@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "description": "أحداث ROK2 اليومية/الأسبوعية (P3-T3) — تُقرأ من السيرفر والعميل. كل حدث له نمط تكرار (يومي/أسبوعي) ونافذة نشاط وبافات تُطبَّق على العالم أثناء نشاطه.",
+  "constants": {
+    "barb_respawn_ms": 300000,
+    "node_respawn_ms": 600000,
+    "max_extra_spawn_per_region": 3,
+    "barb_base_level": 2
+  },
+  "events": [
+    {
+      "id": "barbarian_horde",
+      "name": "غزو البرابرة",
+      "kind": "barbarians",
+      "recurrence": "daily",
+      "duration_ticks": 300,
+      "buffs": {
+        "barb_level_bonus": 2,
+        "barb_spawn_extra_per_region": 2,
+        "barb_hp_mult": 1.5,
+        "barb_kill_score": 5
+      },
+      "notify": "غزو البرابرة! ظهرت معسكرات أقوى في كل المناطق — اقتلها لنقاط إضافية."
+    },
+    {
+      "id": "resource_rush",
+      "name": "اندفاع الموارد",
+      "kind": "resource_rush",
+      "recurrence": "daily",
+      "duration_ticks": 600,
+      "buffs": {
+        "resource_richness_mult": 2.0,
+        "gather_rate_mult": 1.5,
+        "gather_score": 2
+      },
+      "notify": "اندفاع الموارد! عقد الموارد أغنى والجمع أسرع لفترة محدودة."
+    },
+    {
+      "id": "war_fever",
+      "name": "حمى الحرب",
+      "kind": "war_fever",
+      "recurrence": "weekly",
+      "weekday": 5,
+      "duration_ticks": 1800,
+      "buffs": {
+        "attack_mult": 1.1,
+        "march_speed_mult": 1.25,
+        "pvp_kill_score": 10
+      },
+      "notify": "حمى الحرب الأسبوعية! هجوم وسرعة مسير أعلى — نقاط مضاعفة على قتال اللاعبين."
+    }
+  ]
+}
