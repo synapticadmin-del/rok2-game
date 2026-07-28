@@ -194,3 +194,59 @@ export function seasonSchedule(
     throne: { unlockDay: throneUnlockDay() },
   };
 }
+
+// ---------------------------------------------------------------------------
+// P3-T2 — Zone 3 core contest (تسجيل نقاط الموسم عبر أهداف الاحتلال)
+// ---------------------------------------------------------------------------
+
+/** نوع هدف الاحتلال في قلب Zone 3. */
+export type CoreObjectiveKind = "throne" | "outer_fort" | "side_altar";
+
+/** إعداد مسابقة القلب (نقاط/حامية/مكاسب احتلال) — يُقرأ من core_contest في zones.json. */
+export type CoreContestConfig = {
+  holdScorePerTick: number;
+  captureGainBase: number;
+  captureGainPowerDiv: number;
+  garrison: number;
+  firstCaptureBonus: number;
+};
+
+const CORE: any = BY_ID[3] ?? {};
+const CC: any = CORE.core_contest ?? {};
+
+function contestCfg(kind: CoreObjectiveKind): CoreContestConfig {
+  const c = CC[kind] ?? {};
+  return {
+    holdScorePerTick: c.hold_score_per_tick ?? (kind === "throne" ? 1 : kind === "outer_fort" ? 0.5 : 0.25),
+    captureGainBase: c.capture_gain_base ?? (kind === "side_altar" ? 30 : 35),
+    captureGainPowerDiv: c.capture_gain_power_div ?? (kind === "side_altar" ? 25 : 20),
+    garrison: c.garrison ?? (kind === "throne" ? 2000 : kind === "outer_fort" ? 800 : 400),
+    firstCaptureBonus: CC.first_capture_bonus ?? 25,
+  };
+}
+
+/** نقاط الاحتفاظ لكل tick لهذا النوع من الأهداف — من JSON. */
+export function holdScorePerTick(kind: CoreObjectiveKind): number {
+  return contestCfg(kind).holdScorePerTick;
+}
+
+/** حامية الدفاع المحايدة لهذا النوع — من JSON. */
+export function coreGarrison(kind: CoreObjectiveKind): number {
+  return contestCfg(kind).garrison;
+}
+
+/** مكسب تقدّم الاحتلال من قوة القوات المتبقية — من JSON. */
+export function coreCaptureGain(kind: CoreObjectiveKind, attackerRemainingPower: number): number {
+  const c = contestCfg(kind);
+  return Math.min(100, c.captureGainBase + Math.floor(attackerRemainingPower / c.captureGainPowerDiv));
+}
+
+/** مكافأة أول احتلال لهدف في الموسم — من JSON. */
+export function firstCaptureBonus(): number {
+  return CC.first_capture_bonus ?? 25;
+}
+
+/** هل هذا النوع من الأهداف يبدأ تسجيل نقاطه في هذا اليوم؟ (كلها مع فتح العرش يوم 40) */
+export function coreContestActive(seasonDay: number): boolean {
+  return isThroneUnlocked(seasonDay);
+}

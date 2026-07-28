@@ -19,6 +19,12 @@ import {
   throneUnlockDay,
   SEASON_SERVICE,
   zonesStatus,
+  holdScorePerTick,
+  coreGarrison,
+  coreCaptureGain,
+  firstCaptureBonus,
+  coreContestActive,
+  type CoreObjectiveKind,
 } from "./sim/zones";
 
 type CityEntity = {
@@ -66,7 +72,7 @@ type MarchEntity = {
   etaMs: number;
   troops: Troops;
   state: "moving" | "arrived" | "returned" | "cancelled" | "gathering" | "returning";
-  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne";
+  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne" | "core_objective";
   targetId: string;
   payload?: any;
 };
@@ -89,6 +95,18 @@ type ThroneEntity = {
   x: number;
   y: number;
   unlockDay: number;
+};
+
+// P3-T2: هدف احتلال في قلب Zone 3 (حصن خارجي أو مذبح جانبي) — يسجّل نقاط موسم
+type CoreObjective = {
+  id: string;
+  kind: CoreObjectiveKind;
+  ownerAllianceId: string | null;
+  captureProgress: number;
+  state: "open" | "contested";
+  x: number;
+  y: number;
+  firstCapturedBy: string | null; // أول تحالف احتلّه في الموسم (مكافأة)
 };
 
 type QueueEntity = {
@@ -118,6 +136,8 @@ export class KingdomShard extends DurableObject<Env> {
   private cities = new Map<string, CityEntity>();
   private throne: ThroneEntity = { ownerAllianceId: null, captureProgress: 0, state: "open", x: 1200, y: 1200, unlockDay: 14 };
   private throneScores = new Map<string, number>();
+  // P3-T2: أهداف قلب Zone 3 (4 حصون خارجية + 4 مذابح جانبية) — تسجيل نقاط الموسم
+  private coreObjectives = new Map<string, CoreObjective>();
   private passes = new Map<string, PassEntity>();
   private marches = new Map<string, MarchEntity>();
   private nodes = new Map<string, NodeEntity>();
@@ -246,6 +266,23 @@ export class KingdomShard extends DurableObject<Env> {
       }
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (2)");
     }
+
+    if (ver < 3) {
+      // P3-T2: أهداف قلب Zone 3 (حصون خارجية + مذابح جانبية) لتسجيل نقاط الموسم
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS core_objectives (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          owner_alliance_id TEXT,
+          capture_progress REAL NOT NULL,
+          state TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          first_captured_by TEXT
+        );
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (3)");
+    }
   }
 
   private loadMapDefs() {
@@ -302,6 +339,19 @@ export class KingdomShard extends DurableObject<Env> {
     this.throne.unlockDay = throneUnlockDay();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM throne_scores").toArray()) {
       this.throneScores.set(row.alliance_id, row.points);
+    }
+    // P3-T2: أهداف قلب Zone 3 المحفوظة
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM core_objectives").toArray()) {
+      this.coreObjectives.set(row.id, {
+        id: row.id,
+        kind: row.kind,
+        ownerAllianceId: row.owner_alliance_id,
+        captureProgress: row.capture_progress,
+        state: row.state,
+        x: row.x,
+        y: row.y,
+        firstCapturedBy: row.first_captured_by,
+      });
     }
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
@@ -382,6 +432,9 @@ export class KingdomShard extends DurableObject<Env> {
       "INSERT OR IGNORE INTO throne (id, owner_alliance_id, capture_progress, state) VALUES (1, NULL, 0, 'open')"
     );
 
+    // P3-T2: بذر أهداف قلب Zone 3 (4 حصون خارجية + 4 مذابح جانبية) من map_spec
+    this.seedCoreObjectives();
+
     for (const p of this.passDefs) {
       const unlock = p.unlock_day ?? 0;
       const ent: PassEntity = {
@@ -449,6 +502,34 @@ export class KingdomShard extends DurableObject<Env> {
       }
     }
     void placed;
+
+  // P3-T2: بذر أهداف قلب Zone 3 من map_spec.zone3_objectives (حصون + مذابح)
+  private seedCoreObjectives() {
+    const map = getMap() as any;
+    const z3o = map.zone3 ?? map.zone3_objectives;
+    if (!z3o) return;
+    const spawn = (id: string, kind: CoreObjectiveKind, pos: [number, number]) => {
+      if (this.coreObjectives.has(id)) return;
+      const ent: CoreObjective = {
+        id, kind,
+        ownerAllianceId: null, captureProgress: 0, state: "open",
+        x: pos[0], y: pos[1], firstCapturedBy: null,
+      };
+      this.coreObjectives.set(id, ent);
+      this.persistCoreObjective(ent);
+    };
+    for (const f of z3o.outer_forts ?? []) spawn(f.id, "outer_fort", f.pos);
+    for (const a of z3o.side_altars ?? []) spawn(a.id, "side_altar", a.pos);
+  }
+
+  private persistCoreObjective(o: CoreObjective) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO core_objectives
+       (id, kind, owner_alliance_id, capture_progress, state, x, y, first_captured_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      o.id, o.kind, o.ownerAllianceId, o.captureProgress, o.state, o.x, o.y, o.firstCapturedBy,
+    );
+  }
 
   private persistCity(c: CityEntity) {
     this.ctx.storage.sql.exec(
@@ -565,6 +646,8 @@ export class KingdomShard extends DurableObject<Env> {
       cities: [...this.cities.values()],
       throne: this.throne,
       throneScores: [...this.throneScores.entries()],
+      // P3-T2: أهداف قلب Zone 3 (حصون + مذابح) مع مالكيها — لتسجيل نقاط الموسم
+      coreObjectives: [...this.coreObjectives.values()],
       passes: [...this.passes.values()],
       marches: [...this.marches.values()].filter((m) => m.state === "moving"),
       nodes: [...this.nodes.values()],
@@ -715,9 +798,22 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (this.throne.ownerAllianceId && this.seasonDay >= this.throne.unlockDay) {
       const current = this.throneScores.get(this.throne.ownerAllianceId) || 0;
-      this.throneScores.set(this.throne.ownerAllianceId, current + 1);
-      this.persistThroneScore(this.throne.ownerAllianceId, current + 1);
+      const next = current + holdScorePerTick("throne");
+      this.throneScores.set(this.throne.ownerAllianceId, next);
+      this.persistThroneScore(this.throne.ownerAllianceId, next);
       changed = true;
+    }
+
+    // P3-T2: نقاط الاحتفاظ لأهداف قلب Zone 3 (حصون + مذابح) — كل tick عند نشاط المسابقة
+    if (coreContestActive(this.seasonDay)) {
+      for (const o of this.coreObjectives.values()) {
+        if (!o.ownerAllianceId) continue;
+        const cur = this.throneScores.get(o.ownerAllianceId) || 0;
+        const next = cur + holdScorePerTick(o.kind);
+        this.throneScores.set(o.ownerAllianceId, next);
+        this.persistThroneScore(o.ownerAllianceId, next);
+        changed = true;
+      }
     }
 
     this.ctx.storage.sql.exec(
@@ -896,6 +992,94 @@ export class KingdomShard extends DurableObject<Env> {
       return;
     }
 
+    // P3-T2: احتلال هدف في قلب Zone 3 (حصن خارجي / مذبح جانبي) — يسجّل نقاط موسم
+    if (m.targetType === "core_objective") {
+      const obj = this.coreObjectives.get(m.targetId);
+      if (!obj) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+      // الأهداف لا تُفتح إلا مع فتح مسابقة القلب (يوم فتح العرش)
+      if (!coreContestActive(this.seasonDay)) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+
+      const garrisonCount = coreGarrison(obj.kind);
+      const defenderTroops: Troops = obj.ownerAllianceId
+        ? { infantry_t1: garrisonCount, archer_t1: Math.floor(garrisonCount / 2) }
+        : { infantry_t1: Math.floor(garrisonCount * 0.7) };
+
+      // تحالف يعزّز هدفه: اكتمال فوري
+      if (obj.ownerAllianceId && m.allianceId && obj.ownerAllianceId === m.allianceId) {
+        obj.captureProgress = 100;
+        obj.state = "open";
+        this.persistCoreObjective(obj);
+        this.spawnReturnMarch(m, now);
+        this.broadcast({ type: "core_objective_changed", objective: obj });
+        return;
+      }
+
+      const coCommander = await this.fetchMarchCommander(m.id);
+      const coResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+      const result = resolveCombat(
+        { name: m.ownerPlayerId, troops: m.troops },
+        { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
+        2,
+        coCommander,
+        undefined,
+        coResearchMod,
+        0,
+      );
+
+      const report = {
+        id: newId("br"),
+        createdAt: now,
+        kind: `core_${obj.kind}`,
+        objectiveId: obj.id,
+        attackerPlayerId: m.ownerPlayerId,
+        attackerAllianceId: m.allianceId,
+        result,
+      };
+      this.saveReport(report);
+      await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
+      const coHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
+      report.hospital = coHospital;
+      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+
+      if (result.winner === "attacker") {
+        const gain = coreCaptureGain(obj.kind, troopPower(result.attackerRemaining));
+        if (obj.ownerAllianceId && obj.ownerAllianceId !== m.allianceId) {
+          obj.captureProgress = gain; // احتلال عدو: يبدأ من جديد
+        } else {
+          obj.captureProgress = Math.min(100, obj.captureProgress + gain);
+        }
+        obj.state = "contested";
+        if (obj.captureProgress >= 100) {
+          // مكافأة أول احتلال في الموسم لهذا الهدف
+          if (!obj.firstCapturedBy && m.allianceId) {
+            obj.firstCapturedBy = m.allianceId;
+            const bonus = firstCaptureBonus();
+            const cur = this.throneScores.get(m.allianceId) || 0;
+            this.throneScores.set(m.allianceId, cur + bonus);
+            this.persistThroneScore(m.allianceId, cur + bonus);
+            report.firstCaptureBonus = bonus;
+          }
+          obj.ownerAllianceId = m.allianceId;
+          obj.captureProgress = 100;
+          obj.state = "open";
+        }
+        this.persistCoreObjective(obj);
+        this.broadcast({ type: "core_objective_changed", objective: obj, report });
+      } else {
+        this.broadcast({ type: "battle_report", report });
+      }
+
+      m.troops = result.attackerRemaining;
+      this.spawnReturnMarch(m, now);
+      return;
+    }
+
     if (m.targetType === "resource" || m.targetType === "barb") {
       const node = this.nodes.get(m.targetId);
       if (node) {
@@ -1033,6 +1217,33 @@ export class KingdomShard extends DurableObject<Env> {
         seasonDay: this.seasonDay,
         seasonStartMs: this.seasonStartMs,
         ...sched,
+      });
+    }
+
+    // P3-T2: لوحة نقاط الموسم الكاملة — أهداف قلب Zone 3 + النقاط الحالية + المتصدر
+    if (path.endsWith("/season/scoreboard") && request.method === "GET") {
+      const scores = [...this.throneScores.entries()]
+        .map(([allianceId, points]) => ({ allianceId, points: Math.round(points * 100) / 100 }))
+        .sort((a, b) => b.points - a.points);
+      return Response.json({
+        seasonDay: this.seasonDay,
+        contestActive: coreContestActive(this.seasonDay),
+        leader: scores[0]?.allianceId ?? null,
+        scores,
+        throne: {
+          ownerAllianceId: this.throne.ownerAllianceId,
+          captureProgress: this.throne.captureProgress,
+          state: this.throne.state,
+          unlockDay: this.throne.unlockDay,
+        },
+        coreObjectives: [...this.coreObjectives.values()].map((o) => ({
+          id: o.id,
+          kind: o.kind,
+          ownerAllianceId: o.ownerAllianceId,
+          captureProgress: o.captureProgress,
+          state: o.state,
+          firstCapturedBy: o.firstCapturedBy,
+        })),
       });
     }
 
@@ -1266,6 +1477,17 @@ export class KingdomShard extends DurableObject<Env> {
       toY = this.throne.y;
     }
 
+    // P3-T2: استهداف هدف في قلب Zone 3 (حصن خارجي / مذبح جانبي)
+    if (targetType === "core_objective" || body.coreObjectiveId) {
+      targetType = "core_objective";
+      targetId = String(body.coreObjectiveId || body.targetId);
+      const obj = this.coreObjectives.get(targetId);
+      if (!obj) throw new Error("core_objective_not_found");
+      if (!coreContestActive(this.seasonDay)) throw new Error("core_contest_locked");
+      toX = obj.x;
+      toY = obj.y;
+    }
+
     if (targetType === "pass" || body.passId) {
       targetType = "pass";
       targetId = String(body.passId || body.targetId);
@@ -1343,8 +1565,8 @@ export class KingdomShard extends DurableObject<Env> {
       plan = { ok: true, distance: dist(city.x, city.y, toX, toY), crossedPasses: [] };
     }
 
-    // attacking a pass or throne: allow even if path flagged, use euclidean distance
-    if (!plan.ok && (targetType === "pass" || targetType === "throne")) {
+    // attacking a pass, throne, or core objective: allow even if path flagged, use euclidean distance
+    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective")) {
       plan = { ok: true, distance: dist(city.x, city.y, toX, toY), crossedPasses: [targetId] };
     }
 

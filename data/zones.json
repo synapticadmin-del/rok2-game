@@ -302,7 +302,31 @@
           "regions": [],
           "passes": []
         }
-      ]
+      ],
+      "core_contest": {
+        "throne": {
+          "hold_score_per_tick": 1,
+          "capture_gain_base": 35,
+          "capture_gain_power_div": 20,
+          "garrison": 2000
+        },
+        "outer_fort": {
+          "hold_score_per_tick": 0.5,
+          "capture_gain_base": 35,
+          "capture_gain_power_div": 20,
+          "garrison": 800,
+          "count": 4
+        },
+        "side_altar": {
+          "hold_score_per_tick": 0.25,
+          "capture_gain_base": 30,
+          "capture_gain_power_div": 25,
+          "garrison": 400,
+          "count": 4
+        },
+        "first_capture_bonus": 25,
+        "season_point_decimals": 2
+      }
     }
   ],
   "mountains": {

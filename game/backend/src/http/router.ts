@@ -1260,6 +1260,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json(data);
     }
 
+    // P3-T2: لوحة نقاط الموسم — أهداف قلب Zone 3 + النقاط + المتصدر
+    if (path === "/v1/season/scoreboard" && request.method === "GET") {
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/season/scoreboard");
+      const data = await res.json();
+      return json(data);
+    }
+
     // P2-T4: حالة فتح/قفل المناطق (مؤقت Zone 2 stubs)
     if (path === "/v1/world/zones" && request.method === "GET") {
       const stub = kingdomStub(env);
