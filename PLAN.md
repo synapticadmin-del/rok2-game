@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-29 — P4-T6 matchmaking ممالك (least_fill من data/matchmaking.json + migration 0008 + تعيين عند city/init + /v1/matchmaking/status). اكتملت كل بنود المرحلة 4.
+> **آخر تحديث:** 2026-07-29 — P4-T6 matchmaking ممالك (least_fill من data/matchmaking.json + migration 0008 + تعيين عند city/init + /v1/matchmaking/status). اكتملت كل بنود المرحلة 4. **أُضيفت المرحلة 6 (Polish & Identity): 10 بنود UI/UX + طابع بصري + قصة وأسلوب (P6-T1..P6-T10).**
 
 ---
 
@@ -93,6 +93,21 @@
 - [x] **P5-T6** حركات وانتقالات وأصوات (بناء يُشيّد، جنود تسير، احتفال ترقية، موسيقى حسب الحضارة) — ✅ تم 2026-07-28
 - **🚪 بوابة النجاح:** لاعب يدخل اللعبة ويشعر أنها RoK — قلعته السداسية بثيم حضارته، يحرك مبانيه بحرية، واجهة لعبة كاملة.
 
+### المرحلة 6 — Polish & Identity ⬅️ *المرحلة الحالية*
+الهدف: صقل شامل في **UI/UX والطابع البصري والقصة والأسلوب** فقط — لا أنظمة لعب جديدة ولا backend جديد (الـ API جاهز ويُستهلك). كل بند يستلهم من `07-game-design/` (GDD §story، civilizations-visual-design.md، ui-ux-design-system.md، assets/) ويجعل اللعبة تبدو وتقرأ وتُحس كمنتج نهائي له هوية، لا prototype.
+
+- [ ] **P6-T1** نظام أيقونات UI موحد (العميل): مكتبة رموز مرسومة إجرائياً لكل الأزرار والموارد والحالات (بدل الإيموجي 🔨⚔️📜) — أسلوب ui-ux-design-system.md §icons، حجم موحد 24/32px، تُخدم من URok2ArtAssets
+- [ ] **P6-T2** Typography عربي/لاتيني متوازن: خط عربي فخم للعناوين + خط رقمي واضح للموارد والمؤقّتات + نظام أحجام/أوزان من وثيقة UI — يُطبق على HUD وكل Widgets عبر URok2CivThemes أو نمط مشترك
+- [ ] **P6-T3** Motion design للواجهة: انتقالات شاشات (fade/slide)، بطاقات إشعارات منبثقة من الأسفل، أزرار بضغطة محسوسة (scale+صوت)، نوافذ تفتح من المركز — مكتبة حركات UMG مشتركة تستخدمها كل الشاشات
+- [ ] **P6-T4** Onboarding أول دقيقة (FTUE): خطوات مرشدة داخل اللعبة (بناء أول مزرعة ← تدريب أول جنود ← أول مسيرة جمع) ببطاقات إرشاد أنيقة + إبراز الزر المطلوب — نصوص عربية أدبية قصيرة بنَفَس قصصي
+- [ ] **P6-T5** النَفَس القصصي للحضارات الست: لكل حضارة نبذة أدبية (3-4 أسطر) تظهر عند اختيار الحضارة وفي شاشة معلوماتها + نبرة خاصة في نصوص الواجهة (تحية/تلميحات) — تُقرأ من data/civilizations.json (حقول story/greeting) فتُخدم للطرفين
+- [ ] **P6-T6** الدردشة الحية في HUD: قناة مملكة + قناة تحالف بواجهة RoK (فقاعات، طوابع زمنية، تصغير/تكبير) فوق WebSocket — أول نظام اجتماعي مرئي في العميل
+- [ ] **P6-T7** خلفيات وأجواء القوائم: شاشات القادة/البحث/التحالف/المتجر بخلفيات فنية لكل حضارة (تدرجات + زخارف من civilizations-visual-design.md) بدل الخلفيات الداكنة الموحدة + صور assets/ المرجعية كدليل
+- [ ] **P6-T8** الإحساس الصوتي للواجهة: أصوات ضغط/فتح/إغلاق/خطأ موحدة لكل الحضارات (من Content/Audio/sfx) + صوت "همس حضارة" مميز عند فتح شاشة حضارتك (جرس صيني/بوق روماني/ناي عربي...)
+- [ ] **P6-T9** أيقونات خريطة World Iconography: أيقونات مميزة للعقد (قمح/خشب/حجر/ذهب/برابرة بمستويات) بدل الأسطوانات + تاج للعرش وبوابات للممرات + تدرج لوني حسب المستوى — تُقرأ من data/zones.json + مرجع assets/map-zones.jpg
+- [ ] **P6-T10** شاشة إنجازات الموسم "حكاية المملكة": خط زمني قصصي بصري لأحداث الموسم (فتح مناطق، أول من احتل ممراً، حروب التحالفات الكبرى) يُبنى من أحداث السيرفر الموجودة + تتويج بصري للفائز — ختام قصصي لكل موسم
+- **🚪 بوابة النجاح:** لاعب جديد يمر بـ FTUE عربي أنيق، يميز حضارته من النص والصوت واللون، واجهات بلا إيموجي وبحركات سلسة، ويشعر أن للمملكة حكاية تُروى.
+
 ---
 
 ## 3. ترتيب بناء الخريطة تقنياً (قاعدة ثابتة)
@@ -152,6 +167,7 @@
 | 2026-07-29 | P4-T5 قادة إضافيون (18) + anti-cheat أساسي | f0c3944 | data/commanders.json يكسب 6 قادة جدد (cmd_<nation>_2: Germanicus/Zhuge Liang/Saladin/Imhotep/Lagertha/Oda Nobunaga — واحد لكل حضارة، بمهارات attack/defense/passive كاملة)؛ data/anticheat.json جديد (6 rate limits: march/pass_attack/help/shop_buy/use_speedup/rally بحدود نافذة+cooldown + anomaly: سقف قوات المسيرة الكلي/المفرد، سقف المسيرات النشطة 5، سقف شراء 99)؛ sim/anticheat.ts جديد يقرأ JSON فقط (AntiCheatRateLimiter نافذة منزلقة + checkMarchPayload/checkShopBuyPayload)؛ KingdomShard: فحص شذوذ + rate limit في createMarch + سجل مخالفات (آخر 50) + GET /do/anticheat/violations؛ router.ts: enforceRateLimit على help/shop_buy/use_speedup/rally (429 rate_limited_<reason> + retryAfterMs) + GET /v1/admin/anticheat؛ اختباران: anticheat_offline_test.mjs جديد (34 فحصاً) + commanders_offline_test.mjs موسّع (19 فحصاً) — كل الاختبارات الأوفلاين الـ 13 ناجحة بدون كسر |
 | 2026-07-29 | P4-T7 تحسين أداء UA (العميل) | f345f41 | URok2Perf جديد (UGameInstanceSubsystem): GetEngineMesh يخبئ /Engine/BasicShapes بعد أول تحميل (كان LoadObject متكرراً في كل ApplyArchStyleToRoof × مبنى × rebuild) + مسبح StaticMeshActor عام (Acquire/Release إخفاء/إظهار بدل Destroy/SpawnActor بسقف 64 قابل للضبط) + WorldRenderDistance موحد (كان ثابتاً سحرياً 1000000² في WorldRenderer)؛ WorldRenderer: ClearActors/SpawnMarkerActor/تنظيف المسيرات عبر المسبح + LOD من الـ subsystem + التلال تُزرع بمفتاح محتوى (ArtHillsKey) وتبقى ثابتة عبر التحديث كل 3 ثوانٍ بدل إعادة الزرع الكاملة؛ CityLayoutActor: ClearBuildings يخفي ويعيد التدوير (RecycledBuildings) بدل Destroy عند كل city upsert — حركة البناء للزرع الجديد فقط والفائض يُدمّر فعلياً؛ BuildingActor: أنماط الأسقف الستة عبر الخبأ؛ scripts/verify_perf_ua.mjs: 56 فحصاً بنيوياً ناجحاً (بناء UE5 الفعلي على جهاز المطور) |
 | 2026-07-29 | P4-T6 matchmaking ممالك | 2a1b204 | data/matchmaking.json جديد (استراتيجية least_fill + round_robin احتياطية + guardrails: hard_cap_ratio=1.0 وprefer_below_ratio=0.9)؛ migration 0008 (players.kingdom_id + جدول kingdom_assignments بسجل التعيين/الاستراتيجية/نسبة الامتلاء)؛ sim/matchmaking.ts جديد يقرأ JSON فقط (fillRatio + chooseKingdom حتمي بكسر تعادل: الأقل عدداً ثم الأبجدي)؛ city/init: عند توفر ممالك إطلاق مفتوحة يُعيَّن اللاعب للأقل امتلاءً بدل افتراض مملكة البيئة + بوابة سعة لكل مملكة + تسجيل التعيين في D1 + kingdom وmatchmaking{strategy,fillRatio,reason} في الاستجابة؛ GET /v1/city يكسب kingdom؛ GET /v1/matchmaking/status عام (إشغال كل مملكة + أحدث 10 تعيينات)؛ matchmaking_offline_test.mjs جديد: 30 فحصاً — كل الاختبارات الأوفلاين الـ 12 ناجحة بدون كسر |
+| 2026-07-29 | توثيق: AGENTS.md حالة الاكتمال + API.md شامل + المرحلة 6 | COMMIT_HASH | AGENTS.md: آخر تحديث يعكس اكتمال المراحل 1–5 والمتبقي التشغيلي + المرحلة 6 النشطة؛ API.md: توثيق endpoints الناقصة دفعة واحدة — city/init (kingdom + matchmaking في الاستجابة)، /v1/city (kingdom)، Shop+VIP (catalog/buy/use-speedup/daily-gems)، Battle Pass (status/unlock/claim + xp_sources)، Season (schedule/leaderboard/scoreboard)، Events (active)، Launch (status)، Matchmaking (status + قواعد التعيين)، Anti-cheat (حدود 429 rate_limited_* + أخطاء anticheat_* + /v1/admin/anticheat) + /v1/admin/retention؛ PLAN.md: المرحلة 6 (Polish & Identity) — 10 بنود متخصصة UI/UX + طابع بصري + قصة وأسلوب: أيقونات UI موحدة، typography عربي، motion design، FTUE، نَفَس قصصي للحضارات من data/civilizations.json، دردشة حية، خلفيات قوائم لكل حضارة، أصوات واجهة، أيقونات خريطة، شاشة حكاية المملكة |
 ---
 
 ## 5. ملفات مرجعية سريعة

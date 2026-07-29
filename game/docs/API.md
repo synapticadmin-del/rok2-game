@@ -19,12 +19,45 @@ Auth header: `Authorization: Bearer <token>`
 - `GET /v1/me`
 
 ## City
-- `POST /v1/city/init` `{ civ, name? }` → new token with playerId + `starterCommander` (قائد بداية الحضارة، P2-T1)
-- `GET /v1/city`
+- `POST /v1/city/init` `{ civ, name? }` → new token with playerId + `starterCommander` (قائد بداية الحضارة، P2-T1) + **`kingdom`** (المملكة المعينة، P4-T6) + **`matchmaking { strategy, fillRatio, reason }`** (سبب اختيار المملكة)
+- `GET /v1/city` → player + city + buildings + troops + wounded + hospital + **`kingdom`** (مملكة اللاعب، P4-T6)
 - `POST /v1/city/upgrade` `{ buildingId }`
 - `POST /v1/city/train` `{ unit: infantry_t1|cavalry_t1|archer_t1, count }`
 - `POST /v1/city/collect`
 - `POST /v1/city/heal` `{ troops }` — شفاء الجرحى الخطيرين (P2-T2): نصف تكلفة التدريب + مدة من data/buildings.json → `{ queueId, healSeconds, cost, city }`
+
+## Shop + VIP (P3-T4) — sandbox بدون مدفوعات حقيقية؛ القيم من data/shop.json
+- `GET /v1/shop/catalog` — عناصر speedup (7: دقيقة→يوم) + مستويات VIP (7) بمزاياها
+- `GET /v1/vip/status` — نقاط ومستوى VIP الحالي + مزايا المستوى
+- `POST /v1/shop/buy` `{ itemId, count? }` — شراء speedup بالـ gems → مخزون + نقاط VIP
+- `POST /v1/shop/use-speedup` `{ queueId, itemId? | useFreeDaily? }` — تسريع طابور من المخزون أو التسريع المجاني اليومي
+- `POST /v1/shop/daily-gems` — منحة gems يومية (200)
+
+## Battle Pass (P4-T1) — القيم من data/battlepass.json
+- `GET /v1/battlepass` — حالة اللاعب (xp/level/premium) + المستويات القابلة للمطالبة لكل مسار
+- `POST /v1/battlepass/unlock-premium` — فتح المسار المدفوع (500 gems)
+- `POST /v1/battlepass/claim` `{ level, track: free|premium }` — مطالبة مكافأة مستوى (مرة واحدة لكل مسار)
+- نقاط تُمنح تلقائياً: build 10 / train 5 / research 15 / heal 3 / march 8 / pass_attack 20
+
+## Season (P3-T1/T2)
+- `GET /v1/season/schedule` — جدول فتح المناطق الكامل (Zone unlock days + throne + core)
+- `GET /v1/season/leaderboard`
+- `GET /v1/season/scoreboard` — نقاط core contest (عرش + حصون + مذابح) لكل تحالف + المتصدر
+
+## Events (P3-T3) — القيم من data/events.json
+- `GET /v1/events/active` — الأحداث النشطة الآن (barbarian_invasion يومي / resource_rush يومي / war_fever جمعة) + بافاتها
+- رسائل WS `event_started` / `event_ended` عند بداية/نهاية كل حدث
+
+## Launch + Matchmaking
+- `GET /v1/launch/status` (P3-T5) — ممالك الإطلاق (open/max_players) + إشغال المملكة الحالية + success_gate
+- `GET /v1/matchmaking/status` (P4-T6) — إشغال كل مملكة مفتوحة (players/fill_ratio) + استراتيجية التعيين + أحدث 10 تعيينات (kingdom_id, strategy, fill_ratio, reason)
+- **تعيين المملكة:** عند `city/init` يُعيَّن اللاعب الجديد للمملكة المفتوحة الأقل امتلاءً (least_fill من data/matchmaking.json) مع بوابة سعة لكل مملكة؛ الأخطاء: `kingdom_not_open_for_launch` / `kingdom_full`
+
+## Anti-cheat (P4-T5) — الحدود من data/anticheat.json
+- حدود معدل لكل لاعب (window + cooldown): march 10/د، pass_attack 5/د، help 15/د، shop_buy 20/د، use_speedup 30/د، rally 3/د
+- عند التجاوز: **`429 rate_limited_cooldown | rate_limited_window_exceeded`** مع `details.retryAfterMs`
+- شذوذ الحمولات يُرفض: `anticheat_single_unit_cap_exceeded` / `anticheat_total_troops_cap_exceeded` / `anticheat_max_active_marches_exceeded` / `anticheat_invalid_*`
+- `GET /v1/admin/anticheat` (`x-admin-key`) — آخر 50 مخالفة مسجلة في الـ shard + عدد الجلسات المتتبعة
 
 ## Research (P2-T3) — راجع game/docs/RESEARCH.md
 - `GET /v1/research` — شجرة data/research.json (economy + military × 5) مع مستويات اللاعب وتفاصيل المستوى التالي
@@ -86,3 +119,5 @@ Auth header: `Authorization: Bearer <token>`
 - `POST /v1/admin/tick`
 - `POST /v1/admin/set-time` `{ day }`
 - `POST /v1/admin/grant` `{ playerId, food?, wood?, stone?, gold?, troops? }`
+- `GET /v1/admin/retention` (P3-T5) — DAU + رجوع cohorts (D1/D3/D7/D14/D30) مقابل عتبات data/softlaunch.json
+- `GET /v1/admin/anticheat` (P4-T5) — مخالفات anti-cheat الأخيرة في الـ shard
