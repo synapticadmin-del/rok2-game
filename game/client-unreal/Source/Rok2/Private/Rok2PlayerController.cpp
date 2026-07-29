@@ -12,8 +12,17 @@
 
 ARok2PlayerController::ARok2PlayerController()
 {
+	// بدون هذا لا تصل أحداث اللمس إلى InputComponent على أندرويد.
+	bEnableTouchEvents = true;
+	bEnableTouchOverEvents = false;
+
+#if PLATFORM_ANDROID || PLATFORM_IOS
+	// لا مؤشر على الهاتف — إظهاره يرسم سهماً عالقاً في زاوية الشاشة.
+	bShowMouseCursor = false;
+#else
 	bShowMouseCursor = true;
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
+#endif
 }
 
 void ARok2PlayerController::BeginPlay()
@@ -50,6 +59,95 @@ void ARok2PlayerController::SetupInputComponent()
 	InputComponent->BindAxis(TEXT("Zoom"), this, &ARok2PlayerController::OnZoom);
 	InputComponent->BindAction(TEXT("Tap"), IE_Pressed, this, &ARok2PlayerController::OnTap);
 	InputComponent->BindAction(TEXT("Escape"), IE_Pressed, this, &ARok2PlayerController::OnEscape);
+
+	// اللمس — المسار الوحيد الفعّال على أندرويد.
+	InputComponent->BindTouch(IE_Pressed, this, &ARok2PlayerController::OnTouchBegin);
+	InputComponent->BindTouch(IE_Repeat, this, &ARok2PlayerController::OnTouchMoved);
+	InputComponent->BindTouch(IE_Released, this, &ARok2PlayerController::OnTouchEnd);
+}
+
+void ARok2PlayerController::OnTouchBegin(ETouchIndex::Type FingerIndex, FVector Location)
+{
+	const FVector2D Pos(Location.X, Location.Y);
+
+	if (FingerIndex == ETouchIndex::Touch1)
+	{
+		Touch0Pos = Pos;
+		bTouch0Active = true;
+		bTouchMovedTooFarForTap = false;
+		bPinching = false;
+		TouchStartSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	}
+	else if (FingerIndex == ETouchIndex::Touch2)
+	{
+		Touch1Pos = Pos;
+		bTouch1Active = true;
+		bPinching = true;
+		// قياس مرجعي أول، وإلا قفزت قيمة التكبير في الإطار الأول.
+		LastPinchDistance = FVector2D::Distance(Touch0Pos, Touch1Pos);
+		// إصبع ثانٍ يعني أن الإيماءة ليست نقرة.
+		bTouchMovedTooFarForTap = true;
+	}
+}
+
+void ARok2PlayerController::OnTouchMoved(ETouchIndex::Type FingerIndex, FVector Location)
+{
+	const FVector2D Pos(Location.X, Location.Y);
+
+	if (FingerIndex == ETouchIndex::Touch1)
+	{
+		const FVector2D Delta = Pos - Touch0Pos;
+		Touch0Pos = Pos;
+
+		if (Delta.Size() > TapMoveThresholdPx)
+		{
+			bTouchMovedTooFarForTap = true;
+		}
+
+		// أثناء التكبير بإصبعين لا نحرّك الكاميرا — وإلا تصارعت الإيماءتان.
+		if (!bPinching && IsoCamera)
+		{
+			IsoCamera->PanByScreenDelta(Delta);
+		}
+	}
+	else if (FingerIndex == ETouchIndex::Touch2)
+	{
+		Touch1Pos = Pos;
+	}
+
+	if (bPinching && bTouch0Active && bTouch1Active && IsoCamera)
+	{
+		const float Distance = FVector2D::Distance(Touch0Pos, Touch1Pos);
+		IsoCamera->ZoomByPinch(Distance - LastPinchDistance);
+		LastPinchDistance = Distance;
+	}
+}
+
+void ARok2PlayerController::OnTouchEnd(ETouchIndex::Type FingerIndex, FVector Location)
+{
+	if (FingerIndex == ETouchIndex::Touch2)
+	{
+		bTouch1Active = false;
+		bPinching = false;
+		return;
+	}
+
+	if (FingerIndex != ETouchIndex::Touch1)
+	{
+		return;
+	}
+
+	bTouch0Active = false;
+
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const bool bWasQuick = (Now - TouchStartSeconds) <= TapMaxDurationSeconds;
+
+	if (!bTouchMovedTooFarForTap && bWasQuick && !bTouch1Active)
+	{
+		HandleTapAtScreenPos(FVector2D(Location.X, Location.Y));
+	}
+
+	bPinching = false;
 }
 
 void ARok2PlayerController::Tick(float DeltaSeconds)
@@ -75,8 +173,19 @@ void ARok2PlayerController::FocusOnPlayerCity()
 
 void ARok2PlayerController::OnTap()
 {
+	// مسار الفأرة (حاسوب) — يحوّل إلى نفس منطق موضع الشاشة الذي يستخدمه اللمس.
+	float MouseX = 0.f;
+	float MouseY = 0.f;
+	if (GetMousePosition(MouseX, MouseY))
+	{
+		HandleTapAtScreenPos(FVector2D(MouseX, MouseY));
+	}
+}
+
+void ARok2PlayerController::HandleTapAtScreenPos(const FVector2D& ScreenPos)
+{
 	FHitResult HitResult;
-	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, HitResult))
+	if (GetHitResultAtScreenPosition(ScreenPos, ECC_Visibility, true, HitResult))
 	{
 		if (!Api) return;
 

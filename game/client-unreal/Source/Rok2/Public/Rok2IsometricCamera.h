@@ -50,6 +50,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void FocusOn(const FVector& WorldLocation);
 
+	/** سحب بالإصبع: يحرّك الهدف بمقدار متناسب مع بُعد الكاميرا، فيبقى
+	 *  إحساس "الأرض تتبع الإصبع" ثابتاً عند كل مستويات التكبير. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Touch")
+	void PanByScreenDelta(const FVector2D& ScreenDelta);
+
+	/** تكبير بإصبعين: الفرق بالبكسل بين المسافتين. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Touch")
+	void ZoomByPinch(float PinchDeltaPixels);
+
+	/** ينقل الكاميرا فوراً بلا إقحام — للتبديل بين عرض المدينة والخريطة.
+	 *  الاستدعاء المباشر لـ SetActorLocation لا يعمل لأن Tick يُقحم نحو
+	 *  TargetLocation فيُلغي النقل في الإطار التالي. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void SnapTo(const FVector& WorldLocation);
+
+	UPROPERTY(EditAnywhere, Category = "Rok2|Touch")
+	float TouchPanScale = 0.0016f;
+
+	UPROPERTY(EditAnywhere, Category = "Rok2|Touch")
+	float TouchZoomScale = 0.004f;
+
 	UPROPERTY(Transient)
 	FVector TargetLocation = FVector::ZeroVector;
 

@@ -48,6 +48,43 @@ void ARok2IsometricCamera::FocusOn(const FVector& WorldLocation)
 	TargetLocation = WorldLocation;
 }
 
+void ARok2IsometricCamera::SnapTo(const FVector& WorldLocation)
+{
+	// الهدف والموضع معاً — وإلا أعاد Tick إقحام الكاميرا نحو الهدف القديم.
+	TargetLocation = WorldLocation;
+	SetActorLocation(WorldLocation);
+}
+
+void ARok2IsometricCamera::PanByScreenDelta(const FVector2D& ScreenDelta)
+{
+	if (ScreenDelta.IsNearlyZero())
+	{
+		return;
+	}
+
+	// المقياس متناسب مع البُعد: كلما ابتعدت الكاميرا غطّى الإصبع مسافة أكبر.
+	const float Scale = TargetDistance * TouchPanScale;
+
+	const FRotator YawRot(0.f, Yaw, 0.f);
+	const FVector Forward = UKismetMathLibrary::GetForwardVector(YawRot);
+	const FVector Right = UKismetMathLibrary::GetRightVector(YawRot);
+
+	// إحداثي Y للشاشة يزداد للأسفل: السحب لأسفل يكشف ما فوق، أي تتقدم الكاميرا.
+	TargetLocation += Forward * (ScreenDelta.Y * Scale) + Right * (-ScreenDelta.X * Scale);
+}
+
+void ARok2IsometricCamera::ZoomByPinch(float PinchDeltaPixels)
+{
+	if (FMath::IsNearlyZero(PinchDeltaPixels))
+	{
+		return;
+	}
+
+	// تكبير نسبي: خطوة ثابتة بالبكسل تعطي نفس الإحساس قريباً وبعيداً.
+	const float Delta = PinchDeltaPixels * TargetDistance * TouchZoomScale;
+	TargetDistance = FMath::Clamp(TargetDistance - Delta, MinZoom, MaxZoom);
+}
+
 void ARok2IsometricCamera::UpdateCameraTransform(float DeltaSeconds)
 {
 	// Smooth follow target
