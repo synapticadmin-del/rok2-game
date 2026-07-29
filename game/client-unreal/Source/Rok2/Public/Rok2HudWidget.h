@@ -122,6 +122,9 @@ private:
 		FString Id;
 		float Remaining;
 
+		/** P6-T3: هل بدأت حركة الخروج؟ (تُشغَّل مرة واحدة لا كل إطار) */
+		bool bExiting = false;
+
 		UPROPERTY()
 		UBorder* Card = nullptr;
 	};

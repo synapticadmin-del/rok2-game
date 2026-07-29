@@ -1,9 +1,11 @@
 // Copyright ROK2. Build menu widget (P5-T3) — implementation.
 // P6-T1: أيقونات المباني إجرائية من URok2ArtAssets (بدل الإيموجي).
+// P6-T3: الورقة تنزلق من الأسفل + ضغطة محسوسة على التبويبات وبطاقات المباني.
 
 #include "Rok2BuildMenuWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -125,6 +127,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 	auto MakeTab = [&](UTextBlock*& OutTxt, const FString& IconId, const FString& Label, const FName Handler) {
 		UButton* B = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		B->OnClicked.AddDynamic(this, Handler);
+		URok2MotionLibrary::BindPress(B);	// P6-T3: ضغطة محسوسة على التبويب
 		UHorizontalBox* TabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		B->AddChild(TabBox);
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -150,6 +153,9 @@ void URok2BuildMenuWidget::NativeConstruct()
 	VBox->AddChildToVerticalBox(Grid)->SetPadding(FMargin(16, 8, 16, 16));
 
 	FillGrid(CurrentCategory);
+
+	// P6-T3: ورقة البناء تنزلق من الأسفل كـ Bottom Sheet (المعيار الموحد)
+	URok2MotionLibrary::PlaySlideInBottom(Sheet);
 }
 
 void URok2BuildMenuWidget::FillGrid(const FString& Category)
@@ -184,6 +190,7 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		Proxy->Id = E.Id;
 		Proxy->OnPick.AddDynamic(this, &URok2BuildMenuWidget::HandleBuildingPicked);
 		Btn->OnClicked.AddDynamic(Proxy, &URok2BuildButtonProxy::HandleClick);
+		URok2MotionLibrary::BindPress(Btn, Card);	// P6-T3: البطاقة كلها تُضغط
 		Proxies.Add(Proxy);
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -214,7 +221,8 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 void URok2BuildMenuWidget::HandleBuildingPicked(const FString& BuildingId)
 {
 	OnBuildMenuPick.Broadcast(BuildingId);
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2BuildMenuWidget::OnTabEcon() { FillGrid(TEXT("economic")); }
@@ -223,5 +231,6 @@ void URok2BuildMenuWidget::OnTabDecor() { FillGrid(TEXT("decor")); }
 
 void URok2BuildMenuWidget::OnCloseClicked()
 {
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }

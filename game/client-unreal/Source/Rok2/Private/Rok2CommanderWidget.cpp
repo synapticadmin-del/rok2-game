@@ -1,10 +1,12 @@
 // Copyright ROK2. Commander screen widget (P5-T4) — implementation.
 // P6-T1: أيقونات المهارات والمعدات والأزرار إجرائية من URok2ArtAssets (بدل الإيموجي).
+// P6-T3: انتقال دخول الشاشة (تلاشٍ) + ضغطة محسوسة على أزرار الإجراءات والبطاقات.
 
 #include "Rok2CommanderWidget.h"
 #include "Rok2Api.h"
 #include "Rok2CivThemes.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -267,6 +269,7 @@ void URok2CommanderWidget::BuildUI()
 	auto MakeActionBtn = [&](const FString& IconId, const FString& Label, const FName Handler, bool bPadRight) {
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Btn->OnClicked.AddDynamic(this, Handler);
+		URok2MotionLibrary::BindPress(Btn);	// P6-T3: ضغطة محسوسة
 		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(BtnBox);
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -290,6 +293,9 @@ void URok2CommanderWidget::BuildUI()
 	MakeActionBtn(TEXT("sword"), TEXT("تعيين في مسيرة"), FName(TEXT("OnAssignClicked")), true);
 	MakeActionBtn(TEXT("star"), TEXT("ترقية المستوى"), FName(TEXT("OnLevelUpClicked")), true);
 	MakeActionBtn(TEXT("skillup"), TEXT("ترقية مهارة"), FName(TEXT("OnSkillUpgradeClicked")), false);
+
+	// P6-T3: انتقال دخول الشاشة — تلاشٍ موحّد 0.25s ease-out (لا ظهور مفاجئ)
+	URok2MotionLibrary::PlayFadeIn(RootPanel);
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +400,9 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	UButton* CardBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	CardBtn->SetVisibility(ESlateVisibility::Visible);
 	CardBtn->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnCardClicked);
+	// P6-T3: لا نربط ضغطة هنا — CardBtn لا يُضاف إلى أي حاوية (البطاقة تُعاد كـ
+	// CardBorder وحدها)، فالزر معزول وأي ربط عليه ميت أصلاً كما هو حال OnClicked
+	// أعلاه. يُربط عند إصلاح تمرير معرّف القائد مع الزر (ملاحظة P5-T4 أدناه).
 	// ملاحظة: في UE5 حقيقي، نحتاج لتمرير معرف القائد مع الزر — نستخدم Tag أو WidgetTree
 
 	return CardBorder;

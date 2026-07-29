@@ -1,9 +1,11 @@
 // Copyright ROK2.
 // P6-T1: زر المساعدة بأيقونة مصافحة إجرائية (بدل 🤝).
+// P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على كل أزرار الكشف.
 
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -41,6 +43,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("VBox"));
 		MainBorder->AddChild(VBox);
+		URok2MotionLibrary::PlayScaleInCenter(MainBorder);	// P6-T3: تفتح من المركز
 
 		UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
 		TitleText->SetText(FText::FromString(TEXT("Alliance Roster")));
@@ -81,6 +84,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		}
 
 		HelpButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnHelpClicked);
+		URok2MotionLibrary::BindPress(HelpButton);	// P6-T3: ضغطة محسوسة
 
 		PopulateRoster();
 	}
@@ -115,6 +119,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 		PromoteText->SetText(FText::FromString(TEXT("Promote")));
 		PromoteBtn->AddChild(PromoteText);
 		PromoteBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnPromoteClicked);
+		URok2MotionLibrary::BindPress(PromoteBtn);	// P6-T3: ضغطة محسوسة
 		HBox->AddChildToHorizontalBox(PromoteBtn);
 
 		UButton* KickBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
@@ -122,6 +127,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 		KickText->SetText(FText::FromString(TEXT("Kick")));
 		KickBtn->AddChild(KickText);
 		KickBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnKickClicked);
+		URok2MotionLibrary::BindPress(KickBtn);	// P6-T3: ضغطة محسوسة
 		HBox->AddChildToHorizontalBox(KickBtn);
 
 		UVerticalBoxSlot* RowSlot = RosterVBox->AddChildToVerticalBox(HBox);
@@ -134,6 +140,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 	InviteText->SetText(FText::FromString(TEXT("Invite")));
 	InviteBtn->AddChild(InviteText);
 	InviteBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnInviteClicked);
+	URok2MotionLibrary::BindPress(InviteBtn);	// P6-T3: ضغطة محسوسة
 	UVerticalBoxSlot* InviteSlot = RosterVBox->AddChildToVerticalBox(InviteBtn);
 	InviteSlot->SetPadding(FMargin(0, 10, 0, 0));
 }

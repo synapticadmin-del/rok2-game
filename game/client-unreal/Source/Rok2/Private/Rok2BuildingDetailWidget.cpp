@@ -1,9 +1,11 @@
 // Copyright ROK2. Building card — Bottom Sheet implementation (P5-T3).
 // P6-T1: أيقونات إجرائية من URok2ArtAssets بدل الإيموجي في العناوين والأزرار.
+// P6-T3: حركة الدخول والضغطات من URok2MotionLibrary (بدل انزلاق محلي في Tick).
 
 #include "Rok2BuildingDetailWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -260,6 +262,8 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		TxtSlot->SetPadding(FMargin(0, 2, 6, 2));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
 		OutBtn->OnClicked.AddDynamic(this, Handler);
+		// P6-T3: ضغطة محسوسة (تصغير + نقرة) على حاوية الزر
+		URok2MotionLibrary::BindPress(OutBtn, B);
 		UHorizontalBoxSlot* S = BtnRow->AddChildToHorizontalBox(B);
 		S->SetPadding(FMargin(4, 0, 4, 0));
 		S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -274,20 +278,16 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	UButton* CloseBtnRef = nullptr;
 	MakeBtn(CloseBtnRef, CloseTxt, CloseIco, TEXT("close"), TEXT("إغلاق"), Rok2CardStyle::BtnGhost, FName(TEXT("OnCloseClicked")));
 	CloseButton = CloseBtnRef;
+
+	// P6-T3: اللوحة تنزلق من الأسفل كـ Bottom Sheet (0.25s ease-out) — المعيار الموحد
+	URok2MotionLibrary::PlaySlideInBottom(SheetBorder);
 }
 
 void URok2BuildingDetailWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-
-	// أنيميشن انزلاق الدخول (من أسفل لفوق)
-	if (!bSlidIn && SheetBorder)
-	{
-		SlideT += InDeltaTime / 0.25f;
-		if (SlideT >= 1.f) { SlideT = 1.f; bSlidIn = true; }
-		const float Ease = 1.f - FMath::Pow(1.f - SlideT, 3.f);
-		SheetBorder->SetRenderTranslation(FVector2D(0.f, (1.f - Ease) * 300.f));
-	}
+	// P6-T3: انزلاق الدخول انتقل إلى URok2MotionLibrary (يُشغَّل مرة في NativeConstruct)
+	// فلم يبق عمل لكل إطار هنا.
 }
 
 void URok2BuildingDetailWidget::OnUpgradeClicked()
@@ -296,7 +296,8 @@ void URok2BuildingDetailWidget::OnUpgradeClicked()
 	{
 		Api->UpgradeBuilding(BuildingId);
 	}
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2BuildingDetailWidget::OnActionClicked()
@@ -306,10 +307,12 @@ void URok2BuildingDetailWidget::OnActionClicked()
 	{
 		OnBuildingAction.Broadcast(BuildingId, Kind);
 	}
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2BuildingDetailWidget::OnCloseClicked()
 {
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }

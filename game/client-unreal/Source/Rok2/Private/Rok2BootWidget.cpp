@@ -1,6 +1,9 @@
+// P6-T3: بطاقة الدخول تظهر بتلاشٍ + ضغطة محسوسة على أزرار الدخول والبدء.
+
 #include "Rok2BootWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/ComboBoxString.h"
@@ -25,8 +28,16 @@ void URok2BootWidget::Setup(URok2Api* InApi)
 	Api->OnApiError.AddDynamic(this, &URok2BootWidget::OnApiError);
 	Api->OnConnectionState.AddDynamic(this, &URok2BootWidget::OnConnectionState);
 
-	if (EnterButton) EnterButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnEnterClicked);
-	if (StartButton) StartButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnStartClicked);
+	if (EnterButton)
+	{
+		EnterButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnEnterClicked);
+		URok2MotionLibrary::BindPress(EnterButton);	// P6-T3: ضغطة محسوسة
+	}
+	if (StartButton)
+	{
+		StartButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnStartClicked);
+		URok2MotionLibrary::BindPress(StartButton);	// P6-T3: ضغطة محسوسة
+	}
 
 	// Populate civ combo
 	if (CivCombo)
@@ -199,6 +210,9 @@ void URok2BootWidget::NativeConstruct()
 		StartButton->SetVisibility(ESlateVisibility::Collapsed);
 		LoadingPanel->SetVisibility(ESlateVisibility::Collapsed);
 		StatusText->SetText(FText::GetEmpty());
+
+		// P6-T3: أول شاشة يراها اللاعب تظهر بتلاشٍ هادئ لا ظهور مفاجئ
+		URok2MotionLibrary::PlayFadeIn(CardBorder);
 	}
 }
 

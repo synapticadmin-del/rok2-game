@@ -1,10 +1,12 @@
 // Copyright ROK2. Unified HUD widget (P5-T3) — implementation.
 // أسلوب RoK: برونز داكن + ذهب مزخرف، أزرار دائرية، شريط موارد RTL.
 // P6-T1: كل الأيقونات إجرائية من URok2ArtAssets — لا إيموجي في الواجهة.
+// P6-T3: بطاقات الإشعارات تنبثق من الأسفل + كل زر بضغطة محسوسة (URok2MotionLibrary).
 
 #include "Rok2HudWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -198,6 +200,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BuildBtn"));
 		Circle->SetContent(Btn);
 		Btn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBuildClickedHandler);
+		URok2MotionLibrary::BindPress(Btn, Circle);	// P6-T3: ضغطة محسوسة
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
@@ -237,6 +240,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Circle->SetContent(Btn);
 		Btn->OnClicked.AddDynamic(this, Handler);
+		URok2MotionLibrary::BindPress(Btn, Circle);	// P6-T3: ضغطة محسوسة
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
@@ -276,6 +280,7 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Pill->SetContent(Btn);
 		Btn->OnClicked.AddDynamic(this, Handler);
+		URok2MotionLibrary::BindPress(Btn, Pill);	// P6-T3: ضغطة محسوسة
 		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(PillBox);
 		UImage* Ico = Rok2Icon(WidgetTree, IconId, 16.f, Rok2HudStyle::Ivory);
@@ -566,6 +571,13 @@ void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 	ToastsBox->AddChildToVerticalBox(Card)->SetPadding(FMargin(0, 0, 0, 6));
 	ToastCardRefs.Add(Card);
 
+	// P6-T3: البطاقة تنبثق من الأسفل (انزلاق + تلاشٍ) بدل الظهور المفاجئ
+	URok2MotionLibrary::PlayToastIn(Card);
+
+	// P6-T3: وميض ذهبي على الجرس يلفت النظر لوصول إشعار — §1 «كل تأكيد له وميض ذهبي»
+	// (BellIcon هو UImage فيُصبغ فعلاً بالذهب لا مجرد نبضة شفافية)
+	URok2MotionLibrary::PlayGoldFlash(BellIcon);
+
 	FToastEntry E;
 	E.Id = N.Id;
 	E.Remaining = N.TtlSeconds;
@@ -576,7 +588,8 @@ void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 	{
 		if (ActiveToasts[0].Card)
 		{
-			ActiveToasts[0].Card->RemoveFromParent();
+			// P6-T3: الأقدم تنزل وتتلاشى (المكتبة تُزيلها) بدل اختفاء مفاجئ
+			URok2MotionLibrary::PlayToastOut(ActiveToasts[0].Card);
 			ToastCardRefs.Remove(ActiveToasts[0].Card);
 		}
 		ActiveToasts.RemoveAt(0);
@@ -591,15 +604,20 @@ void URok2HudWidget::TickToasts(float DeltaSeconds)
 	{
 		FToastEntry& E = ActiveToasts[i];
 		E.Remaining -= DeltaSeconds;
-		if (E.Card && E.Remaining < 1.5f)
+
+		// P6-T3: حركة الخروج (نزول + تلاشٍ) تُشغَّل مرة واحدة من المكتبة
+		// بدل حساب الشفافية يدوياً كل إطار.
+		if (E.Card && !E.bExiting && E.Remaining <= Rok2MotionSpec::Std)
 		{
-			E.Card->SetRenderOpacity(FMath::Clamp(E.Remaining / 1.5f, 0.f, 1.f));
+			E.bExiting = true;
+			URok2MotionLibrary::PlayToastOut(E.Card);
 		}
+
 		if (E.Remaining <= 0.f)
 		{
+			// المكتبة تتولّى إزالة البطاقة عند انتهاء حركة الخروج؛ نُسقط المرجع فقط.
 			if (E.Card)
 			{
-				E.Card->RemoveFromParent();
 				ToastCardRefs.Remove(E.Card);
 			}
 			ActiveToasts.RemoveAt(i);

@@ -87,6 +87,5 @@ protected:
 	FString ActionIconForBuilding(const FString& Id) const;
 
 	// أنيميشن الدخول (انزلاق من أسفل)
-	float SlideT = 0.f;
-	bool bSlidIn = false;
+	// P6-T3: حالة الانزلاق المحلية أُزيلت — الحركة صارت في URok2MotionLibrary
 };

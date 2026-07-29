@@ -1,9 +1,11 @@
 // Copyright ROK2. Battle Report Widget impl — P1-T4.
 // P6-T1: أيقونات النتائج والحالات إجرائية من URok2ArtAssets (بدل الإيموجي).
+// P6-T3: البطاقة تفتح من المركز + خلفية تتلاشى + ضغطات محسوسة (URok2MotionLibrary).
 
 #include "Rok2BattleReportWidget.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -103,6 +105,7 @@ void URok2BattleReportWidget::NativeConstruct()
 			CloseBox->AddChildToHorizontalBox(CloseText)->SetVerticalAlignment(VAlign_Center);
 		}
 		CloseButton->OnClicked.AddDynamic(this, &URok2BattleReportWidget::OnCloseClicked);
+		URok2MotionLibrary::BindPress(CloseButton);	// P6-T3: ضغطة محسوسة
 		TitleHBox->AddChildToHorizontalBox(CloseButton)->SetVerticalAlignment(VAlign_Center);
 
 		// جسم اللوحة: قائمة التقارير + التفاصيل جنباً إلى جنب
@@ -136,6 +139,10 @@ void URok2BattleReportWidget::NativeConstruct()
 		Hint->SetText(FText::FromString(TEXT("اختر تقريراً من القائمة لعرض تفاصيل الخسائر")));
 		Hint->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.65f, 0.7f)));
 		DetailPanel->AddChildToVerticalBox(Hint)->SetPadding(FMargin(12, 12, 12, 0));
+
+		// P6-T3: النافذة تفتح من المركز، والخلفية المعتمة تتلاشى معها
+		URok2MotionLibrary::PlayScaleInCenter(Card);
+		URok2MotionLibrary::PlayFadeIn(Backdrop);
 	}
 }
 
@@ -215,6 +222,7 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 		Handler->Index = i;
 		Handler->Widget = this;
 		Row->OnClicked.AddDynamic(Handler, &URok2ReportRowHandler::OnClick);
+		URok2MotionLibrary::BindPress(Row);	// P6-T3: ضغطة محسوسة على صف التقرير
 
 		ReportList->AddChildToVerticalBox(Row)->SetPadding(FMargin(4, 3, 4, 3));
 	}
@@ -395,7 +403,8 @@ FString URok2BattleReportWidget::KindLabel(const FString& Kind)
 
 void URok2BattleReportWidget::Close()
 {
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2BattleReportWidget::OnCloseClicked()

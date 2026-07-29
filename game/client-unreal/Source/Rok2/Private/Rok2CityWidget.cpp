@@ -1,8 +1,11 @@
+// P6-T3: ضغطة محسوسة على أزرار المدينة والتسريع + تلاشي دخول الشاشة.
+
 #include "Rok2CityWidget.h"
 #include "Rok2Api.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
@@ -28,11 +31,32 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 	Api->OnToast.AddDynamic(this, &URok2CityWidget::OnToast);
 	Api->OnConnectionState.AddDynamic(this, &URok2CityWidget::OnConnectionState);
 
-	if (TrainButton) TrainButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnTrainClicked);
-	if (CreateAllianceButton) CreateAllianceButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnCreateAllianceClicked);
-	if (MapButton) MapButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnMapClicked);
-	if (RefreshButton) RefreshButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnRefreshClicked);
-	if (ReportsButton) ReportsButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnReportsClicked);
+	// P6-T3: كل زر رئيسي يحصل على ضغطة محسوسة (تصغير + نقرة)
+	if (TrainButton)
+	{
+		TrainButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnTrainClicked);
+		URok2MotionLibrary::BindPress(TrainButton);
+	}
+	if (CreateAllianceButton)
+	{
+		CreateAllianceButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnCreateAllianceClicked);
+		URok2MotionLibrary::BindPress(CreateAllianceButton);
+	}
+	if (MapButton)
+	{
+		MapButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnMapClicked);
+		URok2MotionLibrary::BindPress(MapButton);
+	}
+	if (RefreshButton)
+	{
+		RefreshButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnRefreshClicked);
+		URok2MotionLibrary::BindPress(RefreshButton);
+	}
+	if (ReportsButton)
+	{
+		ReportsButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnReportsClicked);
+		URok2MotionLibrary::BindPress(ReportsButton);
+	}
 
 	if (TrainUnitCombo)
 	{
@@ -67,6 +91,7 @@ void URok2CityWidget::NativeConstruct()
 	{
 		UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
 		WidgetTree->RootWidget = RootCanvas;
+		URok2MotionLibrary::PlayFadeIn(RootCanvas);	// P6-T3: انتقال دخول الشاشة
 
 		// 1. Top Bar Background (Full width across top)
 		UBorder* TopBarBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopBarBorder"));
@@ -371,6 +396,7 @@ void URok2CityWidget::Refresh()
 			Handler->Api = Api;
 			QueueHandlers.Add(Handler);
 			SpeedupBtn->OnClicked.AddDynamic(Handler, &URok2QueueBtnHandler::OnClick);
+			URok2MotionLibrary::BindPress(SpeedupBtn);	// P6-T3: ضغطة محسوسة
 
 			QHBox->AddChildToHorizontalBox(SpeedupBtn);
 			ActiveQueuesList->AddChildToVerticalBox(QHBox);

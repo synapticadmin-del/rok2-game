@@ -1,5 +1,8 @@
+// P6-T3: تلاشي دخول الشاشة + ضغطة محسوسة على زر البحث.
+
 #include "Rok2ResearchWidget.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -20,6 +23,7 @@ void URok2ResearchWidget::NativeConstruct()
     {
         UCanvasPanel* RootPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootPanel"));
         WidgetTree->RootWidget = RootPanel;
+        URok2MotionLibrary::PlayFadeIn(RootPanel);	// P6-T3: انتقال دخول الشاشة
 
         UVerticalBox* MainBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainBox"));
         UCanvasPanelSlot* MainBoxSlot = RootPanel->AddChildToCanvas(MainBox);
@@ -82,6 +86,7 @@ void URok2ResearchWidget::NativeConstruct()
         TechItem->AddChildToHorizontalBox(ResearchButton);
 
         ResearchButton->OnClicked.AddDynamic(this, &URok2ResearchWidget::OnResearchButtonClicked);
+        URok2MotionLibrary::BindPress(ResearchButton);	// P6-T3: ضغطة محسوسة
         
         CurrentSelectedTechId = TEXT("Tech_Architecture");
     }

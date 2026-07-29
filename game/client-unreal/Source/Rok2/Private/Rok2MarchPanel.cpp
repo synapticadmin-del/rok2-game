@@ -1,9 +1,11 @@
 // Copyright ROK2.
 // P6-T1: أيقونات إجرائية من URok2ArtAssets في أزرار الكشافة والإرسال (بدل الإيموجي).
+// P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على الكشافة والإرسال.
 
 #include "Rok2MarchPanel.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -144,6 +146,7 @@ void URok2MarchPanel::NativeConstruct()
 			ScoutBox->AddChildToHorizontalBox(ScoutText)->SetVerticalAlignment(VAlign_Center);
 		}
 		ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
+		URok2MotionLibrary::BindPress(ScoutButton);	// P6-T3: ضغطة محسوسة
 
 		DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
 		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
@@ -170,6 +173,10 @@ void URok2MarchPanel::NativeConstruct()
 		}
 
 		DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
+		URok2MotionLibrary::BindPress(DispatchButton);	// P6-T3: ضغطة محسوسة
+
+		// P6-T3: لوحة المسيرة تفتح من المركز (المعيار الموحد 0.25s)
+		URok2MotionLibrary::PlayScaleInCenter(MainBorder);
 	}
 }
 
@@ -202,7 +209,8 @@ void URok2MarchPanel::OnDispatchClicked()
 		Api->DispatchMarch(TargetType, TargetId, TroopsMap, PrimaryCmd, SecondaryCmd);
 	}
 
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2MarchPanel::OnScoutClicked()
@@ -211,5 +219,6 @@ void URok2MarchPanel::OnScoutClicked()
 
 	// P5-T5: إرسال كشافة للنقطة المحددة (بدون قوات)
 	Api->SendScout(ToX, ToY);
-	RemoveFromParent();
+	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
 }
