@@ -63,12 +63,19 @@ import {
 import {
   isKingdomOpen,
   kingdomCapacity,
+  openKingdoms,
   retentionDayBuckets,
   retentionTargets,
   utcDay as retentionUtcDay,
   cohortDayOf,
   pct,
 } from "../do/sim/retention";
+import {
+  chooseKingdom,
+  matchmakingConfig,
+  matchmakingStrategy,
+  type KingdomCandidate,
+} from "../do/sim/matchmaking";
 import {
   bpConstants,
   bpSeasonId,
@@ -501,15 +508,57 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
 
       // P3-T5: بوابة Soft launch — الانضمام مقيد بممالك الإطلاق المفتوحة وسعتها
-      const kingdomId = env.KINGDOM_ID || "kingdom-1";
+      // P4-T6: matchmaking ممالك — عند توفر أكثر من مملكة مفتوحة، يُعيَّن اللاعب
+      // للأقل امتلاءً (least_fill) بدل افتراض مملكة البيئة الواحدة دائماً.
+      const envKingdomId = env.KINGDOM_ID || "kingdom-1";
+      let kingdomId = envKingdomId;
+      let matchChoice: ReturnType<typeof chooseKingdom> = null;
+
+      const launchKingdoms = openKingdoms();
+      if (launchKingdoms.length > 0) {
+        // المرشحون: ممالك الإطلاق المفتوحة (تُقرأ من data/softlaunch.json)
+        const candidates: KingdomCandidate[] = launchKingdoms.map((k) => ({
+          id: k.id,
+          open: k.open,
+          max_players: k.max_players,
+        }));
+        // عدد اللاعبين لكل مملكة (players.kingdom_id من migration 0008) —
+        // اللاعبون القدامى بدون kingdom_id يُحسبون ضمن مملكة البيئة الافتراضية.
+        const counts: Record<string, number> = {};
+        const rrCounters: Record<string, number> = {};
+        try {
+          const rows = await env.DB.prepare(
+            `SELECT COALESCE(kingdom_id, ?) as kid, COUNT(*) as c FROM players GROUP BY COALESCE(kingdom_id, ?)`,
+          ).bind(envKingdomId, envKingdomId).all<{ kid: string; c: number }>();
+          for (const r of rows.results || []) counts[r.kid] = r.c;
+          const rr = await env.DB.prepare(
+            `SELECT kingdom_id, COUNT(*) as c FROM kingdom_assignments GROUP BY kingdom_id`,
+          ).all<{ kingdom_id: string; c: number }>();
+          for (const r of rr.results || []) rrCounters[r.kingdom_id] = r.c;
+        } catch {
+          // الجدول/العمود غير مُرحّل بعد — كل اللاعبين ضمن مملكة البيئة
+          const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM players").first<{ c: number }>();
+          counts[envKingdomId] = cnt?.c || 0;
+        }
+
+        matchChoice = chooseKingdom(candidates, counts, rrCounters);
+        if (!matchChoice) {
+          throw new HttpError(403, "kingdom_full", { kingdoms: candidates.map((k) => k.id) });
+        }
+        kingdomId = matchChoice.kingdomId;
+      }
+
+      // بوابة السعة للمملكة المختارة (تبقى فعالة حتى مع مملكة واحدة)
       if (!isKingdomOpen(kingdomId)) {
         throw new HttpError(403, "kingdom_not_open_for_launch", { kingdom: kingdomId });
       }
       const cap = kingdomCapacity(kingdomId);
       if (cap !== null) {
-        const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM players")
-          .first<{ c: number }>();
-        if ((cnt?.c || 0) >= cap) {
+        const capCount = await env.DB.prepare(
+          `SELECT COUNT(*) as c FROM players WHERE COALESCE(kingdom_id, ?) = ?`,
+        ).bind(envKingdomId, kingdomId).first<{ c: number }>()
+          .catch(() => env.DB.prepare("SELECT COUNT(*) as c FROM players").first<{ c: number }>());
+        if ((capCount?.c || 0) >= cap) {
           throw new HttpError(403, "kingdom_full", { kingdom: kingdomId, max_players: cap });
         }
       }
@@ -529,6 +578,25 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
            VALUES (?, 1, 5000, 5000, 3000, 2000, ?)`,
         ).bind(playerId, now),
       ]);
+
+      // P4-T6: تسجيل تعيين المملكة (players.kingdom_id + سجل kingdom_assignments) —
+      // متوافق مع قواعد لم تُرحّل بعد (أخطاء SQL تُبتلع ولا تفشل إنشاء المدينة).
+      try {
+        await env.DB.prepare("UPDATE players SET kingdom_id = ? WHERE id = ?").bind(kingdomId, playerId).run();
+        await env.DB.prepare(
+          `INSERT INTO kingdom_assignments (player_id, kingdom_id, strategy, fill_ratio, reason, assigned_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          playerId,
+          kingdomId,
+          matchChoice?.strategy || matchmakingStrategy(),
+          matchChoice?.fillRatio || 0,
+          matchChoice?.reason || "env_default",
+          now,
+        ).run();
+      } catch {
+        // العمود/الجدول غير مُرحّل بعد
+      }
 
       for (const b of starterBuildings()) {
         await env.DB.prepare(
@@ -603,6 +671,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           y: spawn.y,
         },
         starterCommander,
+        // P4-T6: المملكة المعينة + سبب الاختيار (للشفافية وتجربة الانضمام)
+        kingdom: kingdomId,
+        matchmaking: matchChoice
+          ? { strategy: matchChoice.strategy, fillRatio: matchChoice.fillRatio, reason: matchChoice.reason }
+          : undefined,
       });
     }
 
@@ -622,6 +695,16 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const hospitalLevel = buildings["hospital"] || 0;
       const capacity = hospitalCapacity(hospitalLevel);
 
+      // P4-T6: مملكة اللاعب المعينة (من players.kingdom_id — متوافق مع قواعد لم تُرحّل بعد)
+      let playerKingdom: string | null = null;
+      try {
+        const row = await env.DB.prepare("SELECT kingdom_id FROM players WHERE id = ?")
+          .bind(player.id).first<{ kingdom_id: string | null }>();
+        playerKingdom = row?.kingdom_id || null;
+      } catch {
+        // العمود غير مُرحّل بعد
+      }
+
       return json({
         player,
         city,
@@ -634,6 +717,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           used: woundedTotal,
           free: Math.max(0, capacity - woundedTotal),
         },
+        kingdom: playerKingdom,
       });
     }
 
@@ -2008,6 +2092,44 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         kingdoms: spec.kingdoms,
         current: spec.kingdoms.find((k: any) => k.id === kingdomId) || null,
         success_gate: spec.success_gate,
+      });
+    }
+
+    // P4-T6: حالة matchmaking — إشغال كل مملكة مفتوحة + الاستراتيجية + أحدث التعيينات
+    if (path === "/v1/matchmaking/status" && request.method === "GET") {
+      const envKingdomId = env.KINGDOM_ID || "kingdom-1";
+      const counts: Record<string, number> = {};
+      try {
+        const rows = await env.DB.prepare(
+          `SELECT COALESCE(kingdom_id, ?) as kid, COUNT(*) as c FROM players GROUP BY COALESCE(kingdom_id, ?)`,
+        ).bind(envKingdomId, envKingdomId).all<{ kid: string; c: number }>();
+        for (const r of rows.results || []) counts[r.kid] = r.c;
+      } catch {
+        const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM players").first<{ c: number }>().catch(() => null);
+        counts[envKingdomId] = cnt?.c || 0;
+      }
+      const kingdoms = openKingdoms().map((k) => ({
+        id: k.id,
+        name: k.name,
+        max_players: k.max_players,
+        players: counts[k.id] || 0,
+        fill_ratio: k.max_players > 0 ? Math.round(((counts[k.id] || 0) / k.max_players) * 1000) / 10 : 0,
+      }));
+      let recent: any[] = [];
+      try {
+        const rows = await env.DB.prepare(
+          `SELECT kingdom_id, strategy, fill_ratio, reason, assigned_at FROM kingdom_assignments ORDER BY assigned_at DESC LIMIT 10`,
+        ).all<any>();
+        recent = rows.results || [];
+      } catch {
+        // الجدول غير مُرحّل بعد
+      }
+      return json({
+        ok: true,
+        strategy: matchmakingStrategy(),
+        guardrails: matchmakingConfig().guardrails,
+        kingdoms,
+        recent_assignments: recent,
       });
     }
 

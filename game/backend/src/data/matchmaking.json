@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "P4-T6: matchmaking ممالك — تعيين اللاعبين الجدد على ممالك الإطلاق المفتوحة بشكل متوازن. كل القيم تُقرأ من هنا — لا ثوابت في الكود.",
+  "strategy": "least_fill",
+  "strategies": {
+    "least_fill": "اختر المملكة المفتوحة الأقل امتلاءً (fill_ratio = player_count / max_players) — كسر التعادل لصالح الأقل لاعبين ثم الأبجدي.",
+    "round_robin": "تناوب صارم بين الممالك المفتوحة حسب عدد التعيينات المسجل في kingdom_assignments."
+  },
+  "guardrails": {
+    "hard_cap_ratio": 1.0,
+    "prefer_below_ratio": 0.9,
+    "fallback_to_env_kingdom": true
+  },
+  "activity": {
+    "track_assignment": true,
+    "log_assignment_reason": true
+  }
+}
