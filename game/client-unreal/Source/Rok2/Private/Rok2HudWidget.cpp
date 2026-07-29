@@ -141,7 +141,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 // ---------------------------------------------------------------------------
 void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 {
-	UOverlay* Cluster = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("HudActionCluster"));
+	UCanvasPanel* Cluster = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("HudActionCluster"));
 	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Cluster);
 	Slot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
 	Slot->SetAlignment(FVector2D(1.f, 1.f));

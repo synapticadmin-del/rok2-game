@@ -2,6 +2,7 @@ import type { Env, PlayerRow, CityRow, VipRow } from "../env";
 import { HttpError, json, readJson } from "../lib/errors";
 import { newId, nowMs } from "../lib/ids";
 import { signToken, sha256Hex, verifyToken } from "../lib/auth";
+import type { TokenPayload } from "../lib/auth";
 import { requireAuth, requirePlayer, requireAdmin } from "../lib/context";
 import { requireAuthSecret } from "../lib/secrets";
 import {
@@ -1425,23 +1426,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         .bind(q.playerId).first<{ alliance_id: string | null }>();
       if (!owner || owner.alliance_id !== player.alliance_id) throw new HttpError(403, "not_same_alliance");
 
-      // مساعدة واحدة لكل لاعب على الطابور + سقف العدد
-      try {
-        await env.DB.prepare(
-          `INSERT INTO alliance_helps (queue_id, helper_player_id, created_at) VALUES (?, ?, ?)`,
-        ).bind(body.queueId, player.id, nowMs()).run();
-      } catch {
-        throw new HttpError(409, "already_helped");
-      }
-      const cnt = await env.DB.prepare(
-        "SELECT COUNT(*) as c FROM alliance_helps WHERE queue_id = ?",
-      ).bind(body.queueId).first<{ c: number }>();
-      const helpsCount = cnt?.c || 1;
-
+      // حساب delta قبل أي كتابة — ولا يُسجَّل already_helped إلا بعد نجاح DO.
+      // سابقاً: INSERT alliance_helps كان يحدث قبل استدعاء DO بدون playerId،
+      // فيرفضه الـ DO (403 not_your_queue) بينما اللاعب يُحرم نهائياً (409).
       const remainingMs = Math.max(0, q.etaMs - nowMs());
-      const sec = helpSpeedupSec(remainingMs, helpsCount);
-      // التخفيض التراكمي: الفرق بين ما تستحقه المساعدات الحالية وما طُبّق سابقاً
-      const prevSec = helpSpeedupSec(remainingMs, helpsCount - 1);
+      const helpsCount = (await env.DB.prepare(
+        "SELECT COUNT(*) as c FROM alliance_helps WHERE queue_id = ?",
+      ).bind(body.queueId).first<{ c: number }>())?.c || 0;
+      const sec = helpSpeedupSec(remainingMs, helpsCount + 1);
+      const prevSec = helpSpeedupSec(remainingMs, helpsCount);
       const deltaSec = Math.max(0, sec - prevSec);
 
       let queue = null;
@@ -1450,17 +1443,31 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const res = await stub.fetch("https://do/queue/speedup", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ queueId: body.queueId, seconds: deltaSec }),
+          // playerId هنا هو مالك الطابور — بدونه يرفض الـ DO (403 not_your_queue).
+          // التحقق من الملكية ليس ثغرة هنا: الـ router أكّد أن المساعد في نفس
+          // التحالف، وقواعد اللعبة تسمح لأي عضو بتسريع طابور عضو آخر.
+          body: JSON.stringify({ queueId: body.queueId, seconds: deltaSec, playerId: q.playerId }),
         });
         const data = await res.json<any>();
         if (!res.ok) throw new HttpError(res.status, data.error || "help_failed", data);
         queue = data.queue;
       }
+
+      // سجّل المساعدة فقط بعد نجاح التسريع (أو عند delta=0 أي سقف مكتمل)
+      try {
+        await env.DB.prepare(
+          `INSERT INTO alliance_helps (queue_id, helper_player_id, created_at) VALUES (?, ?, ?)`,
+        ).bind(body.queueId, player.id, nowMs()).run();
+      } catch {
+        throw new HttpError(409, "already_helped");
+      }
+      const helpsCountNow = helpsCount + 1;
+
       return json({
         ok: true,
         queueId: body.queueId,
-        helpsCount,
-        capped: helpsCapped(helpsCount),
+        helpsCount: helpsCountNow,
+        capped: helpsCapped(helpsCountNow),
         speedupSec: deltaSec,
         totalReductionSec: sec,
         queue,
@@ -1576,28 +1583,43 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
       const body = await readJson<{ x: number; y: number }>(request);
-      
+
+      // تحقق مبكر — DO يتحقق أيضاً (دفاع متعمّق)، لكن الرفض هنا أوضح للعميل
+      const mapForFlag = getMap();
+      const fx = Number(body.x);
+      const fy = Number(body.y);
+      if (!Number.isFinite(fx) || !Number.isFinite(fy) || fx < 0 || fx > mapForFlag.width || fy < 0 || fy > mapForFlag.height) {
+        throw new HttpError(400, "bad_flag_coords");
+      }
+
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/build-flag", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ allianceId: player.alliance_id, x: body.x, y: body.y })
+        body: JSON.stringify({ allianceId: player.alliance_id, x: fx, y: fy })
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "build_failed", data);
       return json(data);
     }
 
-    // World snapshot
+    // World snapshot — مصادقة إجبارية. الضيوف (بدون playerId بعد) يحصلون على
+    // نسخة منقّحة بلا queues اللاعبين. سابقاً كانت مفتوحة تماماً لأي شخص:
+    // إحداثيات كل المدن + المسيرات المتحركة + طوابير البناء الجارية = استطلاع مجاني.
     if (path === "/v1/world/snapshot" && request.method === "GET") {
+      const auth = await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/snapshot");
-      const data = await res.json();
+      const data = await res.json<any>();
+      if (!auth.playerId) {
+        delete data.queues; // بلا طوابير للضيوف
+      }
       return json(data);
     }
 
     // Season Leaderboard
     if (path === "/v1/season/leaderboard" && request.method === "GET") {
+      await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/leaderboard");
       const data = await res.json();
@@ -1606,6 +1628,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     // P3-T1: جدول فتح الموسم الكامل على السيرفر (Zone unlock service)
     if (path === "/v1/season/schedule" && request.method === "GET") {
+      await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/season/schedule");
       const data = await res.json();
@@ -1614,6 +1637,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     // P3-T2: لوحة نقاط الموسم — أهداف قلب Zone 3 + النقاط + المتصدر
     if (path === "/v1/season/scoreboard" && request.method === "GET") {
+      await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/season/scoreboard");
       const data = await res.json();
@@ -1622,6 +1646,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     // P3-T3: الأحداث النشطة والمجدولة اليوم (barbarians / resource_rush / war_fever)
     if (path === "/v1/events/active" && request.method === "GET") {
+      await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/events");
       const data = await res.json();
@@ -1630,6 +1655,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     // P2-T4: حالة فتح/قفل المناطق (مؤقت Zone 2 stubs)
     if (path === "/v1/world/zones" && request.method === "GET") {
+      await requireAuth(request, env);
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/zones-status");
       const data = await res.json();
@@ -1638,25 +1664,41 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
     // World WS proxy
     if (path === "/v1/world/ws" && request.headers.get("Upgrade") === "websocket") {
+      // verifyToken خارج try كان يسقط أي رمز تالف إلى المعالج العام فيعيد 500
+      // مضللة بدل 401. نفس النمط: لفّه هنا ليعيد 401 واضحة.
+      let payload: TokenPayload | null = null;
       const token = url.searchParams.get("token") || request.headers.get("Sec-WebSocket-Protocol");
-      if (token) {
-        await verifyToken(token, requireAuthSecret(env));
-      } else {
-        await requireAuth(request, env);
+      try {
+        if (token) {
+          payload = await verifyToken(token, requireAuthSecret(env));
+        } else {
+          const authRes = await requireAuth(request, env);
+          payload = { accountId: authRes.accountId, playerId: authRes.playerId, exp: 0 };
+        }
+      } catch (e: any) {
+        if (e instanceof HttpError) throw e;
+        throw new HttpError(401, "Invalid or expired token");
       }
+      // مرّر playerId الموثّق للـ DO عبر header — لا يُقبل أي playerId من رسائل العميل
+      const headers = new Headers(request.headers);
+      if (payload?.playerId) headers.set("x-rok2-player", payload.playerId);
       const stub = kingdomStub(env);
-      return stub.fetch("https://do/ws", request);
+      return stub.fetch("https://do/ws", new Request(request, { headers }));
     }
 
     // March REST
     if (path === "/v1/world/march" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       const body = await readJson<any>(request);
-      // validate troops ownership
+      // تحقق صارم من أعداد القوات: عدد صحيح موجب فقط. القيم السالبة كانت
+      // تجتاز الفحص القديم (owned < c) فتضخّم الرصيد عند الخصم، والكسرية
+      // تنتج أرصدة كسرية — وكلا الحالتين تكسر محاسبة القوات.
       const owned = await getTroopsMap(env, player.id);
       const troops = body.troops || {};
       for (const [u, c] of Object.entries(troops)) {
-        if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
+        const n = Number(c);
+        if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `Invalid count for ${u}`);
+        if ((owned[u] || 0) < n) throw new HttpError(400, `Not enough ${u}`);
       }
       // P2-T1: القائد المرافق (اختياري) — تحقق من الملكية
       let commanderSkills: number[] | undefined;
@@ -1665,44 +1707,61 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         if (!cmd) throw new HttpError(400, "Commander not owned");
         commanderSkills = JSON.parse(cmd.skills_json || "[1,1,1]");
       }
-      // deduct temporarily (prototype: permanent send)
-      for (const [u, c] of Object.entries(troops)) {
-        const left = (owned[u] || 0) - Number(c);
-        await env.DB.prepare(
-          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
-           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
-        )
-          .bind(player.id, u, left)
-          .run();
-        await env.DB.prepare(
-          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
-           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
-        )
-          .bind(player.id, u, Number(c))
-          .run();
-      }
+      // نقل القوات من home إلى marching (خصم حقيقي) — ثم إعادتها إن فشل إنشاء المسيرة
+      const deduced: Array<[string, number]> = [];
+      try {
+        for (const [u, c] of Object.entries(troops)) {
+          const n = Number(c);
+          const left = (owned[u] || 0) - n;
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
+          )
+            .bind(player.id, u, left)
+            .run();
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+          )
+            .bind(player.id, u, n)
+            .run();
+          deduced.push([u, n]);
+        }
 
-      const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/march", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          playerId: player.id,
-          troops,
-          targetType: body.targetType,
-          targetId: body.targetId,
-          passId: body.passId,
-          toX: body.toX,
-          toY: body.toY,
-          primaryCommanderId: body.primaryCommanderId,
-          commanderSkills,
-        }),
-      });
-      const data = await res.json<any>();
-      if (!res.ok) throw new HttpError(res.status, data.error || "march_failed", data);
-      // P4-T1: نقاط Battle Pass عن المسيرة
-      await grantBpXp(env, player.id, "march");
-      return json(data);
+        const stub = kingdomStub(env);
+        const res = await stub.fetch("https://do/march", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            playerId: player.id,
+            troops,
+            targetType: body.targetType,
+            targetId: body.targetId,
+            passId: body.passId,
+            toX: body.toX,
+            toY: body.toY,
+            primaryCommanderId: body.primaryCommanderId,
+            commanderSkills,
+          }),
+        });
+        const data = await res.json<any>();
+        if (!res.ok) throw new HttpError(res.status, data.error || "march_failed", data);
+        // P4-T1: نقاط Battle Pass عن المسيرة
+        await grantBpXp(env, player.id, "march");
+        return json(data);
+      } catch (err) {
+        // فشل الإنشاء (منطق اللعبة أو DO) — أعد القوات المخصومة إلى home
+        for (const [u, n] of deduced) {
+          await env.DB.prepare(
+            `UPDATE troops SET count = MAX(0, count - ?) WHERE player_id = ? AND unit_id = ? AND status = 'marching'`,
+          ).bind(n, player.id, u).run();
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+          ).bind(player.id, u, n).run();
+        }
+        throw err;
+      }
     }
 
     // Pass attack REST
@@ -1713,7 +1772,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const owned = await getTroopsMap(env, player.id);
       const troops = body.troops || {};
       for (const [u, c] of Object.entries(troops)) {
-        if ((owned[u] || 0) < Number(c)) throw new HttpError(400, `Not enough ${u}`);
+        const n = Number(c);
+        if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `Invalid count for ${u}`);
+        if ((owned[u] || 0) < n) throw new HttpError(400, `Not enough ${u}`);
       }
       // P2-T1: القائد المرافق (اختياري)
       let commanderSkills: number[] | undefined;
@@ -1722,39 +1783,56 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         if (!cmd) throw new HttpError(400, "Commander not owned");
         commanderSkills = JSON.parse(cmd.skills_json || "[1,1,1]");
       }
-      for (const [u, c] of Object.entries(troops)) {
-        const left = (owned[u] || 0) - Number(c);
-        await env.DB.prepare(
-          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
-           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
-        )
-          .bind(player.id, u, left)
-          .run();
-        await env.DB.prepare(
-          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
-           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
-        )
-          .bind(player.id, u, Number(c))
-          .run();
-      }
+      // نقل القوات من home إلى marching + إعادتها إن فشل إنشاء الهجوم
+      const deduced: Array<[string, number]> = [];
+      try {
+        for (const [u, c] of Object.entries(troops)) {
+          const n = Number(c);
+          const left = (owned[u] || 0) - n;
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=excluded.count`,
+          )
+            .bind(player.id, u, left)
+            .run();
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'marching', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+          )
+            .bind(player.id, u, n)
+            .run();
+          deduced.push([u, n]);
+        }
 
-      const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/pass-attack", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          playerId: player.id,
-          passId: body.passId,
-          troops,
-          primaryCommanderId: body.primaryCommanderId,
-          commanderSkills,
-        }),
-      });
-      const data = await res.json<any>();
-      if (!res.ok) throw new HttpError(res.status, data.error || "attack_failed", data);
-      // P4-T1: نقاط Battle Pass عن هجوم الممر
-      await grantBpXp(env, player.id, "pass_attack");
-      return json(data);
+        const stub = kingdomStub(env);
+        const res = await stub.fetch("https://do/pass-attack", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            playerId: player.id,
+            passId: body.passId,
+            troops,
+            primaryCommanderId: body.primaryCommanderId,
+            commanderSkills,
+          }),
+        });
+        const data = await res.json<any>();
+        if (!res.ok) throw new HttpError(res.status, data.error || "attack_failed", data);
+        // P4-T1: نقاط Battle Pass عن هجوم الممر
+        await grantBpXp(env, player.id, "pass_attack");
+        return json(data);
+      } catch (err) {
+        for (const [u, n] of deduced) {
+          await env.DB.prepare(
+            `UPDATE troops SET count = MAX(0, count - ?) WHERE player_id = ? AND unit_id = ? AND status = 'marching'`,
+          ).bind(n, player.id, u).run();
+          await env.DB.prepare(
+            `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+             ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+          ).bind(player.id, u, n).run();
+        }
+        throw err;
+      }
     }
 
     // Admin
@@ -1831,12 +1909,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         "SELECT COUNT(DISTINCT player_id) as c FROM player_activity WHERE day >= ?",
       ).bind(today - (activeThreshold - 1)).first<{ c: number }>().catch(() => null);
 
-      // cohorts: حجم كل يوم إنشاء + عدد العائدين منه عند كل bucket
+      // cohorts: حجم كل يوم إنشاء + عدد العائدين منه عند كل bucket.
+      // حدّ صلب للصفوف — الاستعلامان الفرعيان المترابطان يركّضان مع نمو اللاعبين.
       const cohortsRows = await env.DB.prepare(
         `SELECT p.created_at as created_ms, p.id as pid,
                 (SELECT MAX(day) FROM player_activity a WHERE a.player_id = p.id) as last_day,
                 (SELECT MIN(day) FROM player_activity a WHERE a.player_id = p.id) as first_active_day
-         FROM players p`,
+         FROM players p
+         ORDER BY p.created_at DESC
+         LIMIT 10000`,
       ).all<{ created_ms: number; pid: string; last_day: number | null; first_active_day: number | null }>()
         .catch(() => ({ results: [] as any[] }));
 
@@ -1901,6 +1982,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ error: err.message, details: err.details }, err.status);
     }
     console.error(err);
-    return json({ error: err?.message || "Internal error" }, 500);
+    // لا نسرّب رسالة الخطأ الداخلية للعميل — قد تحوي تفاصيل SQL/مسارات.
+    // الخطأ الكامل في console.error أعلاه (يظهر في wrangler tail).
+    return json({ error: "Internal error" }, 500);
   }
 }

@@ -38,6 +38,21 @@ export async function requireAuth(request: Request, env: Env) {
     throw new HttpError(401, "Invalid or expired token");
   }
 
+  // إبطال الرموز: أي رمز مسروق/مستبدَل يُرفض ما دام hashه لم يعد في sessions.
+  // الجدول يُكتب عند كل إصدار (auth/guest) — فحصه هنا يفعّل الإبطال فعلياً.
+  // أخطاء SQL (جدول غير مُرحّل) تُتجاهل ليبقى التحقق التوقيعي كافياً.
+  try {
+    const { sha256Hex } = await import("./auth");
+    const tokenHash = await sha256Hex(token);
+    const session = await env.DB.prepare(
+      "SELECT 1 as x FROM sessions WHERE token_hash = ? AND expires_at > ?",
+    ).bind(tokenHash, Date.now()).first();
+    if (!session) throw new HttpError(401, "Session revoked or not found");
+  } catch (e: any) {
+    if (e instanceof HttpError) throw e;
+    // الجدول قد لا يكون مُرحّلاً بعد — نكتفي بتوقيع التوكن
+  }
+
   // P3-T5: تتبع النشاط على مستوى الحساب (بدون player إن لم يُنشأ بعد)
   await trackActivity(env, payload.accountId, payload.playerId ?? null);
 

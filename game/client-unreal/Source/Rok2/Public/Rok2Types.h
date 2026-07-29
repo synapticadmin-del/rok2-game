@@ -171,6 +171,9 @@ struct FRok2MarchEntity
 	FString TargetId;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TMap<FString, int32> Troops;
+	/** نوع الحمولة لمسيرات الجمع (food/wood/stone/gold) — يملؤه ParseMarchEntity من m.payload.kind */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Kind;
 };
 
 USTRUCT(BlueprintType)

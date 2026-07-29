@@ -3,12 +3,20 @@
  * ROK2 API smoke test against wrangler dev (default http://127.0.0.1:8787)
  *
  * Usage:
- *   node scripts/smoke.mjs
- *   BASE_URL=http://127.0.0.1:8787 node scripts/smoke.mjs
+ *   ADMIN_KEY=... node scripts/smoke.mjs
+ *   BASE_URL=http://127.0.0.1:8787 ADMIN_KEY=... node scripts/smoke.mjs
+ *
+ * ملاحظة أمنية: لا قيمة افتراضية لـ ADMIN_KEY — كانت "rok2-dev-admin" مكتوبة
+ * هنا وهي قيمة مسرّبة (موجودة في قائمة الرفض في secrets.ts). اضبط المفتاح
+ * الحقيقي في البيئة.
  */
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:8787";
-const ADMIN = process.env.ADMIN_KEY || "rok2-dev-admin";
+const ADMIN = process.env.ADMIN_KEY;
+if (!ADMIN) {
+  console.error("ADMIN_KEY is not set. Run: ADMIN_KEY=your-key node scripts/smoke.mjs");
+  process.exit(1);
+}
 
 let failed = 0;
 
@@ -172,8 +180,9 @@ async function main() {
     process.exit(1);
   }
 
-  // pick a border pass that is currently unowned if possible
-  let snap = await req("/v1/world/snapshot");
+  // snapshot يتطلب مصادقة الآن — نمرر رمز A (نسخة كاملة للاعبين)
+  let snap = await req("/v1/world/snapshot", { token: aToken });
+  assert(snap.status === 200, "world snapshot (authed)");
   const passCandidates = (snap.data.passes || []).filter(
     (p) => p.id.startsWith("P_R") && (p.unlockDay || 0) === 0,
   );
@@ -198,7 +207,7 @@ async function main() {
     await sleep(100);
   }
 
-  snap = await req("/v1/world/snapshot");
+  snap = await req("/v1/world/snapshot", { token: aToken });
   assert(snap.status === 200, "world snapshot");
   let pass = (snap.data.passes || []).find((p) => p.id === passId);
   console.log("Pass state after A:", pass);
@@ -224,7 +233,7 @@ async function main() {
       await req("/v1/admin/tick", { method: "POST", admin: true, body: { force: true } });
       await sleep(100);
     }
-    snap = await req("/v1/world/snapshot");
+    snap = await req("/v1/world/snapshot", { token: aToken });
     pass = (snap.data.passes || []).find((p) => p.id === passId);
     console.log(`Pass after round ${round + 1}:`, {
       owner: pass?.ownerAllianceId,
@@ -254,7 +263,7 @@ async function main() {
     await req("/v1/admin/tick", { method: "POST", admin: true, body: { force: true } });
     await sleep(100);
   }
-  snap = await req("/v1/world/snapshot");
+  snap = await req("/v1/world/snapshot", { token: aToken });
   pass = (snap.data.passes || []).find((p) => p.id === passId);
   console.log("Pass after B contest:", pass);
   assert(Array.isArray(snap.data.reports), "battle reports present");
