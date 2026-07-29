@@ -861,7 +861,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const res = await stub.fetch("https://do/queue/speedup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ queueId: body.queueId, seconds }),
+        body: JSON.stringify({ queueId: body.queueId, seconds, playerId: player.id }),
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
@@ -1219,21 +1219,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     // Speedup
-    if (path === "/v1/city/speedup" && request.method === "POST") {
-      const { player } = await requirePlayer(request, env);
-      const body = await readJson<{ queueId: string; seconds: number }>(request);
-      if (!body.queueId || !body.seconds) throw new HttpError(400, "Missing queueId or seconds");
-      
-      const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/queue/speedup", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ queueId: body.queueId, seconds: body.seconds }),
-      });
-      const data = await res.json<any>();
-      if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
-      return json({ ok: true });
-    }
+    // أُزيلت /v1/city/speedup: كانت تمرّر "seconds" من العميل حرفياً إلى
+    // الـ Durable Object بلا تكلفة ولا سقف ولا تحقق من الملكية — أي إنهاء
+    // فوري مجاني لأي طابور، بما فيه طوابير لاعبين آخرين. المسار الشرعي
+    // الوحيد للتسريع هو /v1/shop/use-speedup، وهو يخصم عنصراً أو مزية VIP.
 
     // Alliance create
     if (path === "/v1/alliance/create" && request.method === "POST") {

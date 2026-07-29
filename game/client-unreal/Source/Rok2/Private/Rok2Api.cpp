@@ -794,11 +794,21 @@ void URok2Api::UpgradeBuilding(const FString& BuildingId)
 
 void URok2Api::SpeedupQueue(const FString& QueueId)
 {
-	FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\"}"), *QueueId);
-	Post(TEXT("/v1/city/speedup"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	// كان هذا يستدعي /v1/city/speedup التي حُذفت من الخادم — ثغرة إنهاء
+	// فوري مجاني بلا سقف ولا تحقق من الملكية. وكان معطوباً أصلاً للاعب
+	// الشرعي: الخادم يشترط حقل "seconds" والعميل لا يرسله، فالردّ 400 دائماً.
+	//
+	// المسار الشرعي يخصم مصدراً حقيقياً. نستخدم تسريع VIP اليومي المجاني؛
+	// إن لم يكن متاحاً يردّ الخادم بخطأ واضح يظهر للاعب عبر OnApiError.
+	const FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\",\"useFreeDaily\":true}"), *QueueId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/shop/use-speedup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseCity(Obj);
-		EmitToast(TEXT("تم التسريع"));
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		// الردّ حالة تسريع لا كائن مدينة — نعيد تحميل المدينة لتحديث الطوابير.
+		Self->EmitToast(TEXT("تم التسريع"));
+		Self->LoadCity();
 	});
 }
 
