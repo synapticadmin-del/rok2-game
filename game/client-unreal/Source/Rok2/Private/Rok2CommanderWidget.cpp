@@ -3,6 +3,7 @@
 // P6-T3: انتقال دخول الشاشة (تلاشٍ) + ضغطة محسوسة على أزرار الإجراءات والبطاقات.
 
 #include "Rok2CommanderWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2CivThemes.h"
 #include "Rok2ArtAssets.h"
@@ -135,8 +136,7 @@ void URok2CommanderWidget::BuildUI()
 	UTextBlock* ListTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ListTitle"));
 	ListTitle->SetText(FText::FromString(TEXT("القادة")));
 	ListTitle->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 24);
-	ListTitle->SetFont(TitleFont);
+	URok2Typography::ApplyFont(ListTitle, ERok2TextRole::Display);
 	ListTitle->SetJustification(ETextJustify::Center);
 	UVerticalBoxSlot* ListTitleSlot = ListPanel->AddChildToVerticalBox(ListTitle);
 	ListTitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
@@ -184,30 +184,30 @@ void URok2CommanderWidget::BuildUI()
 	DetailNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailName"));
 	DetailNameText->SetText(FText::FromString(TEXT("—")));
 	DetailNameText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	DetailNameText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 28));
+	URok2Typography::ApplyFont(DetailNameText, ERok2TextRole::Display);
 	InfoBox->AddChildToVerticalBox(DetailNameText);
 
 	DetailRarityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailRarity"));
 	DetailRarityText->SetText(FText::FromString(TEXT("")));
-	DetailRarityText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 16));
+	URok2Typography::ApplyFont(DetailRarityText, ERok2TextRole::Body);
 	InfoBox->AddChildToVerticalBox(DetailRarityText);
 
 	DetailNationText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailNation"));
 	DetailNationText->SetText(FText::FromString(TEXT("")));
 	DetailNationText->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	DetailNationText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+	URok2Typography::ApplyFont(DetailNationText, ERok2TextRole::BodySmall);
 	InfoBox->AddChildToVerticalBox(DetailNationText);
 
 	DetailLevelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailLevel"));
 	DetailLevelText->SetText(FText::FromString(TEXT("")));
 	DetailLevelText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	DetailLevelText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 18));
+	URok2Typography::ApplyFont(DetailLevelText, ERok2TextRole::Subtitle);
 	InfoBox->AddChildToVerticalBox(DetailLevelText);
 
 	DetailStarsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailStars"));
 	DetailStarsText->SetText(FText::FromString(TEXT("")));
 	DetailStarsText->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	DetailStarsText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 20));
+	URok2Typography::ApplyFont(DetailStarsText, ERok2TextRole::Subtitle);
 	InfoBox->AddChildToVerticalBox(DetailStarsText);
 
 	// شريط الخبرة
@@ -225,7 +225,7 @@ void URok2CommanderWidget::BuildUI()
 	DetailStatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailStats"));
 	DetailStatsText->SetText(FText::FromString(TEXT("")));
 	DetailStatsText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	DetailStatsText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+	URok2Typography::ApplyFont(DetailStatsText, ERok2TextRole::BodySmall);
 	UVerticalBoxSlot* StatsSlot = DetailPanel->AddChildToVerticalBox(DetailStatsText);
 	StatsSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 12.f));
 
@@ -233,7 +233,7 @@ void URok2CommanderWidget::BuildUI()
 	UTextBlock* SkillsTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SkillsTitle"));
 	SkillsTitle->SetText(FText::FromString(TEXT("المهارات")));
 	SkillsTitle->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	SkillsTitle->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 20));
+	URok2Typography::ApplyFont(SkillsTitle, ERok2TextRole::Subtitle);
 	UVerticalBoxSlot* SkillsTitleSlot = DetailPanel->AddChildToVerticalBox(SkillsTitle);
 	SkillsTitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 
@@ -244,7 +244,7 @@ void URok2CommanderWidget::BuildUI()
 	UTextBlock* TalentsTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TalentsTitle"));
 	TalentsTitle->SetText(FText::FromString(TEXT("المواهب")));
 	TalentsTitle->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	TalentsTitle->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 20));
+	URok2Typography::ApplyFont(TalentsTitle, ERok2TextRole::Subtitle);
 	UVerticalBoxSlot* TalentsTitleSlot = DetailPanel->AddChildToVerticalBox(TalentsTitle);
 	TalentsTitleSlot->SetPadding(FMargin(0.f, 16.f, 0.f, 6.f));
 
@@ -255,7 +255,7 @@ void URok2CommanderWidget::BuildUI()
 	UTextBlock* EquipTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EquipTitle"));
 	EquipTitle->SetText(FText::FromString(TEXT("المعدات")));
 	EquipTitle->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	EquipTitle->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 20));
+	URok2Typography::ApplyFont(EquipTitle, ERok2TextRole::Subtitle);
 	UVerticalBoxSlot* EquipTitleSlot = DetailPanel->AddChildToVerticalBox(EquipTitle);
 	EquipTitleSlot->SetPadding(FMargin(0.f, 16.f, 0.f, 6.f));
 
@@ -284,7 +284,7 @@ void URok2CommanderWidget::BuildUI()
 		UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Txt->SetText(FText::FromString(Label));
 		Txt->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-		Txt->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
+		URok2Typography::ApplyFont(Txt, ERok2TextRole::Button);
 		UHorizontalBoxSlot* TxtSlot = BtnBox->AddChildToHorizontalBox(Txt);
 		TxtSlot->SetPadding(FMargin(0.f, 2.f, 6.f, 2.f));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
@@ -374,7 +374,7 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	NameText->SetText(FText::FromString(Cmd.Name));
 	NameText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	NameText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
+	URok2Typography::ApplyFont(NameText, ERok2TextRole::CardTitle);
 	InfoBox->AddChildToVerticalBox(NameText);
 
 	// ندرة + حضارة
@@ -382,7 +382,7 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	UTextBlock* RarityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	RarityText->SetText(FText::FromString(RarityNation));
 	RarityText->SetColorAndOpacity(FSlateColor(RarityColor(Cmd.Rarity)));
-	RarityText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 12));
+	URok2Typography::ApplyFont(RarityText, ERok2TextRole::Caption);
 	InfoBox->AddChildToVerticalBox(RarityText);
 
 	// نجوم
@@ -395,7 +395,7 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	UTextBlock* StarsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	StarsText->SetText(FText::FromString(StarsStr));
 	StarsText->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
-	StarsText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+	URok2Typography::ApplyFont(StarsText, ERok2TextRole::BodySmall);
 	InfoBox->AddChildToVerticalBox(StarsText);
 
 	// زر البطاقة (يغطيها كلها)
@@ -444,7 +444,7 @@ UWidget* URok2CommanderWidget::BuildPortraitPlaceholder(const FString& Commander
 	UTextBlock* InitialText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	InitialText->SetText(FText::FromString(Initial));
 	InitialText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	InitialText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", FMath::RoundToInt(Size * 0.5f)));
+	InitialText->SetFont(URok2Typography::FontSized(ERok2Face::Display, Size * 0.5f));
 	InitialText->SetJustification(ETextJustify::Center);
 	DarkBg->SetContent(InitialText);
 
@@ -593,14 +593,14 @@ UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skil
 	UTextBlock* NameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	NameText->SetText(FText::FromString(NameLevel));
 	NameText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	NameText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 14));
+	URok2Typography::ApplyFont(NameText, ERok2TextRole::TitleCompact);
 	SkillInfo->AddChildToVerticalBox(NameText);
 
 	// وصف
 	UTextBlock* DescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	DescText->SetText(FText::FromString(Skill.Description));
 	DescText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
-	DescText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 12));
+	URok2Typography::ApplyFont(DescText, ERok2TextRole::Caption);
 	SkillInfo->AddChildToVerticalBox(DescText);
 
 	return SkillBorder;
@@ -646,13 +646,13 @@ UWidget* URok2CommanderWidget::BuildTalentTreeStub()
 		UTextBlock* BranchTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		BranchTitle->SetText(FText::FromString(Branch.Name));
 		BranchTitle->SetColorAndOpacity(FSlateColor(Branch.Color));
-		BranchTitle->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
+		URok2Typography::ApplyFont(BranchTitle, ERok2TextRole::CardTitle);
 		HeadRow->AddChildToHorizontalBox(BranchTitle)->SetVerticalAlignment(VAlign_Center);
 
 		UTextBlock* PointsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		PointsText->SetText(FText::FromString(TEXT("0/20 نقطة")));
 		PointsText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-		PointsText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 12));
+		URok2Typography::ApplyFont(PointsText, ERok2TextRole::Caption);
 		PointsText->SetJustification(ETextJustify::Center);
 		BranchBox->AddChildToVerticalBox(PointsText);
 	}
@@ -696,7 +696,7 @@ UWidget* URok2CommanderWidget::BuildEquipmentSlots()
 		UTextBlock* SlotText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		SlotText->SetText(FText::FromString(SlotDef.Name));
 		SlotText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
-		SlotText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 10));
+		URok2Typography::ApplyFont(SlotText, ERok2TextRole::Micro);
 		SlotText->SetJustification(ETextJustify::Center);
 		SlotBox->AddChildToVerticalBox(SlotText);
 	}

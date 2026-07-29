@@ -3,6 +3,7 @@
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على الكشافة والإرسال.
 
 #include "Rok2MarchPanel.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -50,7 +51,7 @@ void URok2MarchPanel::NativeConstruct()
 		TargetNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TargetNameText"));
 		TargetNameText->SetText(FText::FromString(TargetName.IsEmpty() ? TargetType : TargetName));
 		TargetNameText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.8f, 0.2f)));
-		TargetNameText->Font.Size = 24;
+		URok2Typography::ApplyFont(TargetNameText, ERok2TextRole::Display);
 		UVerticalBoxSlot* TitleSlot = VBox->AddChildToVerticalBox(TargetNameText);
 		TitleSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 10.f));
 		TitleSlot->SetHorizontalAlignment(HAlign_Center);
@@ -142,7 +143,7 @@ void URok2MarchPanel::NativeConstruct()
 			UTextBlock* ScoutText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ScoutText"));
 			ScoutText->SetText(FText::FromString(TEXT("إرسال كشافة (Scout)")));
 			ScoutText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			ScoutText->Font.Size = 16;
+			URok2Typography::ApplyFont(ScoutText, ERok2TextRole::Button);
 			ScoutBox->AddChildToHorizontalBox(ScoutText)->SetVerticalAlignment(VAlign_Center);
 		}
 		ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
@@ -168,7 +169,7 @@ void URok2MarchPanel::NativeConstruct()
 			UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
 			BtnText->SetText(FText::FromString(TEXT("إرسال المسيرة (Dispatch March)")));
 			BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			BtnText->Font.Size = 18;
+			URok2Typography::ApplyFont(BtnText, ERok2TextRole::Button);
 			DispatchBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
 		}
 

@@ -1,6 +1,6 @@
 // Copyright ROK2. Unified Arabic/Latin typography system (P6-T2).
 //
-// نظام الخطوط الموحّد — ثلاثة أوجه و11 دوراً نصياً، من ui-ux-design-system.md §1:
+// نظام الخطوط الموحّد — ثلاثة أوجه و12 دوراً نصياً، من ui-ux-design-system.md §1:
 //   «عنوان: خط عربي فخم (Cairo Black / Aref Ruqaa للعناوين الكبرى)
 //    · أرقام/إنجليزي: Trajan-style serif أو Cinzel»
 //
@@ -60,10 +60,14 @@ enum class ERok2TextRole : uint8
 	Title,
 	/** عنوان قسم داخل لوحة */
 	Subtitle,
-	/** عنوان لوحة صغيرة في الطبقة الكثيفة فوق العالم (الطوابير، مركز الإشعارات) */
-	HudTitle,
+	/** عنوان مضغوط عريض — لوحات الـHUD الصغيرة وصفوف القوائم الكثيفة */
+	TitleCompact,
+	/** عنوان بطاقة أو فرع مواهب — عريض دون أن يكون عنوان قسم */
+	CardTitle,
 	/** نص الجسم العادي */
 	Body,
+	/** نص جسم أصغر — أسطر الإحصاءات والنجوم واللافتات الوصفية */
+	BodySmall,
 	/** نص داخل زر */
 	Button,
 	/** شارة عدّ، عنوان توست، طابع زمني */
@@ -72,8 +76,6 @@ enum class ERok2TextRole : uint8
 	Micro,
 	/** رقم مورد في الشريط العلوي */
 	Numeric,
-	/** رقم كبير بارز — إجمالي خسائر، عدّاد ضخم */
-	NumericLarge,
 	/** مؤقّت طابور أو عدّاد تنازلي */
 	Timer
 };
@@ -190,6 +192,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Typography")
 	static void ApplyFont(UTextBlock* Text, ERok2TextRole Role);
+
+	/**
+	 * منفذ للنصوص ذات الحجم **المحسوب** (لا الثابت) — كالحرف الأول داخل بورتريه
+	 * دائري حيث الحجم نسبة من قطر الدائرة. الدور لا يصلح هنا لأن الحجم يتغيّر
+	 * مع الحاوية، لكن الوجه والوزن يبقيان من النظام فلا يشرد النص عن العائلة.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Typography")
+	static FSlateFontInfo FontSized(ERok2Face Face, float Size, bool bBold = true);
 
 	/** كل الأدوار (للاختبار والتوثيق) */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Typography")

@@ -3,6 +3,7 @@
 // P6-T3: الورقة تنزلق من الأسفل + ضغطة محسوسة على التبويبات وبطاقات المباني.
 
 #include "Rok2BuildMenuWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -30,13 +31,6 @@ namespace Rok2BuildStyle
 	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
 	static const FLinearColor CardBg(0.16f, 0.12f, 0.07f);
 	static const FLinearColor TabInactive(0.55f, 0.50f, 0.42f);
-}
-
-static FSlateFontInfo BuildFont(UTextBlock* T, int32 Size)
-{
-	FSlateFontInfo F = T->GetFont();
-	F.Size = Size;
-	return F;
 }
 
 void URok2BuildMenuWidget::Setup(URok2Api* InApi)
@@ -117,7 +111,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("قائمة البناء")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2BuildStyle::Gold));
-	Title->SetFont(BuildFont(Title, 18));
+	URok2Typography::ApplyFont(Title, ERok2TextRole::Title);
 	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 	TitleRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
@@ -141,7 +135,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		OutTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		OutTxt->SetText(FText::FromString(Label));
-		OutTxt->SetFont(BuildFont(OutTxt, 14));
+		URok2Typography::ApplyFont(OutTxt, ERok2TextRole::Numeric);
 		TabBox->AddChildToHorizontalBox(OutTxt)->SetVerticalAlignment(VAlign_Center);
 		Tabs->AddChildToHorizontalBox(B)->SetPadding(FMargin(12, 2, 12, 2));
 	};
@@ -207,7 +201,7 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		UTextBlock* Name = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Name->SetText(FText::FromString(E.Name));
 		Name->SetColorAndOpacity(FSlateColor(Rok2BuildStyle::Ivory));
-		Name->SetFont(BuildFont(Name, 10));
+		URok2Typography::ApplyFont(Name, ERok2TextRole::Micro);
 		Name->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Name)->SetHorizontalAlignment(HAlign_Center);
 

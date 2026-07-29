@@ -327,7 +327,7 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("الطوابير")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	URok2Typography::ApplyFont(Title, ERok2TextRole::HudTitle);
+	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
 	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
 	QueuesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -371,7 +371,7 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("مركز الإشعارات")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	URok2Typography::ApplyFont(Title, ERok2TextRole::HudTitle);
+	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
 	NotifTitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
 	NotifList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());

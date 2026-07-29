@@ -101,15 +101,16 @@ ERok2Face URok2Typography::FaceOf(ERok2TextRole Role)
 
 	// الأرقام والمؤقّتات بالوجه الرقمي — تمييز الرقم عن النص هو جوهر البند
 	case ERok2TextRole::Numeric:
-	case ERok2TextRole::NumericLarge:
 	case ERok2TextRole::Timer:
 		return ERok2Face::Numeric;
 
 	// بقية الواجهة بالوجه العربي الواضح
 	case ERok2TextRole::Title:
 	case ERok2TextRole::Subtitle:
-	case ERok2TextRole::HudTitle:
+	case ERok2TextRole::TitleCompact:
+	case ERok2TextRole::CardTitle:
 	case ERok2TextRole::Body:
+	case ERok2TextRole::BodySmall:
 	case ERok2TextRole::Button:
 	case ERok2TextRole::Caption:
 	case ERok2TextRole::Micro:
@@ -128,9 +129,10 @@ float URok2Typography::SizeOf(ERok2TextRole Role)
 	case ERok2TextRole::Button:       return Rok2TypeScale::Button;
 	case ERok2TextRole::Caption:      return Rok2TypeScale::Caption;
 	case ERok2TextRole::Micro:        return Rok2TypeScale::Micro;
-	case ERok2TextRole::HudTitle:     return Rok2TypeScale::Compact;
-	// الرقم البارز يوازي عنوان اللوحة، والمورد والمؤقّت على الدرجة الكثيفة
-	case ERok2TextRole::NumericLarge: return Rok2TypeScale::Title;
+	case ERok2TextRole::TitleCompact: return Rok2TypeScale::Compact;
+	case ERok2TextRole::CardTitle:    return Rok2TypeScale::Button;
+	case ERok2TextRole::BodySmall:    return Rok2TypeScale::Compact;
+	// المورد والمؤقّت على الدرجة الكثيفة
 	case ERok2TextRole::Numeric:      return Rok2TypeScale::Compact;
 	case ERok2TextRole::Timer:        return Rok2TypeScale::Compact;
 	case ERok2TextRole::Body:
@@ -149,14 +151,15 @@ FName URok2Typography::WeightOf(ERok2TextRole Role)
 	// العناوين والأزرار والأرقام البارزة — عريض ليقرأ من لمحة
 	case ERok2TextRole::Title:
 	case ERok2TextRole::Subtitle:
-	case ERok2TextRole::HudTitle:
+	case ERok2TextRole::TitleCompact:
+	case ERok2TextRole::CardTitle:
 	case ERok2TextRole::Button:
 	case ERok2TextRole::Numeric:
-	case ERok2TextRole::NumericLarge:
 		return Rok2TypeWeight::Bold;
 
 	// النص والمؤقّت والحاشية — عادي، فالمؤقّت يتغيّر كل ثانية ولا يجب أن يصرخ
 	case ERok2TextRole::Body:
+	case ERok2TextRole::BodySmall:
 	case ERok2TextRole::Timer:
 	case ERok2TextRole::Caption:
 	case ERok2TextRole::Micro:
@@ -188,19 +191,32 @@ void URok2Typography::ApplyFont(UTextBlock* Text, ERok2TextRole Role)
 	Text->SetFont(Font(Role));
 }
 
+FSlateFontInfo URok2Typography::FontSized(ERok2Face Face, float Size, bool bBold)
+{
+	const FName Weight = bBold ? Rok2TypeWeight::Bold : Rok2TypeWeight::Regular;
+	const float Clamped = FMath::Clamp(Size, Rok2TypeScale::Min, Rok2TypeScale::Max);
+
+	if (UFont* Loaded = Get()->ResolveFace(Face))
+	{
+		return FSlateFontInfo(Loaded, Clamped, Weight);
+	}
+	return FCoreStyle::GetDefaultFontStyle(ClampWeightForEngineFont(Weight), Clamped);
+}
+
 TArray<ERok2TextRole> URok2Typography::AllRoles()
 {
 	return {
 		ERok2TextRole::Display,
 		ERok2TextRole::Title,
 		ERok2TextRole::Subtitle,
-		ERok2TextRole::HudTitle,
+		ERok2TextRole::TitleCompact,
+		ERok2TextRole::CardTitle,
 		ERok2TextRole::Body,
+		ERok2TextRole::BodySmall,
 		ERok2TextRole::Button,
 		ERok2TextRole::Caption,
 		ERok2TextRole::Micro,
 		ERok2TextRole::Numeric,
-		ERok2TextRole::NumericLarge,
 		ERok2TextRole::Timer
 	};
 }

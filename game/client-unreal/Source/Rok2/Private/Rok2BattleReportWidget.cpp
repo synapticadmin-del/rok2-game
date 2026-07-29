@@ -3,6 +3,7 @@
 // P6-T3: البطاقة تفتح من المركز + خلفية تتلاشى + ضغطات محسوسة (URok2MotionLibrary).
 
 #include "Rok2BattleReportWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -70,9 +71,7 @@ void URok2BattleReportWidget::NativeConstruct()
 		UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Title"));
 		Title->SetText(FText::FromString(TEXT("تقارير القتال (Battle Reports)")));
 		Title->SetColorAndOpacity(FSlateColor(Rok2Gold()));
-		FSlateFontInfo TitleFont = Title->GetFont();
-		TitleFont.Size = 18;
-		Title->SetFont(TitleFont);
+		URok2Typography::ApplyFont(Title, ERok2TextRole::Title);
 
 		// P6-T1: أيقونة مخطوط إجرائية في ترويسة اللوحة
 		UImage* TitleIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("TitleIcon"));
@@ -233,14 +232,13 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	if (!DetailPanel) return;
 	DetailPanel->ClearChildren();
 
-	auto AddLine = [this](const FString& Text, const FLinearColor& Color, int32 Size = 13, const FMargin& Pad = FMargin(12, 4, 12, 0))
+	auto AddLine = [this](const FString& Text, const FLinearColor& Color,
+		ERok2TextRole Role = ERok2TextRole::BodySmall, const FMargin& Pad = FMargin(12, 4, 12, 0))
 	{
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(Text));
 		T->SetColorAndOpacity(FSlateColor(Color));
-		FSlateFontInfo F = T->GetFont();
-		F.Size = Size;
-		T->SetFont(F);
+		URok2Typography::ApplyFont(T, Role);
 		T->SetAutoWrapText(true);
 		DetailPanel->AddChildToVerticalBox(T)->SetPadding(Pad);
 	};
@@ -278,9 +276,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *Headline, *KindLabel(R.Kind))));
 		T->SetColorAndOpacity(FSlateColor(Rok2Gold()));
-		FSlateFontInfo F = T->GetFont();
-		F.Size = 17;
-		T->SetFont(F);
+		URok2Typography::ApplyFont(T, ERok2TextRole::Subtitle);
 		T->SetAutoWrapText(true);
 		HeadRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(HeadRow)->SetPadding(FMargin(12, 12, 12, 4));
@@ -304,9 +300,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(TEXT("المهاجم")));
 		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.45f, 0.4f)));
-		FSlateFontInfo F = T->GetFont();
-		F.Size = 15;
-		T->SetFont(F);
+		URok2Typography::ApplyFont(T, ERok2TextRole::Subtitle);
 		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
 	}
@@ -325,9 +319,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(TEXT("المدافع")));
 		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.65f, 1.0f)));
-		FSlateFontInfo F = T->GetFont();
-		F.Size = 15;
-		T->SetFont(F);
+		URok2Typography::ApplyFont(T, ERok2TextRole::Subtitle);
 		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
 	}
@@ -349,9 +341,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(FString::Printf(TEXT("%d جريح خطير يحتاجون مستشفى للشفاء"), SevTotal)));
 		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.9f, 0.7f)));
-		FSlateFontInfo F = T->GetFont();
-		F.Size = 12;
-		T->SetFont(F);
+		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
 		T->SetAutoWrapText(true);
 		HospRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(HospRow)->SetPadding(FMargin(12, 16, 12, 12));

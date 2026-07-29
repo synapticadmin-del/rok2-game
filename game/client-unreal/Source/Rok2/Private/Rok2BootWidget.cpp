@@ -1,6 +1,7 @@
 // P6-T3: بطاقة الدخول تظهر بتلاشٍ + ضغطة محسوسة على أزرار الدخول والبدء.
 
 #include "Rok2BootWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -106,8 +107,7 @@ void URok2BootWidget::NativeConstruct()
 			UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
 			TitleText->SetText(FText::FromString(TEXT("ROK2 : RISE OF KINGDOMS 2")));
 			TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-			FSlateFontInfo TitleFont = TitleText->GetFont();
-			TitleFont.Size = 22;
+			URok2Typography::ApplyFont(TitleText, ERok2TextRole::Display);
 			TitleText->SetFont(TitleFont);
 			TitleRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 		}
@@ -135,8 +135,7 @@ void URok2BootWidget::NativeConstruct()
 			UTextBlock* EnterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EnterText"));
 			EnterText->SetText(FText::FromString(TEXT("دخول سريع كضيف (Quick Guest Login)")));
 			EnterText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			FSlateFontInfo BtnFont = EnterText->GetFont();
-			BtnFont.Size = 15;
+			URok2Typography::ApplyFont(EnterText, ERok2TextRole::Button);
 			EnterText->SetFont(BtnFont);
 			EnterBox->AddChildToHorizontalBox(EnterText)->SetVerticalAlignment(VAlign_Center);
 		}
@@ -171,8 +170,7 @@ void URok2BootWidget::NativeConstruct()
 			UTextBlock* StartText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartText"));
 			StartText->SetText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد (Start Journey)")));
 			StartText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			FSlateFontInfo StartBtnFont = StartText->GetFont();
-			StartBtnFont.Size = 15;
+			URok2Typography::ApplyFont(StartText, ERok2TextRole::Button);
 			StartText->SetFont(StartBtnFont);
 			StartBox->AddChildToHorizontalBox(StartText)->SetVerticalAlignment(VAlign_Center);
 		}
@@ -185,8 +183,7 @@ void URok2BootWidget::NativeConstruct()
 		LoadingPanel->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.10f, 1.0f));
 		LoadingText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LoadingText"));
 		LoadingText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.85f, 1.0f)));
-		FSlateFontInfo LoadFont = LoadingText->GetFont();
-		LoadFont.Size = 14;
+		URok2Typography::ApplyFont(LoadingText, ERok2TextRole::BodySmall);
 		LoadingText->SetFont(LoadFont);
 		LoadingText->SetJustification(ETextJustify::Center);
 		LoadingPanel->SetContent(LoadingText);
@@ -197,8 +194,7 @@ void URok2BootWidget::NativeConstruct()
 		// --- نص حالة الاتصال (أخطاء/إعادة محاولة) ---
 		StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusText"));
 		StatusText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.55f, 0.4f)));
-		FSlateFontInfo StatusFont = StatusText->GetFont();
-		StatusFont.Size = 12;
+		URok2Typography::ApplyFont(StatusText, ERok2TextRole::Caption);
 		StatusText->SetFont(StatusFont);
 		StatusText->SetJustification(ETextJustify::Center);
 		UVerticalBoxSlot* StatusSlot = VBox->AddChildToVerticalBox(StatusText);

@@ -3,6 +3,7 @@
 // P6-T3: حركة الدخول والضغطات من URok2MotionLibrary (بدل انزلاق محلي في Tick).
 
 #include "Rok2BuildingDetailWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -30,13 +31,6 @@ namespace Rok2CardStyle
 	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
 	static const FLinearColor BtnGold(0.55f, 0.42f, 0.10f);
 	static const FLinearColor BtnGhost(0.20f, 0.16f, 0.12f);
-}
-
-static FSlateFontInfo CardFont(UTextBlock* T, int32 Size)
-{
-	FSlateFontInfo F = T->GetFont();
-	F.Size = Size;
-	return F;
 }
 
 void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& InBuildingId, int32 InLevel)
@@ -181,19 +175,19 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	TitleText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Gold));
-	TitleText->SetFont(CardFont(TitleText, 22));
+	URok2Typography::ApplyFont(TitleText, ERok2TextRole::Title);
 	HeaderRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 	HeaderRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	DescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	DescText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Muted));
-	DescText->SetFont(CardFont(DescText, 12));
+	URok2Typography::ApplyFont(DescText, ERok2TextRole::Caption);
 	DescText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(DescText)->SetPadding(FMargin(0, 0, 0, 6));
 
 	LevelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	LevelText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Ivory));
-	LevelText->SetFont(CardFont(LevelText, 15));
+	URok2Typography::ApplyFont(LevelText, ERok2TextRole::Body);
 	LevelText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(LevelText)->SetPadding(FMargin(0, 0, 0, 10));
 
@@ -211,7 +205,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		OutTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		OutTxt->SetColorAndOpacity(FSlateColor(TxtColor));
-		OutTxt->SetFont(CardFont(OutTxt, 14));
+		URok2Typography::ApplyFont(OutTxt, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* TxtSlot = CostRow->AddChildToHorizontalBox(OutTxt);
 		TxtSlot->SetPadding(FMargin(0, 0, 6, 0));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
@@ -232,7 +226,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	QueueText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	QueueText->SetText(FText::FromString(TEXT("")));
 	QueueText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Muted));
-	QueueText->SetFont(CardFont(QueueText, 11));
+	URok2Typography::ApplyFont(QueueText, ERok2TextRole::Micro);
 	QueueText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(QueueText)->SetPadding(FMargin(0, 0, 0, 10));
 
@@ -258,7 +252,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		OutTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		OutTxt->SetText(FText::FromString(Label));
 		OutTxt->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Ivory));
-		OutTxt->SetFont(CardFont(OutTxt, 14));
+		URok2Typography::ApplyFont(OutTxt, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* TxtSlot = BtnBox->AddChildToHorizontalBox(OutTxt);
 		TxtSlot->SetPadding(FMargin(0, 2, 6, 2));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);

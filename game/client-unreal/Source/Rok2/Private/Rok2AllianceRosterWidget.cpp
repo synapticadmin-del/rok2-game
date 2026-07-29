@@ -3,6 +3,7 @@
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على كل أزرار الكشف.
 
 #include "Rok2AllianceRosterWidget.h"
+#include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -48,7 +49,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
 		TitleText->SetText(FText::FromString(TEXT("Alliance Roster")));
 		TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.8f, 0.2f)));
-		TitleText->Font.Size = 24;
+		URok2Typography::ApplyFont(TitleText, ERok2TextRole::Display);
 		UVerticalBoxSlot* TitleSlot = VBox->AddChildToVerticalBox(TitleText);
 		TitleSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 10.f));
 		TitleSlot->SetHorizontalAlignment(HAlign_Center);
@@ -79,7 +80,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 			UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
 			BtnText->SetText(FText::FromString(TEXT("مساعدة التحالف (Alliance Help)")));
 			BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			BtnText->Font.Size = 18;
+			URok2Typography::ApplyFont(BtnText, ERok2TextRole::Button);
 			BtnBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
 		}
 
