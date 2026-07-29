@@ -517,6 +517,7 @@ export class KingdomShard extends DurableObject<Env> {
       }
     }
     void placed;
+  }
 
   // P3-T2: بذر أهداف قلب Zone 3 من map_spec.zone3_objectives (حصون + مذابح)
   private seedCoreObjectives() {
@@ -1247,7 +1248,7 @@ export class KingdomShard extends DurableObject<Env> {
       await this.env.DB.prepare(
         `UPDATE troops SET count=count-? WHERE player_id=? AND unit_id=? AND status='marching'`
       ).bind(Number(count), m.ownerPlayerId, u).run();
-      
+
       await this.env.DB.prepare(
         `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
          ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`
@@ -1461,11 +1462,18 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/build-flag") && request.method === "POST") {
       const body = await request.json<any>();
+      // تحقق من الإحداثيات قبل الحفظ — أعلام خارج الخريطة/NaN تفسد الرسم والمنطق
+      const map = getMap();
+      const x = Number(body.x);
+      const y = Number(body.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > map.width || y < 0 || y > map.height) {
+        return Response.json({ error: "bad_flag_coords" }, { status: 400 });
+      }
       const flag: AllianceFlag = {
         id: newId("flg"),
         allianceId: body.allianceId,
-        x: body.x,
-        y: body.y,
+        x,
+        y,
         radius: body.radius ?? 15,
       };
       this.flags.set(flag.id, flag);
@@ -1875,7 +1883,9 @@ export class KingdomShard extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ playerId: "", aoi: undefined } satisfies Attach);
+    // playerId الموثّق يصل من الـ router عبر header — لا يُقبل أي playerId من العميل
+    const authedPlayerId = request.headers.get("x-rok2-player") || "";
+    server.serializeAttachment({ playerId: authedPlayerId, aoi: undefined } satisfies Attach);
     this.ensureAlarm();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -1893,8 +1903,7 @@ export class KingdomShard extends DurableObject<Env> {
     const att = (ws.deserializeAttachment() || { playerId: "" }) as Attach;
 
     if (msg.type === "hello") {
-      att.playerId = String(msg.playerId || "");
-      ws.serializeAttachment(att);
+      // لا نقرأ playerId من الرسالة — الهوية جاءت موثّقة من التوكن عبر header
       ws.send(JSON.stringify({ type: "hello_ok", playerId: att.playerId }));
       ws.send(JSON.stringify({ type: "snapshot", ...this.snapshot() }));
       return;
@@ -1908,24 +1917,10 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     if (msg.type === "march_create" || msg.type === "pass_attack") {
-      try {
-        const body = {
-          playerId: att.playerId || msg.playerId,
-          troops: msg.troops,
-          targetType: msg.type === "pass_attack" ? "pass" : msg.targetType,
-          targetId: msg.targetId,
-          passId: msg.passId || msg.targetId,
-          toX: msg.toX,
-          toY: msg.toY,
-          primaryCommanderId: msg.primaryCommanderId,
-          commanderSkills: msg.commanderSkills,
-        };
-        const march = await this.createMarch(body);
-        this.ensureAlarm();
-        ws.send(JSON.stringify({ type: "march_ok", march }));
-      } catch (e: any) {
-        ws.send(JSON.stringify({ type: "error", error: e.message || "march_failed" }));
-      }
+      // إنشاء المسيرات عبر WS معطّل — المسار الشرعي الوحيد REST الذي يخصم القوات.
+      // ترك هذا المسار مفتوحاً كان يسمح بتوليد قوات مجانية (لا خصم عند الإنشاء،
+      // وإضافة عند العودة) وانتحال أي لاعب عبر playerId في الرسالة.
+      ws.send(JSON.stringify({ type: "error", error: "use_rest_march" }));
       return;
     }
 

@@ -17,6 +17,11 @@ game/client-unreal/Build/
 game/client-unreal/.vs/
 game/client-unreal/*.sln
 
+# Android / mobile packaging outputs (لا تُلتزم أبداً — كانت *.apk مفقودة)
+*.apk
+*.aab
+*.ipa
+
 # Node.js & Cloudflare Workers
 node_modules/
 .wrangler/
@@ -36,3 +41,7 @@ Desktop.ini
 # Cloudflare local secrets
 .dev.vars
 game/backend/.dev.vars
+
+# Temporary probe/test binaries (بقايا جلسات تطوير — انظر tmp_binary_test.bin التاريخي)
+tmp_*
+*.tmp

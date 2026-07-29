@@ -120,18 +120,20 @@ export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId
   const severeRate = zoneId === 3 ? 0.30 : 0.60;
   const slightRate = 0.35;
 
+  // تقسيم الخسائر على الفئات الثلاث باستخدام النسب مباشرة. severeRate كان يُحسب
+  // ولا يُستخدم سابقاً (الجرحى الخطيرون كانوا يُشتقّون كباقٍ بدل نسبتهم المقصودة).
   const attackerSplit: TroopSplit = { slightly: {}, severely: {}, dead: {} };
   for (const [u, c] of Object.entries(attackerLosses)) {
     attackerSplit.slightly[u] = Math.floor(c * slightRate);
-    attackerSplit.dead[u] = Math.floor(c * deadRate);
-    attackerSplit.severely[u] = c - attackerSplit.slightly[u] - attackerSplit.dead[u];
+    attackerSplit.severely[u] = Math.floor(c * severeRate);
+    attackerSplit.dead[u] = Math.max(0, c - attackerSplit.slightly[u] - attackerSplit.severely[u]);
   }
 
   const defenderSplit: TroopSplit = { slightly: {}, severely: {}, dead: {} };
   for (const [u, c] of Object.entries(defenderLosses)) {
     defenderSplit.slightly[u] = Math.floor(c * slightRate);
-    defenderSplit.dead[u] = Math.floor(c * deadRate);
-    defenderSplit.severely[u] = c - defenderSplit.slightly[u] - defenderSplit.dead[u];
+    defenderSplit.severely[u] = Math.floor(c * severeRate);
+    defenderSplit.dead[u] = Math.max(0, c - defenderSplit.slightly[u] - defenderSplit.severely[u]);
   }
 
   return {

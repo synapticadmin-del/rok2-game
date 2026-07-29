@@ -7,12 +7,19 @@
  *   → كلا الطرفين يستلم تقرير قتال صحيحاً بتقسيم الخسائر.
  *
  * التشغيل:
- *   node scripts/e2e_two_players.mjs                     # ضد wrangler dev المحلي
- *   BASE_URL=https://rok2-api.lolelarap.workers.dev node scripts/e2e_two_players.mjs
+ *   ADMIN_KEY=... node scripts/e2e_two_players.mjs                     # ضد wrangler dev المحلي
+ *   BASE_URL=https://rok2-api.lolelarap.workers.dev ADMIN_KEY=... node scripts/e2e_two_players.mjs
+ *
+ * ملاحظة أمنية: لا قيمة افتراضية لـ ADMIN_KEY — كانت "rok2-dev-admin" مكتوبة
+ * هنا وهي قيمة مسرّبة. اضبط المفتاح الحقيقي في البيئة.
  */
 
 const BASE = process.env.BASE_URL || "http://127.0.0.1:8787";
-const ADMIN = process.env.ADMIN_KEY || "rok2-dev-admin";
+const ADMIN = process.env.ADMIN_KEY;
+if (!ADMIN) {
+  console.error("ADMIN_KEY is not set. Run: ADMIN_KEY=your-key node scripts/e2e_two_players.mjs");
+  process.exit(1);
+}
 
 let failed = 0;
 let deployStale = false; // الـ API المُنشر أقدم من main — يحتاج wrangler deploy
@@ -102,8 +109,8 @@ async function main() {
   const bToken = bInit.data.token;
   const bId = bInit.data.player.id;
 
-  // المدينتان ظاهرتان في نفس العالم المشترك
-  let snap = await req("/v1/world/snapshot");
+  // snapshot يتطلب مصادقة الآن — نمرر رمز A
+  let snap = await req("/v1/world/snapshot", { token: aToken });
   const cityIds = (snap.data.cities || []).map((c) => c.playerId);
   assert(cityIds.includes(aId) && cityIds.includes(bId), "both cities on shared map");
 
@@ -127,7 +134,7 @@ async function main() {
   }
 
   // ---------- 4) اختيار ممر مفتوح ----------
-  snap = await req("/v1/world/snapshot");
+  snap = await req("/v1/world/snapshot", { token: aToken });
   const passPick =
     (snap.data.passes || []).find((p) => p.id.startsWith("P_R") && !p.ownerAllianceId && (p.unlockDay || 0) === 0) ||
     (snap.data.passes || [])[0];
@@ -145,13 +152,13 @@ async function main() {
     });
     assert(atk.status === 200 && atk.data.march?.id, `A attack round ${round + 1} dispatched`);
     await forceTicks(4);
-    snap = await req("/v1/world/snapshot");
+    snap = await req("/v1/world/snapshot", { token: aToken });
     pass = (snap.data.passes || []).find((p) => p.id === passId);
   }
   assert(pass?.ownerAllianceId === aAlliance, "pass owned by alliance A after assault");
 
   // تقرير A صحيح
-  snap = await req("/v1/world/snapshot");
+  snap = await req("/v1/world/snapshot", { token: aToken });
   const aReport = findReportFor(snap.data.reports, aId, passId);
   assertReportShape(aReport, "A capture report");
 
@@ -165,7 +172,7 @@ async function main() {
   await forceTicks(8);
 
   // ---------- 7) كلا الطرفين يستلمان تقارير صحيحة ----------
-  snap = await req("/v1/world/snapshot");
+  snap = await req("/v1/world/snapshot", { token: aToken });
   assert(snap.status === 200, "final snapshot");
   const bReport = findReportFor(snap.data.reports, bId, passId);
   assertReportShape(bReport, "B contest report");

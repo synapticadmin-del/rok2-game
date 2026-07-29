@@ -657,6 +657,14 @@ void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEnti
 			E.Troops.Add(FString(KV.Key), (int32)KV.Value->AsNumber());
 		}
 	}
+
+	// نوع الحمولة لمسيرات الجمع: الخادم يملأ m.payload.kind (food/wood/stone/gold)
+	// — يقود صوت GatherComplete. كان E.Kind يُقرأ من بنية لا تحتوي الحقل أصلاً.
+	const TSharedPtr<FJsonObject>* PayloadObj;
+	if (M->TryGetObjectField(TEXT("payload"), PayloadObj) && PayloadObj->IsValid())
+	{
+		E.Kind = Rok2Json::Str(*PayloadObj, TEXT("kind"));
+	}
 }
 
 void URok2Api::ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const
