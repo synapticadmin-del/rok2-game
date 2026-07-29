@@ -15,6 +15,8 @@
 #include "Kismet/GameplayStatics.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 
 ARok2WorldRenderer::ARok2WorldRenderer()
 {

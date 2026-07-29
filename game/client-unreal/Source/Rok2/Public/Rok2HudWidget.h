@@ -12,6 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2Types.h"
 #include "Rok2HudWidget.generated.h"
 
 class URok2Api;
@@ -125,7 +126,11 @@ private:
 		/** P6-T3: هل بدأت حركة الخروج؟ (تُشغَّل مرة واحدة لا كل إطار) */
 		bool bExiting = false;
 
-		UPROPERTY()
+		/**
+		 * FToastEntry بنية عادية لا USTRUCT، فأي UPROPERTY هنا يكون خامداً:
+		 * UHT لا يحلّل جسم البنية غير المنعكسة، والماكرو يتوسّع إلى لا شيء.
+		 * تتبّع الـ GC لهذه البطاقات يقع على ToastCardRefs أدناه — لا على هذا المؤشر.
+		 */
 		UBorder* Card = nullptr;
 	};
 

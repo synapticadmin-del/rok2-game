@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Rok2Types.h"
 #include "Rok2GameMode.generated.h"
 
 class URok2Api;

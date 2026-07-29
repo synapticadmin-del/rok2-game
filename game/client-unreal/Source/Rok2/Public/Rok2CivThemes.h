@@ -11,6 +11,9 @@
 #include "UObject/NoExportTypes.h"
 #include "Rok2CivThemes.generated.h"
 
+// FJsonObject غير منعكس — تصريح أمامي كافٍ لاستخدام TSharedPtr.
+class FJsonObject;
+
 /** نمط العمارة الذي يحدد شكل السقف/الزخارف placeholder. */
 UENUM(BlueprintType)
 enum class ERok2ArchStyle : uint8

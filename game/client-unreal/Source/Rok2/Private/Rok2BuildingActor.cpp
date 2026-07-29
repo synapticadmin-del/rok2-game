@@ -6,6 +6,8 @@
 #include "Rok2Perf.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 
 ARok2BuildingActor::ARok2BuildingActor()
 {
@@ -61,7 +63,7 @@ ARok2BuildingActor::ARok2BuildingActor()
 void ARok2BuildingActor::BeginPlay()
 {
 	Super::BeginPlay();
-	OnClicked.AddDynamic(this, &ARok2BuildingActor::OnClicked);
+	OnClicked.AddDynamic(this, &ARok2BuildingActor::HandleActorClicked);
 	Mesh->SetCastShadow(false);
 	UpdateStatusIndicator();
 }
@@ -131,6 +133,12 @@ void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const 
 	{
 		Mesh->SetWorldScale3D(FVector(S, S, 0.8f + Level * 0.1f));
 	}
+}
+
+void ARok2BuildingActor::MarkUsingArtAsset()
+{
+	bUsingArtAsset = true;
+	ApplyCivTheme();
 }
 
 void ARok2BuildingActor::ApplyCivTheme()
@@ -376,7 +384,7 @@ void ARok2BuildingActor::UpdateStatusIndicator()
 	}
 }
 
-void ARok2BuildingActor::OnClicked(AActor* TouchedActor, FKey ButtonPressed)
+void ARok2BuildingActor::HandleActorClicked(AActor* TouchedActor, FKey ButtonPressed)
 {
 	// يُعاد توجيهه إلى CityLayoutActor عبر حدث عام — ربط في LayoutActor عند الزرع.
 }

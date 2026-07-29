@@ -194,7 +194,7 @@ struct FRok2RetryCtx
 	TFunction<void(const FString&)> OnErr;
 };
 
-static void Rok2SendRequest(URok2Api* Self, TSharedPtr<FRok2RetryCtx> Ctx)
+void URok2Api::Rok2SendRequest(URok2Api* Self, TSharedPtr<FRok2RetryCtx> Ctx)
 {
 	TWeakObjectPtr<URok2Api> WeakThis(Self);
 

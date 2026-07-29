@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/GameInstance.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/StaticMesh.h"
 
 void URok2Perf::Initialize(FSubsystemCollectionBase& Collection)
 {

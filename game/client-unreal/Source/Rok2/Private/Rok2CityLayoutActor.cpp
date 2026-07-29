@@ -10,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/StaticMesh.h"
 
 ARok2CityLayoutActor::ARok2CityLayoutActor()
 {
@@ -218,13 +219,12 @@ void ARok2CityLayoutActor::RebuildFromApi()
 				if (UStaticMesh* ArtMesh = Art->LoadMesh(Id))
 				{
 					B->Mesh->SetStaticMesh(ArtMesh);
-					B->bUsingArtAsset = true;
 					for (const FRok2ArtEntry& E : Art->GetCatalog())
 					{
 						if (E.Id == Id) { B->Mesh->SetWorldScale3D(FVector(E.Scale)); break; }
 					}
-					// إعادة تطبيق الثيم للأصل الفني (تلوين خفيف)
-					B->ApplyCivTheme();
+					// يضبط راية الأصل الفني ثم يعيد تطبيق الثيم (تلوين خفيف)
+					B->MarkUsingArtAsset();
 				}
 			}
 

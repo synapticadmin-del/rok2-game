@@ -11,6 +11,13 @@
 #include "Rok2Types.h"
 #include "Rok2Api.generated.h"
 
+// FJsonObject نوع غير منعكس، فلا يولّد UHT تصريحاً أمامياً له —
+// وكل استخداماته هنا عبر TSharedPtr، فالتصريح الأمامي كافٍ.
+class FJsonObject;
+
+// سياق إعادة المحاولة معرَّف داخل Rok2Api.cpp فقط — تصريح أمامي كافٍ لـ TSharedPtr.
+struct FRok2RetryCtx;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, const FString&, Token);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCityLoaded, const FRok2City&, City);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerLoaded, const FRok2Player&, Player);
@@ -274,6 +281,13 @@ protected:
 	void ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2BattleReport& Out) const;
 	/** يضيف تقريراً في مقدمة القائمة (حد أقصى 25) ويبث التحديث */
 	void AddBattleReport(const FRok2BattleReport& R);
+
+	/**
+	 * ينفّذ طلباً واحداً مع إعادة المحاولة. عضو ساكن لا دالة حرة:
+	 * يقرأ حالة محمية (BuildUrl/AuthHeader/SetOnline/EmitError/HttpTimeoutSeconds)،
+	 * ودالة حرة غير friend لا تملك هذا الوصول.
+	 */
+	static void Rok2SendRequest(URok2Api* Self, TSharedPtr<FRok2RetryCtx> Ctx);
 
 	FString AuthHeader() const;
 	FString BuildUrl(const FString& Path) const;

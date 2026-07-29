@@ -9,7 +9,7 @@ public class Rok2EditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		bOverrideBuildEnvironment = true;
-		DefaultBuildSettings = BuildSettingsVersion.V7;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("Rok2");
 	}

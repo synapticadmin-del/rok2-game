@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2Types.h"
 #include "Rok2CityWidget.generated.h"
 
 class URok2Api;
@@ -14,6 +15,7 @@ class UEditableTextBox;
 class UComboBoxString;
 class USpinBox;
 class UImage;
+class URok2QueueBtnHandler; // معرَّف أسفل هذا الملف، ويُستخدم قبله
 
 UCLASS()
 class URok2CityWidget : public UUserWidget

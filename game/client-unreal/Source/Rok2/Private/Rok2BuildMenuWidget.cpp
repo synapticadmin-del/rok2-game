@@ -16,6 +16,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Border.h"
+#include "Components/Spacer.h"
 #include "Components/Image.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"

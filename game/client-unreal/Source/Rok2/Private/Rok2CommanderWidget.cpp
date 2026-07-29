@@ -23,6 +23,7 @@
 #include "Components/Border.h"
 #include "Components/Spacer.h"
 #include "Styling/CoreStyle.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Dom/JsonObject.h"

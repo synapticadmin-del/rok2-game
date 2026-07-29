@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2Types.h"
 #include "Rok2BootWidget.generated.h"
 
 class URok2Api;

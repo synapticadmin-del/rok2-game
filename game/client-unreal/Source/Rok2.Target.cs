@@ -9,7 +9,7 @@ public class Rok2Target : TargetRules // bisi
 	{
 		Type = TargetType.Game;
 		bOverrideBuildEnvironment = true;
-		DefaultBuildSettings = BuildSettingsVersion.V7;
+		DefaultBuildSettings = BuildSettingsVersion.Latest;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("Rok2");
 

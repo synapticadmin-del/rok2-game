@@ -112,6 +112,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SetVisualState(ERok2BuildingVisualState NewState);
 
+	/**
+	 * يعلن أن المبنى يستخدم أصلاً فنياً حقيقياً (GLB) بدل الشكل المركّب placeholder،
+	 * ثم يعيد تطبيق ثيم الحضارة ليكتفي بتلوين خفيف.
+	 * نقطة الدخول العامة التي يستدعيها مالك المبنى (ARok2CityLayoutActor) بعد إسناد الميش،
+	 * بدل الوصول إلى الحالة المحمية من الخارج.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void MarkUsingArtAsset();
+
 	/** خلايا بصمة المبنى حول مركزه الحالي. */
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	TArray<FRok2HexCell> OccupiedCells() const;
@@ -130,7 +139,7 @@ public:
 
 protected:
 	UFUNCTION()
-	void OnClicked(AActor* TouchedActor, FKey ButtonPressed);
+	void HandleActorClicked(AActor* TouchedActor, FKey ButtonPressed);
 
 	void UpdateStatusIndicator();
 

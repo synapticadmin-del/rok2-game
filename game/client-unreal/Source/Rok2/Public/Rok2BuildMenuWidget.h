@@ -80,9 +80,6 @@ private:
 	FString CurrentCategory = TEXT("economic");
 
 	UFUNCTION()
-	void OnCloseClicked();
-
-	UFUNCTION()
 	void HandleBuildingPicked(const FString& BuildingId);
 
 	/** وسائط أزرار المباني — تُبقى حية للـ GC طوال عرض القائمة. */

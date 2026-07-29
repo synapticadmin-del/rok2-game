@@ -221,6 +221,23 @@ struct FRok2ScoutEntity
 	FString State; // "marching" / "arrived" / "returned"
 };
 
+/** حالة فتح/قفل منطقة واحدة — من snapshot.zones (P2-T4) */
+USTRUCT(BlueprintType)
+struct FRok2ZoneStatus
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 ZoneId = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString RegionId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bUnlocked = true;
+	/** يوم الفتح من الموسم (0 = مفتوحة دائماً) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 UnlockDay = 0;
+};
+
 USTRUCT(BlueprintType)
 struct FRok2WorldSnapshot
 {
@@ -425,23 +442,6 @@ struct FRok2TechNode
 	int32 TimeSeconds = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FString> Prerequisites;
-};
-
-/** حالة فتح/قفل منطقة واحدة — من snapshot.zones (P2-T4) */
-USTRUCT(BlueprintType)
-struct FRok2ZoneStatus
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 ZoneId = 1;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString RegionId;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	bool bUnlocked = true;
-	/** يوم الفتح من الموسم (0 = مفتوحة دائماً) */
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 UnlockDay = 0;
 };
 
 /** إشعار HUD لحظي — يُعرض كبطاقة ثم يتلاشى (P2-T6) */
