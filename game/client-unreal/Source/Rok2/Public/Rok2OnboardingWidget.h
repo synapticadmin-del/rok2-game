@@ -72,9 +72,29 @@ protected:
 	UPROPERTY(Transient) UTextBlock* StoryText;
 	UPROPERTY(Transient) UTextBlock* ActionText;
 
+	/**
+	 * الحلقة الذهبية — حاوية واحدة فيها أربعة أشرطة رفيعة تُشكّل إطاراً.
+	 *
+	 * لماذا إطارٌ مفرَّغ لا مستطيل ممتلئ: الحلقة تحيط بالزر المطلوب، فمستطيل
+	 * ممتلئ كان سيغطّيه — تُبرز الزر بحجبه.
+	 *
+	 * ولماذا حاوية واحدة لا أربعة أشرطة مستقلة على الجذر: Pulse حركة **مقياس**
+	 * (1.0→1.08) بمحور مركزي، فأربعة أشرطة منفصلة كان كل شريط يتقيس حول مركزه
+	 * هو فيتشوّه الإطار بدل أن ينبض كوحدة. والحاوية تنبض فتنبض معها الأربعة.
+	 */
+	UPROPERTY(Transient) UCanvasPanel* Ring;
+
 	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void BuildCard();
+	void BuildRing();
+
+	/**
+	 * يضع الحلقة فوق مرساة الخطوة. يعيد false إن لا مرساة أو هندستها لم تُرسم
+	 * بعد (الودجة الهدف قد تُبنى بعدنا) — فتُخفى الحلقة وتُعاد المحاولة.
+	 */
+	bool UpdateRingPlacement();
 
 	/** يملأ البطاقة من تعريف الخطوة */
 	void ApplyStepInfo(const FRok2FtueStepInfo& Info);
@@ -95,4 +115,22 @@ private:
 
 	/** هل عُرضت بطاقة التتويج؟ (تُعرض مرة واحدة ثم تتلاشى الطبقة) */
 	bool bCelebrated = false;
+
+	/**
+	 * مؤقّت خفض تردّد تتبّع الهندسة. التتبّع كل إطار هدرٌ بلا داعٍ — الأزرار
+	 * المرساة ثابتة في الـHUD، والتتبّع لازم فقط لأن الهدف قد يُبنى بعدنا أو
+	 * تتغيّر أبعاد الشاشة (دوران الهاتف).
+	 */
+	float GeometryTimer = 0.f;
+
+	/**
+	 * مؤقّت إعادة إطلاق النبضة. Pulse حركة **لقطة واحدة** مدتها 0.40s لا حلقة
+	 * متكررة، والمواصفة §3.5 تطلب إطاراً «نابضاً» باستمرار — فتُعاد بدورية.
+	 * وAddTween يستبدل أي حركة سابقة على نفس الودجة فلا تتراكم النبضات.
+	 */
+	float PulseTimer = 0.f;
+
+	/** آخر مستطيل رُسمت عليه الحلقة — لتفادي كتابة الشريحة بلا تغيّر */
+	FVector2D LastRingPos = FVector2D::ZeroVector;
+	FVector2D LastRingSize = FVector2D::ZeroVector;
 };

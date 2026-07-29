@@ -7,6 +7,7 @@
 #include "Rok2MotionLibrary.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Blueprint/SlateBlueprintLibrary.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
@@ -42,6 +43,18 @@ namespace Rok2FtueStyle
 
 	/** مدة بقاء بطاقة التتويج قبل تلاشي الطبقة */
 	static constexpr float CelebrationHoldSeconds = 4.2f;
+
+	/** سماكة شريط الإطار الذهبي */
+	static constexpr float RingThickness = 3.f;
+
+	/** تنفّس بين حدّ الزر والإطار — فالإطار يحيط ولا يلامس */
+	static constexpr float RingPadding = 6.f;
+
+	/** دورية تتبّع الهندسة (ثانية) — الأزرار ثابتة فلا حاجة لكل إطار */
+	static constexpr float GeometryInterval = 0.15f;
+
+	/** دورية إعادة النبضة: 0.40s حركة + سكون يجعلها نبضاً لا رجفة */
+	static constexpr float PulseInterval = 1.1f;
 }
 
 void URok2OnboardingWidget::NativeConstruct()
@@ -56,6 +69,139 @@ void URok2OnboardingWidget::NativeConstruct()
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
 	BuildCard();
+	BuildRing();
+}
+
+void URok2OnboardingWidget::BuildRing()
+{
+	if (!RootCanvas) return;
+
+	Ring = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("FtueRing"));
+	Ring->SetVisibility(ESlateVisibility::Collapsed);
+
+	UCanvasPanelSlot* RingSlot = RootCanvas->AddChildToCanvas(Ring);
+	RingSlot->SetAnchors(FAnchors(0.f, 0.f, 0.f, 0.f));
+	RingSlot->SetAlignment(FVector2D(0.f, 0.f));
+	RingSlot->SetAutoSize(false);
+
+	// محور مركزي: Pulse يضبطه بنفسه، لكن ضبطه هنا يضمن أن أول إطار من الحركة
+	// يتقيس حول المركز أيضاً بلا قفزة.
+	Ring->SetRenderTransformPivot(FVector2D(0.5f, 0.5f));
+
+	// أربعة أشرطة على حدود الحاوية — إطار مفرَّغ لا يغطّي الزر تحته.
+	struct FBarSpec { FAnchors Anchors; FVector2D Alignment; FVector2D Size; };
+	const FBarSpec Bars[] = {
+		// أعلى: يمتد أفقياً بسماكة ثابتة
+		{ FAnchors(0.f, 0.f, 1.f, 0.f), FVector2D(0.f, 0.f), FVector2D(0.f, Rok2FtueStyle::RingThickness) },
+		// أسفل
+		{ FAnchors(0.f, 1.f, 1.f, 1.f), FVector2D(0.f, 1.f), FVector2D(0.f, Rok2FtueStyle::RingThickness) },
+		// يسار: يمتد عمودياً
+		{ FAnchors(0.f, 0.f, 0.f, 1.f), FVector2D(0.f, 0.f), FVector2D(Rok2FtueStyle::RingThickness, 0.f) },
+		// يمين
+		{ FAnchors(1.f, 0.f, 1.f, 1.f), FVector2D(1.f, 0.f), FVector2D(Rok2FtueStyle::RingThickness, 0.f) },
+	};
+
+	for (const FBarSpec& Spec : Bars)
+	{
+		UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Bar->SetBrushColor(Rok2FtueStyle::Gold);
+		Bar->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+		UCanvasPanelSlot* BarSlot = Ring->AddChildToCanvas(Bar);
+		BarSlot->SetAnchors(Spec.Anchors);
+		BarSlot->SetAlignment(Spec.Alignment);
+		BarSlot->SetOffsets(FMargin(0.f, 0.f, Spec.Size.X, Spec.Size.Y));
+	}
+}
+
+bool URok2OnboardingWidget::UpdateRingPlacement()
+{
+	if (!Ring) return false;
+
+	URok2Onboarding* Model = URok2Onboarding::Get();
+	if (!Model) return false;
+
+	UWidget* Target = Model->ResolveCurrentAnchor();
+	if (!Target) return false;
+
+	const FGeometry Geo = Target->GetCachedGeometry();
+	const FVector2D LocalSize = Geo.GetLocalSize();
+
+	// هندسة صفرية = الودجة لم تُرسم بعد. الـHUD قد يُبنى بعد هذه الطبقة، فهذا
+	// ليس خطأً بل «ليس الآن» — نُخفي ونعيد المحاولة في الدورة القادمة.
+	if (LocalSize.X <= 0.f || LocalSize.Y <= 0.f) return false;
+
+	// نحوّل زاويتين إلى إحداثيات المنفذ: الموضع والحجم معاً بمقياس DPI صحيح.
+	// إحداثيات المنفذ هي نفس فضاء شرائح الكانفس، فالإسقاط مباشر.
+	FVector2D TopLeftPx, TopLeftVp, BottomRightPx, BottomRightVp;
+	USlateBlueprintLibrary::LocalToViewport(this, Geo, FVector2D::ZeroVector, TopLeftPx, TopLeftVp);
+	USlateBlueprintLibrary::LocalToViewport(this, Geo, LocalSize, BottomRightPx, BottomRightVp);
+
+	const FVector2D Pos = TopLeftVp - FVector2D(Rok2FtueStyle::RingPadding, Rok2FtueStyle::RingPadding);
+	const FVector2D Size = (BottomRightVp - TopLeftVp)
+		+ FVector2D(Rok2FtueStyle::RingPadding * 2.f, Rok2FtueStyle::RingPadding * 2.f);
+
+	if (Size.X <= 0.f || Size.Y <= 0.f) return false;
+
+	// لا نكتب الشريحة بلا تغيّر — الأزرار ثابتة، فالكتابة كل دورة إبطالُ
+	// تخطيطٍ بلا سبب.
+	if (!Pos.Equals(LastRingPos, 0.5f) || !Size.Equals(LastRingSize, 0.5f))
+	{
+		if (UCanvasPanelSlot* RingSlot = Cast<UCanvasPanelSlot>(Ring->Slot))
+		{
+			RingSlot->SetPosition(Pos);
+			RingSlot->SetSize(Size);
+		}
+		LastRingPos = Pos;
+		LastRingSize = Size;
+	}
+	return true;
+}
+
+void URok2OnboardingWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	URok2Onboarding* Model = URok2Onboarding::Get();
+	if (!Model || !Ring) return;
+
+	// لا عمل إطلاقاً ما لم تكن هناك خطوة تُرشد — لاعب عائد لا يكلّف شيئاً.
+	if (!Model->IsShowingGuidance())
+	{
+		if (Ring->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			Ring->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		return;
+	}
+
+	GeometryTimer += InDeltaTime;
+	if (GeometryTimer >= Rok2FtueStyle::GeometryInterval)
+	{
+		GeometryTimer = 0.f;
+
+		const bool bPlaced = UpdateRingPlacement();
+		const ESlateVisibility Want = bPlaced
+			? ESlateVisibility::HitTestInvisible   // يحيط بالزر ولا يلتقط لمسته
+			: ESlateVisibility::Collapsed;
+
+		if (Ring->GetVisibility() != Want)
+		{
+			Ring->SetVisibility(Want);
+			// نبضة فورية عند أول ظهور بدل انتظار الدورية
+			if (bPlaced) PulseTimer = Rok2FtueStyle::PulseInterval;
+		}
+	}
+
+	if (Ring->GetVisibility() == ESlateVisibility::Collapsed) return;
+
+	// النبض المستمر: Pulse لقطة واحدة (0.40s) فتُعاد بدورية — §3.5 «إطار ذهبي نابض».
+	PulseTimer += InDeltaTime;
+	if (PulseTimer >= Rok2FtueStyle::PulseInterval)
+	{
+		PulseTimer = 0.f;
+		URok2MotionLibrary::Play(Ring, ERok2Motion::Pulse);
+	}
 }
 
 void URok2OnboardingWidget::BuildCard()
