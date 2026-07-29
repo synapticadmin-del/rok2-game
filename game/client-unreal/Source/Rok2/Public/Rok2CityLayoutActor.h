@@ -16,6 +16,9 @@
 class URok2Api;
 class ARok2HexWallActor;
 class UInstancedStaticMeshComponent;
+class USceneComponent;
+class UStaticMesh;
+class UMaterialInterface;
 
 /** موضع مبنى محفوظ في التخطيط (يُرسل/يُستقبل للخادم). */
 USTRUCT(BlueprintType)

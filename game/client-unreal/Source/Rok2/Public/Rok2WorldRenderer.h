@@ -10,6 +10,8 @@
 class URok2Api;
 class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
+class USceneComponent;
+class UStaticMesh;
 
 UCLASS()
 class ARok2WorldRenderer : public AActor

@@ -7,6 +7,8 @@
 #include "Rok2Types.h"
 #include "Rok2BlueprintLibrary.generated.h"
 
+
+class UUserWidget;
 /**
  * ROK2 Blueprint Function Library for Unreal Engine 5.8
  * Exposes core game data, coordinate converters, and utility math to Blueprints.

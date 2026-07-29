@@ -13,6 +13,8 @@
 #include "Rok2HexWallActor.generated.h"
 
 class UInstancedStaticMeshComponent;
+class USceneComponent;
+class UStaticMesh;
 
 /** مرحلة مظهر السور حسب المستوى. */
 UENUM(BlueprintType)

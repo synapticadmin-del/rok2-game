@@ -18,6 +18,8 @@
 #include "Rok2Perf.generated.h"
 
 class AStaticMeshActor;
+class UStaticMesh;
+class UWorld;
 
 UCLASS()
 class ROK2_API URok2Perf : public UGameInstanceSubsystem

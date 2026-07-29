@@ -16,6 +16,9 @@ class URok2Api;
 class UInstancedStaticMeshComponent;
 class ARok2CityLayoutActor;
 class ARok2CityEditorMode;
+class USceneComponent;
+class UStaticMesh;
+class UMaterialInterface;
 
 USTRUCT(BlueprintType)
 struct FRok2BuildingVisual

@@ -18,6 +18,9 @@ enum class ERok2MaterialType : uint8
 
 #include "Rok2ProceduralAssets.generated.h"
 
+
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
 UCLASS()
 class ROK2_API URok2ProceduralAssets : public UObject
 {

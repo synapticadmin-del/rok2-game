@@ -24,6 +24,7 @@ class UBorder;
 class UProgressBar;
 class UScrollBox;
 class UImage;
+class UCanvasPanel;
 
 /** حدث زر في الـ HUD — يفوَّض لـ Blueprint/GameMode */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHudAction);

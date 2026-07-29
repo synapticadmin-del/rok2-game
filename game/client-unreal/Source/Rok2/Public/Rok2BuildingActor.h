@@ -13,6 +13,7 @@
 #include "Rok2BuildingActor.generated.h"
 
 class UStaticMeshComponent;
+class USceneComponent;
 
 /** حجم بصمة المبنى على الشبكة. */
 UENUM(BlueprintType)

@@ -7,6 +7,8 @@
 #include "Camera/CameraComponent.h"
 #include "Rok2IsometricCamera.generated.h"
 
+
+class USceneComponent;
 UCLASS()
 class ARok2IsometricCamera : public AActor
 {

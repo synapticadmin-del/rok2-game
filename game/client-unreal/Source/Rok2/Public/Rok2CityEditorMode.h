@@ -15,6 +15,7 @@
 
 class ARok2BuildingActor;
 class ARok2CityLayoutActor;
+class USceneComponent;
 
 /** تخطيط محفوظ (اسم + مواضع). */
 USTRUCT(BlueprintType)
