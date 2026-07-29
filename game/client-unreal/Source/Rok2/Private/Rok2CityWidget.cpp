@@ -5,6 +5,7 @@
 #include "Rok2BattleReportWidget.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2Typography.h"
 #include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -119,9 +120,7 @@ void URok2CityWidget::NativeConstruct()
 		PlayerInfoText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PlayerInfoText"));
 		PlayerInfoText->SetText(FText::FromString(TEXT("Governor | Power: 0")));
 		PlayerInfoText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-		FSlateFontInfo InfoFont = PlayerInfoText->GetFont();
-		InfoFont.Size = 15;
-		PlayerInfoText->SetFont(InfoFont);
+		URok2Typography::ApplyFont(PlayerInfoText, ERok2TextRole::Body);
 		UHorizontalBoxSlot* InfoSlot = TopHBox->AddChildToHorizontalBox(PlayerInfoText);
 		InfoSlot->SetVerticalAlignment(VAlign_Center);
 		InfoSlot->SetPadding(FMargin(0, 0, 30, 0));
@@ -138,7 +137,7 @@ void URok2CityWidget::NativeConstruct()
 				IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 				UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 				Txt->SetColorAndOpacity(FSlateColor(Color));
-				Txt->SetFont(InfoFont);
+				URok2Typography::ApplyFont(Txt, ERok2TextRole::Numeric);
 				UHorizontalBoxSlot* TxtSlot = TopHBox->AddChildToHorizontalBox(Txt);
 				TxtSlot->SetVerticalAlignment(VAlign_Center);
 				TxtSlot->SetPadding(FMargin(0, 0, 8, 0));
@@ -165,9 +164,7 @@ void URok2CityWidget::NativeConstruct()
 		ConnectionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionText"));
 		ConnectionText->SetText(FText::FromString(TEXT("متصل")));
 		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
-		FSlateFontInfo ConnFont = ConnectionText->GetFont();
-		ConnFont.Size = 12;
-		ConnectionText->SetFont(ConnFont);
+		URok2Typography::ApplyFont(ConnectionText, ERok2TextRole::Caption);
 		UHorizontalBoxSlot* ConnSlot = TopHBox->AddChildToHorizontalBox(ConnectionText);
 		ConnSlot->SetVerticalAlignment(VAlign_Center);
 		ConnSlot->SetPadding(FMargin(0, 0, 10, 0));

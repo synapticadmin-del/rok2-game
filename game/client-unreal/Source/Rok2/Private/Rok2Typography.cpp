@@ -108,6 +108,7 @@ ERok2Face URok2Typography::FaceOf(ERok2TextRole Role)
 	// بقية الواجهة بالوجه العربي الواضح
 	case ERok2TextRole::Title:
 	case ERok2TextRole::Subtitle:
+	case ERok2TextRole::HudTitle:
 	case ERok2TextRole::Body:
 	case ERok2TextRole::Button:
 	case ERok2TextRole::Caption:
@@ -127,6 +128,7 @@ float URok2Typography::SizeOf(ERok2TextRole Role)
 	case ERok2TextRole::Button:       return Rok2TypeScale::Button;
 	case ERok2TextRole::Caption:      return Rok2TypeScale::Caption;
 	case ERok2TextRole::Micro:        return Rok2TypeScale::Micro;
+	case ERok2TextRole::HudTitle:     return Rok2TypeScale::Compact;
 	// الرقم البارز يوازي عنوان اللوحة، والمورد والمؤقّت على الدرجة الكثيفة
 	case ERok2TextRole::NumericLarge: return Rok2TypeScale::Title;
 	case ERok2TextRole::Numeric:      return Rok2TypeScale::Compact;
@@ -147,6 +149,7 @@ FName URok2Typography::WeightOf(ERok2TextRole Role)
 	// العناوين والأزرار والأرقام البارزة — عريض ليقرأ من لمحة
 	case ERok2TextRole::Title:
 	case ERok2TextRole::Subtitle:
+	case ERok2TextRole::HudTitle:
 	case ERok2TextRole::Button:
 	case ERok2TextRole::Numeric:
 	case ERok2TextRole::NumericLarge:
@@ -191,6 +194,7 @@ TArray<ERok2TextRole> URok2Typography::AllRoles()
 		ERok2TextRole::Display,
 		ERok2TextRole::Title,
 		ERok2TextRole::Subtitle,
+		ERok2TextRole::HudTitle,
 		ERok2TextRole::Body,
 		ERok2TextRole::Button,
 		ERok2TextRole::Caption,

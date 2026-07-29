@@ -1,6 +1,6 @@
 // Copyright ROK2. Unified Arabic/Latin typography system (P6-T2).
 //
-// نظام الخطوط الموحّد — ثلاثة أوجه وتسعة أدوار نصية، من ui-ux-design-system.md §1:
+// نظام الخطوط الموحّد — ثلاثة أوجه و11 دوراً نصياً، من ui-ux-design-system.md §1:
 //   «عنوان: خط عربي فخم (Cairo Black / Aref Ruqaa للعناوين الكبرى)
 //    · أرقام/إنجليزي: Trajan-style serif أو Cinzel»
 //
@@ -60,6 +60,8 @@ enum class ERok2TextRole : uint8
 	Title,
 	/** عنوان قسم داخل لوحة */
 	Subtitle,
+	/** عنوان لوحة صغيرة في الطبقة الكثيفة فوق العالم (الطوابير، مركز الإشعارات) */
+	HudTitle,
 	/** نص الجسم العادي */
 	Body,
 	/** نص داخل زر */

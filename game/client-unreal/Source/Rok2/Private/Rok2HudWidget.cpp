@@ -7,6 +7,7 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Typography.h"
 #include "Rok2DelegateBind.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -37,13 +38,6 @@ namespace Rok2HudStyle
 	static const FLinearColor ApPurple(0.75f, 0.55f, 1.0f);
 	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
 	static const FLinearColor InfoBlue(0.4f, 0.75f, 1.0f);
-}
-
-static FSlateFontInfo Rok2Font(UTextBlock* T, int32 Size)
-{
-	FSlateFontInfo F = T->GetFont();
-	F.Size = Size;
-	return F;
 }
 
 // P6-T1: مُنشئ UImage لأيقونة إجرائية بحجم ولون
@@ -114,7 +108,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 		Out = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Out->SetText(FText::FromString(TEXT("0")));
 		Out->SetColorAndOpacity(FSlateColor(Color));
-		Out->SetFont(Rok2Font(Out, 14));
+		URok2Typography::ApplyFont(Out, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* TxtSlot = H->AddChildToHorizontalBox(Out);
 		TxtSlot->SetPadding(FMargin(0, 0, 2, 0));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
@@ -144,13 +138,13 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	SeasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	SeasonText->SetText(FText::FromString(TEXT("يوم 0")));
 	SeasonText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	SeasonText->SetFont(Rok2Font(SeasonText, 13));
+	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Numeric);
 	H->AddChildToHorizontalBox(SeasonText)->SetPadding(FMargin(0, 0, 16, 0));
 
 	ZoneTimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	ZoneTimerText->SetText(FText::FromString(TEXT("")));
 	ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue));
-	ZoneTimerText->SetFont(Rok2Font(ZoneTimerText, 12));
+	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Timer);
 	H->AddChildToHorizontalBox(ZoneTimerText)->SetPadding(FMargin(0, 0, 16, 0));
 
 	// شارة الاتصال: دائرة إجرائية (خضراء/حمراء حسب الحالة)
@@ -172,7 +166,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	BellBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	BellBadgeText->SetText(FText::FromString(TEXT("")));
 	BellBadgeText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Danger));
-	BellBadgeText->SetFont(Rok2Font(BellBadgeText, 12));
+	URok2Typography::ApplyFont(BellBadgeText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(BellBadgeText)->SetPadding(FMargin(0, 4, 16, 4));
 }
 
@@ -211,7 +205,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Lbl->SetText(FText::FromString(TEXT("بناء")));
 		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-		Lbl->SetFont(Rok2Font(Lbl, 11));
+		URok2Typography::ApplyFont(Lbl, ERok2TextRole::Micro);
 		Lbl->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
 
@@ -219,7 +213,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		BuildBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		BuildBadgeText->SetText(FText::FromString(TEXT("")));
 		BuildBadgeText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Danger));
-		BuildBadgeText->SetFont(Rok2Font(BuildBadgeText, 12));
+		URok2Typography::ApplyFont(BuildBadgeText, ERok2TextRole::Caption);
 		V->AddChildToVerticalBox(BuildBadgeText)->SetHorizontalAlignment(HAlign_Right);
 	}
 
@@ -250,7 +244,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Lbl->SetText(FText::FromString(Label));
 		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-		Lbl->SetFont(Rok2Font(Lbl, 8));
+		URok2Typography::ApplyFont(Lbl, ERok2TextRole::Micro);
 		Lbl->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
 		i++;
@@ -292,7 +286,7 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(Label));
 		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
-		T->SetFont(Rok2Font(T, 13));
+		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
 		UHorizontalBoxSlot* TxtSlot = PillBox->AddChildToHorizontalBox(T);
 		TxtSlot->SetPadding(FMargin(2, 0, 6, 0));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
@@ -333,7 +327,7 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("الطوابير")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	Title->SetFont(Rok2Font(Title, 13));
+	URok2Typography::ApplyFont(Title, ERok2TextRole::HudTitle);
 	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
 	QueuesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -377,7 +371,7 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("مركز الإشعارات")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	Title->SetFont(Rok2Font(Title, 14));
+	URok2Typography::ApplyFont(Title, ERok2TextRole::HudTitle);
 	NotifTitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
 	NotifList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
@@ -485,7 +479,7 @@ void URok2HudWidget::UpdateQueues()
 		UTextBlock* Empty = NewObject<UTextBlock>(this);
 		Empty->SetText(FText::FromString(TEXT("لا طوابير نشطة")));
 		Empty->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
-		Empty->SetFont(Rok2Font(Empty, 11));
+		URok2Typography::ApplyFont(Empty, ERok2TextRole::Micro);
 		QueuesBox->AddChildToVerticalBox(Empty);
 		return;
 	}
@@ -516,7 +510,7 @@ void URok2HudWidget::UpdateQueues()
 		const double RemainSec = FMath::Max(0.0, (double)(Q.EndMs - NowMs) / 1000.0);
 		Label->SetText(FText::FromString(FString::Printf(TEXT("%s Lv%d — %.0fث"), *Q.RefId, Q.Level, RemainSec)));
 		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
-		Label->SetFont(Rok2Font(Label, 11));
+		URok2Typography::ApplyFont(Label, ERok2TextRole::Micro);
 		Item->AddChildToVerticalBox(Label);
 
 		UProgressBar* Bar = NewObject<UProgressBar>(this);
@@ -559,12 +553,12 @@ void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 	UTextBlock* Title = NewObject<UTextBlock>(this);
 	Title->SetText(FText::FromString(N.Title));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
-	Title->SetFont(Rok2Font(Title, 12));
+	URok2Typography::ApplyFont(Title, ERok2TextRole::Caption);
 	V->AddChildToVerticalBox(Title);
 	UTextBlock* Body = NewObject<UTextBlock>(this);
 	Body->SetText(FText::FromString(N.Body));
 	Body->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
-	Body->SetFont(Rok2Font(Body, 11));
+	URok2Typography::ApplyFont(Body, ERok2TextRole::Micro);
 	Body->SetAutoWrapText(true);
 	V->AddChildToVerticalBox(Body);
 	Card->SetContent(V);
@@ -677,7 +671,7 @@ void URok2HudWidget::OnBellClicked()
 		UTextBlock* Line = NewObject<UTextBlock>(this);
 		Line->SetText(FText::FromString(FString::Printf(TEXT("%s — %s"), *N.Title, *N.Body)));
 		Line->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
-		Line->SetFont(Rok2Font(Line, 11));
+		URok2Typography::ApplyFont(Line, ERok2TextRole::Micro);
 		Line->SetAutoWrapText(true);
 		NotifList->AddChild(Line);
 	}
