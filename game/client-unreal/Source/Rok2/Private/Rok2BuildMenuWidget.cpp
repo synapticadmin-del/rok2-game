@@ -1,7 +1,9 @@
 // Copyright ROK2. Build menu widget (P5-T3) — implementation.
+// P6-T1: أيقونات المباني إجرائية من URok2ArtAssets (بدل الإيموجي).
 
 #include "Rok2BuildMenuWidget.h"
 #include "Rok2Api.h"
+#include "Rok2ArtAssets.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -11,6 +13,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Border.h"
+#include "Components/Image.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Blueprint/WidgetTree.h"
@@ -39,29 +42,30 @@ void URok2BuildMenuWidget::Setup(URok2Api* InApi)
 
 void URok2BuildMenuWidget::BuildCatalog()
 {
+	// P6-T1: الحقل الثاني أصبح معرّف أيقونة إجرائية (لا رمز إيموجي)
 	Catalog = {
-		{ TEXT("farm"), TEXT("🌾"), TEXT("مزرعة"), TEXT("economic") },
-		{ TEXT("lumber_mill"), TEXT("🪵"), TEXT("منشرة"), TEXT("economic") },
-		{ TEXT("quarry"), TEXT("🪨"), TEXT("محجر"), TEXT("economic") },
-		{ TEXT("goldmine"), TEXT("🪙"), TEXT("منجم ذهب"), TEXT("economic") },
-		{ TEXT("storehouse"), TEXT("📦"), TEXT("مخزن"), TEXT("economic") },
-		{ TEXT("courier_station"), TEXT("📮"), TEXT("بريد"), TEXT("economic") },
-		{ TEXT("shop"), TEXT("🛒"), TEXT("متجر"), TEXT("economic") },
-		{ TEXT("barracks"), TEXT("⚔️"), TEXT("ثكنة"), TEXT("military") },
-		{ TEXT("stable"), TEXT("🐎"), TEXT("إسطبل"), TEXT("military") },
-		{ TEXT("archery_range"), TEXT("🏹"), TEXT("رماية"), TEXT("military") },
-		{ TEXT("siege_workshop"), TEXT("🛠️"), TEXT("حصار"), TEXT("military") },
-		{ TEXT("hospital"), TEXT("🏥"), TEXT("مستشفى"), TEXT("military") },
-		{ TEXT("wall"), TEXT("🧱"), TEXT("سور"), TEXT("military") },
-		{ TEXT("watchtower"), TEXT("🗼"), TEXT("برج"), TEXT("military") },
-		{ TEXT("castle"), TEXT("🏯"), TEXT("قلعة"), TEXT("military") },
-		{ TEXT("scout_camp"), TEXT("🏕️"), TEXT("كشافة"), TEXT("military") },
-		{ TEXT("academy"), TEXT("🔬"), TEXT("أكاديمية"), TEXT("military") },
-		{ TEXT("monument"), TEXT("🗿"), TEXT("نصب"), TEXT("decor") },
-		{ TEXT("tavern"), TEXT("🍺"), TEXT("حانة"), TEXT("decor") },
-		{ TEXT("trading_post"), TEXT("⚖️"), TEXT("تجارة"), TEXT("decor") },
-		{ TEXT("alliance_center"), TEXT("🤝"), TEXT("تحالف"), TEXT("decor") },
-		{ TEXT("builders_hut"), TEXT("⛺"), TEXT("بنّائون"), TEXT("decor") },
+		{ TEXT("farm"), TEXT("wheat"), TEXT("مزرعة"), TEXT("economic") },
+		{ TEXT("lumber_mill"), TEXT("wood"), TEXT("منشرة"), TEXT("economic") },
+		{ TEXT("quarry"), TEXT("rock"), TEXT("محجر"), TEXT("economic") },
+		{ TEXT("goldmine"), TEXT("pickaxe"), TEXT("منجم ذهب"), TEXT("economic") },
+		{ TEXT("storehouse"), TEXT("box"), TEXT("مخزن"), TEXT("economic") },
+		{ TEXT("courier_station"), TEXT("mail"), TEXT("بريد"), TEXT("economic") },
+		{ TEXT("shop"), TEXT("cart"), TEXT("متجر"), TEXT("economic") },
+		{ TEXT("barracks"), TEXT("sword"), TEXT("ثكنة"), TEXT("military") },
+		{ TEXT("stable"), TEXT("horse"), TEXT("إسطبل"), TEXT("military") },
+		{ TEXT("archery_range"), TEXT("bow"), TEXT("رماية"), TEXT("military") },
+		{ TEXT("siege_workshop"), TEXT("wrench"), TEXT("حصار"), TEXT("military") },
+		{ TEXT("hospital"), TEXT("cross"), TEXT("مستشفى"), TEXT("military") },
+		{ TEXT("wall"), TEXT("bricks"), TEXT("سور"), TEXT("military") },
+		{ TEXT("watchtower"), TEXT("tower"), TEXT("برج"), TEXT("military") },
+		{ TEXT("castle"), TEXT("castle"), TEXT("قلعة"), TEXT("military") },
+		{ TEXT("scout_camp"), TEXT("tent"), TEXT("كشافة"), TEXT("military") },
+		{ TEXT("academy"), TEXT("flask"), TEXT("أكاديمية"), TEXT("military") },
+		{ TEXT("monument"), TEXT("monument"), TEXT("نصب"), TEXT("decor") },
+		{ TEXT("tavern"), TEXT("beer"), TEXT("حانة"), TEXT("decor") },
+		{ TEXT("trading_post"), TEXT("scale"), TEXT("تجارة"), TEXT("decor") },
+		{ TEXT("alliance_center"), TEXT("handshake"), TEXT("تحالف"), TEXT("decor") },
+		{ TEXT("builders_hut"), TEXT("builder"), TEXT("بنّائون"), TEXT("decor") },
 	};
 }
 
@@ -93,31 +97,53 @@ void URok2BuildMenuWidget::NativeConstruct()
 	UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Sheet->SetContent(VBox);
 
-	// عنوان
+	// عنوان: أيقونة مطرقة إجرائية + نص
+	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	VBox->AddChildToVerticalBox(TitleRow)->SetPadding(FMargin(0, 10, 0, 6));
+	TitleRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	{
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("build"), 20.f, Rok2BuildStyle::Gold));
+		Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+		UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	Title->SetText(FText::FromString(TEXT("🔨 قائمة البناء")));
+	Title->SetText(FText::FromString(TEXT("قائمة البناء")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2BuildStyle::Gold));
 	Title->SetFont(BuildFont(Title, 18));
-	Title->SetJustification(ETextJustify::Center);
-	VBox->AddChildToVerticalBox(Title)->SetPadding(FMargin(0, 10, 0, 6));
+	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
+	TitleRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	// تبويبات الفئات
 	UHorizontalBox* Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	VBox->AddChildToVerticalBox(Tabs)->SetHorizontalAlignment(HAlign_Center);
 
-	auto MakeTab = [&](UTextBlock*& OutTxt, const FString& Label, const FName Handler) {
+	// P6-T1: كل تبويب = أيقونة إجرائية + نص
+	auto MakeTab = [&](UTextBlock*& OutTxt, const FString& IconId, const FString& Label, const FName Handler) {
 		UButton* B = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		B->OnClicked.AddDynamic(this, Handler);
+		UHorizontalBox* TabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		B->AddChild(TabBox);
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Rok2BuildStyle::Gold));
+		Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+		UHorizontalBoxSlot* IcoSlot = TabBox->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		OutTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		OutTxt->SetText(FText::FromString(Label));
 		OutTxt->SetFont(BuildFont(OutTxt, 14));
-		B->AddChild(OutTxt);
+		TabBox->AddChildToHorizontalBox(OutTxt)->SetVerticalAlignment(VAlign_Center);
 		Tabs->AddChildToHorizontalBox(B)->SetPadding(FMargin(12, 2, 12, 2));
 	};
 
-	MakeTab(TabEconText, TEXT("🌾 اقتصاد"), FName(TEXT("OnTabEcon")));
-	MakeTab(TabMilText, TEXT("⚔️ عسكري"), FName(TEXT("OnTabMil")));
-	MakeTab(TabDecorText, TEXT("🎨 زخرفة"), FName(TEXT("OnTabDecor")));
+	MakeTab(TabEconText, TEXT("wheat"), TEXT("اقتصاد"), FName(TEXT("OnTabEcon")));
+	MakeTab(TabMilText, TEXT("sword"), TEXT("عسكري"), FName(TEXT("OnTabMil")));
+	MakeTab(TabDecorText, TEXT("art"), TEXT("زخرفة"), FName(TEXT("OnTabDecor")));
 
 	// الشبكة
 	Grid = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
@@ -163,10 +189,10 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
 
-		UTextBlock* Ico = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		Ico->SetText(FText::FromString(E.Icon));
-		Ico->SetFont(BuildFont(Ico, 24));
-		Ico->SetJustification(ETextJustify::Center);
+		// P6-T1: أيقونة المبنى إجرائية 28px بدل الإيموجي النصي
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(E.Icon, 28.f, Rok2BuildStyle::Ivory));
+		Ico->SetDesiredSizeOverride(FVector2D(28.f, 28.f));
 		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 
 		UTextBlock* Name = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());

@@ -1,6 +1,7 @@
 // Copyright ROK2. Art asset library (P2-T7) — implementation.
 
 #include "Rok2ArtAssets.h"
+#include "Rok2IconLibrary.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
 #include "UObject/ConstructorHelpers.h"
@@ -112,4 +113,18 @@ UStaticMesh* URok2ArtAssets::LoadMesh(const FString& Id)
 
 	Loaded.Add(Id, Mesh);
 	return Mesh;
+}
+
+// ---------------------------------------------------------------------------
+// P6-T1: نظام أيقونات UI الموحد — تفويض لـ URok2IconLibrary
+// ---------------------------------------------------------------------------
+
+FSlateBrush URok2ArtAssets::GetIconBrush(const FString& IconId, float Size, FLinearColor Tint)
+{
+	return URok2IconLibrary::BrushFromArtAssets(IconId, Size, Tint);
+}
+
+bool URok2ArtAssets::HasIcon(const FString& IconId)
+{
+	return URok2IconLibrary::Get()->HasIcon(IconId);
 }

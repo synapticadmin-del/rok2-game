@@ -1,7 +1,9 @@
 // Copyright ROK2.
+// P6-T1: زر المساعدة بأيقونة مصافحة إجرائية (بدل 🤝).
 
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2Api.h"
+#include "Rok2ArtAssets.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -13,6 +15,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/Spacer.h"
+#include "Components/Image.h"
 
 void URok2AllianceRosterWidget::NativeConstruct()
 {
@@ -59,11 +62,23 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
 		BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
-		UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
-		BtnText->SetText(FText::FromString(TEXT("🤝 مساعدة التحالف (Alliance Help)")));
-		BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		BtnText->Font.Size = 18;
-		HelpButton->AddChild(BtnText);
+		// P6-T1: أيقونة مصافحة إجرائية + نص
+		{
+			UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			HelpButton->AddChild(BtnBox);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("handshake"), 20.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
+			BtnText->SetText(FText::FromString(TEXT("مساعدة التحالف (Alliance Help)")));
+			BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			BtnText->Font.Size = 18;
+			BtnBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		HelpButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnHelpClicked);
 

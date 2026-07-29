@@ -1,8 +1,10 @@
 // Copyright ROK2. Commander screen widget (P5-T4) — implementation.
+// P6-T1: أيقونات المهارات والمعدات والأزرار إجرائية من URok2ArtAssets (بدل الإيموجي).
 
 #include "Rok2CommanderWidget.h"
 #include "Rok2Api.h"
 #include "Rok2CivThemes.h"
+#include "Rok2ArtAssets.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -256,43 +258,38 @@ void URok2CommanderWidget::BuildUI()
 	EquipmentBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("EquipmentBox"));
 	DetailPanel->AddChildToVerticalBox(EquipmentBox);
 
-	// --- أزرار الإجراءات ---
+	// --- أزرار الإجراءات --- P6-T1: كل زر = أيقونة إجرائية + نص
 	UHorizontalBox* ActionBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ActionBox"));
 	UVerticalBoxSlot* ActionSlot = DetailPanel->AddChildToVerticalBox(ActionBox);
 	ActionSlot->SetPadding(FMargin(0.f, 20.f, 0.f, 0.f));
 	ActionSlot->SetHorizontalAlignment(HAlign_Center);
 
-	// زر تعيين في مسيرة
-	UButton* AssignBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AssignBtn"));
-	UTextBlock* AssignText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AssignText"));
-	AssignText->SetText(FText::FromString(TEXT("⚔️ تعيين في مسيرة")));
-	AssignText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	AssignText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
-	AssignBtn->AddChild(AssignText);
-	AssignBtn->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnAssignClicked);
-	UHorizontalBoxSlot* AssignSlot = ActionBox->AddChildToHorizontalBox(AssignBtn);
-	AssignSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+	auto MakeActionBtn = [&](const FString& IconId, const FString& Label, const FName Handler, bool bPadRight) {
+		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		Btn->OnClicked.AddDynamic(this, Handler);
+		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Btn->AddChild(BtnBox);
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 18.f, COLOR_IVORY));
+		Ico->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+		UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(6.f, 2.f, 4.f, 2.f));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		Txt->SetText(FText::FromString(Label));
+		Txt->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
+		Txt->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
+		UHorizontalBoxSlot* TxtSlot = BtnBox->AddChildToHorizontalBox(Txt);
+		TxtSlot->SetPadding(FMargin(0.f, 2.f, 6.f, 2.f));
+		TxtSlot->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBoxSlot* S = ActionBox->AddChildToHorizontalBox(Btn);
+		if (bPadRight) S->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+	};
 
-	// زر ترقية المستوى
-	UButton* LevelUpBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("LevelUpBtn"));
-	UTextBlock* LevelUpText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LevelUpText"));
-	LevelUpText->SetText(FText::FromString(TEXT("⭐ ترقية المستوى")));
-	LevelUpText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	LevelUpText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
-	LevelUpBtn->AddChild(LevelUpText);
-	LevelUpBtn->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnLevelUpClicked);
-	UHorizontalBoxSlot* LevelUpSlot = ActionBox->AddChildToHorizontalBox(LevelUpBtn);
-	LevelUpSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
-
-	// زر ترقية المهارة
-	UButton* SkillUpBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SkillUpBtn"));
-	UTextBlock* SkillUpText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SkillUpText"));
-	SkillUpText->SetText(FText::FromString(TEXT("⚡ ترقية مهارة")));
-	SkillUpText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
-	SkillUpText->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
-	SkillUpBtn->AddChild(SkillUpText);
-	SkillUpBtn->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnSkillUpgradeClicked);
-	ActionBox->AddChildToHorizontalBox(SkillUpBtn);
+	MakeActionBtn(TEXT("sword"), TEXT("تعيين في مسيرة"), FName(TEXT("OnAssignClicked")), true);
+	MakeActionBtn(TEXT("star"), TEXT("ترقية المستوى"), FName(TEXT("OnLevelUpClicked")), true);
+	MakeActionBtn(TEXT("skillup"), TEXT("ترقية مهارة"), FName(TEXT("OnSkillUpgradeClicked")), false);
 }
 
 // ---------------------------------------------------------------------------
@@ -549,32 +546,32 @@ UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skil
 	UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	SkillBorder->SetContent(RowBox);
 
-	// أيقونة النوع
-	FString TypeIcon;
+	// أيقونة النوع — P6-T1: إجرائية مصبوغة بلون النوع بدل الإيموجي
+	FString TypeIconId;
 	FLinearColor TypeColor;
 	if (Skill.Type == TEXT("attack"))
 	{
-		TypeIcon = TEXT("⚔️");
+		TypeIconId = TEXT("sword");
 		TypeColor = FLinearColor(0.9f, 0.3f, 0.2f);
 	}
 	else if (Skill.Type == TEXT("defense"))
 	{
-		TypeIcon = TEXT("🛡️");
+		TypeIconId = TEXT("shield");
 		TypeColor = FLinearColor(0.2f, 0.5f, 0.9f);
 	}
 	else
 	{
-		TypeIcon = TEXT("✨");
+		TypeIconId = TEXT("sparkle");
 		TypeColor = FLinearColor(0.9f, 0.7f, 0.2f);
 	}
 
-	UTextBlock* IconText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	IconText->SetText(FText::FromString(TypeIcon));
-	IconText->SetColorAndOpacity(FSlateColor(TypeColor));
-	IconText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 20));
-	UHorizontalBoxSlot* IconSlot = RowBox->AddChildToHorizontalBox(IconText);
+	UImage* IconImg = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+	IconImg->SetBrush(URok2ArtAssets::GetIconBrush(TypeIconId, 20.f, TypeColor));
+	IconImg->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+	UHorizontalBoxSlot* IconSlot = RowBox->AddChildToHorizontalBox(IconImg);
 	IconSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
 	IconSlot->SetVerticalAlignment(VAlign_Center);
+	IconSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 	// معلومات المهارة
 	UVerticalBox* SkillInfo = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -599,20 +596,21 @@ UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skil
 }
 
 // ---------------------------------------------------------------------------
-// BuildTalentTreeStub — شجرة مواهب stub (3 فروع ملونة)
+// BuildTalentTreeStub — شجرة مواهب stub (3 فروع ملونة بأيقونات إجرائية)
 // ---------------------------------------------------------------------------
 UWidget* URok2CommanderWidget::BuildTalentTreeStub()
 {
 	UHorizontalBox* TreeBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	// 3 فروع: أحمر (قتال)، أصفر (دعم)، أزرق (حركة)
-	const TArray<TPair<FString, FLinearColor>> Branches = {
-		{TEXT("قتال"), FLinearColor(0.8f, 0.2f, 0.2f)},
-		{TEXT("دعم"), FLinearColor(0.9f, 0.7f, 0.1f)},
-		{TEXT("حركة"), FLinearColor(0.2f, 0.5f, 0.9f)}
+	// 3 فروع: قتال (سيف)، دعم (درع)، حركة (أثر قدم) — P6-T1: أيقونات إجرائية
+	struct FTalentBranch { const TCHAR* Name; const TCHAR* IconId; FLinearColor Color; };
+	const TArray<FTalentBranch> Branches = {
+		{TEXT("قتال"), TEXT("sword"), FLinearColor(0.8f, 0.2f, 0.2f)},
+		{TEXT("دعم"), TEXT("shield"), FLinearColor(0.9f, 0.7f, 0.1f)},
+		{TEXT("حركة"), TEXT("move"), FLinearColor(0.2f, 0.5f, 0.9f)}
 	};
 
-	for (const auto& Branch : Branches)
+	for (const FTalentBranch& Branch : Branches)
 	{
 		UBorder* BranchBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		BranchBorder->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.1f, 0.6f));
@@ -623,12 +621,22 @@ UWidget* URok2CommanderWidget::BuildTalentTreeStub()
 		UVerticalBox* BranchBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		BranchBorder->SetContent(BranchBox);
 
+		// أيقونة الفرع + عنوانه في صف واحد
+		UHorizontalBox* HeadRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		BranchBox->AddChildToVerticalBox(HeadRow)->SetHorizontalAlignment(HAlign_Center);
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(Branch.IconId, 16.f, Branch.Color));
+		Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+		UHorizontalBoxSlot* IcoSlot = HeadRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0.f, 0.f, 4.f, 0.f));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
 		UTextBlock* BranchTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		BranchTitle->SetText(FText::FromString(Branch.Key));
-		BranchTitle->SetColorAndOpacity(FSlateColor(Branch.Value));
+		BranchTitle->SetText(FText::FromString(Branch.Name));
+		BranchTitle->SetColorAndOpacity(FSlateColor(Branch.Color));
 		BranchTitle->SetFont(FCoreStyle::GetDefaultFontStyle("Bold", 16));
-		BranchTitle->SetJustification(ETextJustify::Center);
-		BranchBox->AddChildToVerticalBox(BranchTitle);
+		HeadRow->AddChildToHorizontalBox(BranchTitle)->SetVerticalAlignment(VAlign_Center);
 
 		UTextBlock* PointsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		PointsText->SetText(FText::FromString(TEXT("0/20 نقطة")));
@@ -642,21 +650,23 @@ UWidget* URok2CommanderWidget::BuildTalentTreeStub()
 }
 
 // ---------------------------------------------------------------------------
-// BuildEquipmentSlots — خانات المعدات stub (4 خانات + إكسسوار)
+// BuildEquipmentSlots — خانات المعدات stub (5 خانات بأيقونات إجرائية)
 // ---------------------------------------------------------------------------
 UWidget* URok2CommanderWidget::BuildEquipmentSlots()
 {
 	UHorizontalBox* SlotsBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 
-	const TArray<FString> SlotNames = {
-		TEXT("⚔️ سلاح"),
-		TEXT("🪖 خوذة"),
-		TEXT("🛡️ درع"),
-		TEXT("👢 حذاء"),
-		TEXT("💍 إكسسوار")
+	// P6-T1: أيقونة إجرائية لكل خانة (سلاح/خوذة/درع/حذاء/إكسسوار)
+	struct FEquipSlot { const TCHAR* IconId; const TCHAR* Name; };
+	const TArray<FEquipSlot> SlotDefs = {
+		{TEXT("sword"), TEXT("سلاح")},
+		{TEXT("helmet"), TEXT("خوذة")},
+		{TEXT("shield"), TEXT("درع")},
+		{TEXT("boots"), TEXT("حذاء")},
+		{TEXT("ring"), TEXT("إكسسوار")}
 	};
 
-	for (const FString& SlotName : SlotNames)
+	for (const FEquipSlot& SlotDef : SlotDefs)
 	{
 		UBorder* SlotBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		SlotBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.15f, 0.7f));
@@ -664,12 +674,20 @@ UWidget* URok2CommanderWidget::BuildEquipmentSlots()
 		UHorizontalBoxSlot* SlotSlot = SlotsBox->AddChildToHorizontalBox(SlotBorder);
 		SlotSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
 
+		UVerticalBox* SlotBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		SlotBorder->SetContent(SlotBox);
+
+		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(SlotDef.IconId, 24.f, FLinearColor(0.7f, 0.7f, 0.72f)));
+		Ico->SetDesiredSizeOverride(FVector2D(24.f, 24.f));
+		SlotBox->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
+
 		UTextBlock* SlotText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		SlotText->SetText(FText::FromString(SlotName));
+		SlotText->SetText(FText::FromString(SlotDef.Name));
 		SlotText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
-		SlotText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 12));
+		SlotText->SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 10));
 		SlotText->SetJustification(ETextJustify::Center);
-		SlotBorder->SetContent(SlotText);
+		SlotBox->AddChildToVerticalBox(SlotText);
 	}
 
 	return SlotsBox;

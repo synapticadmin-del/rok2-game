@@ -851,7 +851,7 @@ void URok2Api::HealWounded(const TMap<FString, int32>& TroopsMap)
 		{
 			Audio->PlaySfx(ERok2AudioType::HealComplete);
 		}
-		EmitToast(TEXT("🏥 بدأ شفاء الجرحى"));
+		EmitToast(TEXT("بدأ شفاء الجرحى"));
 	});
 }
 
@@ -923,7 +923,7 @@ void URok2Api::SendScout(double ToX, double ToY)
 
 	Post(TEXT("/v1/world/scout"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("انطلقت الكشافة 🔭"));
+		EmitToast(TEXT("انطلقت الكشافة"));
 		ForceTick();
 		RefreshWorld();
 	});
@@ -1017,8 +1017,8 @@ void URok2Api::ConnectWebSocket()
 		Self->bWsConnected = true;
 		Self->WsReconnectDelay = 2.f; // reset backoff on success
 		Self->WsReconnectTimer = 0.f;
-		Self->SetOnline(true, TEXT("اتصال حي ✓"));
-		Self->EmitToast(TEXT("اتصال حي ✓"));
+		Self->SetOnline(true, TEXT("اتصال حي"));
+		Self->EmitToast(TEXT("اتصال حي"));
 		// hello
 		TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
 		Msg->SetStringField(TEXT("type"), TEXT("hello"));
@@ -1053,7 +1053,7 @@ void URok2Api::ConnectWebSocket()
 				Self->UpsertMarch(E);
 				if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 				{
-					Self->EmitToast(TEXT("انطلقت المسيرة ⚔️"));
+					Self->EmitToast(TEXT("انطلقت المسيرة"));
 				}
 				// P4-T4: عودة مسيرة جمع بموارد — صوت حصاد للاعب صاحب المسيرة
 				if (Type == TEXT("march_returning") && E.OwnerPlayerId == Self->Player.Id &&
@@ -1101,7 +1101,7 @@ void URok2Api::ConnectWebSocket()
 		}
 		else if (Type == TEXT("battle_report"))
 		{
-			Self->EmitToast(TEXT("تقرير قتال جديد ⚔️"));
+			Self->EmitToast(TEXT("تقرير قتال جديد"));
 			const TSharedPtr<FJsonObject>* ReportObj;
 			if (Obj->TryGetObjectField(TEXT("report"), ReportObj) && ReportObj->IsValid())
 			{
@@ -1116,7 +1116,7 @@ void URok2Api::ConnectWebSocket()
 						(Report.Winner == TEXT("defender") && Report.AttackerPlayerId != Self->Player.Id);
 					Audio->PlaySfx(bVictory ? ERok2AudioType::BattleVictory : ERok2AudioType::BattleDefeat);
 				}
-				Self->PushNotification(TEXT("combat"), TEXT("⚔️ تقرير قتال"),
+				Self->PushNotification(TEXT("combat"), TEXT("تقرير قتال"),
 					FString::Printf(TEXT("%s — %s"), *Report.Kind, *Report.Winner), 8.f);
 			}
 			else
@@ -1129,7 +1129,7 @@ void URok2Api::ConnectWebSocket()
 			// فتح منطقة جديدة (P2-T4) — إشعار بارز في الـ HUD (P2-T6)
 			const FString RegionId = Rok2Json::Str(Obj, TEXT("regionId"));
 			const int32 ZoneId = (int32)Rok2Json::Num(Obj, TEXT("zoneId"));
-			Self->PushNotification(TEXT("zone"), TEXT("🗺️ انفتحت منطقة جديدة"),
+			Self->PushNotification(TEXT("zone"), TEXT("انفتحت منطقة جديدة"),
 				FString::Printf(TEXT("Zone %d — %s أصبحت متاحة الآن"), ZoneId, *RegionId), 10.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
 			{
@@ -1142,7 +1142,7 @@ void URok2Api::ConnectWebSocket()
 			// اكتمال بحث (P2-T3) — إشعار + مزامنة
 			const FString TechId = Rok2Json::Str(Obj, TEXT("techId"));
 			const int32 Level = (int32)Rok2Json::Num(Obj, TEXT("level"));
-			Self->PushNotification(TEXT("toast"), TEXT("🔬 اكتمل البحث"),
+			Self->PushNotification(TEXT("toast"), TEXT("اكتمل البحث"),
 				FString::Printf(TEXT("%s → مستوى %d"), *TechId, Level), 6.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
 			{
@@ -1154,7 +1154,7 @@ void URok2Api::ConnectWebSocket()
 		{
 			// انطلاق حملة rally (P2-T5)
 			const FString TargetId = Rok2Json::Str(Obj, TEXT("targetId"));
-			Self->PushNotification(TEXT("rally"), TEXT("🚩 انطلقت حملة التحالف"),
+			Self->PushNotification(TEXT("rally"), TEXT("انطلقت حملة التحالف"),
 				FString::Printf(TEXT("rally على %s"), *TargetId), 8.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
 			{
@@ -1166,7 +1166,7 @@ void URok2Api::ConnectWebSocket()
 		{
 			const int32 Day = (int32)Rok2Json::Num(Obj, TEXT("day"));
 			Self->World.SeasonDay = Day;
-			Self->PushNotification(TEXT("zone"), TEXT("📅 يوم جديد في الموسم"),
+			Self->PushNotification(TEXT("zone"), TEXT("يوم جديد في الموسم"),
 				FString::Printf(TEXT("اليوم %d"), Day), 5.f);
 		}
 		else if (Type == TEXT("scout_arrived"))
@@ -1175,7 +1175,7 @@ void URok2Api::ConnectWebSocket()
 			const FString ScoutId = Rok2Json::Str(Obj, TEXT("scoutId"));
 			const double ToX = Rok2Json::Num(Obj, TEXT("toX"));
 			const double ToY = Rok2Json::Num(Obj, TEXT("toY"));
-			Self->PushNotification(TEXT("toast"), TEXT("🔭 عادت الكشافة"),
+			Self->PushNotification(TEXT("toast"), TEXT("عادت الكشافة"),
 				FString::Printf(TEXT("كشفت المنطقة حول (%.0f, %.0f)"), ToX, ToY), 6.f);
 		}
 	});

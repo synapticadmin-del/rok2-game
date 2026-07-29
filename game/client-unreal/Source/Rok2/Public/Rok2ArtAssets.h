@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Styling/SlateBrush.h"
 #include "Rok2ArtAssets.generated.h"
 
 class UStaticMesh;
@@ -61,6 +62,23 @@ public:
 
 	/** مسار الملف على القرص داخل المحتوى */
 	static FString DiskPath(const FString& GlbFile);
+
+	// -------------------------------------------------------------------
+	// P6-T1: نظام أيقونات UI الموحد — يُخدم من هنا (تفويض لـ URok2IconLibrary)
+	// -------------------------------------------------------------------
+
+	/**
+	 * يعيد FSlateBrush لأيقونة UI إجرائية بالمعرّف والحجم المطلوب (24/32/48).
+	 * Tint يصبغ الأيقونة (الافتراضي عاجي #F5E9D0). المعرّفات: food/wood/stone/gold/
+	 * gems/ap/build/sword/shield/helmet/bag/banner/scroll/map/edit/bell/lock/...
+	 * انظر URok2IconLibrary::GetIconIds للقائمة الكاملة.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Icons")
+	static FSlateBrush GetIconBrush(const FString& IconId, float Size = 32.f, FLinearColor Tint = FLinearColor(0.96f, 0.91f, 0.81f, 1.f));
+
+	/** هل يوجد رسم لهذا المعرّف؟ */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
+	static bool HasIcon(const FString& IconId);
 
 protected:
 	UPROPERTY(Transient)

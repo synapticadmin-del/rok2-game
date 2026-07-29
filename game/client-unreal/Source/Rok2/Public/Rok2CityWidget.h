@@ -13,6 +13,7 @@ class UButton;
 class UEditableTextBox;
 class UComboBoxString;
 class USpinBox;
+class UImage;
 
 UCLASS()
 class URok2CityWidget : public UUserWidget
@@ -22,6 +23,20 @@ class URok2CityWidget : public UUserWidget
 public:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* ResourcesText;
+
+	// P6-T1: الموارد أصبحت 4 نصوص منفصلة بجانب أيقونات إجرائية
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ResFoodVal;
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ResWoodVal;
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ResStoneVal;
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ResGoldVal;
+
+	// P6-T1: شارة الاتصال أيقونة إجرائية (خضراء/حمراء)
+	UPROPERTY(meta = (BindWidgetOptional))
+	UImage* ConnIcon;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* PlayerInfoText;

@@ -1,7 +1,9 @@
 // Copyright ROK2. Battle Report Widget impl — P1-T4.
+// P6-T1: أيقونات النتائج والحالات إجرائية من URok2ArtAssets (بدل الإيموجي).
 
 #include "Rok2BattleReportWidget.h"
 #include "Rok2Api.h"
+#include "Rok2ArtAssets.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -12,6 +14,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ScrollBox.h"
+#include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
 
 static FLinearColor Rok2Gold() { return FLinearColor(1.0f, 0.84f, 0.2f); }
@@ -63,20 +66,42 @@ void URok2BattleReportWidget::NativeConstruct()
 		MainVBox->AddChildToVerticalBox(TitleHBox)->SetPadding(FMargin(14, 12, 14, 8));
 
 		UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Title"));
-		Title->SetText(FText::FromString(TEXT("📜 تقارير القتال (Battle Reports)")));
+		Title->SetText(FText::FromString(TEXT("تقارير القتال (Battle Reports)")));
 		Title->SetColorAndOpacity(FSlateColor(Rok2Gold()));
 		FSlateFontInfo TitleFont = Title->GetFont();
 		TitleFont.Size = 18;
 		Title->SetFont(TitleFont);
+
+		// P6-T1: أيقونة مخطوط إجرائية في ترويسة اللوحة
+		UImage* TitleIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("TitleIcon"));
+		TitleIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scroll"), 20.f, Rok2Gold()));
+		TitleIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+		UHorizontalBoxSlot* IcoSlot = TitleHBox->AddChildToHorizontalBox(TitleIco);
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetPadding(FMargin(0, 0, 8, 0));
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
 		UHorizontalBoxSlot* TitleSlot = TitleHBox->AddChildToHorizontalBox(Title);
 		TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		TitleSlot->SetVerticalAlignment(VAlign_Center);
 
 		UButton* CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
-		UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
-		CloseText->SetText(FText::FromString(TEXT("✖ إغلاق")));
-		CloseText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		CloseButton->AddChild(CloseText);
+		// P6-T1: زر إغلاق بأيقونة × إجرائية + نص
+		{
+			UHorizontalBox* CloseBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			CloseButton->AddChild(CloseBox);
+			UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 14.f, FLinearColor::White));
+			CloseIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+			UHorizontalBoxSlot* CIcoSlot = CloseBox->AddChildToHorizontalBox(CloseIco);
+			CIcoSlot->SetPadding(FMargin(4, 0, 4, 0));
+			CIcoSlot->SetVerticalAlignment(VAlign_Center);
+			CIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+			CloseText->SetText(FText::FromString(TEXT("إغلاق")));
+			CloseText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			CloseBox->AddChildToHorizontalBox(CloseText)->SetVerticalAlignment(VAlign_Center);
+		}
 		CloseButton->OnClicked.AddDynamic(this, &URok2BattleReportWidget::OnCloseClicked);
 		TitleHBox->AddChildToHorizontalBox(CloseButton)->SetVerticalAlignment(VAlign_Center);
 
@@ -142,37 +167,49 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 	{
 		const FRok2BattleReport& R = Reports[i];
 
-		// تحديد النتيجة من منظور اللاعب
+		// تحديد النتيجة من منظور اللاعب — P6-T1: أيقونة إجرائية مصبوغة
 		const bool bMine = (R.AttackerPlayerId == MyId);
-		FString ResultIcon;
+		FString ResultIconId;
 		FLinearColor ResultColor;
 		if (R.Winner == TEXT("draw"))
 		{
-			ResultIcon = TEXT("🤝");
+			ResultIconId = TEXT("handshake");
 			ResultColor = FLinearColor(0.9f, 0.8f, 0.3f);
 		}
 		else if ((R.Winner == TEXT("attacker")) == bMine)
 		{
-			ResultIcon = TEXT("🏆");
+			ResultIconId = TEXT("trophy");
 			ResultColor = FLinearColor(0.3f, 0.9f, 0.4f);
 		}
 		else
 		{
-			ResultIcon = TEXT("💀");
+			ResultIconId = TEXT("skull");
 			ResultColor = FLinearColor(0.95f, 0.35f, 0.3f);
 		}
 
 		const FDateTime Dt = FDateTime::FromUnixTimestamp(R.CreatedAt / 1000);
-		const FString Label = FString::Printf(TEXT("%s %s · %s\n%02d:%02d"),
-			*ResultIcon, *KindLabel(R.Kind), bMine ? TEXT("هجومك") : TEXT("معركة"),
-			Dt.GetHour(), Dt.GetMinute());
 
 		UButton* Row = NewObject<UButton>(this);
+		UHorizontalBox* RowBox = NewObject<UHorizontalBox>(this);
+		Row->AddChild(RowBox);
+
+		// أيقونة النتيجة الإجرائية
+		UImage* Ico = NewObject<UImage>(this);
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(ResultIconId, 18.f, ResultColor));
+		Ico->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+		UHorizontalBoxSlot* IcoSlot = RowBox->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(4, 0, 6, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
 		UTextBlock* RowText = NewObject<UTextBlock>(this);
+		const FString Label = FString::Printf(TEXT("%s · %s\n%02d:%02d"),
+			*KindLabel(R.Kind), bMine ? TEXT("هجومك") : TEXT("معركة"),
+			Dt.GetHour(), Dt.GetMinute());
 		RowText->SetText(FText::FromString(Label));
 		RowText->SetColorAndOpacity(FSlateColor(ResultColor));
 		RowText->SetAutoWrapText(true);
-		Row->AddChild(RowText);
+		RowBox->AddChildToHorizontalBox(RowText)->SetVerticalAlignment(VAlign_Center);
 
 		URok2ReportRowHandler* Handler = NewObject<URok2ReportRowHandler>(this);
 		Handler->Index = i;
@@ -200,33 +237,116 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		DetailPanel->AddChildToVerticalBox(T)->SetPadding(Pad);
 	};
 
-	// العنوان
+	// العنوان — P6-T1: أيقونة إجرائية للنتيجة + عنوان نصي
 	const bool bAttackerWon = (R.Winner == TEXT("attacker"));
-	const FString Headline = R.Winner == TEXT("draw")
-		? TEXT("🤝 تعادل — انسحاب الطرفين")
-		: (bAttackerWon ? TEXT("🏆 انتصار المهاجم") : TEXT("🛡️ صمود المدافع"));
-	AddLine(FString::Printf(TEXT("%s\n%s"), *Headline, *KindLabel(R.Kind)), Rok2Gold(), 17, FMargin(12, 12, 12, 4));
+	const TCHAR* HeadlineIconId = TEXT("handshake");
+	FString Headline;
+	if (R.Winner == TEXT("draw"))
+	{
+		Headline = TEXT("تعادل — انسحاب الطرفين");
+		HeadlineIconId = TEXT("handshake");
+	}
+	else if (bAttackerWon)
+	{
+		Headline = TEXT("انتصار المهاجم");
+		HeadlineIconId = TEXT("trophy");
+	}
+	else
+	{
+		Headline = TEXT("صمود المدافع");
+		HeadlineIconId = TEXT("shield");
+	}
+
+	// صف عنوان التفاصيل: أيقونة + نص
+	{
+		UHorizontalBox* HeadRow = NewObject<UHorizontalBox>(this);
+		UImage* Ico = NewObject<UImage>(this);
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(HeadlineIconId, 20.f, Rok2Gold()));
+		Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+		UHorizontalBoxSlot* IcoSlot = HeadRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* T = NewObject<UTextBlock>(this);
+		T->SetText(FText::FromString(FString::Printf(TEXT("%s\n%s"), *Headline, *KindLabel(R.Kind))));
+		T->SetColorAndOpacity(FSlateColor(Rok2Gold()));
+		FSlateFontInfo F = T->GetFont();
+		F.Size = 17;
+		T->SetFont(F);
+		T->SetAutoWrapText(true);
+		HeadRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
+		DetailPanel->AddChildToVerticalBox(HeadRow)->SetPadding(FMargin(12, 12, 12, 4));
+	}
 
 	// القوة قبل المعركة
-	AddLine(FString::Printf(TEXT("⚔️ القوة قبل المعركة — مهاجم: %d · مدافع: %d"),
+	AddLine(FString::Printf(TEXT("القوة قبل المعركة — مهاجم: %d · مدافع: %d"),
 		R.Attacker.PowerBefore, R.Defender.PowerBefore),
 		FLinearColor(0.8f, 0.85f, 0.9f), 13, FMargin(12, 8, 12, 0));
 
-	// المهاجم
-	AddLine(TEXT("🔴 المهاجم"), FLinearColor(0.95f, 0.45f, 0.4f), 15, FMargin(12, 14, 12, 2));
+	// المهاجم (أيقونة سيف حمراء)
+	{
+		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
+		UImage* Ico = NewObject<UImage>(this);
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 15.f, FLinearColor(0.95f, 0.45f, 0.4f)));
+		Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+		UHorizontalBoxSlot* IcoSlot = SideRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* T = NewObject<UTextBlock>(this);
+		T->SetText(FText::FromString(TEXT("المهاجم")));
+		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.45f, 0.4f)));
+		FSlateFontInfo F = T->GetFont();
+		F.Size = 15;
+		T->SetFont(F);
+		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
+		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
+	}
 	AddLine(SummarizeSide(R.Attacker), FLinearColor::White);
 
-	// المدافع
-	AddLine(TEXT("🔵 المدافع"), FLinearColor(0.45f, 0.65f, 1.0f), 15, FMargin(12, 14, 12, 2));
+	// المدافع (أيقونة درع زرقاء)
+	{
+		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
+		UImage* Ico = NewObject<UImage>(this);
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("shield"), 15.f, FLinearColor(0.45f, 0.65f, 1.0f)));
+		Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+		UHorizontalBoxSlot* IcoSlot = SideRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* T = NewObject<UTextBlock>(this);
+		T->SetText(FText::FromString(TEXT("المدافع")));
+		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.65f, 1.0f)));
+		FSlateFontInfo F = T->GetFont();
+		F.Size = 15;
+		T->SetFont(F);
+		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
+		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
+	}
 	AddLine(SummarizeSide(R.Defender), FLinearColor::White);
 
-	// ملاحظة المستشفى
+	// ملاحظة المستشفى (أيقونة صليب خضراء)
 	int32 SevTotal = 0;
 	for (const FRok2TroopLoss& L : R.Attacker.Severely) SevTotal += L.Count;
 	if (SevTotal > 0)
 	{
-		AddLine(FString::Printf(TEXT("🏥 %d جريح خطير يحتاجون مستشفى للشفاء"), SevTotal),
-			FLinearColor(0.4f, 0.9f, 0.7f), 12, FMargin(12, 16, 12, 12));
+		UHorizontalBox* HospRow = NewObject<UHorizontalBox>(this);
+		UImage* Ico = NewObject<UImage>(this);
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("cross"), 14.f, FLinearColor(0.4f, 0.9f, 0.7f)));
+		Ico->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+		UHorizontalBoxSlot* IcoSlot = HospRow->AddChildToHorizontalBox(Ico);
+		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* T = NewObject<UTextBlock>(this);
+		T->SetText(FText::FromString(FString::Printf(TEXT("%d جريح خطير يحتاجون مستشفى للشفاء"), SevTotal)));
+		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.9f, 0.7f)));
+		FSlateFontInfo F = T->GetFont();
+		F.Size = 12;
+		T->SetFont(F);
+		T->SetAutoWrapText(true);
+		HospRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
+		DetailPanel->AddChildToVerticalBox(HospRow)->SetPadding(FMargin(12, 16, 12, 12));
 	}
 }
 
@@ -260,7 +380,7 @@ FString URok2BattleReportWidget::SummarizeSide(const FRok2BattleSide& Side)
 	if (Units.IsEmpty()) Units = TEXT("بدون خسائر");
 
 	return FString::Printf(
-		TEXT("الخسائر: %d (💀 %d · 🩸 خطير %d · 🤕 خفيف %d)\nالمتبقي: %d\n%s"),
+		TEXT("الخسائر: %d (قتلى %d · خطير %d · خفيف %d)\nالمتبقي: %d\n%s"),
 		TotalLoss, Dead, Sev, Slight, Remaining, *Units);
 }
 

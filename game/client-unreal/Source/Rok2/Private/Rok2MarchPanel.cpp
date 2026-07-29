@@ -1,7 +1,9 @@
 // Copyright ROK2.
+// P6-T1: أيقونات إجرائية من URok2ArtAssets في أزرار الكشافة والإرسال (بدل الإيموجي).
 
 #include "Rok2MarchPanel.h"
 #include "Rok2Api.h"
+#include "Rok2ArtAssets.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -14,6 +16,7 @@
 #include "Components/SpinBox.h"
 #include "Components/Button.h"
 #include "Components/Spacer.h"
+#include "Components/Image.h"
 #include "Components/ComboBoxString.h"
 
 void URok2MarchPanel::NativeConstruct()
@@ -118,17 +121,28 @@ void URok2MarchPanel::NativeConstruct()
 		UVerticalBoxSlot* SpacerSlot = VBox->AddChildToVerticalBox(Spacer);
 		SpacerSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
-		// P5-T5: زر استكشاف (يرسل كشافة بدون قوات)
+		// P5-T5: زر استكشاف (يرسل كشافة بدون قوات) — P6-T1: أيقونة منظار إجرائية
 		UButton* ScoutButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ScoutButton"));
 		ScoutButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.5f, 0.8f));
 		UVerticalBoxSlot* ScoutSlot = VBox->AddChildToVerticalBox(ScoutButton);
 		ScoutSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
 
-		UTextBlock* ScoutText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ScoutText"));
-		ScoutText->SetText(FText::FromString(TEXT("🔭 إرسال كشافة (Scout)")));
-		ScoutText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		ScoutText->Font.Size = 16;
-		ScoutButton->AddChild(ScoutText);
+		{
+			UHorizontalBox* ScoutBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			ScoutButton->AddChild(ScoutBox);
+			UImage* ScoutIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			ScoutIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scout"), 18.f, FLinearColor::White));
+			ScoutIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+			UHorizontalBoxSlot* IcoSlot = ScoutBox->AddChildToHorizontalBox(ScoutIco);
+			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* ScoutText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ScoutText"));
+			ScoutText->SetText(FText::FromString(TEXT("إرسال كشافة (Scout)")));
+			ScoutText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			ScoutText->Font.Size = 16;
+			ScoutBox->AddChildToHorizontalBox(ScoutText)->SetVerticalAlignment(VAlign_Center);
+		}
 		ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
 
 		DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
@@ -137,11 +151,23 @@ void URok2MarchPanel::NativeConstruct()
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
 		BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
-		UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
-		BtnText->SetText(FText::FromString(TEXT("⚔️ إرسال المسيرة (Dispatch March)")));
-		BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		BtnText->Font.Size = 18;
-		DispatchButton->AddChild(BtnText);
+		// P6-T1: أيقونة سيف إجرائية بجانب نص الإرسال
+		{
+			UHorizontalBox* DispatchBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			DispatchButton->AddChild(DispatchBox);
+			UImage* DispatchIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			DispatchIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 20.f, FLinearColor::White));
+			DispatchIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			UHorizontalBoxSlot* IcoSlot = DispatchBox->AddChildToHorizontalBox(DispatchIco);
+			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* BtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BtnText"));
+			BtnText->SetText(FText::FromString(TEXT("إرسال المسيرة (Dispatch March)")));
+			BtnText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			BtnText->Font.Size = 18;
+			DispatchBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
 	}

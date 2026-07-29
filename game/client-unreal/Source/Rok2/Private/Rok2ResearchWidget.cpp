@@ -1,11 +1,14 @@
 #include "Rok2ResearchWidget.h"
+#include "Rok2ArtAssets.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
+#include "Components/Image.h"
 
 #include "Rok2Api.h"
 
@@ -61,9 +64,21 @@ void URok2ResearchWidget::NativeConstruct()
         TechItem->AddChildToHorizontalBox(TechInfo);
 
         UButton* ResearchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ResearchButton"));
-        UTextBlock* ResearchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResearchButtonText"));
-        ResearchButtonText->SetText(FText::FromString(TEXT("🔬 بحث (Research)")));
-        ResearchButton->AddChild(ResearchButtonText);
+        // P6-T1: زر بحث بأيقونة قارورة إجرائية + نص (بدل 🔬)
+        {
+            UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+            ResearchButton->AddChild(BtnBox);
+            UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+            Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("flask"), 16.f, FLinearColor::White));
+            Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+            UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
+            IcoSlot->SetPadding(FMargin(4, 0, 4, 0));
+            IcoSlot->SetVerticalAlignment(VAlign_Center);
+            IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+            UTextBlock* ResearchButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResearchButtonText"));
+            ResearchButtonText->SetText(FText::FromString(TEXT("بحث (Research)")));
+            BtnBox->AddChildToHorizontalBox(ResearchButtonText)->SetVerticalAlignment(VAlign_Center);
+        }
         TechItem->AddChildToHorizontalBox(ResearchButton);
 
         ResearchButton->OnClicked.AddDynamic(this, &URok2ResearchWidget::OnResearchButtonClicked);

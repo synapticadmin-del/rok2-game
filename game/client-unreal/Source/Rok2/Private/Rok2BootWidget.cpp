@@ -1,5 +1,6 @@
 #include "Rok2BootWidget.h"
 #include "Rok2Api.h"
+#include "Rok2ArtAssets.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/ComboBoxString.h"
@@ -7,8 +8,11 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
+#include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
 
 void URok2BootWidget::Setup(URok2Api* InApi)
@@ -75,16 +79,27 @@ void URok2BootWidget::NativeConstruct()
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
 		CardBorder->SetContent(VBox);
 
-		// Title
-		UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-		TitleText->SetText(FText::FromString(TEXT("👑 ROK2 : RISE OF KINGDOMS 2")));
-		TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-		FSlateFontInfo TitleFont = TitleText->GetFont();
-		TitleFont.Size = 22;
-		TitleText->SetFont(TitleFont);
-		UVerticalBoxSlot* TitleSlot = VBox->AddChildToVerticalBox(TitleText);
-		TitleSlot->SetHorizontalAlignment(HAlign_Center);
-		TitleSlot->SetPadding(FMargin(0, 15, 0, 5));
+		// Title — P6-T1: تاج إجرائي + عنوان اللعبة
+		{
+			UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			UVerticalBoxSlot* TitleRowSlot = VBox->AddChildToVerticalBox(TitleRow);
+			TitleRowSlot->SetHorizontalAlignment(HAlign_Center);
+			TitleRowSlot->SetPadding(FMargin(0, 15, 0, 5));
+			UImage* CrownIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			CrownIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 26.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+			CrownIco->SetDesiredSizeOverride(FVector2D(26.f, 26.f));
+			UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(CrownIco);
+			IcoSlot->SetPadding(FMargin(0, 0, 8, 0));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+			TitleText->SetText(FText::FromString(TEXT("ROK2 : RISE OF KINGDOMS 2")));
+			TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
+			FSlateFontInfo TitleFont = TitleText->GetFont();
+			TitleFont.Size = 22;
+			TitleText->SetFont(TitleFont);
+			TitleRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		// Subtitle
 		UTextBlock* SubtitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubtitleText"));
@@ -94,15 +109,26 @@ void URok2BootWidget::NativeConstruct()
 		SubSlot->SetHorizontalAlignment(HAlign_Center);
 		SubSlot->SetPadding(FMargin(0, 0, 0, 20));
 
-		// Enter Button (Guest login)
+		// Enter Button (Guest login) — P6-T1: أيقونة برق إجرائية + نص
 		EnterButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("EnterButton"));
-		UTextBlock* EnterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EnterText"));
-		EnterText->SetText(FText::FromString(TEXT("⚡ دخول سريع كضيف (Quick Guest Login)")));
-		EnterText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		FSlateFontInfo BtnFont = EnterText->GetFont();
-		BtnFont.Size = 15;
-		EnterText->SetFont(BtnFont);
-		EnterButton->AddChild(EnterText);
+		{
+			UHorizontalBox* EnterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			EnterButton->AddChild(EnterBox);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("ap"), 16.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			UHorizontalBoxSlot* IcoSlot = EnterBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* EnterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EnterText"));
+			EnterText->SetText(FText::FromString(TEXT("دخول سريع كضيف (Quick Guest Login)")));
+			EnterText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			FSlateFontInfo BtnFont = EnterText->GetFont();
+			BtnFont.Size = 15;
+			EnterText->SetFont(BtnFont);
+			EnterBox->AddChildToHorizontalBox(EnterText)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		UVerticalBoxSlot* EnterSlot = VBox->AddChildToVerticalBox(EnterButton);
 		EnterSlot->SetPadding(FMargin(30, 10, 30, 15));
@@ -119,13 +145,26 @@ void URok2BootWidget::NativeConstruct()
 		UVerticalBoxSlot* CivSlot = VBox->AddChildToVerticalBox(CivCombo);
 		CivSlot->SetPadding(FMargin(30, 5, 30, 15));
 
-		// Start Journey Button
+		// Start Journey Button — P6-T1: أيقونة سيف إجرائية + نص
 		StartButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartButton"));
-		UTextBlock* StartText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartText"));
-		StartText->SetText(FText::FromString(TEXT("⚔️ ابدأ رحلة التوسع والمجد (Start Journey)")));
-		StartText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		StartText->SetFont(BtnFont);
-		StartButton->AddChild(StartText);
+		{
+			UHorizontalBox* StartBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			StartButton->AddChild(StartBox);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 16.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			UHorizontalBoxSlot* IcoSlot = StartBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* StartText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartText"));
+			StartText->SetText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد (Start Journey)")));
+			StartText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			FSlateFontInfo StartBtnFont = StartText->GetFont();
+			StartBtnFont.Size = 15;
+			StartText->SetFont(StartBtnFont);
+			StartBox->AddChildToHorizontalBox(StartText)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		UVerticalBoxSlot* StartBtnSlot = VBox->AddChildToVerticalBox(StartButton);
 		StartBtnSlot->SetPadding(FMargin(30, 5, 30, 15));
@@ -262,7 +301,7 @@ void URok2BootWidget::OnApiError(const FString& Message)
 	SetLoading(false);
 	if (StatusText)
 	{
-		StatusText->SetText(FText::FromString(FString::Printf(TEXT("⚠ %s"), *Message)));
+		StatusText->SetText(FText::FromString(Message));
 	}
 	UE_LOG(LogTemp, Warning, TEXT("Rok2 API error: %s"), *Message);
 }

@@ -15,6 +15,7 @@ class UButton;
 class UVerticalBox;
 class UBorder;
 class UProgressBar;
+class UImage;
 
 /** حدث زر ثانوي حسب نوع المبنى (تدريب/شفاء/بحث/صناديق) — يفوَّض للخارج */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBuildingAction, const FString&, BuildingId, const FString&, ActionKind);
@@ -49,9 +50,16 @@ protected:
 
 	UPROPERTY() UBorder* SheetBorder;
 	UPROPERTY() UTextBlock* TitleText;
+	// P6-T1: أيقونة المبنى في الترويسة (إجرائية من URok2ArtAssets)
+	UPROPERTY() UImage* HeaderIcon;
 	UPROPERTY() UTextBlock* LevelText;
 	UPROPERTY() UTextBlock* DescText;
+	// P6-T1: التكلفة أصبحت زوجي أيقونة+رقم (طعام/خشب) + أيقونة ساعة للمدة
+	UPROPERTY() UImage* CostFoodIcon;
+	UPROPERTY() UTextBlock* CostFoodText;
+	UPROPERTY() UImage* CostWoodIcon;
 	UPROPERTY() UTextBlock* CostText;
+	UPROPERTY() UImage* TimeIcon;
 	UPROPERTY() UTextBlock* TimeText;
 	UPROPERTY() UProgressBar* QueueBar;
 	UPROPERTY() UTextBlock* QueueText;
@@ -59,6 +67,8 @@ protected:
 	UPROPERTY() UTextBlock* UpgradeBtnText;
 	UPROPERTY() UButton* ActionButton;
 	UPROPERTY() UTextBlock* ActionBtnText;
+	// P6-T1: أيقونة الزر الثانوي حسب نوع الإجراء (تدريب/شفاء/بحث/صناديق)
+	UPROPERTY() UImage* ActionBtnIcon;
 	UPROPERTY() UButton* CloseButton;
 
 	UFUNCTION()
@@ -73,6 +83,8 @@ protected:
 	// نوع الزر الثانوي حسب المبنى
 	FString ActionKindForBuilding(const FString& Id) const;
 	FString ActionLabelForBuilding(const FString& Id) const;
+	// P6-T1: معرّف أيقونة الزر الثانوي الإجرائية
+	FString ActionIconForBuilding(const FString& Id) const;
 
 	// أنيميشن الدخول (انزلاق من أسفل)
 	float SlideT = 0.f;

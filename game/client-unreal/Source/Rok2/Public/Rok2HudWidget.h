@@ -59,8 +59,11 @@ protected:
 	UPROPERTY(Transient) UTextBlock* ResApText;
 	UPROPERTY(Transient) UTextBlock* SeasonText;
 	UPROPERTY(Transient) UTextBlock* ZoneTimerText;
-	UPROPERTY(Transient) UTextBlock* ConnText;
+	// P6-T1: شارة الاتصال أصبحت UImage بأيقونة إجرائية (خضراء/حمراء)
+	UPROPERTY(Transient) UImage* ConnIcon;
 	UPROPERTY(Transient) UTextBlock* BellBadgeText;
+	// P6-T1: أيقونة الجرس الإجرائية — تُصبغ ذهب عند وجود غير مقروء
+	UPROPERTY(Transient) UImage* BellIcon;
 
 	// شارة البنّاء الخامل على زر البناء
 	UPROPERTY(Transient) UTextBlock* BuildBadgeText;

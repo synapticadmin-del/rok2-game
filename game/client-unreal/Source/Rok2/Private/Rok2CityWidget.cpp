@@ -2,6 +2,7 @@
 #include "Rok2Api.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2BlueprintLibrary.h"
+#include "Rok2ArtAssets.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
@@ -15,6 +16,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
 #include "Components/ScrollBox.h"
+#include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
 
 void URok2CityWidget::Setup(URok2Api* InApi)
@@ -79,66 +81,96 @@ void URok2CityWidget::NativeConstruct()
 		UHorizontalBox* TopHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TopHBox"));
 		TopBarBorder->SetContent(TopHBox);
 
-		// Player Info
+		// Player Info — P6-T1: أيقونة حاكم إجرائية + نص
+		{
+			UImage* GovIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("GovIcon"));
+			GovIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("governor"), 18.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+			GovIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+			UHorizontalBoxSlot* IcoSlot = TopHBox->AddChildToHorizontalBox(GovIco);
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetPadding(FMargin(20, 0, 4, 0));
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		}
 		PlayerInfoText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PlayerInfoText"));
-		PlayerInfoText->SetText(FText::FromString(TEXT("👑 Governor | Power: 0")));
+		PlayerInfoText->SetText(FText::FromString(TEXT("Governor | Power: 0")));
 		PlayerInfoText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
 		FSlateFontInfo InfoFont = PlayerInfoText->GetFont();
 		InfoFont.Size = 15;
 		PlayerInfoText->SetFont(InfoFont);
 		UHorizontalBoxSlot* InfoSlot = TopHBox->AddChildToHorizontalBox(PlayerInfoText);
 		InfoSlot->SetVerticalAlignment(VAlign_Center);
-		InfoSlot->SetPadding(FMargin(20, 0, 30, 0));
+		InfoSlot->SetPadding(FMargin(0, 0, 30, 0));
 
-		// Resources
-		ResourcesText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResourcesText"));
-		ResourcesText->SetText(FText::FromString(TEXT("🍲 0   🪵 0   🪨 0   🪙 0")));
-		ResourcesText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.6f)));
-		ResourcesText->SetFont(InfoFont);
-		UHorizontalBoxSlot* ResSlot = TopHBox->AddChildToHorizontalBox(ResourcesText);
-		ResSlot->SetVerticalAlignment(VAlign_Center);
-		ResSlot->SetPadding(FMargin(20, 0, 20, 0));
+		// Resources — P6-T1: 4 أزواج (أيقونة + رقم) بدل سطر إيموجي واحد
+		{
+			auto AddResPair = [&](const TCHAR* IconId, FLinearColor Color) -> UTextBlock* {
+				UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+				Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Color));
+				Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+				UHorizontalBoxSlot* IcoSlot = TopHBox->AddChildToHorizontalBox(Ico);
+				IcoSlot->SetVerticalAlignment(VAlign_Center);
+				IcoSlot->SetPadding(FMargin(6, 0, 3, 0));
+				IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+				UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+				Txt->SetColorAndOpacity(FSlateColor(Color));
+				Txt->SetFont(InfoFont);
+				UHorizontalBoxSlot* TxtSlot = TopHBox->AddChildToHorizontalBox(Txt);
+				TxtSlot->SetVerticalAlignment(VAlign_Center);
+				TxtSlot->SetPadding(FMargin(0, 0, 8, 0));
+				return Txt;
+			};
+			const FLinearColor ResColor(0.4f, 1.0f, 0.6f);
+			ResFoodVal = AddResPair(TEXT("food"), ResColor);
+			ResWoodVal = AddResPair(TEXT("wood"), ResColor);
+			ResStoneVal = AddResPair(TEXT("stone"), ResColor);
+			ResGoldVal = AddResPair(TEXT("gold"), ResColor);
+			ResourcesText = ResFoodVal; // توافق خلفي — لم يعد سطراً واحداً
+		}
 
-		// Connection status badge (P1-T2)
+		// Connection status badge (P1-T2) — P6-T1: أيقونة دائرة إجرائية + نص
+		ConnIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("ConnIcon"));
+		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f, FLinearColor(0.4f, 1.0f, 0.5f)));
+		ConnIcon->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+		{
+			UHorizontalBoxSlot* IcoSlot = TopHBox->AddChildToHorizontalBox(ConnIcon);
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetPadding(FMargin(10, 0, 4, 0));
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		}
 		ConnectionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionText"));
-		ConnectionText->SetText(FText::FromString(TEXT("🟢 متصل")));
+		ConnectionText->SetText(FText::FromString(TEXT("متصل")));
 		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
 		FSlateFontInfo ConnFont = ConnectionText->GetFont();
 		ConnFont.Size = 12;
 		ConnectionText->SetFont(ConnFont);
 		UHorizontalBoxSlot* ConnSlot = TopHBox->AddChildToHorizontalBox(ConnectionText);
 		ConnSlot->SetVerticalAlignment(VAlign_Center);
-		ConnSlot->SetPadding(FMargin(10, 0, 10, 0));
+		ConnSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-		// Refresh Button
-		RefreshButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RefreshButton"));
-		UTextBlock* RefText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RefText"));
-		RefText->SetText(FText::FromString(TEXT("🔄 تحديث")));
-		RefText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		RefreshButton->AddChild(RefText);
-		UHorizontalBoxSlot* RefSlot = TopHBox->AddChildToHorizontalBox(RefreshButton);
-		RefSlot->SetVerticalAlignment(VAlign_Center);
-		RefSlot->SetPadding(FMargin(10, 5, 10, 5));
+		// P6-T1: منشئ زر بأيقونة إجرائية + نص
+		auto MakeIconBtn = [&](UButton*& OutBtn, const TCHAR* IconId, const FString& Label, FMargin IcoPad, FMargin BtnPad) {
+			OutBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+			UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			OutBtn->AddChild(BtnBox);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 15.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(IcoPad);
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			Txt->SetText(FText::FromString(Label));
+			Txt->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			BtnBox->AddChildToHorizontalBox(Txt)->SetVerticalAlignment(VAlign_Center);
+			UHorizontalBoxSlot* S = TopHBox->AddChildToHorizontalBox(OutBtn);
+			S->SetVerticalAlignment(VAlign_Center);
+			S->SetPadding(BtnPad);
+		};
 
-		// Map Button
-		MapButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("MapButton"));
-		UTextBlock* MapText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MapText"));
-		MapText->SetText(FText::FromString(TEXT("🗺️ الخريطة")));
-		MapText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		MapButton->AddChild(MapText);
-		UHorizontalBoxSlot* MapSlot = TopHBox->AddChildToHorizontalBox(MapButton);
-		MapSlot->SetVerticalAlignment(VAlign_Center);
-		MapSlot->SetPadding(FMargin(10, 5, 20, 5));
-
-		// Reports Button (P1-T4)
-		ReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ReportsButton"));
-		UTextBlock* RepText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RepText"));
-		RepText->SetText(FText::FromString(TEXT("📜 التقارير")));
-		RepText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		ReportsButton->AddChild(RepText);
-		UHorizontalBoxSlot* RepSlot = TopHBox->AddChildToHorizontalBox(ReportsButton);
-		RepSlot->SetVerticalAlignment(VAlign_Center);
-		RepSlot->SetPadding(FMargin(0, 5, 10, 5));
+		MakeIconBtn(RefreshButton, TEXT("refresh"), TEXT("تحديث"), FMargin(5, 0, 3, 0), FMargin(10, 5, 10, 5));
+		MakeIconBtn(MapButton, TEXT("map"), TEXT("الخريطة"), FMargin(5, 0, 3, 0), FMargin(10, 5, 20, 5));
+		MakeIconBtn(ReportsButton, TEXT("scroll"), TEXT("التقارير"), FMargin(5, 0, 3, 0), FMargin(0, 5, 10, 5));
 
 		// 2. Bottom Left Panel (Buildings)
 		UBorder* LeftPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanel"));
@@ -153,18 +185,44 @@ void URok2CityWidget::NativeConstruct()
 		UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
 		LeftPanel->SetContent(LeftVBox);
 
-		UTextBlock* BldTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("BldTitle"));
-		BldTitle->SetText(FText::FromString(TEXT("🏰 مباني المدينة (City Buildings)")));
-		BldTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-		LeftVBox->AddChildToVerticalBox(BldTitle)->SetPadding(FMargin(10, 10, 10, 5));
+		// P6-T1: منشئ عنوان لوحة = أيقونة إجرائية + نص
+		auto MakePanelTitle = [&](UVerticalBox* Parent, const TCHAR* IconId, const FString& Label, FLinearColor Color, const FMargin& Pad) {
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			Parent->AddChildToVerticalBox(Row)->SetPadding(Pad);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 15.f, Color));
+			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			UHorizontalBoxSlot* IcoSlot = Row->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			T->SetText(FText::FromString(Label));
+			T->SetColorAndOpacity(FSlateColor(Color));
+			Row->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
+		};
+
+		MakePanelTitle(LeftVBox, TEXT("castle"), TEXT("مباني المدينة (City Buildings)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
 
 		UScrollBox* BldScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("BldScroll"));
 		LeftVBox->AddChildToVerticalBox(BldScroll)->SetPadding(FMargin(10, 0, 10, 10));
 
-		UTextBlock* QueueTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("QueueTitle"));
-		QueueTitle->SetText(FText::FromString(TEXT("⏳ الطوابير النشطة (Active Queues)")));
-		QueueTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.8f, 1.0f)));
-		BldScroll->AddChild(QueueTitle);
+		// عنوان الطوابير (أيقونة ساعة رملية + نص)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			BldScroll->AddChild(Row);
+			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("hourglass"), 15.f, FLinearColor(0.2f, 0.8f, 1.0f)));
+			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			UHorizontalBoxSlot* IcoSlot = Row->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			UTextBlock* QueueTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("QueueTitle"));
+			QueueTitle->SetText(FText::FromString(TEXT("الطوابير النشطة (Active Queues)")));
+			QueueTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.8f, 1.0f)));
+			Row->AddChildToHorizontalBox(QueueTitle)->SetVerticalAlignment(VAlign_Center);
+		}
 
 		ActiveQueuesList = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ActiveQueuesList"));
 		BldScroll->AddChild(ActiveQueuesList);
@@ -189,11 +247,8 @@ void URok2CityWidget::NativeConstruct()
 		UVerticalBox* RightVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightVBox"));
 		RightPanel->SetContent(RightVBox);
 
-		// Troop Section
-		UTextBlock* TrpTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TrpTitle"));
-		TrpTitle->SetText(FText::FromString(TEXT("⚔️ الجيش والتدريب (Troops & Training)")));
-		TrpTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-		RightVBox->AddChildToVerticalBox(TrpTitle)->SetPadding(FMargin(10, 10, 10, 5));
+		// Troop Section — P6-T1: عنوان بأيقونة سيف
+		MakePanelTitle(RightVBox, TEXT("sword"), TEXT("الجيش والتدريب (Troops & Training)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
 
 		UScrollBox* TrpScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("TrpScroll"));
 		RightVBox->AddChildToVerticalBox(TrpScroll)->SetPadding(FMargin(10, 0, 10, 5));
@@ -219,11 +274,8 @@ void URok2CityWidget::NativeConstruct()
 		TrainButton->AddChild(TrnBtnText);
 		TrainHBox->AddChildToHorizontalBox(TrainButton);
 
-		// Alliance Section
-		UTextBlock* AllTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AllTitle"));
-		AllTitle->SetText(FText::FromString(TEXT("🛡️ التحالف (Alliance)")));
-		AllTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
-		RightVBox->AddChildToVerticalBox(AllTitle)->SetPadding(FMargin(10, 10, 10, 5));
+		// Alliance Section — P6-T1: عنوان بأيقونة درع
+		MakePanelTitle(RightVBox, TEXT("shield"), TEXT("التحالف (Alliance)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
 
 		UHorizontalBox* AllHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("AllHBox"));
 		RightVBox->AddChildToVerticalBox(AllHBox)->SetPadding(FMargin(10, 0, 10, 10));
@@ -280,26 +332,46 @@ void URok2CityWidget::Refresh()
 		for (const FRok2QueueEntry& Q : C.ActiveQueues)
 		{
 			UHorizontalBox* QHBox = NewObject<UHorizontalBox>(this);
-			
+
+			// P6-T1: أيقونة نوع الطابور إجرائية (بناء/تدريب) بدل الإيموجي
+			const TCHAR* IconId = Q.Type == TEXT("building") ? TEXT("build") : TEXT("sword");
+			UImage* QIco = NewObject<UImage>(this);
+			QIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, FLinearColor::White));
+			QIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+			UHorizontalBoxSlot* IcoSlot = QHBox->AddChildToHorizontalBox(QIco);
+			IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
+			IcoSlot->SetVerticalAlignment(VAlign_Center);
+			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
 			UTextBlock* QTxt = NewObject<UTextBlock>(this);
-			FString QName = Q.Type == TEXT("building") ? FString::Printf(TEXT("🏗️ ترقية %s"), *Q.RefId) : FString::Printf(TEXT("⚔️ تدريب %s"), *Q.RefId);
+			FString QName = Q.Type == TEXT("building") ? FString::Printf(TEXT("ترقية %s"), *Q.RefId) : FString::Printf(TEXT("تدريب %s"), *Q.RefId);
 			QTxt->SetText(FText::FromString(FString::Printf(TEXT("%s إلى %d"), *QName, Q.Level)));
-			
+
 			UHorizontalBoxSlot* TxtSlot = QHBox->AddChildToHorizontalBox(QTxt);
 			TxtSlot->SetPadding(FMargin(0, 0, 10, 0));
 			TxtSlot->SetVerticalAlignment(VAlign_Center);
 
 			UButton* SpeedupBtn = NewObject<UButton>(this);
+			// P6-T1: زر تسريع بأيقونة سهم مزدوج إجرائية + نص
+			UHorizontalBox* SpdBox = NewObject<UHorizontalBox>(this);
+			SpeedupBtn->AddChild(SpdBox);
+			UImage* SpdIco = NewObject<UImage>(this);
+			SpdIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("speedup"), 13.f, FLinearColor::White));
+			SpdIco->SetDesiredSizeOverride(FVector2D(13.f, 13.f));
+			UHorizontalBoxSlot* SpdIcoSlot = SpdBox->AddChildToHorizontalBox(SpdIco);
+			SpdIcoSlot->SetPadding(FMargin(3, 0, 3, 0));
+			SpdIcoSlot->SetVerticalAlignment(VAlign_Center);
+			SpdIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* BtnTxt = NewObject<UTextBlock>(this);
-			BtnTxt->SetText(FText::FromString(TEXT("⏩ تسريع")));
-			SpeedupBtn->AddChild(BtnTxt);
-			
+			BtnTxt->SetText(FText::FromString(TEXT("تسريع")));
+			SpdBox->AddChildToHorizontalBox(BtnTxt)->SetVerticalAlignment(VAlign_Center);
+
 			URok2QueueBtnHandler* Handler = NewObject<URok2QueueBtnHandler>(this);
 			Handler->QueueId = Q.Id;
 			Handler->Api = Api;
 			QueueHandlers.Add(Handler);
 			SpeedupBtn->OnClicked.AddDynamic(Handler, &URok2QueueBtnHandler::OnClick);
-			
+
 			QHBox->AddChildToHorizontalBox(SpeedupBtn);
 			ActiveQueuesList->AddChildToVerticalBox(QHBox);
 		}
@@ -329,7 +401,7 @@ void URok2CityWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void URok2CityWidget::UpdateResourceText()
 {
-	if (!Api || !ResourcesText) return;
+	if (!Api) return;
 	const FRok2City& C = Api->GetCity();
 
 	// accrue محلي منذ آخر مزامنة خادم
@@ -346,10 +418,11 @@ void URok2CityWidget::UpdateResourceText()
 	const int32 Stone = (int32)(C.Resources.Stone + C.Rates.Stone * H);
 	const int32 Gold = (int32)(C.Resources.Gold + C.Rates.Gold * H);
 
-	ResourcesText->SetText(FText::FromString(FString::Printf(
-		TEXT("🍲 %d (+%d/س)   🪵 %d (+%d/س)   🪨 %d (+%d/س)   🪙 %d (+%d/س)"),
-		Food, (int32)C.Rates.Food, Wood, (int32)C.Rates.Wood,
-		Stone, (int32)C.Rates.Stone, Gold, (int32)C.Rates.Gold)));
+	// P6-T1: كل مورد نص منفصل بجانب أيقونته الإجرائية
+	if (ResFoodVal) ResFoodVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Food, (int32)C.Rates.Food)));
+	if (ResWoodVal) ResWoodVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Wood, (int32)C.Rates.Wood)));
+	if (ResStoneVal) ResStoneVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Stone, (int32)C.Rates.Stone)));
+	if (ResGoldVal) ResGoldVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Gold, (int32)C.Rates.Gold)));
 }
 
 void URok2CityWidget::OnCityLoaded(const FRok2City& City)
@@ -409,15 +482,21 @@ void URok2CityWidget::OnToast(const FString& Message)
 
 void URok2CityWidget::OnConnectionState(bool bOnline, const FString& StatusMessage)
 {
+	// P6-T1: شارة الاتصال أيقونة إجرائية تُصبغ حسب الحالة + نص
+	if (ConnIcon)
+	{
+		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f,
+			bOnline ? FLinearColor(0.4f, 1.0f, 0.5f) : FLinearColor(1.0f, 0.5f, 0.4f)));
+	}
 	if (!ConnectionText) return;
 	if (bOnline)
 	{
-		ConnectionText->SetText(FText::FromString(TEXT("🟢 متصل")));
+		ConnectionText->SetText(FText::FromString(TEXT("متصل")));
 		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
 	}
 	else
 	{
-		ConnectionText->SetText(FText::FromString(FString::Printf(TEXT("🔴 %s"), *StatusMessage)));
+		ConnectionText->SetText(FText::FromString(StatusMessage));
 		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.5f, 0.4f)));
 	}
 }
