@@ -8,24 +8,33 @@ public class Rok2 : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// وحدات تظهر في الهيدرات العامة (Public/) — يجب أن تكون عامة، لأن أي
+		// مستهلك لهيدراتنا يحتاج مسارات تضمينها:
+		//   UMG        → Blueprint/UserWidget.h + Components/Button.h (14 هيدر)
+		//   SlateCore  → Styling/SlateBrush.h (Rok2ArtAssets.h, Rok2IconLibrary.h)
+		//   Slate      → مرافقة لـ UMG/SlateCore حسب اصطلاح المحرك
+		//   HTTP       → Interfaces/IHttpRequest.h + IHttpResponse.h (Rok2Api.h)
+		//   WebSockets → IWebSocket.h (Rok2Api.h)
+		//   Json       → FJsonObject في تواقيع عامة (Rok2Api.h, Rok2CivThemes.h)
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"EnhancedInput"
-		});
-
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"HTTP",
-			"WebSockets",
-			"Json",
-			"JsonUtilities",
+			"EnhancedInput",
 			"UMG",
 			"Slate",
 			"SlateCore",
+			"HTTP",
+			"WebSockets",
+			"Json"
+		});
+
+		// وحدات لا يذكرها أي هيدر عام — تبقى خاصة (تُستخدم في .cpp فقط)
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"JsonUtilities",
 			"NavigationSystem",
 			"AIModule",
 			"RenderCore",
