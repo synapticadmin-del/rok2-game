@@ -9,6 +9,7 @@
 #include "Rok2MotionLibrary.h"
 #include "Rok2Typography.h"
 #include "Rok2DelegateBind.h"
+#include "Rok2Onboarding.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -197,6 +198,11 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		Btn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBuildClickedHandler);
 		URok2MotionLibrary::BindPress(Btn, Circle);	// P6-T3: ضغطة محسوسة
 
+		// P6-T4: مرساة إبراز الخطوة الأولى (ابنِ أول مزرعة).
+		// نسجّل Circle لا Btn: الدائرة هي ما يراه اللاعب (96×96 مزخرفة) والزر
+		// محتواها، فالحلقة الذهبية تحيط بالشكل المرئي لا بصندوق داخلي أصغر.
+		URok2Onboarding::Get()->RegisterAnchor(Rok2FtueSpec::AnchorBuild, Circle);
+
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
 		// P6-T1: أيقونة مطرقة إجرائية 48px بدل الإيموجي 🔨
@@ -269,7 +275,9 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	Slot->SetSize(FVector2D(340.f, 52.f));
 
 	// P6-T1: كل زر = أيقونة إجرائية + نص
-	auto MakePill = [&](const FString& IconId, const FString& Label, const FName Handler) {
+	// P6-T4: صارت تعيد Pill (كانت void) ليتمكّن الإرشاد من ترسية زر الخريطة —
+	// الأزرار الثلاثة تُبنى بنفس اللامدا فبلا قيمة راجعة لا سبيل لتمييز واحدها.
+	auto MakePill = [&](const FString& IconId, const FString& Label, const FName Handler) -> UBorder* {
 		UBorder* Pill = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Pill->SetBrushColor(Rok2HudStyle::PanelBg);
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
@@ -291,11 +299,17 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		TxtSlot->SetPadding(FMargin(2, 0, 6, 0));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
 		H->AddChildToHorizontalBox(Pill)->SetPadding(FMargin(0, 0, 10, 0));
+		return Pill;
 	};
 
-	MakePill(TEXT("map"), TEXT("الخريطة"), FName(TEXT("OnMapBtnClickedHandler")));
+	UBorder* MapPill = MakePill(TEXT("map"), TEXT("الخريطة"), FName(TEXT("OnMapBtnClickedHandler")));
 	MakePill(TEXT("scroll"), TEXT("التقارير"), FName(TEXT("OnReportsBtnClickedHandler")));
 	MakePill(TEXT("edit"), TEXT("تحرير المدينة"), FName(TEXT("OnEditCityClickedHandler")));
+
+	// P6-T4: مرساة إبراز الخطوة الثالثة (أول مسيرة جمع). هدف الخطوة عقدة موارد
+	// في العالم لا ودجة، فلا زرّ يُحاط به — نُبرز باب الخريطة، والبطاقة تحمل
+	// بقية الإرشاد («المس عقدة موارد ثم أطلق المسيرة»).
+	URok2Onboarding::Get()->RegisterAnchor(Rok2FtueSpec::AnchorMap, MapPill);
 }
 
 // ---------------------------------------------------------------------------

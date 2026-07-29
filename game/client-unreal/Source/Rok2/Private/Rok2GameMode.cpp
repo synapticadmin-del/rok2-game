@@ -10,6 +10,7 @@
 #include "Rok2CommanderWidget.h"
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2BattleReportWidget.h"
+#include "Rok2OnboardingWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
@@ -140,6 +141,24 @@ void ARok2GameMode::OnPlayerLoadedHandler(const FRok2Player& Player)
 			HudWidget->Setup(Api);
 			HudWidget->AddToViewport(20);
 			BindHudEvents();
+		}
+	}
+
+	// P6-T4: طبقة إرشاد الدقيقة الأولى. تُنشأ **بعد** الـHUD ولوحة المدينة
+	// لأنهما من يسجّل مراسي الإبراز — وحتى لو تأخّر التسجيل فالحلقة تُخفى
+	// وتُعاد المحاولة، فلا اعتماد على ترتيب صارم.
+	//
+	// تُنشأ للجميع ولا تُشترط جِدّة اللاعب هنا: النموذج يقرّر بنفسه عند أول
+	// حالة جاهزة، فاللاعب العائد يُصنَّف Done فلا بطاقة ولا حلقة ولا عمل في
+	// الـTick. لو شرطناها هنا لاحتجنا الحالة قبل وصولها.
+	if (!OnboardingWidget && GetWorld())
+	{
+		OnboardingWidget = Cast<URok2OnboardingWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2OnboardingWidget::StaticClass()));
+		if (OnboardingWidget)
+		{
+			OnboardingWidget->Setup(Api);
+			OnboardingWidget->AddToViewport(60);
 		}
 	}
 

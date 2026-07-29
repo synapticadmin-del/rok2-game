@@ -7,6 +7,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2Typography.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Onboarding.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/HorizontalBox.h"
@@ -37,6 +38,9 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 	{
 		TrainButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnTrainClicked);
 		URok2MotionLibrary::BindPress(TrainButton);
+
+		// P6-T4: مرساة إبراز الخطوة الثانية (درّب أول جنود).
+		URok2Onboarding::Get()->RegisterAnchor(Rok2FtueSpec::AnchorTrain, TrainButton);
 	}
 	if (CreateAllianceButton)
 	{

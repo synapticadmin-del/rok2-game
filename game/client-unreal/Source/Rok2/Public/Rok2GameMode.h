@@ -15,6 +15,7 @@ class URok2BuildMenuWidget;
 class URok2CommanderWidget;
 class URok2AllianceRosterWidget;
 class URok2BattleReportWidget;
+class URok2OnboardingWidget;
 class ARok2ViewManager;
 class ARok2CityBuilder;
 
@@ -52,6 +53,15 @@ public:
 	/** HUD موحد بأسلوب RoK (P5-T3): موارد + أزرار دائرية + إشعارات */
 	UPROPERTY(Transient)
 	URok2HudWidget* HudWidget;
+
+	/**
+	 * طبقة إرشاد الدقيقة الأولى (P6-T4). ترتيب الطبقات: Boot 100 > الإرشاد 60
+	 * > اللوحات 50 > HUD 20 > المدينة 10 — فوق اللوحات لتبقى البطاقة مرئية
+	 * وورقة البناء مفتوحة (وهي الورقة التي تُرشد إليها الخطوة الأولى)، وتحت
+	 * Boot فلا تظهر على شاشة التحميل.
+	 */
+	UPROPERTY(Transient)
+	URok2OnboardingWidget* OnboardingWidget;
 
 	/** مدير العرض مدينة/خريطة */
 	UPROPERTY(Transient)
