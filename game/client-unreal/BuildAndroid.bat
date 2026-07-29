@@ -10,7 +10,7 @@ REM
 REM  عدّل UE_ROOT فقط، ثم شغّل الملف.
 REM ============================================================
 
-set "UE_ROOT=C:\Program Files\Epic Games\UE_5.8"
+if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.4"
 set "PROJECT=%~dp0Rok2.uproject"
 set "ARCHIVE=%~dp0Build\Android"
 

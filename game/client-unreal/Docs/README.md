@@ -6,7 +6,7 @@ C:\Users\kayf\Desktop\rok2\game\client-unreal
 ```
 
 ## المحرك
-- Unreal Engine 5.8
+- Unreal Engine 5.4 أو أحدث
 - C++ module `Rok2`
 - أهداف: Windows + Android (APK)
 

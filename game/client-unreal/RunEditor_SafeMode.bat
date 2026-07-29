@@ -10,7 +10,7 @@ REM   1) عدّل UE_PATH بمسار محرر Unreal عندك.
 REM   2) شغّل الملف بالنقر المزدوج.
 REM ============================================================
 
-set "UE_PATH=C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe"
+if not defined UE_PATH set "UE_PATH=C:\Program Files\Epic Games\UE_5.4\Engine\Binaries\Win64\UnrealEditor.exe"
 set "PROJECT=%~dp0Rok2.uproject"
 
 if not exist "%UE_PATH%" (

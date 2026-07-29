@@ -12,7 +12,7 @@
 
 | المتطلب | التفاصيل |
 |---------|----------|
-| Unreal Engine | 5.8 (مطابق لـ `EngineAssociation` في `Rok2.uproject`) |
+| Unreal Engine | 5.4 أو أحدث (مطابق لـ `EngineAssociation` في `Rok2.uproject`) |
 | Visual Studio 2022 | مع حِمل *Game development with C++* + *.NET desktop* |
 | JDK | 17 |
 | Android Studio | لتثبيت SDK Platform 34 و NDK |
@@ -108,7 +108,7 @@ adb logcat -s UE:V LogRok2:V
 | رسالة الخطأ | الحل |
 |-------------|------|
 | `SDK not found` / `ANDROID_HOME` | أعد تشغيل `SetupAndroid.bat` ثم أعد تشغيل الجهاز |
-| `Missing UE_5.8 ... UnrealBuildTool` | تأكد أن `UE_ROOT` في `BuildAndroid.bat` صحيح |
+| `Missing UE_5.4 ... UnrealBuildTool` | تأكد أن `UE_ROOT` في `BuildAndroid.bat` صحيح |
 | خطأ compile في وحدة `Rok2` | خطأ برمجي فعلي — السجل يحدد الملف والسطر |
 | تعارض `minSdkVersion` | تحقق من تطابق القيمة في `DefaultEngine.ini` و `Android/AndroidEngine.ini` |
 
