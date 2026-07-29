@@ -111,6 +111,7 @@ ERok2Face URok2Typography::FaceOf(ERok2TextRole Role)
 	case ERok2TextRole::Body:
 	case ERok2TextRole::Button:
 	case ERok2TextRole::Caption:
+	case ERok2TextRole::Micro:
 	default:
 		return ERok2Face::Ui;
 	}
@@ -124,10 +125,12 @@ float URok2Typography::SizeOf(ERok2TextRole Role)
 	case ERok2TextRole::Title:        return Rok2TypeScale::Title;
 	case ERok2TextRole::Subtitle:     return Rok2TypeScale::Subtitle;
 	case ERok2TextRole::Button:       return Rok2TypeScale::Button;
-	case ERok2TextRole::Numeric:      return Rok2TypeScale::Numeric;
-	case ERok2TextRole::NumericLarge: return Rok2TypeScale::NumericLarge;
-	case ERok2TextRole::Timer:        return Rok2TypeScale::Timer;
 	case ERok2TextRole::Caption:      return Rok2TypeScale::Caption;
+	case ERok2TextRole::Micro:        return Rok2TypeScale::Micro;
+	// الرقم البارز يوازي عنوان اللوحة، والمورد والمؤقّت على الدرجة الكثيفة
+	case ERok2TextRole::NumericLarge: return Rok2TypeScale::Title;
+	case ERok2TextRole::Numeric:      return Rok2TypeScale::Compact;
+	case ERok2TextRole::Timer:        return Rok2TypeScale::Compact;
 	case ERok2TextRole::Body:
 	default:                          return Rok2TypeScale::Body;
 	}
@@ -153,6 +156,7 @@ FName URok2Typography::WeightOf(ERok2TextRole Role)
 	case ERok2TextRole::Body:
 	case ERok2TextRole::Timer:
 	case ERok2TextRole::Caption:
+	case ERok2TextRole::Micro:
 	default:
 		return Rok2TypeWeight::Regular;
 	}
@@ -190,6 +194,7 @@ TArray<ERok2TextRole> URok2Typography::AllRoles()
 		ERok2TextRole::Body,
 		ERok2TextRole::Button,
 		ERok2TextRole::Caption,
+		ERok2TextRole::Micro,
 		ERok2TextRole::Numeric,
 		ERok2TextRole::NumericLarge,
 		ERok2TextRole::Timer

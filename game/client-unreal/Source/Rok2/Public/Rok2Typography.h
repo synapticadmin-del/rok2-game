@@ -64,54 +64,68 @@ enum class ERok2TextRole : uint8
 	Body,
 	/** نص داخل زر */
 	Button,
-	/** تلميح صغير، طابع زمني، حاشية */
+	/** شارة عدّ، عنوان توست، طابع زمني */
 	Caption,
+	/** أصغر لافتة — تحت الأزرار الدائرية، سطور الطوابير، جسم التوست */
+	Micro,
 	/** رقم مورد في الشريط العلوي */
 	Numeric,
-	/** رقم كبير بارز — القوة، إجمالي الخسائر */
+	/** رقم كبير بارز — إجمالي خسائر، عدّاد ضخم */
 	NumericLarge,
 	/** مؤقّت طابور أو عدّاد تنازلي */
 	Timer
 };
 
 /**
- * سلم الأحجام — مشتق من الأحجام التي كانت مستخدمة فعلاً (12/14/15/16/18/22)
- * فلا تتغيّر أبعاد الشاشات القائمة، مضافاً إليه Display=30 للعناوين الكبرى
- * التي لم يكن لها حجم مخصص. النِسَب تقارب سلماً modular بمعامل ~1.25.
+ * درجات السلم — **مقاسة من الكود القائم لا مُختَرَعة**. الأحجام المستخدمة فعلاً
+ * في 32 موضعاً كانت: 8×1، 11×5، 12×7، 13×3، 14×3، 15×5، 16×1، 17×1، 18×3،
+ * 22×1، 24×2. الدرجات الثماني أدناه تستوعبها كلها بانحراف ±1px كأقصى تقدير،
+ * فلا تتغيّر أبعاد أي شاشة قائمة.
+ *
+ * الاستثناء الوحيد المقصود: الحجم 8 (لافتة تحت الأزرار الدائرية الصغيرة) يصير
+ * Micro=11. الزر قطره 58px ويحمل أيقونة 26px، فـ26+11 يبقى داخله بسهولة، و8px
+ * للعربية غير مقروء أصلاً على الهاتف في لعبة تستهدف PC + Android.
+ *
+ * الفصل مقصود: الدرجات هنا **مقاسات**، والأدوار في ERok2TextRole **معانٍ**.
+ * دور واحد قد يشترك مع آخر في الدرجة (Timer وNumeric على Compact) بلا تكرار رقم.
  */
 namespace Rok2TypeScale
 {
-	static constexpr float Caption      = 12.f;
-	static constexpr float Timer        = 14.f;
-	static constexpr float Body         = 15.f;
-	static constexpr float Button       = 16.f;
-	static constexpr float Numeric      = 16.f;
-	static constexpr float Subtitle     = 18.f;
-	static constexpr float Title        = 22.f;
-	static constexpr float NumericLarge = 22.f;
-	static constexpr float Display      = 30.f;
+	/** لافتات الواجهة الكثيفة — تحت الأزرار الدائرية، سطور الطوابير، جسم التوست */
+	static constexpr float Micro    = 11.f;
+	/** شارات العدّ، عناوين التوست، الطوابع الزمنية */
+	static constexpr float Caption  = 12.f;
+	/** أرقام الموارد والمؤقّتات وعناوين الـHUD — الطبقة الكثيفة فوق العالم */
+	static constexpr float Compact  = 14.f;
+	/** نص الجسم في اللوحات (Bottom Sheets) */
+	static constexpr float Body     = 15.f;
+	/** نص داخل الأزرار */
+	static constexpr float Button   = 16.f;
+	/** عنوان قسم داخل لوحة */
+	static constexpr float Subtitle = 18.f;
+	/** عنوان لوحة أو شاشة */
+	static constexpr float Title    = 22.f;
+	/** أكبر عنوان — شاشة البدء واختيار الحضارة */
+	static constexpr float Display  = 24.f;
 
-	/** أصغر وأكبر حجم مقبولان في الواجهة — حرس ضد قيمة شاذة */
-	static constexpr float Min = 12.f;
+	/** المدى المقبول في الواجهة — حرس ضد قيمة شاذة */
+	static constexpr float Min = 11.f;
 	static constexpr float Max = 48.f;
 }
 
 // السلم تصاعدي فعلاً — لو عدّل أحدهم قيمة فأفسد التراتب، يفشل البناء لا الشكل
-static_assert(Rok2TypeScale::Caption < Rok2TypeScale::Timer
-	&& Rok2TypeScale::Timer < Rok2TypeScale::Body
+static_assert(Rok2TypeScale::Micro < Rok2TypeScale::Caption
+	&& Rok2TypeScale::Caption < Rok2TypeScale::Compact
+	&& Rok2TypeScale::Compact < Rok2TypeScale::Body
 	&& Rok2TypeScale::Body < Rok2TypeScale::Button
 	&& Rok2TypeScale::Button < Rok2TypeScale::Subtitle
 	&& Rok2TypeScale::Subtitle < Rok2TypeScale::Title
 	&& Rok2TypeScale::Title < Rok2TypeScale::Display,
-	"Rok2TypeScale: سلم الأحجام يجب أن يبقى تصاعدياً (Caption < ... < Display)");
+	"Rok2TypeScale: سلم الأحجام يجب أن يبقى تصاعدياً (Micro < ... < Display)");
 
-static_assert(Rok2TypeScale::Caption >= Rok2TypeScale::Min
+static_assert(Rok2TypeScale::Micro >= Rok2TypeScale::Min
 	&& Rok2TypeScale::Display <= Rok2TypeScale::Max,
-	"Rok2TypeScale: كل الأحجام داخل المدى المقبول [Min, Max]");
-
-// الرقم البارز بحجم عنوان اللوحة — تناغم مقصود في الشريط العلوي
-static_assert(Rok2TypeScale::NumericLarge == Rok2TypeScale::Title,
-	"Rok2TypeScale: NumericLarge يوازي Title بالتصميم");
+	"Rok2TypeScale: كل الدرجات داخل المدى المقبول [Min, Max]");
 
 /** أوزان الخط — تُترجم إلى اسم Typeface داخل أصل الخط */
 namespace Rok2TypeWeight
