@@ -40,111 +40,24 @@ for cmd in console_cmds:
         unreal.SystemLibrary.execute_console_command(world, cmd)
 
 # ---------------------------------------------------------------------------
-# P2-T7: استيراد أصول KayKit (GLB) إلى /Game/Art/kaykit كـ uasset
-# — يتخطى الموجود، ولا يؤثر على البناء بدون استيراد (fallback هندسي).
+# استيراد الأصول (GLB/WAV/PNG) — مُفوَّض إلى import_assets.py
+# ذلك السكربت يعمل headless أيضاً، ويحافظ على شجرة المجلدات التي يتوقعها
+# الكود (/Game/Audio/<civ>/music و /Game/Audio/sfx/<name>). المنطق القديم
+# هنا كان يسطّح الشجرة فتتصادم ملفات music.wav الستة.
 # ---------------------------------------------------------------------------
-print(">>> Step 1b: Importing KayKit GLB art assets (P2-T7)...")
-import os, base64
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(globals().get("__file__", r"C:/Users/kayf/Desktop/rok2/game/client-unreal/setup_level.py")))
-ART_SRC = os.path.join(_SCRIPT_DIR, "Content", "Art", "kaykit")
-ART_DST = "/Game/Art/kaykit"
-
-def _ensure_binary_glb(path):
-    """يفك ترميز GLB المخزّن نصياً (base64) إلى binary قبل الاستيراد — P2-T7 fix.
-    بعض البيئات تخزّن GLB كنص base64؛ Unreal يحتاج binary حقيقي يبدأ بـ glTF."""
+print(">>> Step 1b: Importing raw assets via import_assets.py...")
+import os
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(
+    globals().get("__file__", r"C:/Users/kayf/Desktop/rok2/game/client-unreal/setup_level.py")))
+_importer = os.path.join(_SCRIPT_DIR, "import_assets.py")
+if os.path.isfile(_importer):
     try:
-        with open(path, "rb") as fh:
-            head = fh.read(4)
-        if head == b"glTF":
-            return path  # binary سليم
-        with open(path, "rb") as fh:
-            raw = fh.read()
-        decoded = base64.b64decode(raw, validate=True)
-        if decoded[:4] != b"glTF":
-            return path  # ليس base64 GLB — اتركه كما هو
-        with open(path, "wb") as fh:  # decode in place: keep original .glb extension
-            fh.write(decoded)
-        return path
-    except Exception:
-        return path
-
-if os.path.isdir(ART_SRC):
-    tasks = []
-    for fname in sorted(os.listdir(ART_SRC)):
-        if not fname.lower().endswith(".glb"):
-            continue
-        dest_name = fname[:-4]
-        # تخطَّ المستورد مسبقاً
-        if unreal.EditorAssetLibrary.does_asset_exist(f"{ART_DST}/{dest_name}.{dest_name}"):
-            continue
-        task = unreal.AssetImportTask()
-        task.filename = _ensure_binary_glb(os.path.join(ART_SRC, fname))
-        task.destination_path = ART_DST
-        task.destination_name = dest_name
-        task.replace_existing = False
-        task.automated = True
-        task.save = True
-        tasks.append(task)
-    if tasks:
-        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
-    print(f"    imported {len(tasks)} GLB assets (skipped existing).")
+        exec(compile(open(_importer, encoding="utf-8").read(), _importer, "exec"),
+             {"__file__": _importer, "__name__": "rok2_importer"})
+    except SystemExit:
+        print("    [!] الاستيراد أبلغ عن فشل جزئي — راجع اسطر [ROK2] اعلاه.")
 else:
-    print("    no kaykit folder found — geometric fallback stays active.")
-
-# ---------------------------------------------------------------------------
-# P4-T2: فك ترميز الأصول الثنائية المخزنة base64 (WAV/PNG) ثم استيرادها:
-#   Content/Audio/<civ>/music.wav + Content/Audio/sfx/*.wav  → /Game/Audio/...
-#   Content/Art/Commanders/<id>.png                          → /Game/Art/Commanders
-# ---------------------------------------------------------------------------
-print(">>> Step 1c: Decoding + importing audio (WAV) and commander portraits (PNG) — P4-T2...")
-CONTENT_ROOT = os.path.join(_SCRIPT_DIR, "Content")
-
-def _ensure_binary(path, magic):
-    """يفك base64 إن لزم (نفس نمط _ensure_binary_glb) ويعيد مساراً binary صالحاً."""
-    try:
-        with open(path, "rb") as fh:
-            head = fh.read(len(magic))
-        if head == magic:
-            return path
-        with open(path, "rb") as fh:
-            raw = fh.read()
-        decoded = base64.b64decode(raw, validate=True)
-        if decoded[: len(magic)] != magic:
-            return path
-        with open(path, "wb") as fh:  # decode in place: keep original extension (.wav/.png)
-            fh.write(decoded)
-        return path
-    except Exception:
-        return path
-
-def _import_tree(src_root, dst_root, exts_magics):
-    """يستورد كل ملفات exts من src_root إلى dst_root (متكرر، يتخطى الموجود)."""
-    imported = 0
-    if not os.path.isdir(src_root):
-        return 0
-    for dirpath, _dirs, files in os.walk(src_root):
-        for fname in sorted(files):
-            ext = os.path.splitext(fname)[1].lower()
-            magic = exts_magics.get(ext)
-            if not magic:
-                continue
-            dest_name = os.path.splitext(fname)[0]
-            if unreal.EditorAssetLibrary.does_asset_exist(f"{dst_root}/{dest_name}.{dest_name}"):
-                continue
-            task = unreal.AssetImportTask()
-            task.filename = _ensure_binary(os.path.join(dirpath, fname), magic)
-            task.destination_path = dst_root
-            task.destination_name = dest_name
-            task.replace_existing = False
-            task.automated = True
-            task.save = True
-            unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
-            imported += 1
-    return imported
-
-_n_audio = _import_tree(os.path.join(CONTENT_ROOT, "Audio"), "/Game/Audio", {".wav": b"RIFF"})
-_n_portraits = _import_tree(os.path.join(CONTENT_ROOT, "Art", "Commanders"), "/Game/Art/Commanders", {".png": b"\x89PNG"})
-print(f"    imported {_n_audio} WAV + {_n_portraits} commander portraits (skipped existing).")
+    print("    [!] import_assets.py غير موجود — سيُستخدم الاحتياطي الهندسي.")
 
 print(">>> Step 2: Cleaning ALL old duplicated actors from level...")
 all_actors = editor_subsys.get_all_level_actors()
