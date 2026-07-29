@@ -6,6 +6,7 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2DelegateBind.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -261,7 +262,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		UHorizontalBoxSlot* TxtSlot = BtnBox->AddChildToHorizontalBox(OutTxt);
 		TxtSlot->SetPadding(FMargin(0, 2, 6, 2));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
-		OutBtn->OnClicked.AddDynamic(this, Handler);
+		Rok2BindClickByName(OutBtn, this, Handler);
 		// P6-T3: ضغطة محسوسة (تصغير + نقرة) على حاوية الزر
 		URok2MotionLibrary::BindPress(OutBtn, B);
 		UHorizontalBoxSlot* S = BtnRow->AddChildToHorizontalBox(B);

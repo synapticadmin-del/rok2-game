@@ -6,6 +6,7 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2DelegateBind.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -126,7 +127,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 	// P6-T1: كل تبويب = أيقونة إجرائية + نص
 	auto MakeTab = [&](UTextBlock*& OutTxt, const FString& IconId, const FString& Label, const FName Handler) {
 		UButton* B = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-		B->OnClicked.AddDynamic(this, Handler);
+		Rok2BindClickByName(B, this, Handler);
 		URok2MotionLibrary::BindPress(B);	// P6-T3: ضغطة محسوسة على التبويب
 		UHorizontalBox* TabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		B->AddChild(TabBox);

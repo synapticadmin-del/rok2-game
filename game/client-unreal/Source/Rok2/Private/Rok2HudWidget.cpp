@@ -7,6 +7,7 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2DelegateBind.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -239,7 +240,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Circle->SetContent(Btn);
-		Btn->OnClicked.AddDynamic(this, Handler);
+		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn, Circle);	// P6-T3: ضغطة محسوسة
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -279,7 +280,7 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		Pill->SetBrushColor(Rok2HudStyle::PanelBg);
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Pill->SetContent(Btn);
-		Btn->OnClicked.AddDynamic(this, Handler);
+		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn, Pill);	// P6-T3: ضغطة محسوسة
 		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(PillBox);

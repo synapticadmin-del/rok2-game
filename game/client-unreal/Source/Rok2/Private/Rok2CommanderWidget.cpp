@@ -7,6 +7,7 @@
 #include "Rok2CivThemes.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2DelegateBind.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -268,7 +269,7 @@ void URok2CommanderWidget::BuildUI()
 
 	auto MakeActionBtn = [&](const FString& IconId, const FString& Label, const FName Handler, bool bPadRight) {
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-		Btn->OnClicked.AddDynamic(this, Handler);
+		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn);	// P6-T3: ضغطة محسوسة
 		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(BtnBox);
