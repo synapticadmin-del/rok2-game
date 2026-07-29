@@ -6,6 +6,11 @@ import { resolveCombat, totalTroops, troopPower } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
+
+/** سقف صلب لأي عملية تسريع واحدة (30 يوماً). حاجز أخير ضد قيمة شاذة
+ *  تتسرّب من مسار أعلى — لا يغيّر السلوك الشرعي لأن أطول عنصر تسريع
+ *  في المتجر أقصر من ذلك بكثير. */
+const MAX_SPEEDUP_SECONDS = 30 * 24 * 60 * 60;
 import { researchBuff } from "./sim/research";
 import {
   isRegionUnlocked,
@@ -1553,7 +1558,22 @@ export class KingdomShard extends DurableObject<Env> {
       const body = await request.json<any>();
       const q = this.queues.get(body.queueId);
       if (!q || q.state !== "running") return Response.json({ error: "queue_not_found" }, { status: 404 });
-      q.etaMs = Math.max(nowMs(), q.etaMs - (body.seconds * 1000));
+
+      // ملكية الطابور: بدون هذا يستطيع أي لاعب تسريع طابور لاعب آخر
+      // بمجرد تخمين/معرفة المعرّف.
+      if (!body.playerId || q.playerId !== body.playerId) {
+        return Response.json({ error: "not_your_queue" }, { status: 403 });
+      }
+
+      // الثواني تأتي من مصدر موثوق (عنصر في الحقيبة أو مزية VIP) لكن نتحقق
+      // هنا أيضاً — هذه آخر نقطة قبل تعديل الحالة.
+      const seconds = Number(body.seconds);
+      if (!Number.isFinite(seconds) || seconds <= 0) {
+        return Response.json({ error: "invalid_seconds" }, { status: 400 });
+      }
+      const cappedSeconds = Math.min(seconds, MAX_SPEEDUP_SECONDS);
+
+      q.etaMs = Math.max(nowMs(), q.etaMs - cappedSeconds * 1000);
       this.persistQueue(q);
       this.ensureAlarm();
       return Response.json({ ok: true, queue: q });

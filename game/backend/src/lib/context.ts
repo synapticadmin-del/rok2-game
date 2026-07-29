@@ -1,6 +1,7 @@
 import type { Env, PlayerRow, CityRow } from "../env";
 import { verifyToken } from "./auth";
 import { HttpError } from "./errors";
+import { assertAdminKey, requireAuthSecret } from "./secrets";
 
 // P3-T5: تتبع نشاط اللاعب لقياس retention — upsert يوم واحد لكل لاعب (UTC) + last_seen على الحساب.
 // متوافق مع قواعد لم تُرحّل بعد (أخطاء SQL تُبتلع) ولا يعطّل أي طلب.
@@ -27,9 +28,12 @@ export async function requireAuth(request: Request, env: Env) {
     : header.trim();
   if (!token) throw new HttpError(401, "Missing Authorization bearer token");
 
+  // خارج الـ try عمداً: خطأ إعداد السر يجب أن يظهر 500 لا 401 مضلل.
+  const secret = requireAuthSecret(env);
+
   let payload;
   try {
-    payload = await verifyToken(token, env.AUTH_SECRET);
+    payload = await verifyToken(token, secret);
   } catch {
     throw new HttpError(401, "Invalid or expired token");
   }
@@ -65,6 +69,5 @@ export async function requirePlayer(request: Request, env: Env) {
 }
 
 export function requireAdmin(request: Request, env: Env) {
-  const key = request.headers.get("x-admin-key") || "";
-  if (key !== env.ADMIN_KEY) throw new HttpError(403, "Invalid admin key");
+  assertAdminKey(request, env);
 }

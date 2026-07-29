@@ -39,10 +39,9 @@ void ARok2ViewManager::SwitchToMapView()
 
 	if (IsoCamera)
 	{
-		// Smoothly move camera back to map view center
-		// Assuming map is roughly at 0,0 or we can just move it to some offset
-		// You might want to store the last map position
-		IsoCamera->SetActorLocation(FVector(0, 0, 1000));
+		// SnapTo وليس SetActorLocation: الأخيرة تنقل الـ actor بينما يظل
+		// Tick يُقحم نحو TargetLocation القديم، فترتد الكاميرا فوراً.
+		IsoCamera->SnapTo(LastMapLocation);
 	}
 }
 
@@ -65,8 +64,10 @@ void ARok2ViewManager::SwitchToCityView()
 
 	if (IsoCamera)
 	{
-		// Smoothly move camera to city focus
-		IsoCamera->SetActorLocation(FVector(5000, 5000, 1000));
+		// نحفظ موضع الخريطة قبل المغادرة حتى يعود اللاعب حيث كان،
+		// بدل إعادته دائماً إلى مركز العالم.
+		LastMapLocation = IsoCamera->GetActorLocation();
+		IsoCamera->SnapTo(CityViewLocation);
 	}
 }
 

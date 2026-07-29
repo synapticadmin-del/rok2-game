@@ -4,10 +4,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
+  // ADMIN_KEY و AUTH_SECRET أُزيلا من هنا عمداً.
+  // كانا نصاً صريحاً في المستودع ومنشورين على الخادم الحي:
+  //   AUTH_SECRET يوقّع رموز الدخول -> من يملكه ينتحل أي حساب.
+  //   ADMIN_KEY يفتح منح الموارد وتقديم زمن الموسم.
+  // اضبطهما كأسرار حقيقية (لا تُخزَّن في Git):
+  //   wrangler secret put AUTH_SECRET
+  //   wrangler secret put ADMIN_KEY
+  // وللتطوير المحلي: انسخ .dev.vars.example إلى .dev.vars
   "vars": {
-    "KINGDOM_ID": "kingdom-1",
-    "ADMIN_KEY": "rok2-dev-admin",
-    "AUTH_SECRET": "rok2-dev-secret-change-me"
+    "KINGDOM_ID": "kingdom-1"
   },
   "d1_databases": [
     {

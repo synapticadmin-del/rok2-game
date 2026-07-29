@@ -3,6 +3,7 @@ import { HttpError, json, readJson } from "../lib/errors";
 import { newId, nowMs } from "../lib/ids";
 import { signToken, sha256Hex, verifyToken } from "../lib/auth";
 import { requireAuth, requirePlayer, requireAdmin } from "../lib/context";
+import { requireAuthSecret } from "../lib/secrets";
 import {
   getMap,
   getCivilizations,
@@ -424,7 +425,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           playerId: player?.id ?? null,
           exp: now + 1000 * 60 * 60 * 24 * 30,
         },
-        env.AUTH_SECRET,
+        requireAuthSecret(env),
       );
       const tokenHash = await sha256Hex(token);
       await env.DB.prepare(
@@ -553,7 +554,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       // re-sign token with player id
       const token = await signToken(
         { accountId: auth.accountId, playerId, exp: now + 1000 * 60 * 60 * 24 * 30 },
-        env.AUTH_SECRET,
+        requireAuthSecret(env),
       );
 
       // push city to kingdom shard
@@ -861,7 +862,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const res = await stub.fetch("https://do/queue/speedup", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ queueId: body.queueId, seconds }),
+        body: JSON.stringify({ queueId: body.queueId, seconds, playerId: player.id }),
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
@@ -1219,21 +1220,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     // Speedup
-    if (path === "/v1/city/speedup" && request.method === "POST") {
-      const { player } = await requirePlayer(request, env);
-      const body = await readJson<{ queueId: string; seconds: number }>(request);
-      if (!body.queueId || !body.seconds) throw new HttpError(400, "Missing queueId or seconds");
-      
-      const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/queue/speedup", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ queueId: body.queueId, seconds: body.seconds }),
-      });
-      const data = await res.json<any>();
-      if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
-      return json({ ok: true });
-    }
+    // أُزيلت /v1/city/speedup: كانت تمرّر "seconds" من العميل حرفياً إلى
+    // الـ Durable Object بلا تكلفة ولا سقف ولا تحقق من الملكية — أي إنهاء
+    // فوري مجاني لأي طابور، بما فيه طوابير لاعبين آخرين. المسار الشرعي
+    // الوحيد للتسريع هو /v1/shop/use-speedup، وهو يخصم عنصراً أو مزية VIP.
 
     // Alliance create
     if (path === "/v1/alliance/create" && request.method === "POST") {
@@ -1650,7 +1640,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/world/ws" && request.headers.get("Upgrade") === "websocket") {
       const token = url.searchParams.get("token") || request.headers.get("Sec-WebSocket-Protocol");
       if (token) {
-        await verifyToken(token, env.AUTH_SECRET);
+        await verifyToken(token, requireAuthSecret(env));
       } else {
         await requireAuth(request, env);
       }
