@@ -15,6 +15,37 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2, Log, All);
 
+// ---------------------------------------------------------------------------
+// قراءة آمنة لحقول JSON.
+//
+// السبب: FJsonObject::GetStringField / GetNumberField / GetBoolField تفشل
+// بـ check قاتل إذا كان الحقل غائباً أو من نوع مختلف. الخادم يرسل
+// "allianceId": null للاعب بلا تحالف (router.ts:567)، وهذا مسار كل لاعب
+// جديد — أي انهيار مضمون عند أول تسجيل دخول. الدوال أدناه تُرجع قيمة
+// افتراضية بدل الانهيار، فيبقى العميل حياً أمام أي استجابة ناقصة أو
+// أثناء نشر تدريجي للخادم.
+// ---------------------------------------------------------------------------
+namespace Rok2Json
+{
+	static FString Str(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Field, const FString& Default = FString())
+	{
+		FString Value;
+		return (Obj.IsValid() && Obj->TryGetStringField(Field, Value)) ? Value : Default;
+	}
+
+	static double Num(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Field, double Default = 0.0)
+	{
+		double Value = 0.0;
+		return (Obj.IsValid() && Obj->TryGetNumberField(Field, Value)) ? Value : Default;
+	}
+
+	static bool Bool(const TSharedPtr<FJsonObject>& Obj, const TCHAR* Field, bool Default = false)
+	{
+		bool Value = false;
+		return (Obj.IsValid() && Obj->TryGetBoolField(Field, Value)) ? Value : Default;
+	}
+}
+
 void URok2Api::Init(const FString& ApiBaseUrl, const FString& InKingdomId, const FString& InAdminKey)
 {
 	BaseUrl = ApiBaseUrl;
@@ -78,7 +109,7 @@ void URok2Api::FetchMeta()
 					Self->Meta.ProductionBase.Add(FString(KV.Key), KV.Value->AsNumber());
 				}
 			}
-			Self->Meta.ProductionLevelMult = (*ConstObj)->GetNumberField(TEXT("productionLevelMult"));
+			Self->Meta.ProductionLevelMult = Rok2Json::Num((*ConstObj), TEXT("productionLevelMult"));
 
 			const TArray<TSharedPtr<FJsonValue>>* UnitsArr;
 			if ((*ConstObj)->TryGetArrayField(TEXT("trainableUnits"), UnitsArr))
@@ -89,9 +120,9 @@ void URok2Api::FetchMeta()
 					const TSharedPtr<FJsonObject> U = V->AsObject();
 					if (!U.IsValid()) continue;
 					FRok2TrainableUnit Unit;
-					Unit.Id = U->GetStringField(TEXT("id"));
-					Unit.Name = U->GetStringField(TEXT("name"));
-					Unit.Branch = U->GetStringField(TEXT("branch"));
+					Unit.Id = Rok2Json::Str(U, TEXT("id"));
+					Unit.Name = Rok2Json::Str(U, TEXT("name"));
+					Unit.Branch = Rok2Json::Str(U, TEXT("branch"));
 					Self->Meta.TrainableUnits.Add(Unit);
 				}
 			}
@@ -110,10 +141,10 @@ void URok2Api::FetchMeta()
 					const TSharedPtr<FJsonObject> B = V->AsObject();
 					if (!B.IsValid()) continue;
 					FRok2BuildingMeta BM;
-					BM.Id = B->GetStringField(TEXT("id"));
-					BM.Category = B->GetStringField(TEXT("category"));
-					BM.Name = B->GetStringField(TEXT("name"));
-					BM.Desc = B->GetStringField(TEXT("desc"));
+					BM.Id = Rok2Json::Str(B, TEXT("id"));
+					BM.Category = Rok2Json::Str(B, TEXT("category"));
+					BM.Name = Rok2Json::Str(B, TEXT("name"));
+					BM.Desc = Rok2Json::Str(B, TEXT("desc"));
 					Self->Meta.Buildings.Add(BM);
 				}
 			}
@@ -336,14 +367,14 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 
 void URok2Api::ParsePlayer(const TSharedPtr<FJsonObject>& Obj)
 {
-	Player.Id = Obj->GetStringField(TEXT("id"));
-	Player.Name = Obj->GetStringField(TEXT("name"));
-	Player.Civ = Obj->GetStringField(TEXT("civ"));
-	Player.AllianceId = Obj->GetStringField(TEXT("allianceId"));
-	Player.RegionId = Obj->GetStringField(TEXT("regionId"));
-	Player.X = Obj->GetNumberField(TEXT("x"));
-	Player.Y = Obj->GetNumberField(TEXT("y"));
-	Player.Power = (int32)Obj->GetNumberField(TEXT("power"));
+	Player.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Player.Name = Rok2Json::Str(Obj, TEXT("name"));
+	Player.Civ = Rok2Json::Str(Obj, TEXT("civ"));
+	Player.AllianceId = Rok2Json::Str(Obj, TEXT("allianceId"));
+	Player.RegionId = Rok2Json::Str(Obj, TEXT("regionId"));
+	Player.X = Rok2Json::Num(Obj, TEXT("x"));
+	Player.Y = Rok2Json::Num(Obj, TEXT("y"));
+	Player.Power = (int32)Rok2Json::Num(Obj, TEXT("power"));
 }
 
 void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
@@ -351,12 +382,12 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 	const TSharedPtr<FJsonObject>* CityObj;
 	if (Obj->TryGetObjectField(TEXT("city"), CityObj) && CityObj->IsValid())
 	{
-		City.HallLevel = (int32)(*CityObj)->GetNumberField(TEXT("hall_level"));
-		City.Resources.Food = (*CityObj)->GetNumberField(TEXT("food"));
-		City.Resources.Wood = (*CityObj)->GetNumberField(TEXT("wood"));
-		City.Resources.Stone = (*CityObj)->GetNumberField(TEXT("stone"));
-		City.Resources.Gold = (*CityObj)->GetNumberField(TEXT("gold"));
-		City.UpdatedAt = (int64)(*CityObj)->GetNumberField(TEXT("updated_at"));
+		City.HallLevel = (int32)Rok2Json::Num((*CityObj), TEXT("hall_level"));
+		City.Resources.Food = Rok2Json::Num((*CityObj), TEXT("food"));
+		City.Resources.Wood = Rok2Json::Num((*CityObj), TEXT("wood"));
+		City.Resources.Stone = Rok2Json::Num((*CityObj), TEXT("stone"));
+		City.Resources.Gold = Rok2Json::Num((*CityObj), TEXT("gold"));
+		City.UpdatedAt = (int64)Rok2Json::Num((*CityObj), TEXT("updated_at"));
 	}
 	const TSharedPtr<FJsonObject>* PlayerObj;
 	if (Obj->TryGetObjectField(TEXT("player"), PlayerObj) && PlayerObj->IsValid())
@@ -400,12 +431,12 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> Q = V->AsObject();
 			if (!Q.IsValid()) continue;
 			FRok2QueueEntry Entry;
-			Entry.Id = Q->GetStringField(TEXT("id"));
-			Entry.Type = Q->GetStringField(TEXT("type"));
-			Entry.RefId = Q->GetStringField(TEXT("refId"));
-			Entry.Level = (int32)Q->GetNumberField(TEXT("level"));
-			Entry.StartMs = (int64)Q->GetNumberField(TEXT("startMs"));
-			Entry.EndMs = (int64)Q->GetNumberField(TEXT("endMs"));
+			Entry.Id = Rok2Json::Str(Q, TEXT("id"));
+			Entry.Type = Rok2Json::Str(Q, TEXT("type"));
+			Entry.RefId = Rok2Json::Str(Q, TEXT("refId"));
+			Entry.Level = (int32)Rok2Json::Num(Q, TEXT("level"));
+			Entry.StartMs = (int64)Rok2Json::Num(Q, TEXT("startMs"));
+			Entry.EndMs = (int64)Rok2Json::Num(Q, TEXT("endMs"));
 			City.ActiveQueues.Add(Entry);
 		}
 	}
@@ -440,7 +471,7 @@ void URok2Api::RecomputeResourceRates()
 
 void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 {
-	World.SeasonDay = (int32)Obj->GetNumberField(TEXT("seasonDay"));
+	World.SeasonDay = (int32)Rok2Json::Num(Obj, TEXT("seasonDay"));
 
 	World.Cities.Empty();
 	const TArray<TSharedPtr<FJsonValue>>* CitiesArr;
@@ -451,13 +482,13 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> C = V->AsObject();
 			if (!C.IsValid()) continue;
 			FRok2CityEntity E;
-			E.PlayerId = C->GetStringField(TEXT("playerId"));
-			E.Name = C->GetStringField(TEXT("name"));
-			E.AllianceId = C->GetStringField(TEXT("allianceId"));
-			E.X = C->GetNumberField(TEXT("x"));
-			E.Y = C->GetNumberField(TEXT("y"));
-			E.HallLevel = (int32)C->GetNumberField(TEXT("hallLevel"));
-			E.RegionId = C->GetStringField(TEXT("regionId"));
+			E.PlayerId = Rok2Json::Str(C, TEXT("playerId"));
+			E.Name = Rok2Json::Str(C, TEXT("name"));
+			E.AllianceId = Rok2Json::Str(C, TEXT("allianceId"));
+			E.X = Rok2Json::Num(C, TEXT("x"));
+			E.Y = Rok2Json::Num(C, TEXT("y"));
+			E.HallLevel = (int32)Rok2Json::Num(C, TEXT("hallLevel"));
+			E.RegionId = Rok2Json::Str(C, TEXT("regionId"));
 			World.Cities.Add(E);
 		}
 	}
@@ -471,16 +502,16 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> P = V->AsObject();
 			if (!P.IsValid()) continue;
 			FRok2PassEntity E;
-			E.Id = P->GetStringField(TEXT("id"));
-			E.OwnerAllianceId = P->GetStringField(TEXT("ownerAllianceId"));
-			E.CaptureProgress = P->GetNumberField(TEXT("captureProgress"));
-			E.State = P->GetStringField(TEXT("state"));
-			E.Level = (int32)P->GetNumberField(TEXT("level"));
-			E.From = P->GetStringField(TEXT("from"));
-			E.To = P->GetStringField(TEXT("to"));
-			E.X = P->GetNumberField(TEXT("x"));
-			E.Y = P->GetNumberField(TEXT("y"));
-			E.UnlockDay = (int32)P->GetNumberField(TEXT("unlockDay"));
+			E.Id = Rok2Json::Str(P, TEXT("id"));
+			E.OwnerAllianceId = Rok2Json::Str(P, TEXT("ownerAllianceId"));
+			E.CaptureProgress = Rok2Json::Num(P, TEXT("captureProgress"));
+			E.State = Rok2Json::Str(P, TEXT("state"));
+			E.Level = (int32)Rok2Json::Num(P, TEXT("level"));
+			E.From = Rok2Json::Str(P, TEXT("from"));
+			E.To = Rok2Json::Str(P, TEXT("to"));
+			E.X = Rok2Json::Num(P, TEXT("x"));
+			E.Y = Rok2Json::Num(P, TEXT("y"));
+			E.UnlockDay = (int32)Rok2Json::Num(P, TEXT("unlockDay"));
 			World.Passes.Add(E);
 		}
 	}
@@ -494,12 +525,12 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> N = V->AsObject();
 			if (!N.IsValid()) continue;
 			FRok2NodeEntity E;
-			E.Id = N->GetStringField(TEXT("id"));
-			E.Kind = N->GetStringField(TEXT("kind"));
-			E.Level = (int32)N->GetNumberField(TEXT("level"));
-			E.X = N->GetNumberField(TEXT("x"));
-			E.Y = N->GetNumberField(TEXT("y"));
-			E.Remaining = N->GetNumberField(TEXT("remaining"));
+			E.Id = Rok2Json::Str(N, TEXT("id"));
+			E.Kind = Rok2Json::Str(N, TEXT("kind"));
+			E.Level = (int32)Rok2Json::Num(N, TEXT("level"));
+			E.X = Rok2Json::Num(N, TEXT("x"));
+			E.Y = Rok2Json::Num(N, TEXT("y"));
+			E.Remaining = Rok2Json::Num(N, TEXT("remaining"));
 			World.Nodes.Add(E);
 		}
 	}
@@ -560,18 +591,18 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> Q = V->AsObject();
 			if (!Q.IsValid()) continue;
 			FRok2QueueEntry E;
-			E.Id = Q->GetStringField(TEXT("id"));
-			E.Type = Q->GetStringField(TEXT("type"));
+			E.Id = Rok2Json::Str(Q, TEXT("id"));
+			E.Type = Rok2Json::Str(Q, TEXT("type"));
 			const TSharedPtr<FJsonObject>* DataObj;
 			if (Q->TryGetObjectField(TEXT("data"), DataObj) && DataObj->IsValid())
 			{
 				FString BId, TId;
 				if ((*DataObj)->TryGetStringField(TEXT("buildingId"), BId)) E.RefId = BId;
 				else if ((*DataObj)->TryGetStringField(TEXT("techId"), TId)) E.RefId = TId;
-				E.Level = (int32)(*DataObj)->GetNumberField(TEXT("level"));
+				E.Level = (int32)Rok2Json::Num((*DataObj), TEXT("level"));
 			}
-			E.StartMs = (int64)Q->GetNumberField(TEXT("startMs"));
-			E.EndMs = (int64)Q->GetNumberField(TEXT("etaMs"));
+			E.StartMs = (int64)Rok2Json::Num(Q, TEXT("startMs"));
+			E.EndMs = (int64)Rok2Json::Num(Q, TEXT("etaMs"));
 			City.ActiveQueues.Add(E);
 		}
 		OnCityLoaded.Broadcast(City);
@@ -587,10 +618,10 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			const TSharedPtr<FJsonObject> Z = V->AsObject();
 			if (!Z.IsValid()) continue;
 			FRok2ZoneStatus E;
-			E.ZoneId = (int32)Z->GetNumberField(TEXT("zoneId"));
-			E.RegionId = Z->GetStringField(TEXT("regionId"));
-			E.bUnlocked = Z->GetBoolField(TEXT("unlocked"));
-			E.UnlockDay = (int32)Z->GetNumberField(TEXT("unlockDay"));
+			E.ZoneId = (int32)Rok2Json::Num(Z, TEXT("zoneId"));
+			E.RegionId = Rok2Json::Str(Z, TEXT("regionId"));
+			E.bUnlocked = Rok2Json::Bool(Z, TEXT("unlocked"));
+			E.UnlockDay = (int32)Rok2Json::Num(Z, TEXT("unlockDay"));
 			World.Zones.Add(E);
 		}
 		OnZonesUpdated.Broadcast(World.Zones);
@@ -604,18 +635,18 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 // ---------------------------------------------------------------------------
 void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEntity& E) const
 {
-	E.Id = M->GetStringField(TEXT("id"));
-	E.OwnerPlayerId = M->GetStringField(TEXT("ownerPlayerId"));
-	E.AllianceId = M->GetStringField(TEXT("allianceId"));
-	E.FromX = M->GetNumberField(TEXT("fromX"));
-	E.FromY = M->GetNumberField(TEXT("fromY"));
-	E.ToX = M->GetNumberField(TEXT("toX"));
-	E.ToY = M->GetNumberField(TEXT("toY"));
-	E.StartMs = (int64)M->GetNumberField(TEXT("startMs"));
-	E.EtaMs = (int64)M->GetNumberField(TEXT("etaMs"));
-	E.State = M->GetStringField(TEXT("state"));
-	E.TargetType = M->GetStringField(TEXT("targetType"));
-	E.TargetId = M->GetStringField(TEXT("targetId"));
+	E.Id = Rok2Json::Str(M, TEXT("id"));
+	E.OwnerPlayerId = Rok2Json::Str(M, TEXT("ownerPlayerId"));
+	E.AllianceId = Rok2Json::Str(M, TEXT("allianceId"));
+	E.FromX = Rok2Json::Num(M, TEXT("fromX"));
+	E.FromY = Rok2Json::Num(M, TEXT("fromY"));
+	E.ToX = Rok2Json::Num(M, TEXT("toX"));
+	E.ToY = Rok2Json::Num(M, TEXT("toY"));
+	E.StartMs = (int64)Rok2Json::Num(M, TEXT("startMs"));
+	E.EtaMs = (int64)Rok2Json::Num(M, TEXT("etaMs"));
+	E.State = Rok2Json::Str(M, TEXT("state"));
+	E.TargetType = Rok2Json::Str(M, TEXT("targetType"));
+	E.TargetId = Rok2Json::Str(M, TEXT("targetId"));
 
 	E.Troops.Empty();
 	const TSharedPtr<FJsonObject>* TroopsObj;
@@ -630,15 +661,15 @@ void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEnti
 
 void URok2Api::ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const
 {
-	E.Id = S->GetStringField(TEXT("id"));
-	E.OwnerPlayerId = S->GetStringField(TEXT("ownerPlayerId"));
-	E.FromX = S->GetNumberField(TEXT("fromX"));
-	E.FromY = S->GetNumberField(TEXT("fromY"));
-	E.ToX = S->GetNumberField(TEXT("toX"));
-	E.ToY = S->GetNumberField(TEXT("toY"));
-	E.StartMs = (int64)S->GetNumberField(TEXT("startMs"));
-	E.EtaMs = (int64)S->GetNumberField(TEXT("etaMs"));
-	E.State = S->GetStringField(TEXT("state"));
+	E.Id = Rok2Json::Str(S, TEXT("id"));
+	E.OwnerPlayerId = Rok2Json::Str(S, TEXT("ownerPlayerId"));
+	E.FromX = Rok2Json::Num(S, TEXT("fromX"));
+	E.FromY = Rok2Json::Num(S, TEXT("fromY"));
+	E.ToX = Rok2Json::Num(S, TEXT("toX"));
+	E.ToY = Rok2Json::Num(S, TEXT("toY"));
+	E.StartMs = (int64)Rok2Json::Num(S, TEXT("startMs"));
+	E.EtaMs = (int64)Rok2Json::Num(S, TEXT("etaMs"));
+	E.State = Rok2Json::Str(S, TEXT("state"));
 }
 
 void URok2Api::UpsertMarch(const FRok2MarchEntity& E)
@@ -686,18 +717,18 @@ void URok2Api::ParseTroopMap(const TSharedPtr<FJsonObject>& Obj, TArray<FRok2Tro
 
 void URok2Api::ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2BattleReport& Out) const
 {
-	Out.Id = Obj->GetStringField(TEXT("id"));
-	Out.CreatedAt = (int64)Obj->GetNumberField(TEXT("createdAt"));
-	Out.Kind = Obj->GetStringField(TEXT("kind"));
-	Out.AttackerPlayerId = Obj->GetStringField(TEXT("attackerPlayerId"));
-	Out.AttackerAllianceId = Obj->GetStringField(TEXT("attackerAllianceId"));
+	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Out.CreatedAt = (int64)Rok2Json::Num(Obj, TEXT("createdAt"));
+	Out.Kind = Rok2Json::Str(Obj, TEXT("kind"));
+	Out.AttackerPlayerId = Rok2Json::Str(Obj, TEXT("attackerPlayerId"));
+	Out.AttackerAllianceId = Rok2Json::Str(Obj, TEXT("attackerAllianceId"));
 	Obj->TryGetStringField(TEXT("passId"), Out.PassId);
 
 	const TSharedPtr<FJsonObject>* ResultObj;
 	if (Obj->TryGetObjectField(TEXT("result"), ResultObj) && ResultObj->IsValid())
 	{
 		const TSharedPtr<FJsonObject>& R = *ResultObj;
-		Out.Winner = R->GetStringField(TEXT("winner"));
+		Out.Winner = Rok2Json::Str(R, TEXT("winner"));
 
 		const TSharedPtr<FJsonObject>* F;
 		if (R->TryGetObjectField(TEXT("attackerLosses"), F)) ParseTroopMap(*F, Out.Attacker.Losses);
@@ -724,8 +755,8 @@ void URok2Api::ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2Battle
 		const TSharedPtr<FJsonObject>* PowerObj;
 		if (R->TryGetObjectField(TEXT("powerBefore"), PowerObj) && PowerObj->IsValid())
 		{
-			Out.Attacker.PowerBefore = (int32)(*PowerObj)->GetNumberField(TEXT("attacker"));
-			Out.Defender.PowerBefore = (int32)(*PowerObj)->GetNumberField(TEXT("defender"));
+			Out.Attacker.PowerBefore = (int32)Rok2Json::Num((*PowerObj), TEXT("attacker"));
+			Out.Defender.PowerBefore = (int32)Rok2Json::Num((*PowerObj), TEXT("defender"));
 		}
 	}
 }
@@ -997,12 +1028,12 @@ void URok2Api::ConnectWebSocket()
 				{
 					const TSharedPtr<FJsonObject> MU = V->AsObject();
 					if (!MU.IsValid()) continue;
-					const FString MId = MU->GetStringField(TEXT("id"));
+					const FString MId = Rok2Json::Str(MU, TEXT("id"));
 					for (FRok2MarchEntity& M : Self->World.Marches)
 					{
 						if (M.Id == MId)
 						{
-							M.EtaMs = (int64)MU->GetNumberField(TEXT("etaMs"));
+							M.EtaMs = (int64)Rok2Json::Num(MU, TEXT("etaMs"));
 							break;
 						}
 					}
@@ -1048,8 +1079,8 @@ void URok2Api::ConnectWebSocket()
 		else if (Type == TEXT("zone_unlocked"))
 		{
 			// فتح منطقة جديدة (P2-T4) — إشعار بارز في الـ HUD (P2-T6)
-			const FString RegionId = Obj->GetStringField(TEXT("regionId"));
-			const int32 ZoneId = (int32)Obj->GetNumberField(TEXT("zoneId"));
+			const FString RegionId = Rok2Json::Str(Obj, TEXT("regionId"));
+			const int32 ZoneId = (int32)Rok2Json::Num(Obj, TEXT("zoneId"));
 			Self->PushNotification(TEXT("zone"), TEXT("🗺️ انفتحت منطقة جديدة"),
 				FString::Printf(TEXT("Zone %d — %s أصبحت متاحة الآن"), ZoneId, *RegionId), 10.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
@@ -1061,8 +1092,8 @@ void URok2Api::ConnectWebSocket()
 		else if (Type == TEXT("tech_researched"))
 		{
 			// اكتمال بحث (P2-T3) — إشعار + مزامنة
-			const FString TechId = Obj->GetStringField(TEXT("techId"));
-			const int32 Level = (int32)Obj->GetNumberField(TEXT("level"));
+			const FString TechId = Rok2Json::Str(Obj, TEXT("techId"));
+			const int32 Level = (int32)Rok2Json::Num(Obj, TEXT("level"));
 			Self->PushNotification(TEXT("toast"), TEXT("🔬 اكتمل البحث"),
 				FString::Printf(TEXT("%s → مستوى %d"), *TechId, Level), 6.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
@@ -1074,7 +1105,7 @@ void URok2Api::ConnectWebSocket()
 		else if (Type == TEXT("rally_launched"))
 		{
 			// انطلاق حملة rally (P2-T5)
-			const FString TargetId = Obj->GetStringField(TEXT("targetId"));
+			const FString TargetId = Rok2Json::Str(Obj, TEXT("targetId"));
 			Self->PushNotification(TEXT("rally"), TEXT("🚩 انطلقت حملة التحالف"),
 				FString::Printf(TEXT("rally على %s"), *TargetId), 8.f);
 			if (URok2AudioManager* Audio = URok2AudioManager::Get())
@@ -1085,7 +1116,7 @@ void URok2Api::ConnectWebSocket()
 		}
 		else if (Type == TEXT("season_day"))
 		{
-			const int32 Day = (int32)Obj->GetNumberField(TEXT("day"));
+			const int32 Day = (int32)Rok2Json::Num(Obj, TEXT("day"));
 			Self->World.SeasonDay = Day;
 			Self->PushNotification(TEXT("zone"), TEXT("📅 يوم جديد في الموسم"),
 				FString::Printf(TEXT("اليوم %d"), Day), 5.f);
@@ -1093,9 +1124,9 @@ void URok2Api::ConnectWebSocket()
 		else if (Type == TEXT("scout_arrived"))
 		{
 			// وصول كشافة (P5-T5) — إشعار + كشف منطقة
-			const FString ScoutId = Obj->GetStringField(TEXT("scoutId"));
-			const double ToX = Obj->GetNumberField(TEXT("toX"));
-			const double ToY = Obj->GetNumberField(TEXT("toY"));
+			const FString ScoutId = Rok2Json::Str(Obj, TEXT("scoutId"));
+			const double ToX = Rok2Json::Num(Obj, TEXT("toX"));
+			const double ToY = Rok2Json::Num(Obj, TEXT("toY"));
 			Self->PushNotification(TEXT("toast"), TEXT("🔭 عادت الكشافة"),
 				FString::Printf(TEXT("كشفت المنطقة حول (%.0f, %.0f)"), ToX, ToY), 6.f);
 		}
