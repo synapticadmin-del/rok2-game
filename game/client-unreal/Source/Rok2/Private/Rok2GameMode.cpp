@@ -27,7 +27,9 @@ ARok2GameMode::ARok2GameMode()
 	DefaultPawnClass = nullptr;
 	ApiBaseUrl = TEXT("https://rok2-api.lolelarap.workers.dev");
 	KingdomId = TEXT("kingdom-1");
-	AdminKey = TEXT("rok2-dev-admin");
+	// فارغ عمداً: المفتاح الإداري لا يُشحن داخل العميل. اضبطه يدوياً في
+	// جلسة تطوير إن احتجت /v1/admin/*.
+	AdminKey = TEXT("");
 	TickIntervalSeconds = 0.1f;
 }
 

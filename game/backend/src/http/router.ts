@@ -3,6 +3,7 @@ import { HttpError, json, readJson } from "../lib/errors";
 import { newId, nowMs } from "../lib/ids";
 import { signToken, sha256Hex, verifyToken } from "../lib/auth";
 import { requireAuth, requirePlayer, requireAdmin } from "../lib/context";
+import { requireAuthSecret } from "../lib/secrets";
 import {
   getMap,
   getCivilizations,
@@ -424,7 +425,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           playerId: player?.id ?? null,
           exp: now + 1000 * 60 * 60 * 24 * 30,
         },
-        env.AUTH_SECRET,
+        requireAuthSecret(env),
       );
       const tokenHash = await sha256Hex(token);
       await env.DB.prepare(
@@ -553,7 +554,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       // re-sign token with player id
       const token = await signToken(
         { accountId: auth.accountId, playerId, exp: now + 1000 * 60 * 60 * 24 * 30 },
-        env.AUTH_SECRET,
+        requireAuthSecret(env),
       );
 
       // push city to kingdom shard
@@ -1639,7 +1640,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/world/ws" && request.headers.get("Upgrade") === "websocket") {
       const token = url.searchParams.get("token") || request.headers.get("Sec-WebSocket-Protocol");
       if (token) {
-        await verifyToken(token, env.AUTH_SECRET);
+        await verifyToken(token, requireAuthSecret(env));
       } else {
         await requireAuth(request, env);
       }

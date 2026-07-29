@@ -930,8 +930,27 @@ void URok2Api::AllianceHelp()
 	});
 }
 
+// ---------------------------------------------------------------------------
+// نقاط الأدمن — أدوات تطوير فقط.
+//
+// كان العميل يحمل المفتاح "rok2-dev-admin" نصاً صريحاً، وهو نفس المفتاح
+// المنشور في wrangler.jsonc. أي شخص يفكّ الـ APK يجده. لا يُشحن مفتاح
+// إداري داخل عميل لعبة أبداً.
+//
+// الآن: المفتاح فارغ افتراضياً، والدوال تُصفَّر في بناء الإصدار. لاستخدامها
+// أثناء التطوير اضبط GameMode->AdminKey يدوياً بمفتاح خادمك.
+// ---------------------------------------------------------------------------
 void URok2Api::ForceTick()
 {
+#if UE_BUILD_SHIPPING
+	UE_LOG(LogRok2, Warning, TEXT("ForceTick unavailable in shipping builds."));
+#else
+	if (AdminKey.IsEmpty())
+	{
+		UE_LOG(LogRok2, Warning, TEXT("ForceTick skipped: no admin key configured."));
+		return;
+	}
+
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(BuildUrl(TEXT("/v1/admin/tick")));
 	Req->SetVerb(TEXT("POST"));
@@ -940,10 +959,20 @@ void URok2Api::ForceTick()
 	Req->SetTimeout(HttpTimeoutSeconds);
 	Req->SetContentAsString(TEXT("{\"force\":true}"));
 	Req->ProcessRequest();
+#endif
 }
 
 void URok2Api::SetSeasonDay(int32 Day)
 {
+#if UE_BUILD_SHIPPING
+	UE_LOG(LogRok2, Warning, TEXT("SetSeasonDay unavailable in shipping builds."));
+#else
+	if (AdminKey.IsEmpty())
+	{
+		UE_LOG(LogRok2, Warning, TEXT("SetSeasonDay skipped: no admin key configured."));
+		return;
+	}
+
 	FString Body = FString::Printf(TEXT("{\"day\":%d}"), Day);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(BuildUrl(TEXT("/v1/admin/set-time")));
@@ -953,6 +982,7 @@ void URok2Api::SetSeasonDay(int32 Day)
 	Req->SetTimeout(HttpTimeoutSeconds);
 	Req->SetContentAsString(Body);
 	Req->ProcessRequest();
+#endif
 }
 
 // ---------------------------------------------------------------------------
