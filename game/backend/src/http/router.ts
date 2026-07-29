@@ -81,6 +81,23 @@ import {
   bpClaimableLevels,
 } from "../do/sim/battlepass";
 
+import {
+  AntiCheatRateLimiter,
+  checkShopBuyPayload,
+  type RateLimitAction,
+} from "../do/sim/anticheat";
+
+// P4-T5: anti-cheat — rate limiter مشترك على مستوى الـ isolate (worker) للأفعال الكتابية الحساسة.
+// الـ DO يملك limiter خاصاً به للمسيرات/الهجمات؛ هذا يغطي endpoints الـ router (helps, shop, rally, speedup).
+const antiCheatLimiter = new AntiCheatRateLimiter();
+
+function enforceRateLimit(playerId: string, action: RateLimitAction): void {
+  const rl = antiCheatLimiter.check(playerId, action, Date.now());
+  if (!rl.allowed) {
+    throw new HttpError(429, `rate_limited_${rl.reason}`, { retryAfterMs: rl.retryAfterMs });
+  }
+}
+
 // P4-T1: صف Battle Pass للاعب (يُنشأ عند أول وصول) — متوافق مع قواعد لم تُرحّل بعد
 async function getOrCreateBp(env: Env, playerId: string): Promise<{ player_id: string; season_id: string; xp: number; level: number; premium: number; updated_at: number }> {
   const seasonId = bpSeasonId();
@@ -794,6 +811,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const item = getSpeedup(body.itemId);
       if (!item) throw new HttpError(400, "Unknown shop item");
       const count = Math.max(1, Math.min(99, Math.floor(Number(body.count) || 1)));
+      // P4-T5: anti-cheat — شذوذ الحمولة ثم حد المعدل
+      const buyAnomaly = checkShopBuyPayload(count);
+      if (buyAnomaly) throw new HttpError(400, `anticheat_${buyAnomaly}`);
+      enforceRateLimit(player.id, "shop_buy");
       const totalCost = item.cost_gems * count;
 
       const city = await refreshCity(env, player.id);
@@ -831,6 +852,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const { player } = await requirePlayer(request, env);
       const body = await readJson<{ queueId: string; itemId?: string; useFreeDaily?: boolean }>(request);
       if (!body.queueId) throw new HttpError(400, "queueId required");
+      // P4-T5: anti-cheat — حد المعدل على استخدام التسريعات
+      enforceRateLimit(player.id, "use_speedup");
 
       let seconds = 0;
       let source: string;
@@ -1415,6 +1438,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
       const body = await readJson<{ queueId: string }>(request);
       if (!body.queueId) throw new HttpError(400, "queueId required");
+      // P4-T5: anti-cheat — حد المعدل على المساعدات (spam protection)
+      enforceRateLimit(player.id, "help");
 
       // الطابور الهدف يجب أن يكون لعضو في نفس التحالف (غير المساعد نفسه)
       const stub0 = kingdomStub(env);
@@ -1482,6 +1507,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         targetType: string; targetId: string; troops: Record<string, number>; primaryCommanderId?: string;
       }>(request);
       if (!body.targetType || !body.targetId) throw new HttpError(400, "targetType and targetId required");
+      // P4-T5: anti-cheat — حد المعدل على إطلاق rallies
+      enforceRateLimit(player.id, "rally");
       const rank = await getMemberRank(env, player.id, player.alliance_id);
       if (!canLaunchRally(rank, body.targetType)) {
         throw new HttpError(403, `rally requires rank ${ALLIANCE_CONSTANTS.rally.min_rank}+ and target in ${ALLIANCE_CONSTANTS.rally.allowed_targets.join("/")}`);
@@ -1857,6 +1884,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "set_day", day: body.day }),
       });
+      return json(await res.json());
+    }
+
+    // P4-T5: فحص إداري — آخر مخالفات anti-cheat المسجلة في الـ shard
+    if (path === "/v1/admin/anticheat" && request.method === "GET") {
+      requireAdmin(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/anticheat/violations");
       return json(await res.json());
     }
 

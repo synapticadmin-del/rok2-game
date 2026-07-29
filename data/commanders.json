@@ -1,7 +1,11 @@
 {
   "version": 1,
-  "notes": "ROK2 commander roster (P2-T1). Every commander owns exactly 3 skills: one attack, one defense, one passive. Effects are flat multipliers applied per skill level in combat (attack mods both sides, defense mods the defender) or utility (passive: march speed / xp gain). The 6 starter_commander ids match civilizations.json starter_commander fields.",
-  "skill_types": ["attack", "defense", "passive"],
+  "notes": "ROK2 commander roster (P2-T1 + P4-T5). Every commander owns exactly 3 skills: one attack, one defense, one passive. Effects are flat multipliers applied per skill level in combat (attack mods both sides, defense mods the defender) or utility (passive: march speed / xp gain). The 6 starter_commander ids match civilizations.json starter_commander fields. P4-T5 added 6 more (cmd_<nation>_2): one per civilization.",
+  "skill_types": [
+    "attack",
+    "defense",
+    "passive"
+  ],
   "constants": {
     "max_level": 60,
     "max_skill_level": 5,
@@ -18,8 +22,16 @@
       "name": "Scipio",
       "rarity": "elite",
       "nation": "rome",
-      "tags": ["infantry", "garrison", "attack"],
-      "base_stats": { "attack": 65, "defense": 55, "utility": 35 },
+      "tags": [
+        "infantry",
+        "garrison",
+        "attack"
+      ],
+      "base_stats": {
+        "attack": 65,
+        "defense": 55,
+        "utility": 35
+      },
       "skills": [
         {
           "id": "scipio_attack",
@@ -27,7 +39,12 @@
           "name": "Military Genius",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.04 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.04
+            }
+          ],
           "description": "Increases led troops' attack by 4% per level."
         },
         {
@@ -36,7 +53,12 @@
           "name": "Garrison Captain",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.03 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.03
+            }
+          ],
           "description": "Reduces damage taken by 3% per level when defending."
         },
         {
@@ -45,7 +67,12 @@
           "name": "Forced March",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.02 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.02
+            }
+          ],
           "description": "Increases march speed by 2% per level."
         }
       ]
@@ -55,8 +82,16 @@
       "name": "Sun Tzu",
       "rarity": "epic",
       "nation": "china",
-      "tags": ["infantry", "garrison", "skill"],
-      "base_stats": { "attack": 70, "defense": 60, "utility": 50 },
+      "tags": [
+        "infantry",
+        "garrison",
+        "skill"
+      ],
+      "base_stats": {
+        "attack": 70,
+        "defense": 60,
+        "utility": 50
+      },
       "skills": [
         {
           "id": "suntzu_attack",
@@ -64,7 +99,12 @@
           "name": "Art of War",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases led troops' attack by 5% per level."
         },
         {
@@ -73,7 +113,12 @@
           "name": "Wall of Steel",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.04 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.04
+            }
+          ],
           "description": "Reduces damage taken by 4% per level when defending."
         },
         {
@@ -82,7 +127,12 @@
           "name": "Master of Logistics",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.03 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.03
+            }
+          ],
           "description": "Increases march speed by 3% per level."
         }
       ]
@@ -92,8 +142,16 @@
       "name": "Baibars",
       "rarity": "epic",
       "nation": "arabia",
-      "tags": ["cavalry", "conquering", "attack"],
-      "base_stats": { "attack": 75, "defense": 45, "utility": 55 },
+      "tags": [
+        "cavalry",
+        "conquering",
+        "attack"
+      ],
+      "base_stats": {
+        "attack": 75,
+        "defense": 45,
+        "utility": 55
+      },
       "skills": [
         {
           "id": "baibars_attack",
@@ -101,7 +159,12 @@
           "name": "Sandstorm Charge",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "cavalry_attack", "per_level": 0.06 }],
+          "effects": [
+            {
+              "stat": "cavalry_attack",
+              "per_level": 0.06
+            }
+          ],
           "description": "Increases cavalry attack by 6% per level."
         },
         {
@@ -110,7 +173,12 @@
           "name": "Hit and Run",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.02 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.02
+            }
+          ],
           "description": "Reduces damage taken by 2% per level when defending."
         },
         {
@@ -119,7 +187,12 @@
           "name": "Desert Riders",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.04 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.04
+            }
+          ],
           "description": "Increases march speed by 4% per level."
         }
       ]
@@ -129,8 +202,16 @@
       "name": "Cleopatra",
       "rarity": "epic",
       "nation": "egypt",
-      "tags": ["gathering", "support", "leadership"],
-      "base_stats": { "attack": 45, "defense": 60, "utility": 80 },
+      "tags": [
+        "gathering",
+        "support",
+        "leadership"
+      ],
+      "base_stats": {
+        "attack": 45,
+        "defense": 60,
+        "utility": 80
+      },
       "skills": [
         {
           "id": "cleo_attack",
@@ -138,7 +219,12 @@
           "name": "Royal Decree",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.03 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.03
+            }
+          ],
           "description": "Increases led troops' attack by 3% per level."
         },
         {
@@ -147,7 +233,12 @@
           "name": "Blessing of the Nile",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.05
+            }
+          ],
           "description": "Reduces damage taken by 5% per level when defending."
         },
         {
@@ -156,7 +247,12 @@
           "name": "Queen of the Nile",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "xp_gain", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases commander XP gain by 5% per level."
         }
       ]
@@ -166,8 +262,16 @@
       "name": "Ragnar",
       "rarity": "epic",
       "nation": "vikings",
-      "tags": ["infantry", "attack", "barbarian_hunter"],
-      "base_stats": { "attack": 80, "defense": 50, "utility": 30 },
+      "tags": [
+        "infantry",
+        "attack",
+        "barbarian_hunter"
+      ],
+      "base_stats": {
+        "attack": 80,
+        "defense": 50,
+        "utility": 30
+      },
       "skills": [
         {
           "id": "ragnar_attack",
@@ -175,7 +279,12 @@
           "name": "Berserker Rage",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.06 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.06
+            }
+          ],
           "description": "Increases led troops' attack by 6% per level."
         },
         {
@@ -184,7 +293,12 @@
           "name": "Shield Wall",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.02 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.02
+            }
+          ],
           "description": "Reduces damage taken by 2% per level when defending."
         },
         {
@@ -193,7 +307,12 @@
           "name": "Raider's Instinct",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.02 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.02
+            }
+          ],
           "description": "Increases march speed by 2% per level."
         }
       ]
@@ -203,8 +322,16 @@
       "name": "Kusunoki Masashige",
       "rarity": "epic",
       "nation": "japan",
-      "tags": ["archer", "garrison", "defense"],
-      "base_stats": { "attack": 60, "defense": 70, "utility": 45 },
+      "tags": [
+        "archer",
+        "garrison",
+        "defense"
+      ],
+      "base_stats": {
+        "attack": 60,
+        "defense": 70,
+        "utility": 45
+      },
       "skills": [
         {
           "id": "kusunoki_attack",
@@ -212,7 +339,12 @@
           "name": "Arrow Storm",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "archer_attack", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "archer_attack",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases archer attack by 5% per level."
         },
         {
@@ -221,7 +353,12 @@
           "name": "Unyielding Loyalty",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.05
+            }
+          ],
           "description": "Reduces damage taken by 5% per level when defending."
         },
         {
@@ -230,7 +367,12 @@
           "name": "Way of the Samurai",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "xp_gain", "per_level": 0.04 }],
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.04
+            }
+          ],
           "description": "Increases commander XP gain by 4% per level."
         }
       ]
@@ -240,8 +382,16 @@
       "name": "Julius Caesar",
       "rarity": "legendary",
       "nation": "rome",
-      "tags": ["leadership", "conquering", "attack"],
-      "base_stats": { "attack": 85, "defense": 70, "utility": 60 },
+      "tags": [
+        "leadership",
+        "conquering",
+        "attack"
+      ],
+      "base_stats": {
+        "attack": 85,
+        "defense": 70,
+        "utility": 60
+      },
       "skills": [
         {
           "id": "caesar_attack",
@@ -249,7 +399,12 @@
           "name": "Indomitable Army",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.08 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.08
+            }
+          ],
           "description": "Increases led troops' attack by 8% per level."
         },
         {
@@ -258,7 +413,12 @@
           "name": "Veni Vidi Vici",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.06 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.06
+            }
+          ],
           "description": "Reduces damage taken by 6% per level when defending."
         },
         {
@@ -267,7 +427,12 @@
           "name": "Imperial Authority",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.03 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.03
+            }
+          ],
           "description": "Increases march speed by 3% per level."
         }
       ]
@@ -277,8 +442,16 @@
       "name": "Richard the Lionheart",
       "rarity": "legendary",
       "nation": "vikings",
-      "tags": ["infantry", "garrison", "defense"],
-      "base_stats": { "attack": 70, "defense": 90, "utility": 40 },
+      "tags": [
+        "infantry",
+        "garrison",
+        "defense"
+      ],
+      "base_stats": {
+        "attack": 70,
+        "defense": 90,
+        "utility": 40
+      },
       "skills": [
         {
           "id": "richard_attack",
@@ -286,7 +459,12 @@
           "name": "Crusader's Wrath",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "infantry_attack", "per_level": 0.07 }],
+          "effects": [
+            {
+              "stat": "infantry_attack",
+              "per_level": 0.07
+            }
+          ],
           "description": "Increases infantry attack by 7% per level."
         },
         {
@@ -295,7 +473,12 @@
           "name": "Lionheart's Resolve",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.08 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.08
+            }
+          ],
           "description": "Reduces damage taken by 8% per level when defending."
         },
         {
@@ -304,7 +487,12 @@
           "name": "Field Medic",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "xp_gain", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases commander XP gain by 5% per level."
         }
       ]
@@ -314,8 +502,16 @@
       "name": "Yi Seong-Gye",
       "rarity": "legendary",
       "nation": "japan",
-      "tags": ["archer", "attack", "skill"],
-      "base_stats": { "attack": 90, "defense": 55, "utility": 50 },
+      "tags": [
+        "archer",
+        "attack",
+        "skill"
+      ],
+      "base_stats": {
+        "attack": 90,
+        "defense": 55,
+        "utility": 50
+      },
       "skills": [
         {
           "id": "ysg_attack",
@@ -323,7 +519,12 @@
           "name": "Rain of Arrows",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "archer_attack", "per_level": 0.09 }],
+          "effects": [
+            {
+              "stat": "archer_attack",
+              "per_level": 0.09
+            }
+          ],
           "description": "Increases archer attack by 9% per level."
         },
         {
@@ -332,7 +533,12 @@
           "name": "Fortress Doctrine",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.04 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.04
+            }
+          ],
           "description": "Reduces damage taken by 4% per level when defending."
         },
         {
@@ -341,7 +547,12 @@
           "name": "Strategic Brilliance",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "xp_gain", "per_level": 0.06 }],
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.06
+            }
+          ],
           "description": "Increases commander XP gain by 6% per level."
         }
       ]
@@ -351,8 +562,16 @@
       "name": "Genghis Khan",
       "rarity": "legendary",
       "nation": "arabia",
-      "tags": ["cavalry", "conquering", "attack"],
-      "base_stats": { "attack": 95, "defense": 45, "utility": 65 },
+      "tags": [
+        "cavalry",
+        "conquering",
+        "attack"
+      ],
+      "base_stats": {
+        "attack": 95,
+        "defense": 45,
+        "utility": 65
+      },
       "skills": [
         {
           "id": "genghis_attack",
@@ -360,7 +579,12 @@
           "name": "Mongol Horde",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "cavalry_attack", "per_level": 0.10 }],
+          "effects": [
+            {
+              "stat": "cavalry_attack",
+              "per_level": 0.1
+            }
+          ],
           "description": "Increases cavalry attack by 10% per level."
         },
         {
@@ -369,7 +593,12 @@
           "name": "Nomadic Tactics",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.03 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.03
+            }
+          ],
           "description": "Reduces damage taken by 3% per level when defending."
         },
         {
@@ -378,7 +607,12 @@
           "name": "Horse Lords",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.06 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.06
+            }
+          ],
           "description": "Increases march speed by 6% per level."
         }
       ]
@@ -388,8 +622,16 @@
       "name": "Joan of Arc",
       "rarity": "legendary",
       "nation": "egypt",
-      "tags": ["leadership", "support", "defense"],
-      "base_stats": { "attack": 60, "defense": 80, "utility": 85 },
+      "tags": [
+        "leadership",
+        "support",
+        "defense"
+      ],
+      "base_stats": {
+        "attack": 60,
+        "defense": 80,
+        "utility": 85
+      },
       "skills": [
         {
           "id": "joan_attack",
@@ -397,7 +639,12 @@
           "name": "Divine Inspiration",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases led troops' attack by 5% per level."
         },
         {
@@ -406,7 +653,12 @@
           "name": "Holy Shield",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.07 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.07
+            }
+          ],
           "description": "Reduces damage taken by 7% per level when defending."
         },
         {
@@ -415,7 +667,12 @@
           "name": "Martyr's Spirit",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "xp_gain", "per_level": 0.08 }],
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.08
+            }
+          ],
           "description": "Increases commander XP gain by 8% per level."
         }
       ]
@@ -425,8 +682,16 @@
       "name": "Alexander the Great",
       "rarity": "legendary",
       "nation": "rome",
-      "tags": ["cavalry", "conquering", "leadership"],
-      "base_stats": { "attack": 92, "defense": 65, "utility": 70 },
+      "tags": [
+        "cavalry",
+        "conquering",
+        "leadership"
+      ],
+      "base_stats": {
+        "attack": 92,
+        "defense": 65,
+        "utility": 70
+      },
       "skills": [
         {
           "id": "alex_attack",
@@ -434,7 +699,12 @@
           "name": "Hammer and Anvil",
           "type": "attack",
           "max_level": 5,
-          "effects": [{ "stat": "troop_attack", "per_level": 0.09 }],
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.09
+            }
+          ],
           "description": "Increases led troops' attack by 9% per level."
         },
         {
@@ -443,7 +713,12 @@
           "name": "Phalanx Formation",
           "type": "defense",
           "max_level": 5,
-          "effects": [{ "stat": "troop_defense", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.05
+            }
+          ],
           "description": "Reduces damage taken by 5% per level when defending."
         },
         {
@@ -452,7 +727,372 @@
           "name": "Conqueror's Path",
           "type": "passive",
           "max_level": 5,
-          "effects": [{ "stat": "march_speed", "per_level": 0.05 }],
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.05
+            }
+          ],
+          "description": "Increases march speed by 5% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_rome_2",
+      "name": "Germanicus",
+      "rarity": "epic",
+      "nation": "rome",
+      "tags": [
+        "infantry",
+        "conquering",
+        "leadership"
+      ],
+      "base_stats": {
+        "attack": 78,
+        "defense": 62,
+        "utility": 50
+      },
+      "skills": [
+        {
+          "id": "germanicus_attack",
+          "slot": 1,
+          "name": "Legion's Edge",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "infantry_attack",
+              "per_level": 0.06
+            }
+          ],
+          "description": "Increases infantry attack by 6% per level."
+        },
+        {
+          "id": "germanicus_defense",
+          "slot": 2,
+          "name": "Testudo Discipline",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.04
+            }
+          ],
+          "description": "Reduces damage taken by 4% per level when defending."
+        },
+        {
+          "id": "germanicus_passive",
+          "slot": 3,
+          "name": "Road Builder",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.03
+            }
+          ],
+          "description": "Increases march speed by 3% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_china_2",
+      "name": "Zhuge Liang",
+      "rarity": "legendary",
+      "nation": "china",
+      "tags": [
+        "archer",
+        "skill",
+        "support"
+      ],
+      "base_stats": {
+        "attack": 72,
+        "defense": 68,
+        "utility": 88
+      },
+      "skills": [
+        {
+          "id": "zhuge_attack",
+          "slot": 1,
+          "name": "Borrowed Arrows",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "archer_attack",
+              "per_level": 0.07
+            }
+          ],
+          "description": "Increases archer attack by 7% per level."
+        },
+        {
+          "id": "zhuge_defense",
+          "slot": 2,
+          "name": "Empty Fort Strategy",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.05
+            }
+          ],
+          "description": "Reduces damage taken by 5% per level when defending."
+        },
+        {
+          "id": "zhuge_passive",
+          "slot": 3,
+          "name": "Sleeping Dragon",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.07
+            }
+          ],
+          "description": "Increases commander XP gain by 7% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_arabia_2",
+      "name": "Saladin",
+      "rarity": "legendary",
+      "nation": "arabia",
+      "tags": [
+        "cavalry",
+        "leadership",
+        "defense"
+      ],
+      "base_stats": {
+        "attack": 82,
+        "defense": 75,
+        "utility": 60
+      },
+      "skills": [
+        {
+          "id": "saladin_attack",
+          "slot": 1,
+          "name": "Crescent Charge",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "cavalry_attack",
+              "per_level": 0.08
+            }
+          ],
+          "description": "Increases cavalry attack by 8% per level."
+        },
+        {
+          "id": "saladin_defense",
+          "slot": 2,
+          "name": "Shield of the Faithful",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.06
+            }
+          ],
+          "description": "Reduces damage taken by 6% per level when defending."
+        },
+        {
+          "id": "saladin_passive",
+          "slot": 3,
+          "name": "Desert Wind",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.05
+            }
+          ],
+          "description": "Increases march speed by 5% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_egypt_2",
+      "name": "Imhotep",
+      "rarity": "epic",
+      "nation": "egypt",
+      "tags": [
+        "gathering",
+        "support",
+        "garrison"
+      ],
+      "base_stats": {
+        "attack": 50,
+        "defense": 65,
+        "utility": 82
+      },
+      "skills": [
+        {
+          "id": "imhotep_attack",
+          "slot": 1,
+          "name": "Sphinx's Wrath",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_attack",
+              "per_level": 0.04
+            }
+          ],
+          "description": "Increases led troops' attack by 4% per level."
+        },
+        {
+          "id": "imhotep_defense",
+          "slot": 2,
+          "name": "Wall of Eternity",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.06
+            }
+          ],
+          "description": "Reduces damage taken by 6% per level when defending."
+        },
+        {
+          "id": "imhotep_passive",
+          "slot": 3,
+          "name": "Wisdom of the Ancients",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "xp_gain",
+              "per_level": 0.06
+            }
+          ],
+          "description": "Increases commander XP gain by 6% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_vikings_2",
+      "name": "Lagertha",
+      "rarity": "epic",
+      "nation": "vikings",
+      "tags": [
+        "infantry",
+        "attack",
+        "barbarian_hunter"
+      ],
+      "base_stats": {
+        "attack": 76,
+        "defense": 58,
+        "utility": 42
+      },
+      "skills": [
+        {
+          "id": "lagertha_attack",
+          "slot": 1,
+          "name": "Shieldmaiden's Fury",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "infantry_attack",
+              "per_level": 0.07
+            }
+          ],
+          "description": "Increases infantry attack by 7% per level."
+        },
+        {
+          "id": "lagertha_defense",
+          "slot": 2,
+          "name": "Raven's Guard",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.03
+            }
+          ],
+          "description": "Reduces damage taken by 3% per level when defending."
+        },
+        {
+          "id": "lagertha_passive",
+          "slot": 3,
+          "name": "Fjord Runner",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.04
+            }
+          ],
+          "description": "Increases march speed by 4% per level."
+        }
+      ]
+    },
+    {
+      "id": "cmd_japan_2",
+      "name": "Oda Nobunaga",
+      "rarity": "legendary",
+      "nation": "japan",
+      "tags": [
+        "archer",
+        "conquering",
+        "attack"
+      ],
+      "base_stats": {
+        "attack": 88,
+        "defense": 58,
+        "utility": 62
+      },
+      "skills": [
+        {
+          "id": "oda_attack",
+          "slot": 1,
+          "name": "Demon King's Volley",
+          "type": "attack",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "archer_attack",
+              "per_level": 0.08
+            }
+          ],
+          "description": "Increases archer attack by 8% per level."
+        },
+        {
+          "id": "oda_defense",
+          "slot": 2,
+          "name": "Unifier's Will",
+          "type": "defense",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "troop_defense",
+              "per_level": 0.04
+            }
+          ],
+          "description": "Reduces damage taken by 4% per level when defending."
+        },
+        {
+          "id": "oda_passive",
+          "slot": 3,
+          "name": "Tenka Fubu",
+          "type": "passive",
+          "max_level": 5,
+          "effects": [
+            {
+              "stat": "march_speed",
+              "per_level": 0.05
+            }
+          ],
           "description": "Increases march speed by 5% per level."
         }
       ]

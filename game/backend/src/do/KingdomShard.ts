@@ -39,6 +39,11 @@ import {
   barbLevelBonus,
   EVENT_CONSTANTS,
 } from "./sim/events";
+import {
+  AntiCheatRateLimiter,
+  checkMarchPayload,
+  ANTICHEAT_CONSTANTS,
+} from "./sim/anticheat";
 
 type CityEntity = {
   playerId: string;
@@ -161,6 +166,10 @@ export class KingdomShard extends DurableObject<Env> {
   private reports: any[] = [];
   // P2-T4: المناطق التي بُثّ فتحها مسبقاً (لا يُعاد بث zone_unlocked لها)
   private zoneUnlockAnnounced = new Set<string>();
+  // P4-T5: anti-cheat — rate limiter في الذاكرة لكل لاعب × نوع فعل (حدود من data/anticheat.json)
+  private antiCheat = new AntiCheatRateLimiter();
+  // P4-T5: سجل مخالفات حديث (آخر violation_log_limit مخالفة) للفحص الإداري
+  private antiCheatViolations: Array<{ playerId: string; action: string; reason: string; at: number }> = [];
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -1587,7 +1596,25 @@ export class KingdomShard extends DurableObject<Env> {
       return Response.json({ ok: true, queue: q });
     }
 
+    // P4-T5: فحص إداري — آخر مخالفات anti-cheat المسجلة في هذه الـ shard
+    if (path.endsWith("/anticheat/violations") && request.method === "GET") {
+      return Response.json({
+        ok: true,
+        enabled: ANTICHEAT_CONSTANTS.enabled,
+        violations: this.antiCheatViolations.slice().reverse(),
+        trackedBuckets: this.antiCheat.size(),
+      });
+    }
+
     return Response.json({ error: "not_found", path }, { status: 404 });
+  }
+
+  /** P4-T5: تسجيل مخالفة anti-cheat (آخر violation_log_limit) للفحص الإداري. */
+  private logAntiCheatViolation(playerId: string, action: string, reason: string): void {
+    this.antiCheatViolations.push({ playerId, action, reason, at: nowMs() });
+    if (this.antiCheatViolations.length > ANTICHEAT_CONSTANTS.violationLogLimit) {
+      this.antiCheatViolations.splice(0, this.antiCheatViolations.length - ANTICHEAT_CONSTANTS.violationLogLimit);
+    }
   }
 
   private async createMarch(body: any): Promise<MarchEntity> {
@@ -1597,6 +1624,22 @@ export class KingdomShard extends DurableObject<Env> {
 
     const troops = (body.troops || {}) as Troops;
     if (totalTroops(troops) <= 0) throw new Error("no_troops");
+
+    // P4-T5: anti-cheat — فحص الشذوذ (أعداد ضخمة/سقف مسيرات نشطة) ثم حد المعدل لكل لاعب.
+    const activeForPlayer = [...this.marches.values()].filter(
+      (m) => m.ownerPlayerId === playerId && (m.state === "moving" || m.state === "gathering"),
+    ).length;
+    const anomaly = checkMarchPayload(troops, activeForPlayer);
+    if (anomaly) {
+      this.logAntiCheatViolation(playerId, "march", anomaly);
+      throw new Error(`anticheat_${anomaly}`);
+    }
+    const rlAction = body.targetType === "pass" || body.passId ? "pass_attack" : "march";
+    const rl = this.antiCheat.check(playerId, rlAction, nowMs());
+    if (!rl.allowed) {
+      this.logAntiCheatViolation(playerId, rlAction, rl.reason);
+      throw new Error(`rate_limited_${rl.reason}`);
+    }
 
     let toX = Number(body.toX);
     let toY = Number(body.toY);

@@ -4,7 +4,7 @@
 >
 > **طريقة استخدام هذا الملف:** كل جلسة تطوير تبدأ بقراءة هذا الملف لتحديد أول بند غير مكتمل `[ ]`، تنفذه، ثم تحدّث هذا الملف نفسه (تعليم `[x]` + تدوين الملاحظات) وتعمل commit على `main`.
 >
-> **آخر تحديث:** 2026-07-28 — P4-T4 مؤثرات أحداث اللعب (gather/research/heal/zone_unlock/rally × WAV) مربوطة بأحداث WebSocket ودالة HealWounded جديدة في URok2Api.
+> **آخر تحديث:** 2026-07-29 — P4-T5 قادة إضافيون (18 قائداً) + anti-cheat أساسي (rate limits من data/anticheat.json في الـ DO والـ router + كشف شذوذ الحمولات + endpoint فحص إداري).
 
 ---
 
@@ -76,7 +76,9 @@
 - [x] **P4-T2** إنتاج الأصول الصوتية + بورتريهات القادة (موسيقى/مؤثرات WAV حقيقية لكل حضارة + 12 بورتريه PNG مربوط بالعميل) — ✅ تم 2026-07-28
 - [x] **P4-T3** موسيقى معركة منفصلة لكل حضارة (battle.wav) + حالة قتال في URok2AudioManager مربوطة بتقارير القتال — ✅ تم 2026-07-28
 - [x] **P4-T4** مؤثرات أحداث اللعب (جمع موارد/اكتمال بحث/شفاء جرحى/فتح منطقة/rally) مربوطة بالأحداث — ✅ تم 2026-07-28
-- [ ] قادة إضافيون، anti-cheat، matchmaking ممالك، تحسين أداء UA
+- [x] **P4-T5** قادة إضافيون (12→18، قائد جديد لكل حضارة) + anti-cheat أساسي (rate limits + كشف شذوذ) — ✅ تم 2026-07-29
+- [ ] **P4-T6** matchmaking ممالك (تقسيم لاعبين جدد على ممالك حسب القوة/النشاط)
+- [ ] **P4-T7** تحسين أداء UA (أداء العميل: LOD، pooling، batching للرسم)
 - **🚪 بوابة النجاح:** نشر عام + مؤشرات أداء حية مستقرة.
 
 ### المرحلة 5 — Game Feel & Visual Identity ⬅️ *المرحلة الجديدة*
@@ -147,6 +149,7 @@
 | 2026-07-29 | دمج fix/decode-base64-assets (PR #2) + fix/sm6-black-screen (PR #1) في main | 09eb9b8..c1dd6b7 | 24 كوميتاً من البرانشين في main (merge commit، بلا إعادة كتابة تاريخ) |
 | 2026-07-29 | إصلاح حرج شامل بعد التدقيق | — | الخادم: قوس seedWorld المفقود (كان يكسر wrangler deploy)، ثغرة توليد القوات (خصم home→marching عند الإنشاء + إسقاط إنشاء المسيرات عبر WS + رفض الأعداد السالبة/الكسرية + ربط playerId بالتوكن عبر header)، alliance/help (تمرير playerId مالك الطابور + already_helped بعد النجاح)، مصادقة على 6 مسارات GET عامة (snapshot منقّح للضيوف)، إبطال الرموز عبر جدول sessions، 500 ثابت بلا تسريب رسائل، تحقق إحداثيات flag، حد LIMIT لاستعلام retention، combat.ts severeRate فعّال، smoke/e2e بدون مفتاح افتراضي مسرّب + رمز في طلبات snapshot. الكلاينت: حقل Kind في FRok2MarchEntity يُملأ من payload.kind + Cluster من UOverlay إلى UCanvasPanel (كاسرا بناء). النظافة: حذف tmp_binary_test.bin + _extracted (~9MB)، *.apk/*.aab/tmp_* في .gitignore، تصحيح ادعاء PLAN.md السابق، AGENTS.md يعكس التسليم التراكمي |
 | 2026-07-28 | P4-T4 مؤثرات أحداث اللعب الخمسة | 73ba38e | Content/Audio/sfx/ يكسب gather_complete (رنين عملات حصاد)/research_complete (وميض اكتشاف صاعد)/heal_complete (وتد دافئ)/zone_unlock (طبلة + فنفار مهيب)/rally_launch (بوقا تجمع + طبول مسير)؛ ERok2AudioType يكسب 5 أنواع + SfxPaths؛ Rok2Api: PlaySfx عند zone_unlocked/tech_researched/rally_launched (WS) وmarch_returning من نوع gather/node للاعب نفسه + HealWounded جديدة (POST /v1/city/heal بـ troops JSON + صوت HealComplete عند النجاح + توست) — يملأ فجوة عدم وجود عميل لـ endpoint الشفاء؛ scripts/verify_produced_assets.mjs موسّع (أقسام 2b/6d): 143 فحص بنيوي ناجح |
+| 2026-07-29 | P4-T5 قادة إضافيون (18) + anti-cheat أساسي | COMMIT_HASH | data/commanders.json يكسب 6 قادة جدد (cmd_<nation>_2: Germanicus/Zhuge Liang/Saladin/Imhotep/Lagertha/Oda Nobunaga — واحد لكل حضارة، بمهارات attack/defense/passive كاملة)؛ data/anticheat.json جديد (6 rate limits: march/pass_attack/help/shop_buy/use_speedup/rally بحدود نافذة+cooldown + anomaly: سقف قوات المسيرة الكلي/المفرد، سقف المسيرات النشطة 5، سقف شراء 99)؛ sim/anticheat.ts جديد يقرأ JSON فقط (AntiCheatRateLimiter نافذة منزلقة + checkMarchPayload/checkShopBuyPayload)؛ KingdomShard: فحص شذوذ + rate limit في createMarch + سجل مخالفات (آخر 50) + GET /do/anticheat/violations؛ router.ts: enforceRateLimit على help/shop_buy/use_speedup/rally (429 rate_limited_<reason> + retryAfterMs) + GET /v1/admin/anticheat؛ اختباران: anticheat_offline_test.mjs جديد (34 فحصاً) + commanders_offline_test.mjs موسّع (19 فحصاً) — كل الاختبارات الأوفلاين الـ 13 ناجحة بدون كسر |
 ---
 
 ## 5. ملفات مرجعية سريعة

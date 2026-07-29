@@ -46,7 +46,7 @@ function unitAtk(unitId) {
 const troopPower = (t) => Object.entries(t).reduce((s, [u, c]) => s + unitAtk(u) * c, 0);
 
 // data contract
-assert(data.commanders.length === 12, "roster has 12 commanders");
+assert(data.commanders.length === 18, "roster has 18 commanders (12 P2-T1 + 6 P4-T5)");
 assert(
   data.commanders.every((c) => c.skills.length === 3 && new Set(c.skills.map((s) => s.type)).size === 3),
   "each commander: exactly one attack + one defense + one passive",
@@ -59,6 +59,24 @@ assert(
 assert(
   civs.civilizations.every((c) => DEFS[c.starter_commander].nation === c.id),
   "starter commander nation matches civ",
+);
+
+// P4-T5: 6 new commanders — one per civ, each with valid 3-skill structure
+const NEW_IDS = ["cmd_rome_2", "cmd_china_2", "cmd_arabia_2", "cmd_egypt_2", "cmd_vikings_2", "cmd_japan_2"];
+assert(NEW_IDS.every((id) => DEFS[id]), "all 6 P4-T5 commanders present");
+assert(
+  NEW_IDS.every((id) => DEFS[id].nation === id.replace("cmd_", "").replace("_2", "")),
+  "P4-T5 commander nation matches civ id",
+);
+const nations = new Set(NEW_IDS.map((id) => DEFS[id].nation));
+assert(nations.size === 6, "P4-T5: 6 distinct nations covered");
+assert(
+  data.commanders.every((c) => c.skills.every((s) => s.effects.every((e) => e.per_level > 0 && e.per_level <= 0.2))),
+  "all skill effects within sane balance range (0 < per_level <= 0.2)",
+);
+assert(
+  data.commanders.every((c) => ["elite", "epic", "legendary"].includes(c.rarity)),
+  "all rarities are valid (elite/epic/legendary)",
 );
 
 // combat math: identical armies, attacker has commander with maxed attack skill
@@ -78,6 +96,21 @@ const aEffBuffed = base * (1 + aMod) * dDefMod;
 assert(aEffBuffed > aEff, "attacker with attack commander beats same attacker without");
 const plainEff = base;
 assert(aEff < plainEff, "defender defense skill reduces attacker effectiveness");
+
+// P4-T5: combat math spot-checks for two new commanders
+const saladin = { commanderId: "cmd_arabia_2", skills: [5, 1, 1] };
+const salMod = mod(saladin, "attack");
+assert(Math.abs(salMod - 0.4) < 1e-9, `saladin attack mod at skill 5 = ${salMod} (0.4)`);
+const zhuge = { commanderId: "cmd_china_2", skills: [1, 5, 1] };
+const zhugeDef = mod(zhuge, "defense");
+assert(Math.abs(zhugeDef - 0.25) < 1e-9, `zhuge defense mod at skill 5 = ${zhugeDef} (0.25)`);
+const zhugePassive = DEFS["cmd_china_2"].skills[2];
+assert(zhugePassive.effects[0].stat === "xp_gain", "zhuge passive is xp_gain");
+const newIds = NEW_IDS;
+assert(
+  newIds.every((id) => DEFS[id].skills.every((s) => s.max_level === 5)),
+  "P4-T5: all new skills have max_level 5 (consistent with roster)",
+);
 
 // xp curve
 assert(xpForLevel(1) === 1200, "xpForLevel(1) = 1200");
