@@ -90,6 +90,13 @@ protected:
 	/** P2-T7: هل زُرعت مرتفعات KayKit حول المدن؟ (مرة واحدة) */
 	bool bArtHillsSpawned = false;
 
+	/** P4-T7: ممثلات التلال الحية — تُدار بمفتاح محتوى ولا تُعاد زراعتها كل تحديث. */
+	UPROPERTY(Transient)
+	TArray<AActor*> SpawnedHills;
+
+	/** P4-T7: مفتاح محتوى مجموعة المدن — التلال تُعاد زراعتها فقط عند تغيّره. */
+	int64 ArtHillsKey = 0;
+
 	void ClearActors();
 	AActor* SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
 	void SpawnMarker(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);

@@ -106,10 +106,18 @@ void ARok2CityLayoutActor::SpawnWall()
 
 void ARok2CityLayoutActor::ClearBuildings()
 {
+	// P4-T7: إخفاء/إعادة تدوير بدل Destroy — المباني تُعاد بناؤها عند كل city upsert
+	// (تحديثات الموارد الحية P1-T5)، فكان churn عالي التكرار. المبنى المخفي يُعاد
+	// استخدامه عند إعادة الزرع بنفس المعرف وإلا يُدمّر فعلياً في نهاية RebuildFromApi.
 	for (auto& KV : Buildings)
 	{
-		if (KV.Value) KV.Value->Destroy();
+		if (KV.Value)
+		{
+			KV.Value->SetActorHiddenInGame(true);
+			KV.Value->SetActorTickEnabled(false);
+		}
 	}
+	RecycledBuildings = Buildings;
 	Buildings.Empty();
 }
 
@@ -180,15 +188,29 @@ void ARok2CityLayoutActor::RebuildFromApi()
 		const int32 Level = ApiBuildings.Contains(Id) ? ApiBuildings[Id] : 1;
 		const FRok2HexCell Cell = DefaultCellForIndex(idx, Order.Num());
 
-		FActorSpawnParameters P;
-		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		ARok2BuildingActor* B = GetWorld()->SpawnActor<ARok2BuildingActor>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+		// P4-T7: إعادة استخدام المبنى المخفي بنفس المعرف إن وُجد (تجديد سريع)، وإلا زرع جديد
+		ARok2BuildingActor* B = nullptr;
+		bool bReused = false;
+		if (ARok2BuildingActor** Recycled = RecycledBuildings.Find(Id))
+		{
+			B = *Recycled;
+			RecycledBuildings.Remove(Id);
+			bReused = true;
+			B->SetActorHiddenInGame(false);
+			B->SetActorTickEnabled(true);
+		}
+		else
+		{
+			FActorSpawnParameters P;
+			P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			B = GetWorld()->SpawnActor<ARok2BuildingActor>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+		}
 		if (B)
 		{
 			B->SetupWithCiv(Id, Level, Cell, HexSize, PlayerCiv);
 
-			// P5-T6: حركة بناء عند الزرع (scale-in من 0)
-			B->PlayBuildAnimation();
+			// P5-T6: حركة بناء عند الزرع الجديد فقط (المُعاد استخدامه يظهر مباشرة — لا تشويش)
+			if (!bReused) B->PlayBuildAnimation();
 
 			// أصل فني إن توفر (KayKit) — وإلا يبقى placeholder
 			if (URok2ArtAssets* Art = URok2ArtAssets::Get())
@@ -211,6 +233,13 @@ void ARok2CityLayoutActor::RebuildFromApi()
 		}
 		idx++;
 	}
+
+	// P4-T7: مبانٍ مُعاد تدويرها ولم تُستعمل (اختفت من حالة الـ API) — تدمير فعلي
+	for (auto& KV : RecycledBuildings)
+	{
+		if (KV.Value) KV.Value->Destroy();
+	}
+	RecycledBuildings.Empty();
 }
 
 void ARok2CityLayoutActor::SetEditMode(bool bEnable)

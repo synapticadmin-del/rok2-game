@@ -8,6 +8,7 @@
 #include "Rok2CivThemes.h"
 #include "Rok2FogOfWar.h"
 #include "Rok2AudioManager.h"
+#include "Rok2Perf.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -136,21 +137,40 @@ void ARok2WorldRenderer::Tick(float DeltaSeconds)
 
 void ARok2WorldRenderer::ClearActors()
 {
+	// P4-T7: إعادة للمسبح بدل Destroy — تختفي كلفة spawn/GC عند كل تحديث (كل 3ث).
+	// التلال لا تُمسّ (throttled إلى تغيّر مجموعة المدن فعلياً — انظر ArtHillsKey).
+	URok2Perf* Perf = URok2Perf::Get(this);
 	for (AActor* A : SpawnedActors)
 	{
-		if (A) A->Destroy();
+		if (AStaticMeshActor* SM = Cast<AStaticMeshActor>(A))
+		{
+			if (Perf) Perf->ReleaseMarkerActor(SM);
+			else if (A) A->Destroy();
+		}
+		else if (A) A->Destroy();
 	}
 	SpawnedActors.Empty();
-	bArtHillsSpawned = false; // P2-T7: تُعاد زراعة المرتفعات مع إعادة الرسم
+	// bArtHillsSpawned لا يُعاد ضبطه هنا بعد الآن — التلال تُدار بمفتاح محتوى
+	// (ArtHillsKey) وتبقى ثابتة عبر التحديثات ما لم تتغير مجموعة المدن.
 }
 
 AActor* ARok2WorldRenderer::SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color)
 {
 	if (!Mesh) return nullptr;
-	FActorSpawnParameters P;
-	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	AStaticMeshActor* SM = GetWorld()->SpawnActor<AStaticMeshActor>(Loc, FRotator::ZeroRotator, P);
+	// P4-T7: من مسبح الأداء بدل SpawnActor الجديد (إعادة استخدام actor مخفي).
+	AStaticMeshActor* SM = nullptr;
+	if (URok2Perf* Perf = URok2Perf::Get(this))
+	{
+		SM = Perf->AcquireMarkerActor(GetWorld());
+	}
+	else
+	{
+		FActorSpawnParameters P;
+		P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SM = GetWorld()->SpawnActor<AStaticMeshActor>(Loc, FRotator::ZeroRotator, P);
+	}
 	if (!SM) return nullptr;
+	SM->SetActorLocation(Loc);
 #if WITH_EDITOR
 	SM->SetActorLabel(Label);
 #endif
@@ -189,8 +209,12 @@ void ARok2WorldRenderer::RefreshFromApi()
 			CamLoc = VT->GetActorLocation();
 		}
 	}
-	// LOD distance handling for a 1200x1200 world grid at 100 scale (10,000,000 units range)
+	// P4-T7: مسافة الرسم من subsystem الأداء (كانت ثابتاً سحرياً 1000000² — LOD موحد قابل للضبط).
 	float RenderDistanceSq = 1000000.f * 1000000.f;
+	if (URok2Perf* Perf = URok2Perf::Get(this))
+	{
+		RenderDistanceSq = Perf->WorldRenderDistanceSq();
+	}
 
 	if (CityHISM) CityHISM->ClearInstances();
 	if (PassHISM) PassHISM->ClearInstances();
@@ -311,9 +335,28 @@ void ARok2WorldRenderer::RefreshFromApi()
 		}
 	}
 
-	// P2-T7: مرتفعات KayKit عند زوايا مناطق Zone1 (مرة واحدة — علامات حدود بصرية)
-	if (!bArtHillsSpawned)
+	// P2-T7: مرتفعات KayKit عند زوايا مناطق Zone1 (علامات حدود بصرية)
+	// P4-T7: مفتاح محتوى — لا تُعاد زراعة التلال كل تحديث (كان churn كل 3ث)؛
+	// تُعاد فقط عند تغيّر مجموعة المدن فعلياً (عدد/مواقع).
+	int64 CitiesKey = 0;
+	for (const FRok2CityEntity& C : W.Cities)
 	{
+		CitiesKey = CitiesKey * 1315423911LL + (int64)FMath::RoundToInt(C.X) * 2654435761LL + (int64)FMath::RoundToInt(C.Y);
+	}
+	if (CitiesKey != ArtHillsKey)
+	{
+		// تغيّرت مجموعة المدن — أعد التلال الحالية للمسبح وأعد الزرع
+		if (URok2Perf* Perf = URok2Perf::Get(this))
+		{
+			for (AActor* A : SpawnedHills) { if (AStaticMeshActor* SM = Cast<AStaticMeshActor>(A)) Perf->ReleaseMarkerActor(SM); }
+		}
+		else
+		{
+			for (AActor* A : SpawnedHills) { if (A) A->Destroy(); }
+		}
+		SpawnedHills.Empty();
+		ArtHillsKey = CitiesKey;
+
 		if (URok2ArtAssets* Art = URok2ArtAssets::Get())
 		{
 			if (UStaticMesh* Hills = Art->LoadMesh(TEXT("hills")))
@@ -322,13 +365,12 @@ void ARok2WorldRenderer::RefreshFromApi()
 				{
 					// تلال خلف كل مدينة كنقطة ارتكاز بصرية للتضاريس
 					FVector HillLoc(C.X * WorldToUnrealScale + 350.f, C.Y * WorldToUnrealScale + 350.f, CityZ);
-					SpawnMarker(Hills, HillLoc, TEXT("ArtHill"), FLinearColor::White);
-					if (AActor* Last = SpawnedActors.Num() ? SpawnedActors.Last() : nullptr)
+					if (AActor* Hill = SpawnMarkerActor(Hills, HillLoc, TEXT("ArtHill"), FLinearColor::White))
 					{
-						Last->SetActorScale3D(FVector(2.0f));
+						Hill->SetActorScale3D(FVector(2.0f));
+						SpawnedHills.Add(Hill);
 					}
 				}
-				bArtHillsSpawned = true;
 			}
 		}
 	}
@@ -381,11 +423,17 @@ void ARok2WorldRenderer::RefreshFromApi()
 	}
 	
 	TArray<FString> ToRemove;
+	URok2Perf* PerfForCleanup = URok2Perf::Get(this);
 	for (const auto& KV : SpawnedMarches)
 	{
 		if (!ActiveMarches.Contains(KV.Key))
 		{
-			if (KV.Value) KV.Value->Destroy();
+			// P4-T7: إعادة للمسبح بدل Destroy
+			if (KV.Value)
+			{
+				if (PerfForCleanup) { if (AStaticMeshActor* SM = Cast<AStaticMeshActor>(KV.Value)) PerfForCleanup->ReleaseMarkerActor(SM); else KV.Value->Destroy(); }
+				else KV.Value->Destroy();
+			}
 			ToRemove.Add(KV.Key);
 		}
 	}

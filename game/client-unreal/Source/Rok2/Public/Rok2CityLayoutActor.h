@@ -126,6 +126,10 @@ protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
 
+	/** P4-T7: مبانٍ مخفية قابلة لإعادة الاستخدام عبر إعادة البناء (pool محلي خفيف). */
+	UPROPERTY(Transient)
+	TMap<FString, ARok2BuildingActor*> RecycledBuildings;
+
 	UFUNCTION()
 	void OnCityLoadedHandler(const FRok2City& City);
 

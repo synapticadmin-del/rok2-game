@@ -3,6 +3,7 @@
 #include "Rok2BuildingActor.h"
 #include "Rok2CivThemes.h"
 #include "Rok2ProceduralAssets.h"
+#include "Rok2Perf.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -195,6 +196,12 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 	const float BaseHeight = 0.8f + Level * 0.1f;
 
 	// تحميل المش المناسب للسقف حسب النمط
+	// P4-T7: من خبأ meshes المركزي (كان LoadObject متكرراً لكل مبنى × rebuild).
+	URok2Perf* Perf = URok2Perf::Get(this);
+	auto GetMesh = [&](const TCHAR* Shape) -> UStaticMesh* {
+		if (Perf) return Perf->GetEngineMesh(FString(Shape));
+		return LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Engine/BasicShapes/%s.%s"), Shape, Shape));
+	};
 	UStaticMesh* RoofMeshAsset = nullptr;
 	FVector RoofScale = FVector::OneVector;
 	FVector RoofLoc = FVector::ZeroVector;
@@ -203,7 +210,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 	{
 	case ERok2ArchStyle::ArchesMarble:
 		// روما: سقف قرميد أحمر مسطح قليلاً (مكعب منخفض) + أعمدة (Trim رفيع)
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofMeshAsset = GetMesh(TEXT("Cube"));
 		RoofScale = FVector(S * 0.9f, S * 0.9f, 0.25f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 15.f);
 		// الزخارف: شريط رفيع أسفل السقف
@@ -216,7 +223,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 
 	case ERok2ArchStyle::CurvedRoofs:
 		// الصين: أسقف منحنية بطبقات (اسطوانة رفيعة واسعة) + ذهب إمبراطوري
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+		RoofMeshAsset = GetMesh(TEXT("Cylinder"));
 		RoofScale = FVector(S * 1.1f, S * 1.1f, 0.35f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 20.f);
 		// طبقة ثانية أصغر فوقها
@@ -229,7 +236,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 
 	case ERok2ArchStyle::DomesArches:
 		// العرب: قبة فيروزية/ذهبية (كرة) + أقواس حدوة حصان
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		RoofMeshAsset = GetMesh(TEXT("Sphere"));
 		RoofScale = FVector(S * 0.7f, S * 0.7f, S * 0.7f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + S * 30.f);
 		// قاعدة القبة
@@ -242,7 +249,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 
 	case ERok2ArchStyle::ObelisksColumns:
 		// مصر: مسلة ذهبية (مخروط رفيع طويل) + أعمدة بردي
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+		RoofMeshAsset = GetMesh(TEXT("Cone"));
 		RoofScale = FVector(S * 0.4f, S * 0.4f, 1.2f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 60.f);
 		// قاعدة المعبد
@@ -255,7 +262,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 
 	case ERok2ArchStyle::CarvedWood:
 		// الفايكنج: سقف خشبي طويل (مكعب مستطيل) بعوارض منحوتة
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofMeshAsset = GetMesh(TEXT("Cube"));
 		RoofScale = FVector(S * 1.2f, S * 0.8f, 0.4f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 20.f);
 		// عوارض التنين
@@ -268,7 +275,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 
 	case ERok2ArchStyle::TempleWood:
 		// اليابان: قلعة tenshu خشبية داكنة (طبقات متدرجة) بقوادم منحنية
-		RoofMeshAsset = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		RoofMeshAsset = GetMesh(TEXT("Cube"));
 		RoofScale = FVector(S * 1.0f, S * 1.0f, 0.3f);
 		RoofLoc = FVector(0, 0, BaseHeight * 100.f + 18.f);
 		// طبقة ثانية أصغر
