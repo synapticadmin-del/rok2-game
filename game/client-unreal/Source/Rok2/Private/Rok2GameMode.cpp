@@ -11,6 +11,7 @@
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2OnboardingWidget.h"
+#include "Rok2CivInfoWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
@@ -179,6 +180,7 @@ void ARok2GameMode::BindHudEvents()
 	HudWidget->OnEventsAction.AddDynamic(this, &ARok2GameMode::HandleEventsAction);
 	HudWidget->OnMapAction.AddDynamic(this, &ARok2GameMode::HandleMapAction);
 	HudWidget->OnReportsAction.AddDynamic(this, &ARok2GameMode::HandleReportsAction);
+	HudWidget->OnCivInfoAction.AddDynamic(this, &ARok2GameMode::HandleCivInfoAction);
 }
 
 void ARok2GameMode::EnsureViewManager()
@@ -335,5 +337,33 @@ void ARok2GameMode::HandleReportsAction()
 	if (BattleReportWidget && !BattleReportWidget->IsInViewport())
 	{
 		BattleReportWidget->AddToViewport(50);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// P6-T5: شاشة هوية الحضارة + تحيتها
+// ---------------------------------------------------------------------------
+
+void ARok2GameMode::HandleCivInfoAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!CivInfoWidget)
+	{
+		CivInfoWidget = Cast<URok2CivInfoWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2CivInfoWidget::StaticClass()));
+		if (CivInfoWidget)
+		{
+			CivInfoWidget->Setup(Api);
+		}
+	}
+	if (CivInfoWidget && !CivInfoWidget->IsInViewport())
+	{
+		// ترتيب 50 كبقية اللوحات (تحت طبقة الإرشاد 60، فوق الـHUD 20)
+		CivInfoWidget->AddToViewport(50);
+		// تُعاد القراءة عند كل فتح: اللوحة تُنشأ مرة وتُعاد للعرض مراراً، ولو
+		// اعتمدنا على Setup وحده لبقيت على حضارة أول حمولة وصلت.
+		CivInfoWidget->RefreshFromPlayer();
 	}
 }

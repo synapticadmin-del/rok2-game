@@ -260,6 +260,12 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 	SpawnSmall(TEXT("shield"), TEXT("تحالف"), FName(TEXT("OnAllianceClickedHandler")));
 	SpawnSmall(TEXT("bag"), TEXT("حقيبة"), FName(TEXT("OnItemsClickedHandler")));
 	SpawnSmall(TEXT("banner"), TEXT("أحداث"), FName(TEXT("OnEventsClickedHandler")));
+	// P6-T5: باب شاشة هوية الحضارة — تاجٌ لأن الحضارة هوية الحاكم لا نظام لعب.
+	// خامس زرّ في نفس الصف: الأربعة تشغل حتى 198px يساراً من حدّ العنقود، وهذا
+	// ينتهي عند 322، وعنقود اليسار يقف عند 358 من الحدّ الأيسر — فلا تلامس.
+	// والصفّ يمتدّ خارج مقاس العنقود المعلن (220) بلا أثر: UCanvasPanel لا يقصّ
+	// أبناءه، ومرسى كل زرّ الزاوية السفلية اليمنى فيُحسب موضعه منها لا من العرض.
+	SpawnSmall(TEXT("crown"), TEXT("حضارتي"), FName(TEXT("OnCivInfoClickedHandler")));
 }
 
 // ---------------------------------------------------------------------------
@@ -702,3 +708,4 @@ void URok2HudWidget::OnCommandersClickedHandler() { OnCommandersAction.Broadcast
 void URok2HudWidget::OnAllianceClickedHandler() { OnAllianceAction.Broadcast(); }
 void URok2HudWidget::OnItemsClickedHandler() { OnItemsAction.Broadcast(); }
 void URok2HudWidget::OnEventsClickedHandler() { OnEventsAction.Broadcast(); }
+void URok2HudWidget::OnCivInfoClickedHandler() { OnCivInfoAction.Broadcast(); }

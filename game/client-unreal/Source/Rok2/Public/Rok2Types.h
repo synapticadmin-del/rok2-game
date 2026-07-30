@@ -276,6 +276,23 @@ struct FRok2Civilization
 	FString Fantasy;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FString SpecialUnit;
+
+	/**
+	 * P6-T5: الاسم والفانتازي بالعربية — من name_ar/fantasy_ar في
+	 * data/civilizations.json. الحقلان أعلاه يحملان اللاتيني كما تخدمه البيانات
+	 * (وهو ما يُرسَل للخادم ويُسجَّل في اللوجات)، وهذان ما يُعرض للاعب.
+	 *
+	 * محمولان في البنية لا مأخوذان من URok2CivLore عند كل عرض: هذه البنية هي
+	 * سجلّ الحضارة عند العميل، فإرسال كل مستهلك لها إلى سجلٍّ ثانٍ ليعرف اسمها
+	 * يجعل «الاسم» بلا مالك واضح.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString NameAr;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString FantasyAr;
+
+	/** الاسم المعروض: العربي إن وُجد وإلا اللاتيني — فلا صفٌّ فارغ في قائمة */
+	FString DisplayName() const { return NameAr.IsEmpty() ? Name : NameAr; }
 };
 
 USTRUCT(BlueprintType)

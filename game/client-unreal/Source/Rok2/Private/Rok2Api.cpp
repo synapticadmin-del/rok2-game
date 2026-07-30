@@ -3,6 +3,8 @@
 
 #include "Rok2Api.h"
 #include "Rok2AudioManager.h"
+#include "Rok2CivLore.h"
+#include "Rok2BlueprintLibrary.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -146,6 +148,37 @@ void URok2Api::FetchMeta()
 					BM.Name = Rok2Json::Str(B, TEXT("name"));
 					BM.Desc = Rok2Json::Str(B, TEXT("desc"));
 					Self->Meta.Buildings.Add(BM);
+				}
+			}
+		}
+
+		// ---------------------------------------------------------------
+		// P6-T5: الحضارات ونَفَسها القصصي — الخادم هو السلطة
+		//
+		// قبل هذا البند كانت الحضارات تأتي من قائمة مكتوبة في العميل ولا
+		// تُقرأ من هذه الحمولة أصلاً، رغم أن /v1/meta/all يخدمها منذ P1-T6.
+		// النتيجة: قائمة الاختيار كانت تعرض حضارة يرفضها /v1/city/init
+		// (byzantium) وتُسقط أخرى يقبلها (egypt).
+		//
+		// الترتيب مقصود: نُطبّق النصّ على السجلّ **أولاً**، ثم نبني قائمة
+		// الحضارات منه. العكس كان سيبني القائمة من النسخة المدمجة ثم يحدّث
+		// السجلّ، فتبقى القائمة على النصّ القديم حتى إعادة التشغيل.
+		// ---------------------------------------------------------------
+		const TSharedPtr<FJsonObject>* CivsObj;
+		if (Obj->TryGetObjectField(TEXT("civilizations"), CivsObj) && CivsObj->IsValid())
+		{
+			const TArray<TSharedPtr<FJsonValue>>* CivsArr;
+			if ((*CivsObj)->TryGetArrayField(TEXT("civilizations"), CivsArr) && CivsArr)
+			{
+				if (URok2CivLore* Lore = URok2CivLore::Get())
+				{
+					if (Lore->ApplyServerCivs(*CivsArr))
+					{
+						// القائمة تُشتقّ من السجلّ الذي صار الآن نسخة الخادم
+						Self->Civilizations = URok2BlueprintLibrary::GetDefaultCivilizations();
+						UE_LOG(LogRok2, Log, TEXT("Civilizations from server: %d"),
+							Self->Civilizations.Num());
+					}
 				}
 			}
 		}
@@ -444,7 +477,44 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 	// معدلات الإنتاج من المباني المحدّثة (P1-T5)
 	RecomputeResourceRates();
 
+	// P6-T5: تحية الحضارة بنبرتها — هنا لأن الـApi هو منتج الإشعارات كلها
+	// (قتال/منطقة/بحث/حملة/كشافة)، وهذه أول لحظة تُعرف فيها حضارة اللاعب من
+	// الخادم. تُبثّ **قبل** OnCityLoaded فترى الودجات المدينة والتحية معاً.
+	MaybeGreetCiv();
+
 	OnCityLoaded.Broadcast(City);
+}
+
+// ---------------------------------------------------------------------------
+// P6-T5: تحية الحضارة — مرة واحدة في الجلسة
+//
+// ParseCity يُنادى مع كل نبضة شبكة (WS tick + كل LoadCity)، وتحيةٌ تتكرر كل
+// ثانية ضجيج لا نبرة — فالمِزلاج راية جلسة لا حالة محفوظة: التحية ترحيب
+// بالدخول، ودخولٌ جديد يستحق ترحيباً جديداً.
+// ---------------------------------------------------------------------------
+void URok2Api::MaybeGreetCiv()
+{
+	if (bCivGreetingShown) return;
+
+	// الحمولة قد تصل قبل بلوك player (مدينة بلا لاعب) — ليس وقت التحية بعد،
+	// ولا نرفع الراية فتُفقد التحية إلى الأبد.
+	const FString CivId = Player.Civ;
+	if (CivId.IsEmpty()) return;
+
+	URok2CivLore* Lore = URok2CivLore::Get();
+	if (!Lore || !Lore->HasLore(CivId)) return;
+
+	const FRok2CivLore& L = Lore->GetLore(CivId);
+	if (L.Greeting.IsEmpty()) return;
+
+	bCivGreetingShown = true;
+
+	// عبر نظام الإشعارات القائم لا بطاقة جديدة: الـHUD يعرضها بطاقةً تتلاشى
+	// (وثيقة UI §7: «إشعار داخل اللعبة... ولا توقف اللعب أبداً») فتُقرأ ولا
+	// تُطالَب بإغلاق. العنوان اسم الحضارة والمتن تحيتها — فالنبرة معنونة
+	// بصاحبها. والنوع "toast" لأن الـHUD يلوّن الأنواع المعروفة فقط ويردّ ما
+	// سواها إلى لون اللوحة، فنوعٌ مخترع كان سيمرّ بلا لون بلا فائدة.
+	PushNotification(TEXT("toast"), L.NameAr, L.Greeting, CivGreetingTtlSeconds);
 }
 
 // ---------------------------------------------------------------------------

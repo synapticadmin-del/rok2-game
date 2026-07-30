@@ -16,6 +16,7 @@ class URok2CommanderWidget;
 class URok2AllianceRosterWidget;
 class URok2BattleReportWidget;
 class URok2OnboardingWidget;
+class URok2CivInfoWidget;
 class ARok2ViewManager;
 class ARok2CityBuilder;
 
@@ -80,6 +81,10 @@ public:
 	UPROPERTY(Transient)
 	URok2BattleReportWidget* BattleReportWidget;
 
+	/** P6-T5: شاشة هوية الحضارة — نبذتها الأدبية وتحيتها وتلميحاتها */
+	UPROPERTY(Transient)
+	URok2CivInfoWidget* CivInfoWidget;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")
 	float TickIntervalSeconds;
@@ -96,6 +101,7 @@ protected:
 	UFUNCTION() void HandleEventsAction();
 	UFUNCTION() void HandleMapAction();
 	UFUNCTION() void HandleReportsAction();
+	UFUNCTION() void HandleCivInfoAction();
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 
 	/** ربط أحداث HUD بالمعالجات بعد إنشائها */

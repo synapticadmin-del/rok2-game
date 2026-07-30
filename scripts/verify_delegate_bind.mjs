@@ -204,7 +204,12 @@ for (const site of SITES) {
     check(`${site.cls}::${name} is a UFUNCTION() void()`, decl.test(header));
   }
 }
-check('all handler names accounted for', handlerCount === 16, `${handlerCount} names`);
+// العدد الكلّي حرسٌ ضد **انكماش** المجموعة بصمت: لو توقّف المستخرِج عن إيجاد
+// الأسماء (تغيّر شكل الاستدعاء يوماً) لمرّت الحلقة أعلاه بلا فحص واحد وبلا
+// شكوى. فأي تغيّر في المجموعة يُراجَع ويُحدَّث هنا صراحةً لا آلياً.
+//   16 → 17 في P6-T5: زرّ «حضارتي» في عنقود الـHUD
+//   (URok2HudWidget::OnCivInfoClickedHandler) — وفحصه الفردي أعلاه ناجح.
+check('all handler names accounted for', handlerCount === 17, `${handlerCount} names`);
 
 // ---------------------------------------------------------------------------
 // 5. سلامة عامة

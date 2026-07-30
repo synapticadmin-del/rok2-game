@@ -1,52 +1,54 @@
 // Copyright ROK2. Blueprint Helper Library Implementation for Unreal Engine 5.8.
 
 #include "Rok2BlueprintLibrary.h"
+#include "Rok2CivLore.h"
 
+// ---------------------------------------------------------------------------
+// P6-T5: قائمة الحضارات تُشتقّ من data/civilizations.json عبر URok2CivLore،
+// ولا تُكتب هنا. اسم الدالة بقي على حاله لأن مستهلكيه قائمون، ومعناه صار
+// «القائمة الأساسية» لا «قيم مكتوبة يدوياً».
+//
+// ما كان هنا قبل هذا البند لم يكن قديماً فحسب، كان **مُعطِّلاً للتسجيل**:
+//
+//   • «byzantium» كانت معروضة في قائمة اختيار الحضارة، وليست في
+//     data/civilizations.json إطلاقاً. و/v1/city/init يرفض أي معرّف خارج الملف
+//     بـ400 «Unknown civilization» — فلاعب يختار بيزنطة كان يصطدم بفشل تأسيس
+//     المملكة على أول زرّ يضغطه في اللعبة. والوثيقة تقول ذلك صراحةً:
+//     civilizations-visual-design.md §9 يُدرج Byzantium في **التوسع المستقبلي**.
+//   • «egypt» كانت **غائبة** عن القائمة رغم أن لها ثيماً كاملاً (P5-T2) وقائد
+//     بداية (cmd_egypt_starter) وصورة مدينة في assets/ — حضارة سادسة موجودة
+//     في كل مكان إلا في الشاشة التي تُختار منها.
+//   • أوصاف الفانتازي كانت تنطق بونصات مخالفة للملف (روما «سرعة حركة +5%»
+//     والملف gathering_speed؛ الصين «دفاع المباني +10%» والملف building_speed؛
+//     اليابان «كشافة +30%» والملف commander_xp) — وهو ما تمنعه AGENTS.md §3:
+//     «لا قيم توازن ثابتة في الكود».
+//   • وأسماء الوحدات الخاصة الثلاثة كانت مخالفة كذلك (Centurion/Mamluk/
+//     Berserker مقابل legionary/desert_rider/huskarl).
+//
+// أي أن التصحيح ليس تنظيفاً استطرادياً بل شرطُ البند: نصٌّ يُؤلَّف في الملف
+// «فيُخدم للطرفين» لا يصل أبداً إلى قائمةٍ تُبنى من مصدر آخر.
+// ---------------------------------------------------------------------------
 TArray<FRok2Civilization> URok2BlueprintLibrary::GetDefaultCivilizations()
 {
 	TArray<FRok2Civilization> List;
 
-	FRok2Civilization Rome;
-	Rome.Id = TEXT("rome");
-	Rome.Name = TEXT("روما (Rome)");
-	Rome.Fantasy = TEXT("فرسان الصليب والإمبراطورية العظمى — مشاة +5%، سرعة حركة +5%");
-	Rome.SpecialUnit = TEXT("Centurion");
-	List.Add(Rome);
+	URok2CivLore* Lore = URok2CivLore::Get();
+	if (!Lore) return List;
 
-	FRok2Civilization Arabia;
-	Arabia.Id = TEXT("arabia");
-	Arabia.Name = TEXT("العرب (Arabia)");
-	Arabia.Fantasy = TEXT("صقراء الصحراء — فرسان +5%، سرعة جمع الموارد +10%");
-	Arabia.SpecialUnit = TEXT("Mamluk");
-	List.Add(Arabia);
+	for (const FString& CivId : Lore->GetCivIds())
+	{
+		const FRok2CivLore& L = Lore->GetLore(CivId);
+		if (!L.IsValid()) continue;
 
-	FRok2Civilization China;
-	China.Id = TEXT("china");
-	China.Name = TEXT("الصين (China)");
-	China.Fantasy = TEXT("تنين المشرق — دفاع المباني +10%، سرعة البناء +5%");
-	China.SpecialUnit = TEXT("Cho-Ko-Nu");
-	List.Add(China);
-
-	FRok2Civilization Byzantium;
-	Byzantium.Id = TEXT("byzantium");
-	Byzantium.Name = TEXT("بيزنطة (Byzantium)");
-	Byzantium.Fantasy = TEXT("حصن الشرق — مستشفى +15%، سعة الجيش +5%");
-	Byzantium.SpecialUnit = TEXT("Cataphract");
-	List.Add(Byzantium);
-
-	FRok2Civilization Vikings;
-	Vikings.Id = TEXT("vikings");
-	Vikings.Name = TEXT("الفايكنج (Vikings)");
-	Vikings.Fantasy = TEXT("غزاة الشمال — هجوم المشاة +5%، ضرر الهجوم المضاد +5%");
-	Vikings.SpecialUnit = TEXT("Berserker");
-	List.Add(Vikings);
-
-	FRok2Civilization Japan;
-	Japan.Id = TEXT("japan");
-	Japan.Name = TEXT("اليابان (Japan)");
-	Japan.Fantasy = TEXT("محاربو الساموراي — هجوم جميع القوات +3%، سرعة الكشافة +30%");
-	Japan.SpecialUnit = TEXT("Samurai");
-	List.Add(Japan);
+		FRok2Civilization C;
+		C.Id = L.CivId;
+		C.Name = L.NameLatin;
+		C.NameAr = L.NameAr;
+		C.Fantasy = L.FantasyLatin;
+		C.FantasyAr = L.FantasyAr;
+		C.SpecialUnit = L.SpecialUnitId;
+		List.Add(C);
+	}
 
 	return List;
 }

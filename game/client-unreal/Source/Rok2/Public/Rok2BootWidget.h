@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+// ESelectInfo::Type يظهر في توقيع معالج تغيّر القائمة أدناه، فيُضمَّن صريحاً
+// بدل الاعتماد على وصوله عَرَضاً عبر هيدر آخر (SlateCore وحدة عامة).
+#include "Types/SlateEnums.h"
 #include "Rok2Types.h"
 #include "Rok2BootWidget.generated.h"
 
@@ -13,6 +16,7 @@ class UEditableTextBox;
 class UButton;
 class UTextBlock;
 class UBorder;
+class UVerticalBox;
 
 UCLASS()
 class URok2BootWidget : public UUserWidget
@@ -50,8 +54,55 @@ protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
 
+	// -----------------------------------------------------------------------
+	// P6-T5: بطاقة النَفَس القصصي — «نبذة أدبية تظهر عند اختيار الحضارة»
+	//
+	// تجلس تحت القائمة المنسدلة داخل نفس البطاقة، وتتبدّل نصّاً مع كل اختيار.
+	// وثيقة UI §6 تطلب في النهاية كاروسيل بطاقات كاملة الشاشة بفنّ المدينة؛
+	// هذا البند نصّي لا بصري، فالنصّ يحلّ الآن في مكانه من التخطيط القائم
+	// ويرثه الكاروسيل حين يُبنى — لا نصّ يُكتب مرتين.
+	// -----------------------------------------------------------------------
+
+	/** لوحة النبذة (تظهر مع ظهور قائمة الاختيار) */
+	UPROPERTY(Transient)
+	UBorder* LorePanel;
+
+	/** الاسم العربي + جملة الفانتازي في سطر واحد */
+	UPROPERTY(Transient)
+	UTextBlock* LoreHeadingText;
+
+	/** النبذة الأدبية — 3-4 أسطر بفواصل مؤلَّفة */
+	UPROPERTY(Transient)
+	UTextBlock* LoreStoryText;
+
+	/** التحية بنبرة الحضارة */
+	UPROPERTY(Transient)
+	UTextBlock* LoreGreetingText;
+
+	/** آخر معرّف عُرضت نبذته — يمنع إعادة الحركة على اختيارٍ لم يتغيّر */
+	FString LastLoreCivId;
+
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+	/** يبني لوحة النبذة داخل الصندوق العمودي للبطاقة */
+	void BuildLorePanel(class UVerticalBox* VBox);
+
+	/** معرّف الحضارة المختارة الآن في القائمة (فارغ إن لا قائمة) */
+	FString SelectedCivId() const;
+
+	/** يعرض نبذة حضارة. معرّف بلا نبذة يُخفي اللوحة بلا ضجيج. */
+	void ShowLoreFor(const FString& CivId);
+
+	UFUNCTION()
+	void OnCivSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	/** حمولة الخادم قد تصل بعد بناء القائمة — تُعاد الملء ويُحفظ الاختيار */
+	UFUNCTION()
+	void OnMetaLoaded(bool bFromServer);
+
+	/** يملأ القائمة من الحضارات الحالية ويحاول استعادة معرّف مختار */
+	void PopulateCivCombo(const FString& PreferCivId);
 
 	UFUNCTION()
 	void OnEnterClicked();

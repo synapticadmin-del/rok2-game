@@ -47,6 +47,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnItemsAction;      // الحقيبة
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnEventsAction;     // الأحداث
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnEditCityAction;   // تحرير المدينة
+	/**
+	 * P6-T5: باب شاشة هوية الحضارة. وثيقة UI §3.3 تُدرج أربعة أزرار صغيرة حول
+	 * زر البناء (قادة/تحالف/حقيبة/أحداث)، وهذا خامسها: النبذة الأدبية تحتاج
+	 * باباً دائماً بعد شاشة الاختيار، وإلا لم تُقرأ إلا مرة واحدة في العمر.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCivInfoAction;
 
 protected:
 	UPROPERTY(Transient)
@@ -117,6 +123,7 @@ protected:
 	UFUNCTION() void OnAllianceClickedHandler();
 	UFUNCTION() void OnItemsClickedHandler();
 	UFUNCTION() void OnEventsClickedHandler();
+	UFUNCTION() void OnCivInfoClickedHandler();
 
 private:
 	struct FToastEntry

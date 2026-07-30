@@ -226,6 +226,22 @@ protected:
 	/** يضيف إشعاراً ويبثه للـ HUD */
 	void PushNotification(const FString& Kind, const FString& Title, const FString& Body, float TtlSeconds = 6.f);
 
+	/**
+	 * P6-T5: يُلقي تحية الحضارة مرة واحدة في الجلسة عبر نظام الإشعارات.
+	 * يُنادى من ParseCity — أول لحظة تكون فيها حضارة اللاعب معروفة من الخادم.
+	 */
+	void MaybeGreetCiv();
+
+	/** هل أُلقيت تحية الحضارة في هذه الجلسة؟ راية جلسة لا حالة محفوظة. */
+	bool bCivGreetingShown = false;
+
+	/**
+	 * مدة بقاء بطاقة التحية. أطول من الافتراضي (6s) لأنها جملة أدبية تُقرأ لا
+	 * سطر حالة يُلمح — والقراءة العربية لجملة كاملة لا تتمّ في ست ثوانٍ مع
+	 * انصراف العين إلى المدينة الجديدة.
+	 */
+	static constexpr float CivGreetingTtlSeconds = 8.f;
+
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> PendingRequest;
 	TSharedPtr<IWebSocket> WebSocket;
 	float WorldPollTimer = 0.f;
