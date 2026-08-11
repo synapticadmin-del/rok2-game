@@ -1,5 +1,8 @@
 # كائنات الخريطة (Map Objects)
 
+> **[مرجعي قديم]** هذه قائمة تصنيفية مفيدة لسجل الكائنات. مواصفة الخريطة التفاعلية وقواعد الملكية والمرور ونطاقات منشآت التحالف المعتمدة موجودة في [`design/04-world-map/MAP_AND_ALLIANCE_INTERACTION.md`](../design/04-world-map/MAP_AND_ALLIANCE_INTERACTION.md)، بينما يبقى كتالوج المباني في [`design/04-world-map/BUILDING_CATALOG.md`](../design/04-world-map/BUILDING_CATALOG.md).
+
+
 ## تصنيف سريع
 
 | الفئة | أمثلة | تفاعل |

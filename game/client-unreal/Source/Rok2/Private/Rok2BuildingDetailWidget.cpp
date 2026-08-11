@@ -8,6 +8,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2DelegateBind.h"
+#include "Rok2VisualTheme.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -21,17 +22,6 @@
 #include "Components/Spacer.h"
 #include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
-
-namespace Rok2CardStyle
-{
-	static const FLinearColor SheetBg(0.10f, 0.07f, 0.04f, 0.97f);
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);
-	static const FLinearColor ResGreen(0.5f, 0.95f, 0.55f);
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
-	static const FLinearColor BtnGold(0.55f, 0.42f, 0.10f);
-	static const FLinearColor BtnGhost(0.20f, 0.16f, 0.12f);
-}
 
 void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& InBuildingId, int32 InLevel)
 {
@@ -68,7 +58,7 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 
 	// P6-T1: أيقونة المبنى الإجرائية في الترويسة (تُزرع في HeaderIconBox عند البناء)
 	if (TitleText) TitleText->SetText(FText::FromString(DisplayName));
-	if (HeaderIcon) HeaderIcon->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 28.f, Rok2CardStyle::Gold));
+	if (HeaderIcon) HeaderIcon->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 28.f, Rok2Visual::Gold()));
 	if (DescText) DescText->SetText(FText::FromString(Desc));
 	if (LevelText) LevelText->SetText(FText::FromString(FString::Printf(TEXT("المستوى %d  ➔  %d"), CurrentLevel, CurrentLevel + 1)));
 
@@ -78,10 +68,10 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 	const int32 TimeSec = FMath::RoundToInt(60.f * FMath::Pow(1.6f, (float)CurrentLevel));
 	if (CostFoodText) CostFoodText->SetText(FText::FromString(FString::FromInt(FoodCost)));
 	if (CostText) CostText->SetText(FText::FromString(FString::FromInt(WoodCost)));
-	if (CostFoodIcon) CostFoodIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("food"), 16.f, Rok2CardStyle::ResGreen));
-	if (CostWoodIcon) CostWoodIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("wood"), 16.f, Rok2CardStyle::ResGreen));
+	if (CostFoodIcon) CostFoodIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("food"), 16.f, Rok2Visual::Success()));
+	if (CostWoodIcon) CostWoodIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("wood"), 16.f, Rok2Visual::Success()));
 	if (TimeText) TimeText->SetText(FText::FromString(FString::Printf(TEXT("%dث"), TimeSec)));
-	if (TimeIcon) TimeIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("clock"), 16.f, Rok2CardStyle::Muted));
+	if (TimeIcon) TimeIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("clock"), 16.f, Rok2Visual::Muted()));
 
 	// الزر الثانوي حسب النوع
 	const FString ActionLabel = ActionLabelForBuilding(BuildingId);
@@ -89,7 +79,7 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 	if (ActionBtnIcon)
 	{
 		const FString ActionIcon = ActionIconForBuilding(BuildingId);
-		ActionBtnIcon->SetBrush(URok2ArtAssets::GetIconBrush(ActionIcon, 18.f, Rok2CardStyle::Ivory));
+		ActionBtnIcon->SetBrush(URok2ArtAssets::GetIconBrush(ActionIcon, 18.f, Rok2Visual::Ivory()));
 		ActionBtnIcon->SetVisibility(ActionIcon.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
 	if (ActionButton) ActionButton->SetVisibility(ActionLabel.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
@@ -143,7 +133,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	// البطاقة — Bottom Sheet بعرض كامل أسفل الشاشة
 	SheetBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SheetBorder"));
-	SheetBorder->SetBrushColor(Rok2CardStyle::SheetBg);
+	SheetBorder->SetBrushColor(Rok2Visual::Panel());
 	UCanvasPanelSlot* SheetSlot = RootCanvas->AddChildToCanvas(SheetBorder);
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
 	SheetSlot->SetAlignment(FVector2D(0.5f, 1.f));
@@ -155,7 +145,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	// مقبض السحب العلوي (شريط صغير)
 	UBorder* Handle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Handle->SetBrushColor(Rok2CardStyle::Gold);
+	Handle->SetBrushColor(Rok2Visual::Gold());
 	UVerticalBoxSlot* HandleSlot = VBox->AddChildToVerticalBox(Handle);
 	HandleSlot->SetHorizontalAlignment(HAlign_Center);
 	HandleSlot->SetPadding(FMargin(0, 8, 0, 4));
@@ -174,19 +164,19 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	HeaderIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 	TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	TitleText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Gold));
+	TitleText->SetColorAndOpacity(FSlateColor(Rok2Visual::Gold()));
 	URok2Typography::ApplyFont(TitleText, ERok2TextRole::Title);
 	HeaderRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 	HeaderRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	DescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	DescText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Muted));
+	DescText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 	URok2Typography::ApplyFont(DescText, ERok2TextRole::Caption);
 	DescText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(DescText)->SetPadding(FMargin(0, 0, 0, 6));
 
 	LevelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-	LevelText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Ivory));
+	LevelText->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 	URok2Typography::ApplyFont(LevelText, ERok2TextRole::Body);
 	LevelText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(LevelText)->SetPadding(FMargin(0, 0, 0, 10));
@@ -211,21 +201,21 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
 	};
 
-	MakeCostPair(CostFoodIcon, CostFoodText, Rok2CardStyle::ResGreen);
-	MakeCostPair(CostWoodIcon, CostText, Rok2CardStyle::ResGreen);
-	MakeCostPair(TimeIcon, TimeText, Rok2CardStyle::Muted);
+	MakeCostPair(CostFoodIcon, CostFoodText, Rok2Visual::Success());
+	MakeCostPair(CostWoodIcon, CostText, Rok2Visual::Success());
+	MakeCostPair(TimeIcon, TimeText, Rok2Visual::Muted());
 
 	CostRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	// شريط طابور حالي (يُملأ من الـ API)
 	QueueBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
 	QueueBar->SetPercent(0.f);
-	QueueBar->SetFillColorAndOpacity(Rok2CardStyle::Gold);
+	QueueBar->SetFillColorAndOpacity(Rok2Visual::Gold());
 	VBox->AddChildToVerticalBox(QueueBar)->SetPadding(FMargin(30, 8, 30, 2));
 
 	QueueText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	QueueText->SetText(FText::FromString(TEXT("")));
-	QueueText->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Muted));
+	QueueText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 	URok2Typography::ApplyFont(QueueText, ERok2TextRole::Micro);
 	QueueText->SetJustification(ETextJustify::Center);
 	VBox->AddChildToVerticalBox(QueueText)->SetPadding(FMargin(0, 0, 0, 10));
@@ -243,7 +233,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		OutBtn->AddChild(BtnBox);
 		OutIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		OutIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 18.f, Rok2CardStyle::Ivory));
+		OutIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 18.f, Rok2Visual::Ivory()));
 		OutIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
 		UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(OutIco);
 		IcoSlot->SetPadding(FMargin(6, 2, 4, 2));
@@ -251,7 +241,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		OutTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		OutTxt->SetText(FText::FromString(Label));
-		OutTxt->SetColorAndOpacity(FSlateColor(Rok2CardStyle::Ivory));
+		OutTxt->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 		URok2Typography::ApplyFont(OutTxt, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* TxtSlot = BtnBox->AddChildToHorizontalBox(OutTxt);
 		TxtSlot->SetPadding(FMargin(0, 2, 6, 2));
@@ -265,13 +255,13 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	};
 
 	UImage* UpgradeIco = nullptr;
-	MakeBtn(UpgradeButton, UpgradeBtnText, UpgradeIco, TEXT("build"), TEXT("ترقية"), Rok2CardStyle::BtnGold, FName(TEXT("OnUpgradeClicked")));
-	MakeBtn(ActionButton, ActionBtnText, ActionBtnIcon, TEXT("sword"), TEXT(""), Rok2CardStyle::BtnGhost, FName(TEXT("OnActionClicked")));
+	MakeBtn(UpgradeButton, UpgradeBtnText, UpgradeIco, TEXT("build"), TEXT("ترقية"), Rok2Visual::PrimaryAction(), FName(TEXT("OnUpgradeClicked")));
+	MakeBtn(ActionButton, ActionBtnText, ActionBtnIcon, TEXT("sword"), TEXT(""), Rok2Visual::Card(), FName(TEXT("OnActionClicked")));
 
 	UTextBlock* CloseTxt = nullptr;
 	UImage* CloseIco = nullptr;
 	UButton* CloseBtnRef = nullptr;
-	MakeBtn(CloseBtnRef, CloseTxt, CloseIco, TEXT("close"), TEXT("إغلاق"), Rok2CardStyle::BtnGhost, FName(TEXT("OnCloseClicked")));
+	MakeBtn(CloseBtnRef, CloseTxt, CloseIco, TEXT("close"), TEXT("إغلاق"), Rok2Visual::Card(), FName(TEXT("OnCloseClicked")));
 	CloseButton = CloseBtnRef;
 
 	// P6-T3: اللوحة تنزلق من الأسفل كـ Bottom Sheet (0.25s ease-out) — المعيار الموحد

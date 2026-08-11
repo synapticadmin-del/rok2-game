@@ -1,0 +1,322 @@
+{
+  "generated_from": [
+    "data/civilizations.json",
+    "data/commanders.json"
+  ],
+  "civilization_count": 6,
+  "commander_count": 18,
+  "summaries": [
+    {
+      "id": "rome",
+      "name_ar": "روما",
+      "special_unit": "legionary",
+      "starter_commander": "cmd_rome_starter",
+      "bonus_total_percent": 12,
+      "commander_count": 4,
+      "commanders": [
+        {
+          "id": "cmd_rome_starter",
+          "name": "Scipio",
+          "rarity": "elite",
+          "tags": [
+            "infantry",
+            "garrison",
+            "attack"
+          ],
+          "base_total": 155,
+          "max_attack_bonus_percent": 20,
+          "max_defense_bonus_percent": 15,
+          "max_passive_bonus_percent": 10
+        },
+        {
+          "id": "julius_caesar",
+          "name": "Julius Caesar",
+          "rarity": "legendary",
+          "tags": [
+            "leadership",
+            "conquering",
+            "attack"
+          ],
+          "base_total": 215,
+          "max_attack_bonus_percent": 40,
+          "max_defense_bonus_percent": 30,
+          "max_passive_bonus_percent": 15
+        },
+        {
+          "id": "alexander_great",
+          "name": "Alexander the Great",
+          "rarity": "legendary",
+          "tags": [
+            "cavalry",
+            "conquering",
+            "leadership"
+          ],
+          "base_total": 227,
+          "max_attack_bonus_percent": 45,
+          "max_defense_bonus_percent": 25,
+          "max_passive_bonus_percent": 25
+        },
+        {
+          "id": "cmd_rome_2",
+          "name": "Germanicus",
+          "rarity": "epic",
+          "tags": [
+            "infantry",
+            "conquering",
+            "leadership"
+          ],
+          "base_total": 190,
+          "max_attack_bonus_percent": 30,
+          "max_defense_bonus_percent": 20,
+          "max_passive_bonus_percent": 15
+        }
+      ]
+    },
+    {
+      "id": "china",
+      "name_ar": "الصين",
+      "special_unit": "chu_ko_nu",
+      "starter_commander": "cmd_china_starter",
+      "bonus_total_percent": 13,
+      "commander_count": 2,
+      "commanders": [
+        {
+          "id": "cmd_china_starter",
+          "name": "Sun Tzu",
+          "rarity": "epic",
+          "tags": [
+            "infantry",
+            "garrison",
+            "skill"
+          ],
+          "base_total": 180,
+          "max_attack_bonus_percent": 25,
+          "max_defense_bonus_percent": 20,
+          "max_passive_bonus_percent": 15
+        },
+        {
+          "id": "cmd_china_2",
+          "name": "Zhuge Liang",
+          "rarity": "legendary",
+          "tags": [
+            "archer",
+            "skill",
+            "support"
+          ],
+          "base_total": 228,
+          "max_attack_bonus_percent": 35,
+          "max_defense_bonus_percent": 25,
+          "max_passive_bonus_percent": 35
+        }
+      ]
+    },
+    {
+      "id": "arabia",
+      "name_ar": "العرب",
+      "special_unit": "desert_rider",
+      "starter_commander": "cmd_arabia_starter",
+      "bonus_total_percent": 14,
+      "commander_count": 3,
+      "commanders": [
+        {
+          "id": "cmd_arabia_starter",
+          "name": "Baibars",
+          "rarity": "epic",
+          "tags": [
+            "cavalry",
+            "conquering",
+            "attack"
+          ],
+          "base_total": 175,
+          "max_attack_bonus_percent": 30,
+          "max_defense_bonus_percent": 10,
+          "max_passive_bonus_percent": 20
+        },
+        {
+          "id": "genghis_khan",
+          "name": "Genghis Khan",
+          "rarity": "legendary",
+          "tags": [
+            "cavalry",
+            "conquering",
+            "attack"
+          ],
+          "base_total": 205,
+          "max_attack_bonus_percent": 50,
+          "max_defense_bonus_percent": 15,
+          "max_passive_bonus_percent": 30
+        },
+        {
+          "id": "cmd_arabia_2",
+          "name": "Saladin",
+          "rarity": "legendary",
+          "tags": [
+            "cavalry",
+            "leadership",
+            "defense"
+          ],
+          "base_total": 217,
+          "max_attack_bonus_percent": 40,
+          "max_defense_bonus_percent": 30,
+          "max_passive_bonus_percent": 25
+        }
+      ]
+    },
+    {
+      "id": "egypt",
+      "name_ar": "مصر",
+      "special_unit": "khopesh_guard",
+      "starter_commander": "cmd_egypt_starter",
+      "bonus_total_percent": 16,
+      "commander_count": 3,
+      "commanders": [
+        {
+          "id": "cmd_egypt_starter",
+          "name": "Cleopatra",
+          "rarity": "epic",
+          "tags": [
+            "gathering",
+            "support",
+            "leadership"
+          ],
+          "base_total": 185,
+          "max_attack_bonus_percent": 15,
+          "max_defense_bonus_percent": 25,
+          "max_passive_bonus_percent": 25
+        },
+        {
+          "id": "joan_of_arc",
+          "name": "Joan of Arc",
+          "rarity": "legendary",
+          "tags": [
+            "leadership",
+            "support",
+            "defense"
+          ],
+          "base_total": 225,
+          "max_attack_bonus_percent": 25,
+          "max_defense_bonus_percent": 35,
+          "max_passive_bonus_percent": 40
+        },
+        {
+          "id": "cmd_egypt_2",
+          "name": "Imhotep",
+          "rarity": "epic",
+          "tags": [
+            "gathering",
+            "support",
+            "garrison"
+          ],
+          "base_total": 197,
+          "max_attack_bonus_percent": 20,
+          "max_defense_bonus_percent": 30,
+          "max_passive_bonus_percent": 30
+        }
+      ]
+    },
+    {
+      "id": "vikings",
+      "name_ar": "الفايكنج",
+      "special_unit": "huskarl",
+      "starter_commander": "cmd_vikings_starter",
+      "bonus_total_percent": 17,
+      "commander_count": 3,
+      "commanders": [
+        {
+          "id": "cmd_vikings_starter",
+          "name": "Ragnar",
+          "rarity": "epic",
+          "tags": [
+            "infantry",
+            "attack",
+            "barbarian_hunter"
+          ],
+          "base_total": 160,
+          "max_attack_bonus_percent": 30,
+          "max_defense_bonus_percent": 10,
+          "max_passive_bonus_percent": 10
+        },
+        {
+          "id": "richard_lionheart",
+          "name": "Richard the Lionheart",
+          "rarity": "legendary",
+          "tags": [
+            "infantry",
+            "garrison",
+            "defense"
+          ],
+          "base_total": 200,
+          "max_attack_bonus_percent": 35,
+          "max_defense_bonus_percent": 40,
+          "max_passive_bonus_percent": 25
+        },
+        {
+          "id": "cmd_vikings_2",
+          "name": "Lagertha",
+          "rarity": "epic",
+          "tags": [
+            "infantry",
+            "attack",
+            "barbarian_hunter"
+          ],
+          "base_total": 176,
+          "max_attack_bonus_percent": 35,
+          "max_defense_bonus_percent": 15,
+          "max_passive_bonus_percent": 20
+        }
+      ]
+    },
+    {
+      "id": "japan",
+      "name_ar": "اليابان",
+      "special_unit": "samurai",
+      "starter_commander": "cmd_japan_starter",
+      "bonus_total_percent": 11,
+      "commander_count": 3,
+      "commanders": [
+        {
+          "id": "cmd_japan_starter",
+          "name": "Kusunoki Masashige",
+          "rarity": "epic",
+          "tags": [
+            "archer",
+            "garrison",
+            "defense"
+          ],
+          "base_total": 175,
+          "max_attack_bonus_percent": 25,
+          "max_defense_bonus_percent": 25,
+          "max_passive_bonus_percent": 20
+        },
+        {
+          "id": "yi_seong_gye",
+          "name": "Yi Seong-Gye",
+          "rarity": "legendary",
+          "tags": [
+            "archer",
+            "attack",
+            "skill"
+          ],
+          "base_total": 195,
+          "max_attack_bonus_percent": 45,
+          "max_defense_bonus_percent": 20,
+          "max_passive_bonus_percent": 30
+        },
+        {
+          "id": "cmd_japan_2",
+          "name": "Oda Nobunaga",
+          "rarity": "legendary",
+          "tags": [
+            "archer",
+            "conquering",
+            "attack"
+          ],
+          "base_total": 208,
+          "max_attack_bonus_percent": 40,
+          "max_defense_bonus_percent": 20,
+          "max_passive_bonus_percent": 25
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # الحضارات (Civilizations)
 
+> **[مرجعي قديم]** هذه الوثيقة سجل استكشافي وتحتوي قوائم مقترحة أوسع من الإصدار المنفذ. مصدر الحقيقة التنفيذي هو [`data/civilizations.json`](../data/civilizations.json)، والمرجع التصميمي المعتمد هو [`design/02-civilizations/CIVILIZATIONS_AND_COMMANDERS.md`](../design/02-civilizations/CIVILIZATIONS_AND_COMMANDERS.md). لا تستخدم الأسماء أو النسب هنا كعقد للعميل أو الخادم.
+
+
 ## مبدأ التصميم
 كل حضارة تعطي:
 1. **بونصات دائمة** (اقتصاد/عسكري/جودة حياة)

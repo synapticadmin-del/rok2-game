@@ -8,6 +8,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2DelegateBind.h"
+#include "Rok2VisualTheme.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -22,16 +23,6 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Blueprint/WidgetTree.h"
-
-namespace Rok2BuildStyle
-{
-	static const FLinearColor SheetBg(0.10f, 0.07f, 0.04f, 0.97f);
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
-	static const FLinearColor CardBg(0.16f, 0.12f, 0.07f);
-	static const FLinearColor TabInactive(0.55f, 0.50f, 0.42f);
-}
 
 void URok2BuildMenuWidget::Setup(URok2Api* InApi)
 {
@@ -86,7 +77,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 
 	// الورقة السفلية
 	UBorder* Sheet = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Sheet->SetBrushColor(Rok2BuildStyle::SheetBg);
+	Sheet->SetBrushColor(Rok2Visual::Panel());
 	UCanvasPanelSlot* SheetSlot = RootCanvas->AddChildToCanvas(Sheet);
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
 	SheetSlot->SetAlignment(FVector2D(0.5f, 1.f));
@@ -101,7 +92,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 	TitleRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	{
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("build"), 20.f, Rok2BuildStyle::Gold));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("build"), 20.f, Rok2Visual::Gold()));
 		Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
 		UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
@@ -110,7 +101,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 	}
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("قائمة البناء")));
-	Title->SetColorAndOpacity(FSlateColor(Rok2BuildStyle::Gold));
+	Title->SetColorAndOpacity(FSlateColor(Rok2Visual::Gold()));
 	URok2Typography::ApplyFont(Title, ERok2TextRole::Title);
 	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 	TitleRow->AddChildToHorizontalBox(WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass()))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -127,7 +118,7 @@ void URok2BuildMenuWidget::NativeConstruct()
 		UHorizontalBox* TabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		B->AddChild(TabBox);
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Rok2BuildStyle::Gold));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Rok2Visual::Gold()));
 		Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
 		UHorizontalBoxSlot* IcoSlot = TabBox->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
@@ -162,7 +153,7 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 
 	// تحديث ألوان التبويبات
 	auto TabColor = [&](UTextBlock* T, bool bActive) {
-		if (T) T->SetColorAndOpacity(FSlateColor(bActive ? Rok2BuildStyle::Gold : Rok2BuildStyle::TabInactive));
+		if (T) T->SetColorAndOpacity(FSlateColor(bActive ? Rok2Visual::Gold() : Rok2Visual::TabInactive()));
 	};
 	TabColor(TabEconText, Category == TEXT("economic"));
 	TabColor(TabMilText, Category == TEXT("military"));
@@ -176,7 +167,7 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		if (E.Cat != Category) continue;
 
 		UBorder* Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Card->SetBrushColor(Rok2BuildStyle::CardBg);
+		Card->SetBrushColor(Rok2Visual::Card());
 
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Card->SetContent(Btn);
@@ -194,13 +185,13 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 
 		// P6-T1: أيقونة المبنى إجرائية 28px بدل الإيموجي النصي
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(E.Icon, 28.f, Rok2BuildStyle::Ivory));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(E.Icon, 28.f, Rok2Visual::Ivory()));
 		Ico->SetDesiredSizeOverride(FVector2D(28.f, 28.f));
 		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 
 		UTextBlock* Name = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Name->SetText(FText::FromString(E.Name));
-		Name->SetColorAndOpacity(FSlateColor(Rok2BuildStyle::Ivory));
+		Name->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 		URok2Typography::ApplyFont(Name, ERok2TextRole::Micro);
 		Name->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Name)->SetHorizontalAlignment(HAlign_Center);
