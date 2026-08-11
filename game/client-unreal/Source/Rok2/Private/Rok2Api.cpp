@@ -54,10 +54,7 @@ void URok2Api::Init(const FString& ApiBaseUrl, const FString& InKingdomId, const
 	KingdomId = InKingdomId;
 	AdminKey = InAdminKey;
 	DeviceId = TEXT("ue5_dev_") + FGuid::NewGuid().ToString();
-	
-	Commanders.Add({TEXT("cmd_sun_tzu"), TEXT("Sun Tzu"), TEXT("Epic"), TEXT("China"), {TEXT("Infantry"), TEXT("Garrison"), TEXT("Skill")}});
-	Commanders.Add({TEXT("cmd_richard_1"), TEXT("Richard I"), TEXT("Legendary"), TEXT("Britain"), {TEXT("Infantry"), TEXT("Garrison"), TEXT("Defense")}});
-	Commanders.Add({TEXT("cmd_joan"), TEXT("Joan of Arc"), TEXT("Epic"), TEXT("France"), {TEXT("Integration"), TEXT("Gathering"), TEXT("Support")}});
+
 
 	// load device id from saved file; generate if missing
 	FString DeviceIdPath = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("rok2_device.txt"));
@@ -358,8 +355,10 @@ void URok2Api::LoginAsGuest()
 			Self->ParsePlayer(*PlayerObj);
 		}
 		UE_LOG(LogRok2, Log, TEXT("Login ok token=%s player=%s"), *Self->Token.Left(12), *Self->Player.Id);
-		Self->OnLoginComplete.Broadcast(Self->Token);
-		Self->EmitToast(TEXT("تم تسجيل الدخول"));
+			Self->OnLoginComplete.Broadcast(Self->Token);
+			Self->EmitToast(TEXT("تم تسجيل الدخول"));
+			// اللاعب العائد يملك سجلاً بالفعل؛ حمّل تقدمه السلطوي قبل فتح شاشة القادة.
+			if (Self->HasPlayer()) Self->FetchCommanders();
 	},
 	[WeakThis](const FString& Err)
 	{
@@ -387,8 +386,10 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 			Self->ParsePlayer(*PlayerObj);
 			Self->OnPlayerLoaded.Broadcast(Self->Player);
 		}
-		Self->EmitToast(TEXT("تم تأسيس المدينة"));
-		// P5-T6: تشغيل موسيقى الحضارة
+			Self->EmitToast(TEXT("تم تأسيس المدينة"));
+			// city/init يمنح قائد البداية؛ نزامنه فوراً بدلاً من ترك قائمة العميل الفارغة.
+			Self->FetchCommanders();
+			// P5-T6: تشغيل موسيقى الحضارة
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
 			Audio->InitForCiv(Civ);
@@ -877,6 +878,83 @@ void URok2Api::LoadCity()
 	});
 }
 
+void URok2Api::FetchCommanders()
+{
+	// /v1/commanders يتطلب لاعباً مؤسساً. هذا الحارس يمنع طلباً 401 أثناء شاشة اختيار الحضارة.
+	if (!HasPlayer() || !IsLoggedIn()) return;
+
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/commanders"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->Commanders.Empty();
+
+		const TArray<TSharedPtr<FJsonValue>>* CommandersArr;
+		if (Obj->TryGetArrayField(TEXT("commanders"), CommandersArr))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *CommandersArr)
+			{
+				const TSharedPtr<FJsonObject> CommanderObj = Value->AsObject();
+				if (!CommanderObj.IsValid()) continue;
+
+				FRok2Commander Commander;
+				Commander.Id = Rok2Json::Str(CommanderObj, TEXT("commanderId"));
+				Commander.Name = Rok2Json::Str(CommanderObj, TEXT("name"));
+				Commander.Rarity = Rok2Json::Str(CommanderObj, TEXT("rarity"));
+				Commander.Nation = Rok2Json::Str(CommanderObj, TEXT("nation"));
+				Commander.Level = (int32)Rok2Json::Num(CommanderObj, TEXT("level"), 1);
+				Commander.Xp = (int32)Rok2Json::Num(CommanderObj, TEXT("xp"));
+				Commander.XpToNext = (int32)Rok2Json::Num(CommanderObj, TEXT("xpToNext"), 1000);
+				Commander.Tomes = (int32)Rok2Json::Num(CommanderObj, TEXT("tomes"));
+
+				const TArray<TSharedPtr<FJsonValue>>* SkillsArr;
+				if (CommanderObj->TryGetArrayField(TEXT("skills"), SkillsArr))
+				{
+					for (const TSharedPtr<FJsonValue>& SkillValue : *SkillsArr)
+					{
+						const TSharedPtr<FJsonObject> SkillObj = SkillValue->AsObject();
+						if (SkillObj.IsValid())
+						{
+							Commander.SkillLevels.Add((int32)Rok2Json::Num(SkillObj, TEXT("level"), 1));
+						}
+					}
+				}
+
+				if (!Commander.Id.IsEmpty()) Self->Commanders.Add(MoveTemp(Commander));
+			}
+		}
+
+		Self->OnCommandersLoaded.Broadcast();
+	});
+}
+
+void URok2Api::LevelUpCommander(const FString& CommanderId, int32 Tomes)
+{
+	if (CommanderId.IsEmpty() || Tomes <= 0) return;
+	const FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"tomes\":%d}"), *CommanderId, Tomes);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/levelup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->EmitToast(TEXT("تمت ترقية القائد"));
+		WeakThis->FetchCommanders();
+	});
+}
+
+void URok2Api::UpgradeCommanderSkill(const FString& CommanderId, int32 SkillSlot)
+{
+	if (CommanderId.IsEmpty() || SkillSlot < 1 || SkillSlot > 3) return;
+	const FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"skillSlot\":%d}"), *CommanderId, SkillSlot);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/skill"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->EmitToast(TEXT("تمت ترقية المهارة"));
+		WeakThis->FetchCommanders();
+	});
+}
+
 void URok2Api::UpgradeBuilding(const FString& BuildingId)
 {
 	FString Body = FString::Printf(TEXT("{\"buildingId\":\"%s\"}"), *BuildingId);
@@ -979,8 +1057,12 @@ void URok2Api::DispatchMarch(const FString& TargetType, const FString& TargetId,
 	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
 	Body->SetStringField(TEXT("targetType"), TargetType);
 	Body->SetStringField(TEXT("targetId"), TargetId);
-	if (!PrimaryCommander.IsEmpty()) Body->SetStringField(TEXT("primaryCommander"), PrimaryCommander);
-	if (!SecondaryCommander.IsEmpty()) Body->SetStringField(TEXT("secondaryCommander"), SecondaryCommander);
+	// الخادم يقبل قائداً أساسياً واحداً باسم primaryCommanderId؛ لا نرسل حقلاً لا يقرأه.
+	if (!PrimaryCommander.IsEmpty()) Body->SetStringField(TEXT("primaryCommanderId"), PrimaryCommander);
+	if (!SecondaryCommander.IsEmpty())
+	{
+		UE_LOG(LogRok2, Warning, TEXT("Secondary commander is not supported by the current server contract and was not sent."));
+	}
 
 	TSharedPtr<FJsonObject> TroopsObj = MakeShared<FJsonObject>();
 	for (const auto& KV : TroopsMap)

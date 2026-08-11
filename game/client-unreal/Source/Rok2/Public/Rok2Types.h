@@ -349,6 +349,18 @@ struct FRok2Commander
 	FString Nation;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FString> Tags;
+	/** المستوى والخبرة والتومات مصدرها /v1/commanders؛ لا تُحسب في العميل. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Level = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Xp = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 XpToNext = 1000;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Tomes = 0;
+	/** ترتيب مستويات المهارات يطابق تعريف القائد في البيانات الموحدة. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<int32> SkillLevels;
 };
 
 

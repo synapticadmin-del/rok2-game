@@ -34,6 +34,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBattleReports, const TArray<FRok2
 /** يُبث عند اكتمال سحب بيانات التوازن من الخادم (P1-T6) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaLoaded, bool, bFromServer);
 
+/** يُبث عند اكتمال مزامنة القادة المملوكين من الخادم. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandersLoaded);
+
 /** يُبث عند تحديث حالة المناطق (فتح/قفل) — P2-T4/P2-T6 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZonesUpdated, const TArray<FRok2ZoneStatus>&, Zones);
 
@@ -65,6 +68,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void LoadCity();
+
+	/** يسحب القادة المملوكين ومستوياتهم من الخادم السلطوي. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void FetchCommanders();
+
+	/** يستهلك تومات خبرة لرفع مستوى قائد مملوك؛ الخادم يتحقق من كل القيم. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void LevelUpCommander(const FString& CommanderId, int32 Tomes);
+
+	/** يرفع مهارة قائد مملوك في خانة 1..3؛ الخادم يفرض شروط المستوى والتكلفة. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void UpgradeCommanderSkill(const FString& CommanderId, int32 SkillSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void UpgradeBuilding(const FString& BuildingId);
@@ -211,6 +226,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnMetaLoaded OnMetaLoaded;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnCommandersLoaded OnCommandersLoaded;
 
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnZonesUpdated OnZonesUpdated;

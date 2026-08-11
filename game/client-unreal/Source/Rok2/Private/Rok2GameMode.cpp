@@ -263,14 +263,15 @@ void ARok2GameMode::HandleCommandersAction()
 	if (!CommanderWidget)
 	{
 		CommanderWidget = Cast<URok2CommanderWidget>(URok2BlueprintLibrary::CreateRok2Widget(World, URok2CommanderWidget::StaticClass()));
-		if (CommanderWidget)
-		{
-			CommanderWidget->Api = Api;
-		}
 	}
-	if (CommanderWidget && !CommanderWidget->IsInViewport())
+	if (CommanderWidget)
 	{
-		CommanderWidget->AddToViewport(50);
+		// أعد المزامنة كلما فتح اللاعب الشاشة بعد بقائها مخفية.
+		CommanderWidget->SetupWithApi(Api);
+		if (!CommanderWidget->IsInViewport())
+		{
+			CommanderWidget->AddToViewport(50);
+		}
 	}
 }
 

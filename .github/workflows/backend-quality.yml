@@ -1,0 +1,45 @@
+name: Backend quality
+
+on:
+  pull_request:
+    paths:
+      - "game/backend/**"
+      - ".github/workflows/backend-quality.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "game/backend/**"
+      - ".github/workflows/backend-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-backend:
+    name: Verify backend rules
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: game/backend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/backend/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type-check and run offline game rules
+        run: npm run check

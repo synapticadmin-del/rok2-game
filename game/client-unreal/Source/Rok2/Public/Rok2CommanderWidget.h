@@ -20,6 +20,7 @@ class UScrollBox;
 class UVerticalBox;
 class UHorizontalBox;
 class UCanvasPanel;
+class URok2CommanderCardHandler;
 
 /** مهارة قائد واحدة (attack/defense/passive) — من commanders.json. */
 USTRUCT(BlueprintType)
@@ -161,9 +162,6 @@ protected:
 	UWidget* BuildPortraitPlaceholder(const FString& CommanderName, const FString& Nation, float Size);
 
 	UFUNCTION()
-	void OnCardClicked();
-
-	UFUNCTION()
 	void OnAssignClicked();
 
 	UFUNCTION()
@@ -221,6 +219,10 @@ protected:
 	UPROPERTY(Transient)
 	UImage* DetailPortraitImage;
 
+	/** معالج مستقل لكل بطاقة ديناميكية؛ يحتفظ بمعرّف القائد حتى يصل حدث الضغط. */
+	UPROPERTY(Transient)
+	TArray<URok2CommanderCardHandler*> CommanderCardHandlers;
+
 	/** خريطة معرف القائد → بياناته المفصلة (تُملأ من commanders.json). */
 	TMap<FString, FRok2CommanderDetailData> CommanderDetails;
 
@@ -228,4 +230,21 @@ protected:
 	bool bDetailsLoaded = false;
 
 	void LoadCommanderDetailsFromJson();
+};
+
+/** يربط زر بطاقة ديناميكية بالقائد الذي أنشأه؛ مطابق لنمط معالجات طوابير المدينة. */
+UCLASS()
+class ROK2_API URok2CommanderCardHandler : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	FString CommanderId;
+
+	UPROPERTY()
+	URok2CommanderWidget* Widget;
+
+	UFUNCTION()
+	void OnClick();
 };

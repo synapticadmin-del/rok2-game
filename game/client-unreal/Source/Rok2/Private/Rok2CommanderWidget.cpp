@@ -327,8 +327,17 @@ void URok2CommanderWidget::BuildUI()
 // ---------------------------------------------------------------------------
 void URok2CommanderWidget::SetupWithApi(URok2Api* InApi)
 {
+	if (Api)
+	{
+		Api->OnCommandersLoaded.RemoveDynamic(this, &URok2CommanderWidget::RefreshCommanderList);
+	}
+
 	Api = InApi;
+	if (!Api) return;
+
+	Api->OnCommandersLoaded.AddUniqueDynamic(this, &URok2CommanderWidget::RefreshCommanderList);
 	RefreshCommanderList();
+	if (Api->IsLoggedIn() && Api->HasPlayer()) Api->FetchCommanders();
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +348,8 @@ void URok2CommanderWidget::RefreshCommanderList()
 	if (!Api || !CommanderListBox) return;
 
 	CommanderListBox->ClearChildren();
+	// هذه الكائنات تحمل معرّفات البطاقات؛ تفريغها مع إعادة البناء يمنع مرجعاً قديماً.
+	CommanderCardHandlers.Empty();
 
 	const TArray<FRok2Commander>& Commanders = Api->GetCommanders();
 	if (Commanders.Num() == 0)
@@ -360,6 +371,12 @@ void URok2CommanderWidget::RefreshCommanderList()
 			CardSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		}
 	}
+
+	const bool bSelectedStillOwned = Commanders.ContainsByPredicate([this](const FRok2Commander& Cmd)
+	{
+		return Cmd.Id == SelectedCommanderId;
+	});
+	SelectCommander(bSelectedStillOwned ? SelectedCommanderId : Commanders[0].Id);
 }
 
 // ---------------------------------------------------------------------------
@@ -407,6 +424,12 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	URok2Typography::ApplyFont(RarityText, ERok2TextRole::Caption);
 	InfoBox->AddChildToVerticalBox(RarityText);
 
+	UTextBlock* LevelText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	LevelText->SetText(FText::FromString(FString::Printf(TEXT("المستوى %d"), Cmd.Level)));
+	LevelText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
+	URok2Typography::ApplyFont(LevelText, ERok2TextRole::Caption);
+	InfoBox->AddChildToVerticalBox(LevelText);
+
 	// نجوم
 	int32 Stars = StarsForRarity(Cmd.Rarity);
 	FString StarsStr;
@@ -420,16 +443,19 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 	URok2Typography::ApplyFont(StarsText, ERok2TextRole::BodySmall);
 	InfoBox->AddChildToVerticalBox(StarsText);
 
-	// زر البطاقة (يغطيها كلها)
+	// الزر هو الحاوية الفعلية للبطاقة، لذلك تصل النقرة بدلاً من أن تبقى على عنصر معزول.
 	UButton* CardBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-	CardBtn->SetVisibility(ESlateVisibility::Visible);
-	CardBtn->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnCardClicked);
-	// P6-T3: لا نربط ضغطة هنا — CardBtn لا يُضاف إلى أي حاوية (البطاقة تُعاد كـ
-	// CardBorder وحدها)، فالزر معزول وأي ربط عليه ميت أصلاً كما هو حال OnClicked
-	// أعلاه. يُربط عند إصلاح تمرير معرّف القائد مع الزر (ملاحظة P5-T4 أدناه).
-	// ملاحظة: في UE5 حقيقي، نحتاج لتمرير معرف القائد مع الزر — نستخدم Tag أو WidgetTree
+	CardBtn->SetBackgroundColor(FLinearColor(1.f, 1.f, 1.f, 0.f));
+	CardBtn->SetContent(CardBorder);
+	URok2MotionLibrary::BindPress(CardBtn);
 
-	return CardBorder;
+	URok2CommanderCardHandler* Handler = NewObject<URok2CommanderCardHandler>(this);
+	Handler->CommanderId = Cmd.Id;
+	Handler->Widget = this;
+	CommanderCardHandlers.Add(Handler);
+	CardBtn->OnClicked.AddDynamic(Handler, &URok2CommanderCardHandler::OnClick);
+
+	return CardBtn;
 }
 
 // ---------------------------------------------------------------------------
@@ -483,8 +509,28 @@ void URok2CommanderWidget::SelectCommander(const FString& CommanderId)
 {
 	SelectedCommanderId = CommanderId;
 
-	// جلب البيانات المفصلة
+	// تعريف القائد الثابت يزوّد الاسم والوصف والتأثيرات، بينما التقدم يأتي حصراً من الخادم.
 	FRok2CommanderDetailData Detail = LoadCommanderDetail(CommanderId);
+	if (Api)
+	{
+		const FRok2Commander* Owned = Api->GetCommanders().FindByPredicate([&CommanderId](const FRok2Commander& Cmd)
+		{
+			return Cmd.Id == CommanderId;
+		});
+		if (Owned)
+		{
+			if (!Owned->Name.IsEmpty()) Detail.Name = Owned->Name;
+			if (!Owned->Rarity.IsEmpty()) Detail.Rarity = Owned->Rarity;
+			if (!Owned->Nation.IsEmpty()) Detail.Nation = Owned->Nation;
+			Detail.Level = Owned->Level;
+			Detail.Xp = Owned->Xp;
+			Detail.XpToNext = Owned->XpToNext;
+			for (int32 SkillIndex = 0; SkillIndex < Detail.Skills.Num() && SkillIndex < Owned->SkillLevels.Num(); ++SkillIndex)
+			{
+				Detail.Skills[SkillIndex].CurrentLevel = Owned->SkillLevels[SkillIndex];
+			}
+		}
+	}
 	PopulateDetailPanel(Detail);
 
 	OnCommanderSelected.Broadcast(CommanderId);
@@ -884,16 +930,6 @@ void URok2CommanderWidget::LoadCommanderDetailsFromJson()
 // ---------------------------------------------------------------------------
 // Event Handlers
 // ---------------------------------------------------------------------------
-void URok2CommanderWidget::OnCardClicked()
-{
-	// في UE5 حقيقي، نحتاج لمعرفة أي بطاقة ضُغطت — نستخدم SelectedCommanderId
-	// كـ workaround، نختار أول قائد في القائمة (للاختبار)
-	if (Api && Api->GetCommanders().Num() > 0)
-	{
-		SelectCommander(Api->GetCommanders()[0].Id);
-	}
-}
-
 void URok2CommanderWidget::OnAssignClicked()
 {
 	if (!SelectedCommanderId.IsEmpty())
@@ -904,12 +940,45 @@ void URok2CommanderWidget::OnAssignClicked()
 
 void URok2CommanderWidget::OnLevelUpClicked()
 {
-	// يُربط بـ Api->LevelUpCommander(SelectedCommanderId) لاحقاً
-	UE_LOG(LogRok2Cmdr, Log, TEXT("Level up clicked for %s"), *SelectedCommanderId);
+	if (!Api || SelectedCommanderId.IsEmpty()) return;
+	const FRok2Commander* Commander = Api->GetCommanders().FindByPredicate([this](const FRok2Commander& Cmd)
+	{
+		return Cmd.Id == SelectedCommanderId;
+	});
+	if (!Commander || Commander->Tomes < 1)
+	{
+		UE_LOG(LogRok2Cmdr, Warning, TEXT("Cannot level up commander without an owned tome: %s"), *SelectedCommanderId);
+		return;
+	}
+	Api->LevelUpCommander(SelectedCommanderId, 1);
 }
 
 void URok2CommanderWidget::OnSkillUpgradeClicked()
 {
-	// يُربط بـ Api->UpgradeCommanderSkill(SelectedCommanderId, SkillId) لاحقاً
-	UE_LOG(LogRok2Cmdr, Log, TEXT("Skill upgrade clicked for %s"), *SelectedCommanderId);
+	if (!Api || SelectedCommanderId.IsEmpty()) return;
+	const FRok2Commander* Commander = Api->GetCommanders().FindByPredicate([this](const FRok2Commander& Cmd)
+	{
+		return Cmd.Id == SelectedCommanderId;
+	});
+	if (!Commander) return;
+
+	for (int32 SkillIndex = 0; SkillIndex < Commander->SkillLevels.Num(); ++SkillIndex)
+	{
+		const int32 CurrentLevel = Commander->SkillLevels[SkillIndex];
+		if (CurrentLevel >= 5) continue;
+		const int32 RequiredCommanderLevel = (CurrentLevel + 1) * 10;
+		if (Commander->Level < RequiredCommanderLevel) continue;
+		Api->UpgradeCommanderSkill(SelectedCommanderId, SkillIndex + 1);
+		return;
+	}
+
+	UE_LOG(LogRok2Cmdr, Warning, TEXT("No eligible skill upgrade found for %s"), *SelectedCommanderId);
+}
+
+void URok2CommanderCardHandler::OnClick()
+{
+	if (Widget && !CommanderId.IsEmpty())
+	{
+		Widget->SelectCommander(CommanderId);
+	}
 }
