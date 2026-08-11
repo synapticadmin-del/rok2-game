@@ -549,7 +549,8 @@ detector(
   'EngineAssociation نسخة محرك موجودة فعلاً',
   (vfs) => {
     // قرار PLAN.md §29 + UNREAL_ENGINE_GUIDE.md: الهدف UE5 مستقر ≥ 5.4
-    const KNOWN = ['5.0', '5.1', '5.2', '5.3', '5.4', '5.5', '5.6'];
+    // جهاز المطوّر على 5.8 (مؤكَّد 2026-08-12) — القائمة تقبل حتى 5.8
+    const KNOWN = ['5.0', '5.1', '5.2', '5.3', '5.4', '5.5', '5.6', '5.7', '5.8'];
     const raw = get(vfs, 'Rok2.uproject');
     let parsed = null;
     try { parsed = JSON.parse(raw); } catch { /* يُرصد أدناه */ }
@@ -567,9 +568,9 @@ detector(
   },
   [
     {
-      why: 'إرجاع EngineAssociation إلى 5.8 غير الموجودة (نتيجة LOW الأصلية)',
+      why: 'إرجاع EngineAssociation إلى نسخة غير موجودة (6.1 لم تصدر)',
       edits: {
-        'Rok2.uproject': (s) => s.replace(/"EngineAssociation":\s*"[^"]*"/, '"EngineAssociation": "5.8"'),
+        'Rok2.uproject': (s) => s.replace(/"EngineAssociation":\s*"[^"]*"/, '"EngineAssociation": "6.1"'),
       },
     },
   ]
