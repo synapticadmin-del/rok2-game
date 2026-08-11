@@ -642,6 +642,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         { accountId: auth.accountId, playerId, exp: now + 1000 * 60 * 60 * 24 * 30 },
         requireAuthSecret(env),
       );
+      // تسجيل الجلسة الجديدة في sessions — بدون هذه الخطوة يرفض requireAuth
+      // الرمز فوراً ("Session revoked or not found") لأن الفحص صار إلزامياً.
+      const tokenHash = await sha256Hex(token);
+      await env.DB.prepare(
+        `INSERT OR REPLACE INTO sessions (token_hash, account_id, player_id, expires_at) VALUES (?, ?, ?, ?)`,
+      )
+        .bind(tokenHash, auth.accountId, playerId, now + 1000 * 60 * 60 * 24 * 30)
+        .run();
 
       // push city to kingdom shard
       const stub = kingdomStub(env);
@@ -1876,6 +1884,27 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     // Pass attack REST
+    // P5-T5: كشافة ضباب الحرب (بدون قوات) — الخادم سلطة على زمن الوصول ويبث scout_arrived
+    if (path === "/v1/world/scout" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ toX?: number; toY?: number }>(request);
+      const map = getMap();
+      const toX = Number(body.toX);
+      const toY = Number(body.toY);
+      if (!Number.isFinite(toX) || !Number.isFinite(toY) || toX < 0 || toX > map.width || toY < 0 || toY > map.height) {
+        throw new HttpError(400, "Invalid scout coordinates");
+      }
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/scout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ownerPlayerId: player.id, fromX: player.x, fromY: player.y, toX, toY }),
+      });
+      const data: any = await res.json();
+      if (!res.ok) throw new HttpError(400, data.error || "scout_failed");
+      return json({ ok: true, scout: data.scout });
+    }
+
     if (path === "/v1/world/pass/attack" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       if (!player.alliance_id) throw new HttpError(400, "Join an alliance before capturing passes");

@@ -16,6 +16,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = __dirname;
+// جذر المستودع = scripts/.. — الملفات الحقيقية في Source/Rok2/{Public,Private}
+const REPO = join(__dirname, '..');
+const PUB = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Public');
+const PRIV = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Private');
 
 let passed = 0;
 let failed = 0;
@@ -38,8 +42,8 @@ function check(name, condition, detail = '') {
 // ---------------------------------------------------------------------------
 console.log('\n[1] URok2FogOfWar class');
 
-const fogH = join(ROOT, 'Rok2FogOfWar.h');
-const fogCpp = join(ROOT, 'Rok2FogOfWar.cpp');
+const fogH = join(PUB, 'Rok2FogOfWar.h');
+const fogCpp = join(PRIV, 'Rok2FogOfWar.cpp');
 
 check('Rok2FogOfWar.h exists', existsSync(fogH));
 check('Rok2FogOfWar.cpp exists', existsSync(fogCpp));
@@ -82,7 +86,7 @@ if (existsSync(fogCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[2] Rok2Types.h scout entity');
 
-const typesH = join(ROOT, 'Rok2Types.h');
+const typesH = join(PUB, 'Rok2Types.h');
 check('Rok2Types.h exists', existsSync(typesH));
 
 if (existsSync(typesH)) {
@@ -101,7 +105,7 @@ if (existsSync(typesH)) {
 // ---------------------------------------------------------------------------
 console.log('\n[3] Rok2Api scout support');
 
-const apiH = join(ROOT, 'Rok2Api.h');
+const apiH = join(PUB, 'Rok2Api.h');
 check('Rok2Api.h exists', existsSync(apiH));
 
 if (existsSync(apiH)) {
@@ -110,7 +114,7 @@ if (existsSync(apiH)) {
   check('has ParseScoutEntity method', content.includes('ParseScoutEntity'));
 }
 
-const apiCpp = join(ROOT, 'Rok2Api.cpp');
+const apiCpp = join(PRIV, 'Rok2Api.cpp');
 check('Rok2Api.cpp exists', existsSync(apiCpp));
 
 if (existsSync(apiCpp)) {
@@ -127,7 +131,7 @@ if (existsSync(apiCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[4] Rok2WorldRenderer fog integration');
 
-const worldCpp = join(ROOT, 'Rok2WorldRenderer.cpp');
+const worldCpp = join(PRIV, 'Rok2WorldRenderer.cpp');
 check('Rok2WorldRenderer.cpp exists', existsSync(worldCpp));
 
 if (existsSync(worldCpp)) {
@@ -146,7 +150,7 @@ if (existsSync(worldCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[5] Rok2MarchPanel scout button');
 
-const marchH = join(ROOT, 'Rok2MarchPanel.h');
+const marchH = join(PUB, 'Rok2MarchPanel.h');
 check('Rok2MarchPanel.h exists', existsSync(marchH));
 
 if (existsSync(marchH)) {
@@ -154,7 +158,7 @@ if (existsSync(marchH)) {
   check('has OnScoutClicked method', content.includes('OnScoutClicked'));
 }
 
-const marchCpp = join(ROOT, 'Rok2MarchPanel.cpp');
+const marchCpp = join(PRIV, 'Rok2MarchPanel.cpp');
 check('Rok2MarchPanel.cpp exists', existsSync(marchCpp));
 
 if (existsSync(marchCpp)) {

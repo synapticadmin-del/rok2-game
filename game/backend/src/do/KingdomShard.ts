@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
 import { getMap, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
-import { resolveCombat, totalTroops, troopPower } from "./sim/combat";
+import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
@@ -95,6 +95,19 @@ type MarchEntity = {
   payload?: any;
 };
 
+// P5-T5: كشافة ضباب الحرب — مسيرة خفيفة بدون قوات تكشف المنطقة عند الوصول (الكشف نفسه محلي في العميل)
+type ScoutEntity = {
+  id: string;
+  ownerPlayerId: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  startMs: number;
+  etaMs: number;
+  state: "moving" | "arrived";
+};
+
 type NodeEntity = {
   id: string;
   kind: "food" | "wood" | "stone" | "gold" | "barb";
@@ -114,6 +127,9 @@ type ThroneEntity = {
   y: number;
   unlockDay: number;
 };
+
+// P2-T2: ملخص دخول المستشفى المرفق بتقارير القتال
+type HospitalSummary = { admitted: Troops; died: Troops; capacity: number };
 
 // P3-T2: هدف احتلال في قلب Zone 3 (حصن خارجي أو مذبح جانبي) — يسجّل نقاط موسم
 type CoreObjective = {
@@ -162,6 +178,8 @@ export class KingdomShard extends DurableObject<Env> {
   private marches = new Map<string, MarchEntity>();
   private nodes = new Map<string, NodeEntity>();
   private flags = new Map<string, AllianceFlag>();
+  // P5-T5: الكشافة النشطة على الخريطة
+  private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
   private reports: any[] = [];
   // P2-T4: المناطق التي بُثّ فتحها مسبقاً (لا يُعاد بث zone_unlocked لها)
@@ -307,6 +325,118 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (3)");
     }
+
+    if (ver < 4) {
+      // شاردات قديمة بُذرت قبل اكتمال كتلة ver 1 (جداول مفقودة مثل flags/throne).
+      // CREATE TABLE IF NOT EXISTS يجعل الخطوة آمنة أيضاً للقواعد الجديدة والسليمة.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS world_meta (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          season_day INTEGER NOT NULL,
+          last_tick_ms INTEGER NOT NULL,
+          season_start_ms INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS map_cities (
+          player_id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          alliance_id TEXT,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          hall_level INTEGER NOT NULL,
+          region_id TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS passes (
+          pass_id TEXT PRIMARY KEY,
+          owner_alliance_id TEXT,
+          capture_progress REAL NOT NULL,
+          state TEXT NOT NULL,
+          level INTEGER NOT NULL,
+          from_region TEXT NOT NULL,
+          to_region TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          unlock_day INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS marches (
+          id TEXT PRIMARY KEY,
+          owner_player_id TEXT NOT NULL,
+          alliance_id TEXT,
+          from_x REAL NOT NULL,
+          from_y REAL NOT NULL,
+          to_x REAL NOT NULL,
+          to_y REAL NOT NULL,
+          start_ms INTEGER NOT NULL,
+          eta_ms INTEGER NOT NULL,
+          troops_json TEXT NOT NULL,
+          state TEXT NOT NULL,
+          target_type TEXT NOT NULL,
+          target_id TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS throne (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          owner_alliance_id TEXT,
+          capture_progress REAL NOT NULL,
+          state TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS throne_scores (
+          alliance_id TEXT PRIMARY KEY,
+          points INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS resource_nodes (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          level INTEGER NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          remaining REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS battle_reports (
+          id TEXT PRIMARY KEY,
+          payload_json TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS flags (
+          id TEXT PRIMARY KEY,
+          alliance_id TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          radius REAL NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS queues (
+          id TEXT PRIMARY KEY,
+          player_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          data_json TEXT NOT NULL,
+          start_ms INTEGER NOT NULL,
+          eta_ms INTEGER NOT NULL,
+          state TEXT NOT NULL
+        );
+      `);
+      try {
+        this.ctx.storage.sql.exec("ALTER TABLE marches ADD COLUMN payload_json TEXT");
+      } catch {
+        // العمود موجود مسبقاً
+      }
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (4)");
+    }
+
+    if (ver < 5) {
+      // P5-T5: كشافة ضباب الحرب
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS scouts (
+          id TEXT PRIMARY KEY,
+          owner_player_id TEXT NOT NULL,
+          from_x REAL NOT NULL,
+          from_y REAL NOT NULL,
+          to_x REAL NOT NULL,
+          to_y REAL NOT NULL,
+          start_ms INTEGER NOT NULL,
+          eta_ms INTEGER NOT NULL,
+          state TEXT NOT NULL
+        );
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (5)");
+    }
   }
 
   private loadMapDefs() {
@@ -350,6 +480,23 @@ export class KingdomShard extends DurableObject<Env> {
         x: row.x,
         y: row.y,
         radius: row.radius,
+      });
+    }
+
+    // P5-T5: الكشافة التي لم تصل بعد فقط — الواصلة حُذفت عند بث scout_arrived
+    for (const row of this.ctx.storage.sql
+      .exec<any>("SELECT * FROM scouts WHERE state = 'moving'")
+      .toArray()) {
+      this.scouts.set(row.id, {
+        id: row.id,
+        ownerPlayerId: row.owner_player_id,
+        fromX: row.from_x,
+        fromY: row.from_y,
+        toX: row.to_x,
+        toY: row.to_y,
+        startMs: row.start_ms,
+        etaMs: row.eta_ms,
+        state: row.state,
       });
     }
 
@@ -556,6 +703,47 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  // P5-T5: إنشاء كشافة من مدينة اللاعب إلى الهدف — أسرع من المسير العادي (ضعفا السرعة)
+  private createScout(body: any): ScoutEntity {
+    const ownerPlayerId = String(body?.ownerPlayerId || "");
+    if (!ownerPlayerId) throw new Error("owner_player_required");
+    const map = getMap();
+    const toX = Number(body.toX);
+    const toY = Number(body.toY);
+    if (!Number.isFinite(toX) || !Number.isFinite(toY) || toX < 0 || toX > map.width || toY < 0 || toY > map.height) {
+      throw new Error("bad_scout_coords");
+    }
+    // نقطة الانطلاق: مدينة اللاعب إن وُجدت وإلا الإحداثيات الممررة من الـ router
+    const city = this.cities.get(ownerPlayerId);
+    const fromX = city?.x ?? (Number(body.fromX) || 0);
+    const fromY = city?.y ?? (Number(body.fromY) || 0);
+    const now = nowMs();
+    const ent: ScoutEntity = {
+      id: newId("sct"),
+      ownerPlayerId,
+      fromX,
+      fromY,
+      toX,
+      toY,
+      startMs: now,
+      etaMs: now + marchDurationMs(dist(fromX, fromY, toX, toY), 40),
+      state: "moving",
+    };
+    this.scouts.set(ent.id, ent);
+    this.persistScout(ent);
+    this.broadcast({ type: "scout_created", scout: ent });
+    return ent;
+  }
+
+  private persistScout(s: ScoutEntity) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO scouts
+       (id, owner_player_id, from_x, from_y, to_x, to_y, start_ms, eta_ms, state)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      s.id, s.ownerPlayerId, s.fromX, s.fromY, s.toX, s.toY, s.startMs, s.etaMs, s.state,
+    );
+  }
+
   // P3-T3: تكثيف البرابرة أثناء حدث "غزو البرابرة" — يزرع معسكرات إضافية حتمياً
   // (id يعتمد على اليوم فلا يتكرر الزرع كل tick). يعيد true إن زرع شيئاً جديداً.
   private seedEventBarbarians(extraPerRegion: number): boolean {
@@ -714,6 +902,8 @@ export class KingdomShard extends DurableObject<Env> {
       marches: [...this.marches.values()].filter((m) => m.state === "moving"),
       nodes: [...this.nodes.values()],
       flags: [...this.flags.values()],
+      // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
+      scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       reports: this.reports.slice(0, 10),
       // P2-T5: الطوابير الجارية (لمساعدات التحالف — تقليل المدة عبر /v1/alliance/help)
       queues: [...this.queues.values()].filter((q) => q.state === "running"),
@@ -794,6 +984,17 @@ export class KingdomShard extends DurableObject<Env> {
     // تكثيف البرابرة أثناء حدث البرابرة (حتمي: يُزرع مرة واحدة لكل منطقة/يوم)
     const extraBarbs = barbExtraPerRegion(this.seasonDay, tickInDay);
     if (extraBarbs > 0) changed = this.seedEventBarbarians(extraBarbs) || changed;
+
+    // P5-T5: وصول الكشافة — بث scout_arrived ليكشف العميل ضباب الحرب حول الهدف
+    for (const s of [...this.scouts.values()]) {
+      if (s.state === "moving" && now >= s.etaMs) {
+        s.state = "arrived";
+        this.broadcast({ type: "scout_arrived", scoutId: s.id, toX: s.toX, toY: s.toY });
+        this.scouts.delete(s.id);
+        this.ctx.storage.sql.exec("DELETE FROM scouts WHERE id = ?", s.id);
+        changed = true;
+      }
+    }
 
     // Process Queues
     const completedQueues = [];
@@ -979,7 +1180,16 @@ export class KingdomShard extends DurableObject<Env> {
         0,
       );
 
-      const report = {
+      const report: {
+        id: string;
+        createdAt: number;
+        kind: string;
+        passId: string;
+        attackerPlayerId: string;
+        attackerAllianceId: string | null;
+        result: CombatResult;
+        hospital?: HospitalSummary;
+      } = {
         id: newId("br"),
         createdAt: now,
         kind: "pass_attack",
@@ -1053,7 +1263,15 @@ export class KingdomShard extends DurableObject<Env> {
         0,
       );
 
-      const report = {
+      const report: {
+        id: string;
+        createdAt: number;
+        kind: string;
+        attackerPlayerId: string;
+        attackerAllianceId: string | null;
+        result: CombatResult;
+        hospital?: HospitalSummary;
+      } = {
         id: newId("br"),
         createdAt: now,
         kind: "throne_attack",
@@ -1129,7 +1347,17 @@ export class KingdomShard extends DurableObject<Env> {
         0,
       );
 
-      const report = {
+      const report: {
+        id: string;
+        createdAt: number;
+        kind: string;
+        objectiveId: string;
+        attackerPlayerId: string;
+        attackerAllianceId: string | null;
+        result: CombatResult;
+        hospital?: HospitalSummary;
+        firstCaptureBonus?: number;
+      } = {
         id: newId("br"),
         createdAt: now,
         kind: `core_${obj.kind}`,
@@ -1185,7 +1413,16 @@ export class KingdomShard extends DurableObject<Env> {
           const barbCommander = await this.fetchMarchCommander(m.id);
           const barbResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
           const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0);
-          const report = {
+          const report: {
+            id: string;
+            createdAt: number;
+            kind: string;
+            nodeId: string;
+            attackerPlayerId: string;
+            result: CombatResult;
+            hospital?: HospitalSummary;
+            barbKillScore?: number;
+          } = {
             id: newId("br"),
             createdAt: now,
             kind: "barb",
@@ -1520,6 +1757,18 @@ export class KingdomShard extends DurableObject<Env> {
       }
     }
 
+    // P5-T5: إرسال كشافة — تصل بعد زمن مسير قصير وتكشف المنطقة لدى العميل
+    if (path.endsWith("/scout") && request.method === "POST") {
+      const body = await request.json<any>();
+      try {
+        const scout = this.createScout(body);
+        this.ensureAlarm();
+        return Response.json({ ok: true, scout });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "scout_failed" }, { status: 400 });
+      }
+    }
+
     if (path.endsWith("/admin") && request.method === "POST") {
       const body = await request.json<any>();
       if (body.action === "tick") {
@@ -1534,6 +1783,11 @@ export class KingdomShard extends DurableObject<Env> {
           for (const q of this.queues.values()) {
             if (q.state === "running") {
               q.etaMs = now;
+            }
+          }
+          for (const s of this.scouts.values()) {
+            if (s.state === "moving") {
+              s.etaMs = now;
             }
           }
         }

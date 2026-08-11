@@ -16,6 +16,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = __dirname;
+// جذر المستودع = scripts/.. — الملفات الحقيقية في Source/Rok2/{Public,Private}
+const REPO = join(__dirname, '..');
+const PUB = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Public');
+const PRIV = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Private');
 
 let passed = 0;
 let failed = 0;
@@ -38,8 +42,8 @@ function check(name, condition, detail = '') {
 // ---------------------------------------------------------------------------
 console.log('\n[1] URok2AudioManager class');
 
-const audioH = join(ROOT, 'Rok2AudioManager.h');
-const audioCpp = join(ROOT, 'Rok2AudioManager.cpp');
+const audioH = join(PUB, 'Rok2AudioManager.h');
+const audioCpp = join(PRIV, 'Rok2AudioManager.cpp');
 
 check('Rok2AudioManager.h exists', existsSync(audioH));
 check('Rok2AudioManager.cpp exists', existsSync(audioCpp));
@@ -80,7 +84,7 @@ if (existsSync(audioCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[2] Rok2BuildingActor animations');
 
-const buildingH = join(ROOT, 'Rok2BuildingActor.h');
+const buildingH = join(PUB, 'Rok2BuildingActor.h');
 check('Rok2BuildingActor.h exists', existsSync(buildingH));
 
 if (existsSync(buildingH)) {
@@ -98,7 +102,7 @@ if (existsSync(buildingH)) {
   check('has RevealAnimDuration constant', content.includes('RevealAnimDuration'));
 }
 
-const buildingCpp = join(ROOT, 'Rok2BuildingActor.cpp');
+const buildingCpp = join(PRIV, 'Rok2BuildingActor.cpp');
 check('Rok2BuildingActor.cpp exists', existsSync(buildingCpp));
 
 if (existsSync(buildingCpp)) {
@@ -119,7 +123,7 @@ if (existsSync(buildingCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[3] Rok2CityLayoutActor build animation');
 
-const layoutCpp = join(ROOT, 'Rok2CityLayoutActor.cpp');
+const layoutCpp = join(PRIV, 'Rok2CityLayoutActor.cpp');
 check('Rok2CityLayoutActor.cpp exists', existsSync(layoutCpp));
 
 if (existsSync(layoutCpp)) {
@@ -132,7 +136,7 @@ if (existsSync(layoutCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[4] Rok2WorldRenderer audio + reveal');
 
-const worldCpp = join(ROOT, 'Rok2WorldRenderer.cpp');
+const worldCpp = join(PRIV, 'Rok2WorldRenderer.cpp');
 check('Rok2WorldRenderer.cpp exists', existsSync(worldCpp));
 
 if (existsSync(worldCpp)) {
@@ -147,7 +151,7 @@ if (existsSync(worldCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[5] Rok2Api audio integration');
 
-const apiCpp = join(ROOT, 'Rok2Api.cpp');
+const apiCpp = join(PRIV, 'Rok2Api.cpp');
 check('Rok2Api.cpp exists', existsSync(apiCpp));
 
 if (existsSync(apiCpp)) {

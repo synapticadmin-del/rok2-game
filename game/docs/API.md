@@ -103,6 +103,7 @@ Auth header: `Authorization: Bearer <token>`
 - `GET /v1/world/ws` (WebSocket upgrade)
 - `POST /v1/world/march` `{ targetType, targetId, troops, toX?, toY?, passId?, primaryCommanderId? }`
 - `POST /v1/world/pass/attack` `{ passId, troops, primaryCommanderId? }` (requires alliance)
+- `POST /v1/world/scout` `{ toX, toY }` (P5-T5) — كشافة بدون قوات من مدينة اللاعب للهدف (أسرع من المسير العادي). snapshot العالم يتضمن `scouts` المتحركة، وعند الوصول يبث WS `{"type":"scout_arrived","scoutId","toX","toY"}` ليكشف العميل ضباب الحرب حول الهدف (وبث `scout_created` عند الإنشاء)
 
 ### WS client messages
 ```json

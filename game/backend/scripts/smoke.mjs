@@ -126,13 +126,17 @@ async function main() {
   });
   assert(up.status === 200 && up.data.level === 2, "upgrade farm to 2");
 
-  // train
+  // train — التدريب صار طابوراً (P2 وما بعد): نتحقق من إنشاء الطابور،
+  // ثم force-tick يكمل الطابور فوراً وتظهر الوحدات في troops.
   const tr = await req("/v1/city/train", {
     method: "POST",
     token: aToken,
     body: { unit: "infantry_t1", count: 20 },
   });
-  assert(tr.status === 200 && tr.data.count >= 120, "train infantry");
+  assert(tr.status === 200 && tr.data.queueId, "train infantry queued");
+  await req("/v1/admin/tick", { method: "POST", admin: true, body: { force: true } });
+  const afterTrain = await req("/v1/city", { token: aToken });
+  assert((afterTrain.data?.troops?.infantry_t1 ?? 0) >= 120, "train infantry completed after force-tick");
 
   // grant more troops for war
   const grantA = await req("/v1/admin/grant", {

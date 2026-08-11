@@ -15,6 +15,11 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = __dirname;
+// جذر المستودع = scripts/.. — الملفات الحقيقية في data/ وSource/Rok2/{Public,Private}
+const REPO = join(__dirname, '..');
+const DATA = join(REPO, 'data');
+const PUB = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Public');
+const PRIV = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2', 'Private');
 
 let passed = 0;
 let failed = 0;
@@ -37,13 +42,13 @@ function check(name, condition, detail = '') {
 // ---------------------------------------------------------------------------
 console.log('\n[1] data/commanders.json');
 
-const cmdJsonPath = join(ROOT, 'commanders.json');
+const cmdJsonPath = join(DATA, 'commanders.json');
 check('commanders.json exists (workspace copy)', existsSync(cmdJsonPath));
 
 if (existsSync(cmdJsonPath)) {
   const data = JSON.parse(readFileSync(cmdJsonPath, 'utf8'));
   const cmdrs = data.commanders;
-  check('12 commanders present', cmdrs.length === 12, `got ${cmdrs.length}`);
+  check('>= 12 commanders present (P4-T5 added 6)', cmdrs.length >= 12, `got ${cmdrs.length}`);
 
   // Check first 6 starters have nation matching civs
   const starters = cmdrs.filter(c => c.id.includes('_starter'));
@@ -64,7 +69,7 @@ if (existsSync(cmdJsonPath)) {
 
   // Check legendary commanders
   const legendaries = cmdrs.filter(c => c.rarity === 'legendary');
-  check('6 legendary commanders', legendaries.length === 6, `got ${legendaries.length}`);
+  check('>= 6 legendary commanders', legendaries.length >= 6, `got ${legendaries.length}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +77,7 @@ if (existsSync(cmdJsonPath)) {
 // ---------------------------------------------------------------------------
 console.log('\n[2] Rok2CommanderWidget.h structure');
 
-const widgetH = join(ROOT, 'Rok2CommanderWidget.h');
+const widgetH = join(PUB, 'Rok2CommanderWidget.h');
 check('Rok2CommanderWidget.h exists', existsSync(widgetH));
 
 if (existsSync(widgetH)) {
@@ -98,7 +103,7 @@ if (existsSync(widgetH)) {
 // ---------------------------------------------------------------------------
 console.log('\n[3] Rok2CommanderWidget.cpp implementation');
 
-const widgetCpp = join(ROOT, 'Rok2CommanderWidget.cpp');
+const widgetCpp = join(PRIV, 'Rok2CommanderWidget.cpp');
 check('Rok2CommanderWidget.cpp exists', existsSync(widgetCpp));
 
 if (existsSync(widgetCpp)) {
@@ -112,7 +117,7 @@ if (existsSync(widgetCpp)) {
   check('uses COLOR_BRONZE_BG', content.includes('COLOR_BRONZE_BG'));
   check('has rarity colors defined', content.includes('COLOR_LEGENDARY') && content.includes('COLOR_EPIC'));
   check('BuildPortraitPlaceholder uses CivThemes', content.includes('URok2CivThemes::Get()'));
-  check('BuildSkillRow has attack/defense/passive icons', content.includes('⚔️') && content.includes('🛡️') && content.includes('✨'));
+  check('BuildSkillRow has attack/defense/passive icons (P6-T1: procedural icons)', content.includes('TEXT("sword")') && content.includes('TEXT("shield")') && content.includes('TEXT("sparkle")'));
   check('BuildTalentTreeStub has 3 branches', content.includes('قتال') && content.includes('دعم') && content.includes('حركة'));
   check('BuildEquipmentSlots has 5 slots', content.includes('سلاح') && content.includes('خوذة') && content.includes('درع') && content.includes('حذاء') && content.includes('إكسسوار'));
   check('has OnAssignClicked', content.includes('OnAssignClicked'));
@@ -129,7 +134,7 @@ if (existsSync(widgetCpp)) {
 console.log('\n[4] Integration with existing systems');
 
 // Check that Rok2Types.h has FRok2Commander
-const typesH = join(ROOT, 'Rok2Types.h');
+const typesH = join(PUB, 'Rok2Types.h');
 check('Rok2Types.h exists', existsSync(typesH));
 if (existsSync(typesH)) {
   const content = readFileSync(typesH, 'utf8');
@@ -140,7 +145,7 @@ if (existsSync(typesH)) {
 }
 
 // Check Rok2Api.h has GetCommanders
-const apiH = join(ROOT, 'Rok2Api.h');
+const apiH = join(PUB, 'Rok2Api.h');
 check('Rok2Api.h exists', existsSync(apiH));
 if (existsSync(apiH)) {
   const content = readFileSync(apiH, 'utf8');
@@ -148,7 +153,7 @@ if (existsSync(apiH)) {
 }
 
 // Check Rok2CivThemes.h exists (from P5-T2)
-const civThemesH = join(ROOT, 'Rok2CivThemes.h');
+const civThemesH = join(PUB, 'Rok2CivThemes.h');
 check('Rok2CivThemes.h exists (P5-T2)', existsSync(civThemesH));
 
 // ---------------------------------------------------------------------------

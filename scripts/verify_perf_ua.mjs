@@ -24,7 +24,8 @@ function ok(name) { console.log(`  ✅ ${name}`); passed++; }
 function fail(name, detail = '') { console.error(`  ❌ ${name}${detail ? ' — ' + detail : ''}`); failed++; }
 function check(name, condition, detail = '') { if (condition) ok(name); else fail(name, detail); }
 
-function read(rel) { return readFileSync(join(SRC, rel), 'utf8'); }
+// توحيد نهاية السطر (CRLF على ويندوز) حتى تعمل الأنماط متعددة الأسطر
+function read(rel) { return readFileSync(join(SRC, rel), 'utf8').replace(/\r\n/g, '\n'); }
 
 // ---------------------------------------------------------------------------
 // 1. URok2Perf subsystem files

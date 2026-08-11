@@ -14,8 +14,12 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-// في بيئة الـ agent: الملفات موجودة في /agent/workspace مباشرة
-const ROOT = __dirname;
+// جذر المستودع = scripts/.. — الملفات الحقيقية في data/ وSource/Rok2/{Public,Private}
+const REPO = join(__dirname, '..');
+const DATA = join(REPO, 'data');
+const SRC = join(REPO, 'game', 'client-unreal', 'Source', 'Rok2');
+const PUB = join(SRC, 'Public');
+const PRIV = join(SRC, 'Private');
 
 let passed = 0;
 let failed = 0;
@@ -38,9 +42,9 @@ function check(name, condition, detail = '') {
 // ---------------------------------------------------------------------------
 console.log('\n[1] data/civilizations.json');
 
-// في بيئة الـ agent: نتحقق من الملفات الموجودة في workspace مباشرة
-const civJsonPath = join(ROOT, 'civilizations.json');
-check('civilizations.json exists (workspace copy)', existsSync(civJsonPath));
+// نتحقق من الملفات في مواقعها الحقيقية داخل الشجرة
+const civJsonPath = join(DATA, 'civilizations.json');
+check('civilizations.json exists (repo data/)', existsSync(civJsonPath));
 
 if (existsSync(civJsonPath)) {
   const civs = JSON.parse(readFileSync(civJsonPath, 'utf8')).civilizations;
@@ -63,8 +67,8 @@ if (existsSync(civJsonPath)) {
 // ---------------------------------------------------------------------------
 console.log('\n[2] Rok2CivThemes class');
 
-const civThemesH = join(ROOT, 'Rok2CivThemes.h');
-const civThemesCpp = join(ROOT, 'Rok2CivThemes.cpp');
+const civThemesH = join(PUB, 'Rok2CivThemes.h');
+const civThemesCpp = join(PRIV, 'Rok2CivThemes.cpp');
 
 check('Rok2CivThemes.h exists', existsSync(civThemesH));
 check('Rok2CivThemes.cpp exists', existsSync(civThemesCpp));
@@ -93,8 +97,8 @@ if (existsSync(civThemesCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[3] Rok2BuildingActor theme integration');
 
-const buildingH = join(ROOT, 'Rok2BuildingActor.h');
-const buildingCpp = join(ROOT, 'Rok2BuildingActor.cpp');
+const buildingH = join(PUB, 'Rok2BuildingActor.h');
+const buildingCpp = join(PRIV, 'Rok2BuildingActor.cpp');
 
 check('Rok2BuildingActor.h exists', existsSync(buildingH));
 check('Rok2BuildingActor.cpp exists', existsSync(buildingCpp));
@@ -122,7 +126,7 @@ if (existsSync(buildingCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[4] Rok2CityLayoutActor civ propagation');
 
-const layoutCpp = join(ROOT, 'Rok2CityLayoutActor.cpp');
+const layoutCpp = join(PRIV, 'Rok2CityLayoutActor.cpp');
 check('Rok2CityLayoutActor.cpp exists', existsSync(layoutCpp));
 
 if (existsSync(layoutCpp)) {
@@ -138,8 +142,8 @@ if (existsSync(layoutCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[5] Rok2HexWallActor theme integration');
 
-const wallH = join(ROOT, 'Rok2HexWallActor.h');
-const wallCpp = join(ROOT, 'Rok2HexWallActor.cpp');
+const wallH = join(PUB, 'Rok2HexWallActor.h');
+const wallCpp = join(PRIV, 'Rok2HexWallActor.cpp');
 
 check('Rok2HexWallActor.h exists', existsSync(wallH));
 check('Rok2HexWallActor.cpp exists', existsSync(wallCpp));
@@ -161,7 +165,7 @@ if (existsSync(wallCpp)) {
 // ---------------------------------------------------------------------------
 console.log('\n[6] Rok2WorldRenderer theme integration');
 
-const worldCpp = join(ROOT, 'Rok2WorldRenderer.cpp');
+const worldCpp = join(PRIV, 'Rok2WorldRenderer.cpp');
 check('Rok2WorldRenderer.cpp exists', existsSync(worldCpp));
 
 if (existsSync(worldCpp)) {
