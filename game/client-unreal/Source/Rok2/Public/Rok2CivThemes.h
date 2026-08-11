@@ -52,6 +52,19 @@ struct FRok2CivTheme
 	UPROPERTY(BlueprintReadOnly, Category = "Rok2")
 	FLinearColor Accent = FLinearColor::White;
 
+	// P6-T7: ألوان خلفية اللوحات لهذه الحضارة
+	/** لون الخلفية الأساسي للوحة (أغمق من Primary) */
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2")
+	FLinearColor PanelBg = FLinearColor(0.06f, 0.05f, 0.04f, 0.92f);
+
+	/** لون الخلفية الثانوي للوحة (للإطار السفلي أو التدرج) */
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2")
+	FLinearColor PanelBgAlt = FLinearColor(0.1f, 0.08f, 0.05f, 0.85f);
+
+	/** لون الإطار المزخرف حول اللوحة */
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2")
+	FLinearColor PanelFrame = FLinearColor(0.79f, 0.63f, 0.15f, 0.6f);
+
 	/** نمط العمارة الذي يحدد شكل الـ placeholder */
 	UPROPERTY(BlueprintReadOnly, Category = "Rok2")
 	ERok2ArchStyle ArchStyle = ERok2ArchStyle::ArchesMarble;

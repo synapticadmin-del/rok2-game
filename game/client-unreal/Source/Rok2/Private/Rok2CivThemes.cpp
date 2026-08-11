@@ -108,7 +108,7 @@ void URok2CivThemes::BuildDefaults()
 {
 	// القيم تطابق data/civilizations.json و 07-game-design/civilizations-visual-design.md
 
-	auto Add = [this](const TCHAR* Id, const TCHAR* Name, const TCHAR* PrimaryHex, const TCHAR* SecondaryHex, const TCHAR* AccentHex, ERok2ArchStyle Style)
+	auto Add = [this](const TCHAR* Id, const TCHAR* Name, const TCHAR* PrimaryHex, const TCHAR* SecondaryHex, const TCHAR* AccentHex, ERok2ArchStyle Style, const TCHAR* PanelBgHex = TEXT("#0F0D0A"), const TCHAR* PanelFrameHex = TEXT("#C9A227"))
 	{
 		FRok2CivTheme T;
 		T.CivId = Id;
@@ -117,15 +117,26 @@ void URok2CivThemes::BuildDefaults()
 		T.Secondary = FLinearColor::FromSRGBColor(FColor::FromHex(SecondaryHex));
 		T.Accent = FLinearColor::FromSRGBColor(FColor::FromHex(AccentHex));
 		T.ArchStyle = Style;
+		// P6-T7: ألوان خلفية اللوحات — أغمق من Primary مع إطار ذهبي
+		T.PanelBg = FLinearColor::FromSRGBColor(FColor::FromHex(PanelBgHex));
+		T.PanelBgAlt = T.PanelBg * 1.3f; // أفتح قليلاً للتدرج
+		T.PanelBgAlt.A = 0.85f;
+		T.PanelFrame = FLinearColor::FromSRGBColor(FColor::FromHex(PanelFrameHex));
 		AddTheme(T);
 	};
 
-	Add(TEXT("rome"),     TEXT("Rome"),     TEXT("#8B1E1E"), TEXT("#D8C3A5"), TEXT("#C9A227"), ERok2ArchStyle::ArchesMarble);
-	Add(TEXT("china"),    TEXT("China"),    TEXT("#B5121B"), TEXT("#F0C14A"), TEXT("#8B4513"), ERok2ArchStyle::CurvedRoofs);
-	Add(TEXT("arabia"),   TEXT("Arabia"),   TEXT("#C9A227"), TEXT("#1F3D2B"), TEXT("#40E0D0"), ERok2ArchStyle::DomesArches);
-	Add(TEXT("egypt"),    TEXT("Egypt"),    TEXT("#0E7C7B"), TEXT("#E1B84B"), TEXT("#D4AF37"), ERok2ArchStyle::ObelisksColumns);
-	Add(TEXT("vikings"),  TEXT("Vikings"),  TEXT("#2E4057"), TEXT("#8AA0B4"), TEXT("#A0522D"), ERok2ArchStyle::CarvedWood);
-	Add(TEXT("japan"),    TEXT("Japan"),    TEXT("#111111"), TEXT("#9B1D20"), TEXT("#F5F5F5"), ERok2ArchStyle::TempleWood);
+	// روما: قرمزي رخامي + ذهب — خلفية داكنة حمراء
+	Add(TEXT("rome"),     TEXT("Rome"),     TEXT("#8B1E1E"), TEXT("#D8C3A5"), TEXT("#C9A227"), ERok2ArchStyle::ArchesMarble, TEXT("#1A0A0A"), TEXT("#C9A227"));
+	// الصين: قرمزي + ذهب إمبراطوري — خلفية داكنة حمراء ذهبية
+	Add(TEXT("china"),    TEXT("China"),    TEXT("#B5121B"), TEXT("#F0C14A"), TEXT("#8B4513"), ERok2ArchStyle::CurvedRoofs, TEXT("#1A0D0A"), TEXT("#F0C14A"));
+	// العرب: ذهب رملي + أخضر — خلفية داكنة خضراء
+	Add(TEXT("arabia"),   TEXT("Arabia"),   TEXT("#C9A227"), TEXT("#1F3D2B"), TEXT("#40E0D0"), ERok2ArchStyle::DomesArches, TEXT("#0A1A0F"), TEXT("#40E0D0"));
+	// مصر: تركواز + ذهب — خلفية داكنة فيروزية
+	Add(TEXT("egypt"),    TEXT("Egypt"),    TEXT("#0E7C7B"), TEXT("#E1B84B"), TEXT("#D4AF37"), ERok2ArchStyle::ObelisksColumns, TEXT("#0A1A1A"), TEXT("#D4AF37"));
+	// الفايكنج: أزرق حديدي + رمادي — خلفية داكنة زرقاء
+	Add(TEXT("vikings"),  TEXT("Vikings"),  TEXT("#2E4057"), TEXT("#8AA0B4"), TEXT("#A0522D"), ERok2ArchStyle::CarvedWood, TEXT("#0A0F1A"), TEXT("#8AA0B4"));
+	// اليابان: أسود + قرمزي — خلفية داكنة سوداء حمراء
+	Add(TEXT("japan"),    TEXT("Japan"),    TEXT("#111111"), TEXT("#9B1D20"), TEXT("#F5F5F5"), ERok2ArchStyle::TempleWood, TEXT("#0D0A0A"), TEXT("#9B1D20"));
 }
 
 void URok2CivThemes::LoadFromDiskOrDefaults()

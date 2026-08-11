@@ -6,6 +6,7 @@
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2CivThemes.h"
 #include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -35,7 +36,14 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		WidgetTree->RootWidget = RootCanvas;
 
 		UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-		MainBorder->SetBrushColor(FLinearColor(0.05f, 0.05f, 0.05f, 0.9f));
+		// P6-T7: خلفية اللوحة بلون الحضارة
+		FLinearColor PanelColor = FLinearColor(0.05f, 0.05f, 0.05f, 0.9f);
+		if (Api)
+		{
+			const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Api->GetPlayer().Civ);
+			PanelColor = Theme.PanelBg;
+		}
+		MainBorder->SetBrushColor(PanelColor);
 		
 		UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));

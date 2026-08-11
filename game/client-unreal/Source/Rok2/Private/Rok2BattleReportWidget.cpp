@@ -6,6 +6,7 @@
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2CivThemes.h"
 #include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -21,7 +22,12 @@
 #include "Blueprint/WidgetTree.h"
 
 static FLinearColor Rok2Gold() { return FLinearColor(1.0f, 0.84f, 0.2f); }
-static FLinearColor Rok2Panel() { return FLinearColor(0.04f, 0.07f, 0.14f, 0.95f); }
+// P6-T7: ألوان اللوحة تختلف حسب الحضارة
+static FLinearColor Rok2Panel(const FString& Civ = TEXT(""))
+{
+	const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
+	return Theme.PanelBg;
+}
 
 void URok2BattleReportWidget::Setup(URok2Api* InApi)
 {
@@ -53,9 +59,11 @@ void URok2BattleReportWidget::NativeConstruct()
 		UCanvasPanelSlot* BdSlot = RootCanvas->AddChildToCanvas(Backdrop);
 		BdSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 
-		// البطاقة الرئيسية في المنتصف
+		// البطاقة الرئيسية في المنتصف — P6-T7: بلون الحضارة
 		UBorder* Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Card"));
-		Card->SetBrushColor(Rok2Panel());
+		FString Civ;
+		if (Api) Civ = Api->GetPlayer().Civ;
+		Card->SetBrushColor(Rok2Panel(Civ));
 		UCanvasPanelSlot* CardSlot = RootCanvas->AddChildToCanvas(Card);
 		CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));

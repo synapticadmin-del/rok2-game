@@ -93,30 +93,52 @@ void URok2CommanderWidget::BuildUI()
 	UCanvasPanel* RootPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootPanel"));
 	WidgetTree->RootWidget = RootPanel;
 
-	// خلفية معتمة خفيفة (تسمح برؤية المدينة خلفها)
+	// P6-T7: خلفية معتمة بألوان الحضارة (تتغير حسب حضارة اللاعب)
 	UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Backdrop"));
 	Backdrop->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.5f));
 	UCanvasPanelSlot* BackdropSlot = RootPanel->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	BackdropSlot->SetOffsets(FMargin(0.f));
 
-	// اللوحة الرئيسية (Bottom Sheet كبيرة)
+	// اللوحة الرئيسية — خلفية حضارية بدل اللون الموحد
 	UBorder* MainSheet = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainSheet"));
-	MainSheet->SetBrushColor(FLinearColor(COLOR_BRONZE_BG.R, COLOR_BRONZE_BG.G, COLOR_BRONZE_BG.B, 0.92f));
+	// P6-T7: استخراج لون الخلفية من ثيم الحضارة
+	FLinearColor PanelBg = FLinearColor(0.06f, 0.05f, 0.04f, 0.92f); // افتراضي
+	if (Api)
+	{
+		const FString Civ = Api->GetPlayer().Civ;
+		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
+		PanelBg = Theme.PanelBg;
+	}
+	MainSheet->SetBrushColor(PanelBg);
 	UCanvasPanelSlot* SheetSlot = RootPanel->AddChildToCanvas(MainSheet);
 	SheetSlot->SetAnchors(FAnchors(0.05f, 0.08f, 0.95f, 0.95f));
 	SheetSlot->SetOffsets(FMargin(0.f));
 
-	// إطار ذهبي
+	// P6-T7: إطار بلون الحضارة بدل الذهب الموحد
 	MainSheet->SetPadding(FMargin(2.f));
 	UBorder* GoldFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("GoldFrame"));
-	GoldFrame->SetBrushColor(FLinearColor(COLOR_GOLD.R, COLOR_GOLD.G, COLOR_GOLD.B, 0.6f));
+	FLinearColor FrameColor = FLinearColor(0.79f, 0.63f, 0.15f, 0.6f); // ذهبي افتراضي
+	if (Api)
+	{
+		const FString Civ = Api->GetPlayer().Civ;
+		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
+		FrameColor = Theme.PanelFrame;
+	}
+	GoldFrame->SetBrushColor(FrameColor);
 	MainSheet->SetContent(GoldFrame);
 	GoldFrame->SetPadding(FMargin(3.f));
 
 	// المحتوى الداخلي
 	UBorder* InnerBg = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InnerBg"));
-	InnerBg->SetBrushColor(FLinearColor(COLOR_BRONZE_BG.R, COLOR_BRONZE_BG.G, COLOR_BRONZE_BG.B, 0.95f));
+	FLinearColor InnerBgColor = FLinearColor(0.06f, 0.05f, 0.04f, 0.95f);
+	if (Api)
+	{
+		const FString Civ = Api->GetPlayer().Civ;
+		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
+		InnerBgColor = Theme.PanelBgAlt;
+	}
+	InnerBg->SetBrushColor(InnerBgColor);
 	GoldFrame->SetContent(InnerBg);
 
 	// تقسيم أفقي: قائمة القادة (يمين) | تفاصيل القائد (يسار)
