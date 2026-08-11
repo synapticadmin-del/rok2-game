@@ -13,6 +13,7 @@ import {
   getCommanders,
   getZones,
   getSoftLaunch,
+  getAllianceStructures,
   starterBuildings,
   upgradeCost,
   trainCost,
@@ -1716,6 +1717,42 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ allianceId: player.alliance_id, x: fx, y: fy })
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "build_failed", data);
+      return json(data);
+    }
+
+    // Alliance structure build — الرتبة والإحداثيات تتحققان هنا، والـ Durable Object يعيد التحقق من الملكية/السعة/النطاق.
+    if (path === "/v1/alliance/structure/build" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ kind: string; x: number; y: number }>(request);
+      const catalog = getAllianceStructures() as any;
+      const structure = (catalog.structures || []).find((candidate: any) => candidate.id === body.kind);
+      if (!structure) throw new HttpError(400, "unknown_structure_kind");
+
+      const mapForStructure = getMap();
+      const x = Number(body.x);
+      const y = Number(body.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > mapForStructure.width || y < 0 || y > mapForStructure.height) {
+        throw new HttpError(400, "bad_structure_coords");
+      }
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rankHas(rank, String(structure.required_rank_permission || "structure"))) {
+        throw new HttpError(403, "insufficient_rank");
+      }
+
+      const res = await kingdomStub(env).fetch("https://do/build-alliance-structure", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          allianceId: player.alliance_id,
+          createdBy: player.id,
+          kind: structure.id,
+          x,
+          y,
+        }),
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "build_failed", data);

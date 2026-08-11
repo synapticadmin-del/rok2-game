@@ -196,6 +196,32 @@ struct FRok2NodeEntity
 };
 
 /** كشافة واحدة على الخريطة (P5-T5) */
+/** منشأة تحالف ثابتة تُبث من الخادم السلطوي مع نطاقها الفعلي. */
+USTRUCT(BlueprintType)
+struct FRok2AllianceStructure
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Kind;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString AllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double X = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double Y = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double Radius = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double ProtectionRadius = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double MarchDamageReduction = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString MapMarker;
+};
+
 USTRUCT(BlueprintType)
 struct FRok2ScoutEntity
 {
@@ -275,6 +301,10 @@ struct FRok2WorldSnapshot
 	TArray<FRok2MarchEntity> Marches;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2NodeEntity> Nodes;
+
+	/** منشآت التحالف المرئية ونطاقات الحماية الخاصة بها. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2AllianceStructure> AllianceStructures;
 
 	/** حالة قفل/فتح المناطق (P2-T4) — يملؤه الـ HUD لعرض مؤقت المناطق (P2-T6) */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")

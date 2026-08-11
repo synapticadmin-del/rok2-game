@@ -25,6 +25,7 @@
         "demote",
         "rally",
         "flag",
+        "structure",
         "help"
       ],
       "R4": [
@@ -33,11 +34,13 @@
         "demote",
         "rally",
         "flag",
+        "structure",
         "help"
       ],
       "R3": [
         "rally",
         "flag",
+        "structure",
         "help"
       ],
       "R2": [

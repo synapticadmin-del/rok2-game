@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, getChatConfig, type MapPass, type MapRegion } from "../lib/gameData";
+import { getMap, getChatConfig, getAllianceStructures, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
 import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
@@ -63,6 +63,22 @@ type AllianceFlag = {
   x: number;
   y: number;
   radius: number;
+};
+
+/** منشأة تحالف ثابتة على الخريطة. القيم التشغيلية تأتي من alliance_structures.json
+ * ولا يقبل الخادم radius أو نطاق حماية من العميل. */
+type AllianceStructure = {
+  id: string;
+  kind: string;
+  allianceId: string;
+  x: number;
+  y: number;
+  radius: number;
+  protectionRadius: number;
+  marchDamageReduction: number;
+  mapMarker: string;
+  createdBy: string;
+  createdAt: number;
 };
 
 type PassEntity = {
@@ -189,6 +205,8 @@ export class KingdomShard extends DurableObject<Env> {
   private marches = new Map<string, MarchEntity>();
   private nodes = new Map<string, NodeEntity>();
   private flags = new Map<string, AllianceFlag>();
+  // منشآت التحالف المرئية: حصون ومنجنيقات وأبراج مراقبة.
+  private allianceStructures = new Map<string, AllianceStructure>();
   // P5-T5: الكشافة النشطة على الخريطة
   private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
@@ -466,6 +484,26 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (6)");
     }
+
+    if (ver < 7) {
+      // منشآت التحالف: لا تُخزّن قيم النطاق من العميل؛ تُشتق من الكتالوج عند البناء.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS alliance_structures (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          alliance_id TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          radius REAL NOT NULL,
+          protection_radius REAL NOT NULL,
+          march_damage_reduction REAL NOT NULL,
+          map_marker TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (7)");
+    }
   }
 
   private loadMapDefs() {
@@ -509,6 +547,22 @@ export class KingdomShard extends DurableObject<Env> {
         x: row.x,
         y: row.y,
         radius: row.radius,
+      });
+    }
+
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_structures").toArray()) {
+      this.allianceStructures.set(row.id, {
+        id: row.id,
+        kind: row.kind,
+        allianceId: row.alliance_id,
+        x: row.x,
+        y: row.y,
+        radius: row.radius,
+        protectionRadius: row.protection_radius,
+        marchDamageReduction: row.march_damage_reduction,
+        mapMarker: row.map_marker,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
       });
     }
 
@@ -936,6 +990,25 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  private persistAllianceStructure(structure: AllianceStructure) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO alliance_structures
+       (id, kind, alliance_id, x, y, radius, protection_radius, march_damage_reduction, map_marker, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      structure.id,
+      structure.kind,
+      structure.allianceId,
+      structure.x,
+      structure.y,
+      structure.radius,
+      structure.protectionRadius,
+      structure.marchDamageReduction,
+      structure.mapMarker,
+      structure.createdBy,
+      structure.createdAt,
+    );
+  }
+
   private snapshot() {
     return {
       seasonDay: this.seasonDay,
@@ -948,6 +1021,9 @@ export class KingdomShard extends DurableObject<Env> {
       marches: [...this.marches.values()].filter((m) => m.state === "moving"),
       nodes: [...this.nodes.values()],
       flags: [...this.flags.values()],
+      // الكتالوج ومثيلاته يُبثان مع اللقطة ليعرض العميل العلامة ودائرة النطاق من البيانات السلطوية.
+      allianceStructures: [...this.allianceStructures.values()],
+      allianceStructureCatalog: getAllianceStructures(),
       // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       reports: this.reports.slice(0, 10),
@@ -1780,6 +1856,59 @@ export class KingdomShard extends DurableObject<Env> {
       );
       this.broadcast({ type: "flag_created", flag });
       return Response.json({ ok: true, flag });
+    }
+
+    if (path.endsWith("/build-alliance-structure") && request.method === "POST") {
+      const body = await request.json<any>();
+      const map = getMap();
+      const x = Number(body.x);
+      const y = Number(body.y);
+      const allianceId = String(body.allianceId || "");
+      const kind = String(body.kind || "");
+      if (!allianceId || !body.createdBy) return Response.json({ error: "alliance_and_builder_required" }, { status: 400 });
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > map.width || y < 0 || y > map.height) {
+        return Response.json({ error: "bad_structure_coords" }, { status: 400 });
+      }
+
+      const catalog = getAllianceStructures() as any;
+      const spec = (catalog.structures || []).find((candidate: any) => candidate.id === kind);
+      if (!spec) return Response.json({ error: "unknown_structure_kind" }, { status: 400 });
+
+      const allianceStructures = [...this.allianceStructures.values()].filter((s) => s.allianceId === allianceId);
+      if (allianceStructures.length >= Number(catalog.placement?.max_structures_per_alliance || 0)) {
+        return Response.json({ error: "alliance_structure_cap_reached" }, { status: 400 });
+      }
+      if (allianceStructures.filter((s) => s.kind === kind).length >= Number(spec.max_per_alliance || 0)) {
+        return Response.json({ error: "structure_kind_cap_reached" }, { status: 400 });
+      }
+      const spacing = Number(catalog.placement?.minimum_spacing || 0);
+      if (this.allianceStructures.size && [...this.allianceStructures.values()].some((s) => dist(x, y, s.x, s.y) < spacing)) {
+        return Response.json({ error: "structure_too_close" }, { status: 400 });
+      }
+      if (catalog.placement?.requires_alliance_territory) {
+        const insideTerritory = [...this.flags.values()].some((flag) =>
+          flag.allianceId === allianceId && dist(x, y, flag.x, flag.y) <= flag.radius,
+        );
+        if (!insideTerritory) return Response.json({ error: "structure_requires_alliance_territory" }, { status: 400 });
+      }
+
+      const structure: AllianceStructure = {
+        id: newId("ast"),
+        kind: spec.id,
+        allianceId,
+        x,
+        y,
+        radius: Number(spec.radius || 0),
+        protectionRadius: Number(spec.protection_radius || 0),
+        marchDamageReduction: Number(spec.march_damage_reduction || 0),
+        mapMarker: String(spec.map_marker || spec.id),
+        createdBy: String(body.createdBy),
+        createdAt: nowMs(),
+      };
+      this.allianceStructures.set(structure.id, structure);
+      this.persistAllianceStructure(structure);
+      this.broadcast({ type: "alliance_structure_created", structure });
+      return Response.json({ ok: true, structure });
     }
 
     if (path.endsWith("/march") && request.method === "POST") {

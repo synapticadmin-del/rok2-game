@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "placement": {
+    "max_structures_per_alliance": 24,
+    "minimum_spacing": 18,
+    "requires_alliance_territory": true,
+    "territory_anchor": "flag"
+  },
+  "structures": [
+    {
+      "id": "watchtower",
+      "name": "برج المراقبة",
+      "category": "intel",
+      "required_rank_permission": "structure",
+      "max_per_alliance": 8,
+      "radius": 36,
+      "protection_radius": 0,
+      "march_damage_reduction": 0,
+      "map_marker": "tower",
+      "description": "يكشف الحركة والنقاط المحيطة داخل إقليم التحالف."
+    },
+    {
+      "id": "bastion",
+      "name": "حصن الحراسة",
+      "category": "defense",
+      "required_rank_permission": "structure",
+      "max_per_alliance": 4,
+      "radius": 28,
+      "protection_radius": 28,
+      "march_damage_reduction": 0.08,
+      "map_marker": "fort",
+      "description": "ينشئ نطاق حماية للقوات الصديقة العابرة ويؤسس نقطة دفاع محلية للتحالف."
+    },
+    {
+      "id": "catapult_emplacement",
+      "name": "منجنيق الحصار",
+      "category": "siege",
+      "required_rank_permission": "structure",
+      "max_per_alliance": 3,
+      "radius": 0,
+      "protection_radius": 20,
+      "march_damage_reduction": 0.04,
+      "map_marker": "catapult",
+      "description": "منشأة حصار ثابتة قرب حدود التحالف؛ تحمي حامية العبور وتُظهر منطقة تأثيرها على الخريطة."
+    }
+  ]
+}

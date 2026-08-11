@@ -27,6 +27,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RefreshFromApi();
 
+	/** ينشئ طلب بناء في موضع عالم Unreal؛ تحقق الخادم هو السلطة النهائية للنوع والرتبة والإقليم. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance Structures")
+	void RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint);
+
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	USceneComponent* Root;
 
@@ -44,6 +48,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	UStaticMesh* MarchMesh;
+
+	/** أصل موحّد لمؤشر الحصن/المنجنيق/برج المراقبة؛ يُلوّن حسب تحالف المالك. */
+	UPROPERTY(EditAnywhere, Category = "Rok2|Alliance Structures")
+	UStaticMesh* AllianceStructureMesh;
+
+	/** قرص أو حلقة مسطّحة بقطر 100cm تُستخدم لعرض نطاق الحماية، ويمكن استبدالها بأصل فني نهائي. */
+	UPROPERTY(EditAnywhere, Category = "Rok2|Alliance Structures")
+	UStaticMesh* ProtectionRadiusMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float WorldToUnrealScale = 100.f;
@@ -74,6 +86,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float MarchZ = 75.f;
+
+	UPROPERTY(EditAnywhere, Category = "Rok2|Alliance Structures")
+	float AllianceStructureZ = 85.f;
 
 protected:
 	UPROPERTY(Transient)

@@ -97,6 +97,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void CreateAlliance(const FString& Name, const FString& Tag);
 
+	/** يطلب وضع منشأة تحالف على الخريطة؛ الخادم يتحقق من الرتبة والإقليم والمسافة والسقف. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance Structures")
+	void BuildAllianceStructure(const FString& StructureKind, double X, double Y);
+
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RefreshWorld();
 

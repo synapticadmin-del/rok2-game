@@ -606,6 +606,29 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// ---- alliance structures: منشآت تحالف ثابتة مع نطاقات مرئية من الخادم ----
+	World.AllianceStructures.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* StructuresArr;
+	if (Obj->TryGetArrayField(TEXT("allianceStructures"), StructuresArr))
+	{
+		for (const auto& V : *StructuresArr)
+		{
+			const TSharedPtr<FJsonObject> S = V->AsObject();
+			if (!S.IsValid()) continue;
+			FRok2AllianceStructure E;
+			E.Id = Rok2Json::Str(S, TEXT("id"));
+			E.Kind = Rok2Json::Str(S, TEXT("kind"));
+			E.AllianceId = Rok2Json::Str(S, TEXT("allianceId"));
+			E.X = Rok2Json::Num(S, TEXT("x"));
+			E.Y = Rok2Json::Num(S, TEXT("y"));
+			E.Radius = Rok2Json::Num(S, TEXT("radius"));
+			E.ProtectionRadius = Rok2Json::Num(S, TEXT("protectionRadius"));
+			E.MarchDamageReduction = Rok2Json::Num(S, TEXT("marchDamageReduction"));
+			E.MapMarker = Rok2Json::Str(S, TEXT("mapMarker"));
+			World.AllianceStructures.Add(E);
+		}
+	}
+
 	// ---- marches (P1-T3) ----
 	World.Marches.Empty();
 	const TArray<TSharedPtr<FJsonValue>>* MarchesArr;
@@ -1031,6 +1054,30 @@ void URok2Api::CreateAlliance(const FString& Name, const FString& Tag)
 	{
 		EmitToast(TEXT("تم إنشاء التحالف"));
 		LoadCity();
+	});
+}
+
+void URok2Api::BuildAllianceStructure(const FString& StructureKind, double X, double Y)
+{
+	if (StructureKind.IsEmpty())
+	{
+		EmitToast(TEXT("اختر نوع المنشأة أولاً"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("kind"), StructureKind);
+	Body->SetNumberField(TEXT("x"), X);
+	Body->SetNumberField(TEXT("y"), Y);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+
+	Post(TEXT("/v1/alliance/structure/build"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		EmitToast(TEXT("تم إنشاء منشأة التحالف"));
+		RefreshWorld();
 	});
 }
 

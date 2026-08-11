@@ -6,6 +6,7 @@
 #include "Rok2ProceduralAssets.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2FogOfWar.h"
 #include "Rok2AudioManager.h"
 #include "Rok2Perf.h"
@@ -86,6 +87,26 @@ void ARok2WorldRenderer::BeginPlay()
 			Api->OnWorldSnapshot.AddDynamic(this, &ARok2WorldRenderer::OnWorldSnapshotHandler);
 		}
 	}
+}
+
+void ARok2WorldRenderer::RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint)
+{
+	if (!Api)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Cannot build alliance structure: API is unavailable."));
+		return;
+	}
+	if (WorldToUnrealScale <= KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Cannot build alliance structure: WorldToUnrealScale must be positive."));
+		return;
+	}
+
+	Api->BuildAllianceStructure(
+		StructureKind,
+		WorldPoint.X / WorldToUnrealScale,
+		WorldPoint.Y / WorldToUnrealScale
+	);
 }
 
 void ARok2WorldRenderer::OnWorldSnapshotHandler(const FRok2WorldSnapshot& Snapshot)
@@ -334,6 +355,40 @@ void ARok2WorldRenderer::RefreshFromApi()
 		else
 		{
 			if (ResourceNodeHISM) ResourceNodeHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(0.8f, 0.8f, 0.8f)));
+		}
+	}
+
+	// منشآت التحالف: نقطة مرئية ونطاق حماية مستمدان من لقطة الخادم.
+	// اللون يميّز منشأة اللاعب/الحليف عن المنشأة المعادية؛ لا تُرسم في الضباب.
+	for (const FRok2AllianceStructure& S : W.AllianceStructures)
+	{
+		const FVector Loc(S.X * WorldToUnrealScale, S.Y * WorldToUnrealScale, AllianceStructureZ);
+		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
+		if (Fog && !Fog->IsExplored(S.X * WorldToUnrealScale, S.Y * WorldToUnrealScale)) continue;
+
+		const bool bFriendly = !MyAlliance.IsEmpty() && S.AllianceId == MyAlliance;
+		const FLinearColor StructureColor = bFriendly
+			? Rok2Visual::Information()
+			: Rok2Visual::Danger();
+		UStaticMesh* MarkerMesh = AllianceStructureMesh ? AllianceStructureMesh : NodeMesh;
+		if (MarkerMesh)
+		{
+			if (AActor* Marker = SpawnMarkerActor(MarkerMesh, Loc, FString::Printf(TEXT("AllianceStructure_%s"), *S.Id), StructureColor))
+			{
+				const float StructureScale = S.Kind == TEXT("bastion") ? 1.35f : (S.Kind == TEXT("catapult_emplacement") ? 1.15f : 0.95f);
+				Marker->SetActorScale3D(FVector(StructureScale));
+				SpawnedActors.Add(Marker);
+			}
+		}
+
+		if (ProtectionRadiusMesh && S.ProtectionRadius > 0.0)
+		{
+			const float DiameterScale = FMath::Max(0.01f, float((S.ProtectionRadius * WorldToUnrealScale) / 50.0));
+			if (AActor* Range = SpawnMarkerActor(ProtectionRadiusMesh, FVector(Loc.X, Loc.Y, AllianceStructureZ - 4.f), FString::Printf(TEXT("ProtectionRange_%s"), *S.Id), StructureColor.CopyWithNewOpacity(0.18f)))
+			{
+				Range->SetActorScale3D(FVector(DiameterScale, DiameterScale, 1.f));
+				SpawnedActors.Add(Range);
+			}
 		}
 	}
 

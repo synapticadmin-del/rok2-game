@@ -9,6 +9,7 @@ import shopSpec from "../data/shop.json";
 import softLaunchSpec from "../data/softlaunch.json";
 import battlePassSpec from "../data/battlepass.json";
 import chatSpec from "../data/chat.json";
+import allianceStructuresSpec from "../data/alliance_structures.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -95,6 +96,11 @@ export function getBuildings() {
 
 export function getTroops() {
   return troopTiers;
+}
+
+/** منشآت التحالف التفاعلية: كتالوج موحّد للبناء والنطاقات المرئية وقواعد الحماية. */
+export function getAllianceStructures() {
+  return allianceStructuresSpec;
 }
 
 /** P2-T4: مواصفة المناطق الموحدة (فتح زمني + نطاقات موارد) — تُقرأ من data/zones.json */

@@ -10,6 +10,7 @@ const files = {
   themeSource: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2VisualTheme.cpp'),
   buildMenu: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2BuildMenuWidget.cpp'),
   buildingDetail: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2BuildingDetailWidget.cpp'),
+  worldRenderer: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2WorldRenderer.cpp'),
   visualDesign: path.join(repoRoot, 'design/01-visual/VISUAL_IDENTITY.md'),
 };
 
@@ -30,6 +31,9 @@ const required = [
   ['buildingDetail', /#include "Rok2VisualTheme\.h"/, 'ربط تفاصيل المبنى بالهوية'],
   ['buildingDetail', /Rok2Visual::PrimaryAction\(\)/, 'زر الترقية الموحد'],
   ['buildingDetail', /Rok2Visual::Success\(\)/, 'حالة الموارد الموحدة'],
+  ['worldRenderer', /#include "Rok2VisualTheme\.h"/, 'ربط خريطة العالم بالهوية'],
+  ['worldRenderer', /Rok2Visual::Information\(\)/, 'تمييز منشأة الحليف على الخريطة'],
+  ['worldRenderer', /Rok2Visual::Danger\(\)/, 'تمييز منشأة الخصم على الخريطة'],
   ['visualDesign', /Rok2VisualTheme/, 'توثيق نقطة الحقيقة البصرية'],
 ];
 
