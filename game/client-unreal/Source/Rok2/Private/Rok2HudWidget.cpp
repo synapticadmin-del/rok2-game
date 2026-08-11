@@ -63,6 +63,7 @@ void URok2HudWidget::Setup(URok2Api* InApi)
 	UpdateQueues();
 	UpdateBellBadge();
 	UpdateBuildBadge();
+	UpdateChatBadge();
 }
 
 void URok2HudWidget::NativeConstruct()
@@ -312,6 +313,32 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	MakePill(TEXT("scroll"), TEXT("التقارير"), FName(TEXT("OnReportsBtnClickedHandler")));
 	MakePill(TEXT("edit"), TEXT("تحرير المدينة"), FName(TEXT("OnEditCityClickedHandler")));
 
+	// P6-T6: زر الدردشة الحية — أيقونة دردشة + شارة غير المقروء
+	{
+		ChatButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ChatPill"));
+		ChatButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.1f, 0.1f, 0.15f, 0.85f));
+		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		ChatButton->AddChild(PillBox);
+		ChatIcon = Rok2Icon(WidgetTree, TEXT("bell"), 14.f, FLinearColor(0.4f, 0.7f, 1.0f));
+		UHorizontalBoxSlot* IcoSlot = PillBox->AddChildToHorizontalBox(ChatIcon);
+		IcoSlot->SetPadding(FMargin(6, 0, 4, 0));
+		IcoSlot->SetVerticalAlignment(VAlign_Center);
+		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		T->SetText(FText::FromString(TEXT("الدردشة")));
+		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
+		PillBox->AddChildToHorizontalBox(T)->SetPadding(FMargin(2, 0, 6, 0));
+		ChatBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		ChatBadgeText->SetText(FText::GetEmpty());
+		ChatBadgeText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.3f, 0.3f)));
+		URok2Typography::ApplyFont(ChatBadgeText, ERok2TextRole::Caption);
+		PillBox->AddChildToHorizontalBox(ChatBadgeText)->SetVerticalAlignment(VAlign_Center);
+		ChatButton->OnClicked.AddDynamic(this, &URok2HudWidget::OnChatClickedHandler);
+		URok2MotionLibrary::BindPress(ChatButton);
+		H->AddChildToHorizontalBox(ChatButton)->SetPadding(FMargin(0, 0, 10, 0));
+	}
+
 	// P6-T4: مرساة إبراز الخطوة الثالثة (أول مسيرة جمع). هدف الخطوة عقدة موارد
 	// في العالم لا ودجة، فلا زرّ يُحاط به — نُبرز باب الخريطة، والبطاقة تحمل
 	// بقية الإرشاد («المس عقدة موارد ثم أطلق المسيرة»).
@@ -414,6 +441,7 @@ void URok2HudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		UpdateQueues();
 		UpdateSeasonAndZones();
 		UpdateBuildBadge();
+		UpdateChatBadge();
 	}
 }
 
@@ -709,3 +737,25 @@ void URok2HudWidget::OnAllianceClickedHandler() { OnAllianceAction.Broadcast(); 
 void URok2HudWidget::OnItemsClickedHandler() { OnItemsAction.Broadcast(); }
 void URok2HudWidget::OnEventsClickedHandler() { OnEventsAction.Broadcast(); }
 void URok2HudWidget::OnCivInfoClickedHandler() { OnCivInfoAction.Broadcast(); }
+
+// P6-T6: زر الدردشة
+void URok2HudWidget::OnChatClickedHandler()
+{
+	OnChatAction.Broadcast();
+	if (Api) Api->MarkChatRead();
+	UpdateChatBadge();
+}
+
+void URok2HudWidget::UpdateChatBadge()
+{
+	if (!ChatBadgeText || !Api) return;
+	int32 Count = Api->GetUnreadChatCount();
+	if (Count > 0)
+	{
+		ChatBadgeText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), FMath::Min(Count, 99))));
+	}
+	else
+	{
+		ChatBadgeText->SetText(FText::GetEmpty());
+	}
+}

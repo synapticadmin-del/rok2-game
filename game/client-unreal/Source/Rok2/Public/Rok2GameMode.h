@@ -17,6 +17,7 @@ class URok2AllianceRosterWidget;
 class URok2BattleReportWidget;
 class URok2OnboardingWidget;
 class URok2CivInfoWidget;
+class URok2ChatWidget;
 class ARok2ViewManager;
 class ARok2CityBuilder;
 
@@ -85,6 +86,10 @@ public:
 	UPROPERTY(Transient)
 	URok2CivInfoWidget* CivInfoWidget;
 
+	// P6-T6: دردشة حية
+	UPROPERTY(Transient)
+	URok2ChatWidget* ChatWidget;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")
 	float TickIntervalSeconds;
@@ -102,6 +107,7 @@ protected:
 	UFUNCTION() void HandleMapAction();
 	UFUNCTION() void HandleReportsAction();
 	UFUNCTION() void HandleCivInfoAction();
+	UFUNCTION() void HandleChatAction();
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 
 	/** ربط أحداث HUD بالمعالجات بعد إنشائها */

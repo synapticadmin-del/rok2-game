@@ -1,0 +1,31 @@
+{
+  "comment": "مواصفة الدردشة الحية (P6-T6) — قناتا المملكة والتحالف + حدود الرسائل + ثوابت الواجهة. الخادم والعميل يقرآن من هذا الملف: لا حدّ أقصى للنص ولا ثوابت طوابع زمنية مُضمَّنة في الكود.",
+  "channels": {
+    "kingdom": {
+      "id": "kingdom",
+      "nameAr": "المملكة",
+      "description": "قناة عامة على مستوى المملكة — تصل لكل متصل في shard، بلا شرط تحالف",
+      "requiresAlliance": false
+    },
+    "alliance": {
+      "id": "alliance",
+      "nameAr": "التحالف",
+      "description": "قناة خاصة بتحالف اللاعب — تصل لأعضاء التحالف فقط، تُرفض بلا تحالف",
+      "requiresAlliance": true
+    }
+  },
+  "limits": {
+    "maxTextLength": 200,
+    "maxHistoryPerChannel": 100,
+    "rateLimit": {
+      "windowMs": 5000,
+      "maxMessages": 5
+    }
+  },
+  "ui": {
+    "maxBubbleWidthPx": 280,
+    "timestampFormat": "HH:MM",
+    "unreadBadgeMax": 99,
+    "minSendIntervalMs": 400
+  }
+}

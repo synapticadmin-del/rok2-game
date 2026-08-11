@@ -697,6 +697,27 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 		OnZonesUpdated.Broadcast(World.Zones);
 	}
 
+	// ---- P6-T6: سجل الدردشة الحية ----
+	const TArray<TSharedPtr<FJsonValue>>* ChatArr;
+	if (Obj->TryGetArrayField(TEXT("chatHistory"), ChatArr))
+	{
+		ChatHistory.Empty();
+		for (const auto& V : *ChatArr)
+		{
+			const TSharedPtr<FJsonObject> M = V->AsObject();
+			if (!M.IsValid()) continue;
+			FRok2ChatMessage Msg;
+			Msg.Id = Rok2Json::Str(M, TEXT("id"));
+			Msg.Channel = Rok2Json::Str(M, TEXT("channel"));
+			Msg.PlayerId = Rok2Json::Str(M, TEXT("playerId"));
+			Msg.PlayerName = Rok2Json::Str(M, TEXT("playerName"));
+			Msg.Civ = Rok2Json::Str(M, TEXT("civ"));
+			Msg.Text = Rok2Json::Str(M, TEXT("text"));
+			Msg.TimestampMs = (int64)Rok2Json::Num(M, TEXT("timestampMs"));
+			ChatHistory.Add(Msg);
+		}
+	}
+
 	OnWorldSnapshot.Broadcast(World);
 }
 
@@ -999,6 +1020,20 @@ void URok2Api::SendScout(double ToX, double ToY)
 	});
 }
 
+// P6-T6: إرسال رسالة دردشة عبر WebSocket
+void URok2Api::SendChat(const FString& Channel, const FString& Text)
+{
+	if (!WebSocket.IsValid() || !bWsConnected) return;
+	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
+	Msg->SetStringField(TEXT("type"), TEXT("chat_send"));
+	Msg->SetStringField(TEXT("channel"), Channel);
+	Msg->SetStringField(TEXT("text"), Text);
+	FString Str;
+	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
+	FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
+	WebSocket->Send(Str);
+}
+
 void URok2Api::AllianceHelp()
 {
 	Post(TEXT("/v1/alliance/help"), TEXT("{}"), true, [this](const TSharedPtr<FJsonObject>& Obj)
@@ -1248,6 +1283,46 @@ void URok2Api::ConnectWebSocket()
 			Self->PushNotification(TEXT("toast"), TEXT("عادت الكشافة"),
 				FString::Printf(TEXT("كشفت المنطقة حول (%.0f, %.0f)"), ToX, ToY), 6.f);
 		}
+		// P6-T6: رسالة دردشة جديدة
+		else if (Type == TEXT("chat_message"))
+		{
+			const TSharedPtr<FJsonObject>& MsgObj = Obj->GetObjectField(TEXT("message"));
+			if (MsgObj.IsValid())
+			{
+				FRok2ChatMessage ChatMsg;
+				ChatMsg.Id = Rok2Json::Str(MsgObj, TEXT("id"));
+				ChatMsg.Channel = Rok2Json::Str(MsgObj, TEXT("channel"));
+				ChatMsg.PlayerId = Rok2Json::Str(MsgObj, TEXT("playerId"));
+				ChatMsg.PlayerName = Rok2Json::Str(MsgObj, TEXT("playerName"));
+				ChatMsg.Civ = Rok2Json::Str(MsgObj, TEXT("civ"));
+				ChatMsg.Text = Rok2Json::Str(MsgObj, TEXT("text"));
+				ChatMsg.TimestampMs = (int64)Rok2Json::Num(MsgObj, TEXT("timestampMs"));
+				Self->PushChatMessage(ChatMsg);
+			}
+		}
+		// P6-T6: سجل الدردشة (عند الاتصال الأولي)
+		else if (Type == TEXT("chat_history"))
+		{
+			const TArray<TSharedPtr<FJsonValue>>* Arr;
+			if (Obj->TryGetArrayField(TEXT("messages"), Arr))
+			{
+				for (const auto& Val : *Arr)
+				{
+					const TSharedPtr<FJsonObject>& MsgObj = Val->AsObject();
+					if (!MsgObj.IsValid()) continue;
+					FRok2ChatMessage ChatMsg;
+					ChatMsg.Id = Rok2Json::Str(MsgObj, TEXT("id"));
+					ChatMsg.Channel = Rok2Json::Str(MsgObj, TEXT("channel"));
+					ChatMsg.PlayerId = Rok2Json::Str(MsgObj, TEXT("playerId"));
+					ChatMsg.PlayerName = Rok2Json::Str(MsgObj, TEXT("playerName"));
+					ChatMsg.Civ = Rok2Json::Str(MsgObj, TEXT("civ"));
+					ChatMsg.Text = Rok2Json::Str(MsgObj, TEXT("text"));
+					ChatMsg.TimestampMs = (int64)Rok2Json::Num(MsgObj, TEXT("timestampMs"));
+					Self->ChatHistory.Add(ChatMsg);
+				}
+				if (Self->ChatHistory.Num() > 100) Self->ChatHistory.RemoveAt(0, Self->ChatHistory.Num() - 100);
+			}
+		}
 	});
 
 	WebSocket->OnConnectionError().AddLambda([WeakThis](const FString& Err)
@@ -1301,6 +1376,15 @@ void URok2Api::PushNotification(const FString& Kind, const FString& Title, const
 	if (Notifications.Num() > 20) Notifications.SetNum(20);
 	UnreadNotifications++;
 	OnHudNotification.Broadcast(N);
+}
+
+// P6-T6: إضافة رسالة دردشة ويبثها
+void URok2Api::PushChatMessage(const FRok2ChatMessage& Msg)
+{
+	ChatHistory.Add(Msg);
+	if (ChatHistory.Num() > 100) ChatHistory.RemoveAt(0);
+	UnreadChatCount++;
+	OnChatMessage.Broadcast(Msg);
 }
 
 void URok2Api::PumpEvents(float DeltaSeconds)

@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, type MapPass, type MapRegion } from "../lib/gameData";
+import { getMap, getChatConfig, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
 import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
@@ -131,6 +131,17 @@ type ThroneEntity = {
 // P2-T2: ملخص دخول المستشفى المرفق بتقارير القتال
 type HospitalSummary = { admitted: Troops; died: Troops; capacity: number };
 
+// P6-T6: رسالة دردشة حية (قناة المملكة أو التحالف)
+type ChatMessage = {
+  id: string;
+  channel: "kingdom" | "alliance";
+  playerId: string;
+  playerName: string;
+  civ: string;
+  text: string;
+  timestampMs: number;
+};
+
 // P3-T2: هدف احتلال في قلب Zone 3 (حصن خارجي أو مذبح جانبي) — يسجّل نقاط موسم
 type CoreObjective = {
   id: string;
@@ -188,6 +199,10 @@ export class KingdomShard extends DurableObject<Env> {
   private antiCheat = new AntiCheatRateLimiter();
   // P4-T5: سجل مخالفات حديث (آخر violation_log_limit مخالفة) للفحص الإداري
   private antiCheatViolations: Array<{ playerId: string; action: string; reason: string; at: number }> = [];
+  // P6-T6: سجل الدردشة الحية (حلقة مُغلقة، آخر 100 رسالة من data/chat.json)
+  private chatHistory: ChatMessage[] = [];
+  // P6-T6: مُحدّد سرعة بسيط لكل لاعب — [عدد الرسائل، بداية النافذة]
+  private chatRateLimit = new Map<string, { count: number; windowStart: number }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -437,6 +452,20 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (5)");
     }
+
+    if (ver < 6) {
+      // P6-T6: دردشة حية — قناتا المملكة والتحالف
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          channel TEXT NOT NULL,
+          player_id TEXT NOT NULL,
+          text TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (6)");
+    }
   }
 
   private loadMapDefs() {
@@ -580,6 +609,23 @@ export class KingdomShard extends DurableObject<Env> {
         state: row.state,
       });
     }
+
+    // P6-T6: تحميل سجل الدردشة من SQLite (آخر 100 رسالة)
+    const chatCfg = getChatConfig();
+    const maxHistory = chatCfg.limits?.maxHistoryPerChannel ?? 100;
+    this.chatHistory = this.ctx.storage.sql
+      .exec<any>("SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?", maxHistory)
+      .toArray()
+      .reverse()
+      .map((r) => ({
+        id: r.id,
+        channel: r.channel,
+        playerId: r.player_id,
+        playerName: "", // يُملأ عند البث
+        civ: "",
+        text: r.text,
+        timestampMs: r.created_at,
+      }));
 
     this.reports = this.ctx.storage.sql
       .exec<any>("SELECT payload_json FROM battle_reports ORDER BY created_at DESC LIMIT 50")
@@ -907,6 +953,11 @@ export class KingdomShard extends DurableObject<Env> {
       reports: this.reports.slice(0, 10),
       // P2-T5: الطوابير الجارية (لمساعدات التحالف — تقليل المدة عبر /v1/alliance/help)
       queues: [...this.queues.values()].filter((q) => q.state === "running"),
+      // P6-T6: سجل الدردشة الحية (آخر 100 رسالة — playerName/civ يُملأ من cities)
+      chatHistory: this.chatHistory.map((m) => {
+        const city = this.cities.get(m.playerId);
+        return { ...m, playerName: city?.name ?? m.playerId, civ: city ? (this.cities.get(m.playerId) as any)?.civ ?? "" : "" };
+      }),
       map: {
         width: getMap().width,
         height: getMap().height,
@@ -2223,6 +2274,93 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (msg.type === "ping") {
       ws.send(JSON.stringify({ type: "pong", t: nowMs() }));
+      return;
+    }
+
+    // P6-T6: إرسال رسالة دردشة — يُبث لكل المتصلين ويُحفظ في SQLite
+    if (msg.type === "chat_send") {
+      const channel = String(msg.channel || "");
+      const text = String(msg.text || "").trim();
+      const chatCfg = getChatConfig();
+      const maxLen = chatCfg.limits?.maxTextLength ?? 200;
+      const rateLimit = chatCfg.limits?.rateLimit ?? { windowMs: 5000, maxMessages: 5 };
+
+      // تحقق أساسي
+      if (!att.playerId) {
+        ws.send(JSON.stringify({ type: "error", error: "auth_required" }));
+        return;
+      }
+      if (channel !== "kingdom" && channel !== "alliance") {
+        ws.send(JSON.stringify({ type: "error", error: "bad_channel" }));
+        return;
+      }
+      if (!text || text.length > maxLen) {
+        ws.send(JSON.stringify({ type: "error", error: "bad_text_length" }));
+        return;
+      }
+
+      // قناة التحالف تتطلب عضوية
+      if (channel === "alliance") {
+        const city = this.cities.get(att.playerId);
+        if (!city?.allianceId) {
+          ws.send(JSON.stringify({ type: "error", error: "no_alliance" }));
+          return;
+        }
+      }
+
+      // مُحدّد السرعة البسيط
+      const now = nowMs();
+      const rl = this.chatRateLimit.get(att.playerId);
+      if (rl && now - rl.windowStart < rateLimit.windowMs) {
+        if (rl.count >= rateLimit.maxMessages) {
+          ws.send(JSON.stringify({ type: "error", error: "rate_limited" }));
+          return;
+        }
+        rl.count++;
+      } else {
+        this.chatRateLimit.set(att.playerId, { count: 1, windowStart: now });
+      }
+
+      // بناء الرسالة
+      const city = this.cities.get(att.playerId);
+      const chatMsg: ChatMessage = {
+        id: newId("msg"),
+        channel: channel as "kingdom" | "alliance",
+        playerId: att.playerId,
+        playerName: city?.name ?? att.playerId,
+        civ: "",
+        text,
+        timestampMs: now,
+      };
+
+      // حفظ في SQLite
+      this.ctx.storage.sql.exec(
+        `INSERT INTO chat_messages (id, channel, player_id, text, created_at) VALUES (?, ?, ?, ?, ?)`,
+        chatMsg.id, chatMsg.channel, chatMsg.playerId, chatMsg.text, chatMsg.timestampMs,
+      );
+
+      // إضافة للذاكرة (حلقة مُغلقة)
+      const maxHistory = chatCfg.limits?.maxHistoryPerChannel ?? 100;
+      this.chatHistory.push(chatMsg);
+      if (this.chatHistory.length > maxHistory) {
+        this.chatHistory = this.chatHistory.slice(-maxHistory);
+      }
+
+      // بث لكل المتصلين
+      this.broadcast({ type: "chat_message", message: chatMsg });
+      ws.send(JSON.stringify({ type: "chat_sent", messageId: chatMsg.id }));
+      return;
+    }
+
+    // P6-T6: طلب سجل الدردشة — يُرسل آخر N رسالة للقنوات المتاحة
+    if (msg.type === "chat_history") {
+      const city = this.cities.get(att.playerId);
+      const allianceId = city?.allianceId;
+      const visible = this.chatHistory.filter((m) => {
+        if (m.channel === "kingdom") return true;
+        return m.channel === "alliance" && m.playerId === att.playerId;
+      });
+      ws.send(JSON.stringify({ type: "chat_history", messages: visible.slice(-100) }));
       return;
     }
 

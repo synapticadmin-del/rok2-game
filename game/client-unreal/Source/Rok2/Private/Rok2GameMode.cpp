@@ -12,6 +12,7 @@
 #include "Rok2BattleReportWidget.h"
 #include "Rok2OnboardingWidget.h"
 #include "Rok2CivInfoWidget.h"
+#include "Rok2ChatWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
@@ -181,6 +182,7 @@ void ARok2GameMode::BindHudEvents()
 	HudWidget->OnMapAction.AddDynamic(this, &ARok2GameMode::HandleMapAction);
 	HudWidget->OnReportsAction.AddDynamic(this, &ARok2GameMode::HandleReportsAction);
 	HudWidget->OnCivInfoAction.AddDynamic(this, &ARok2GameMode::HandleCivInfoAction);
+	HudWidget->OnChatAction.AddDynamic(this, &ARok2GameMode::HandleChatAction);
 }
 
 void ARok2GameMode::EnsureViewManager()
@@ -365,5 +367,27 @@ void ARok2GameMode::HandleCivInfoAction()
 		// تُعاد القراءة عند كل فتح: اللوحة تُنشأ مرة وتُعاد للعرض مراراً، ولو
 		// اعتمدنا على Setup وحده لبقيت على حضارة أول حمولة وصلت.
 		CivInfoWidget->RefreshFromPlayer();
+	}
+}
+
+// P6-T6: دردشة حية — إنشاء كسند ودجة (نفس نمط AllianceWidget)
+void ARok2GameMode::HandleChatAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!ChatWidget)
+	{
+		ChatWidget = Cast<URok2ChatWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2ChatWidget::StaticClass()));
+		if (ChatWidget)
+		{
+			ChatWidget->Api = Api;
+		}
+	}
+	if (ChatWidget && !ChatWidget->IsInViewport())
+	{
+		// ترتيب 50 كبقية اللوحات (تحت طبقة الإرشاد 60، فوق الـHUD 20)
+		ChatWidget->AddToViewport(50);
 	}
 }

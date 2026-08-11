@@ -112,7 +112,21 @@ Auth header: `Authorization: Bearer <token>`
 {"type":"pass_attack","passId":"P_R2_R3","troops":{"infantry_t1":200}}
 {"type":"march_create","targetType":"resource","targetId":"node_R2_0","troops":{"infantry_t1":50}}
 {"type":"ping"}
+{"type":"chat_send","channel":"kingdom","text":"مرحبا"}
+{"type":"chat_history"}
 ```
+
+### WS server messages (chat)
+```json
+{"type":"chat_message","message":{"id":"msg_...","channel":"kingdom","playerId":"...","playerName":"...","civ":"rome","text":"مرحبا","timestampMs":1723456789000}}
+{"type":"chat_history","messages":[...]}
+```
+
+**الدردشة الحية (P6-T6):**
+- `chat_send`: إرسال رسالة — القناة `kingdom` (عامة) أو `alliance` (تحتاج عضوية). الحد الأقصى 200 حرف، 5 رسائل كل 5 ثوانٍ.
+- `chat_message`: بث رسالة جديدة لكل المتصلين (مُ broadcasting).
+- `chat_history`: يُرسل آخر 100 رسالة للقنوات المتاحة (المملكة + تحالف اللاعب).
+- snapshot العالم يتضمن `chatHistory` (آخر 100 رسالة).
 
 ## Zones (P2-T4) — مناطق مقفلة بمؤقّت زمني + موارد أعلى
 - `GET /v1/meta/zones` — مواصفة data/zones.json (unlock_schedule + resource_level_range + constants)

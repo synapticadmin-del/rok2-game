@@ -53,6 +53,8 @@ public:
 	 * باباً دائماً بعد شاشة الاختيار، وإلا لم تُقرأ إلا مرة واحدة في العمر.
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCivInfoAction;
+	// P6-T6: زر الدردشة الحية
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnChatAction;
 
 protected:
 	UPROPERTY(Transient)
@@ -72,6 +74,11 @@ protected:
 	UPROPERTY(Transient) UTextBlock* BellBadgeText;
 	// P6-T1: أيقونة الجرس الإجرائية — تُصبغ ذهب عند وجود غير مقروء
 	UPROPERTY(Transient) UImage* BellIcon;
+
+	// P6-T6: زر الدردشة + شارة غير المقروء
+	UPROPERTY(Transient) UButton* ChatButton;
+	UPROPERTY(Transient) UTextBlock* ChatBadgeText;
+	UPROPERTY(Transient) UImage* ChatIcon;
 
 	// شارة البنّاء الخامل على زر البناء
 	UPROPERTY(Transient) UTextBlock* BuildBadgeText;
@@ -124,6 +131,8 @@ protected:
 	UFUNCTION() void OnItemsClickedHandler();
 	UFUNCTION() void OnEventsClickedHandler();
 	UFUNCTION() void OnCivInfoClickedHandler();
+	UFUNCTION() void OnChatClickedHandler();
+	void UpdateChatBadge();
 
 private:
 	struct FToastEntry

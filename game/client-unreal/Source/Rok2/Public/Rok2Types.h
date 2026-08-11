@@ -221,6 +221,28 @@ struct FRok2ScoutEntity
 	FString State; // "marching" / "arrived" / "returned"
 };
 
+// P6-T6: رسالة دردشة حية (قناة المملكة أو التحالف)
+USTRUCT(BlueprintType)
+struct FRok2ChatMessage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Channel; // "kingdom" / "alliance"
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PlayerName;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Civ;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Text;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 TimestampMs = 0;
+};
+
 /** حالة فتح/قفل منطقة واحدة — من snapshot.zones (P2-T4) */
 USTRUCT(BlueprintType)
 struct FRok2ZoneStatus

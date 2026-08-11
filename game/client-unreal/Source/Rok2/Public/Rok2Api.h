@@ -40,6 +40,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZonesUpdated, const TArray<FRok2Z
 /** يُبث عند إضافة إشعار HUD جديد (P2-T6) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHudNotification, const FRok2HudNotification&, Notification);
 
+// P6-T6: يُبث عند وصول رسالة دردشة جديدة
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatMessage, const FRok2ChatMessage&, Message);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -94,6 +97,10 @@ public:
 	/** يرسل كشافة لنقطة على الخريطة (P5-T5) */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SendScout(double ToX, double ToY);
+
+	// P6-T6: إرسال رسالة دردشة عبر WebSocket
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void SendChat(const FString& Channel, const FString& Text);
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void AllianceHelp();
@@ -158,6 +165,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void MarkNotificationsRead() { UnreadNotifications = 0; }
 
+	// P6-T6: الدردشة الحية
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	const TArray<FRok2ChatMessage>& GetChatHistory() const { return ChatHistory; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	int32 GetUnreadChatCount() const { return UnreadChatCount; }
+
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void MarkChatRead() { UnreadChatCount = 0; }
+
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	bool IsLoggedIn() const { return !Token.IsEmpty(); }
 
@@ -201,6 +218,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnHudNotification OnHudNotification;
 
+	// P6-T6: يُبث عند وصول رسالة دردشة جديدة
+	UPROPERTY(BlueprintAssignable, Category = "Rok2")
+	FOnChatMessage OnChatMessage;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -225,6 +246,13 @@ protected:
 	int32 NotificationSeq = 0;
 	/** يضيف إشعاراً ويبثه للـ HUD */
 	void PushNotification(const FString& Kind, const FString& Title, const FString& Body, float TtlSeconds = 6.f);
+
+	// ---- P6-T6: الدردشة الحية ----
+	/** سجل رسائل الدردشة */
+	TArray<FRok2ChatMessage> ChatHistory;
+	int32 UnreadChatCount = 0;
+	/** يضيف رسالة دردشة ويبثها */
+	void PushChatMessage(const FRok2ChatMessage& Msg);
 
 	/**
 	 * P6-T5: يُلقي تحية الحضارة مرة واحدة في الجلسة عبر نظام الإشعارات.
