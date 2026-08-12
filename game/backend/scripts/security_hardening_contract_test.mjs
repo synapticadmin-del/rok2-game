@@ -72,6 +72,10 @@ assert(shard.includes("const participants = await Promise.all(contributions.map(
 assert(shard.includes("const [hospital] = await Promise.all(["), "hospital admission and marching-loss deduction run concurrently for each player");
 assert(shard.includes("await Promise.all(Object.entries(admitted).map"), "hospital unit writes avoid serial D1 round trips");
 assert(shard.includes("await Promise.all(Object.entries(losses)"), "marching-loss writes avoid serial D1 round trips");
+assert(shard.includes("private ensureCoreWorldTables()"), "core world DDL has one reusable migration source");
+assert((shard.match(/CREATE TABLE IF NOT EXISTS world_meta/g) || []).length === 1, "world_meta DDL is not duplicated across migrations");
+assert(shard.includes('type: "world_delta", ...this.worldDelta()'), "changed ticks broadcast a compact world delta instead of a full snapshot");
+assert(api.includes('Type == TEXT("world_delta")') && api.includes('رسائل world_delta لا تحمل المدن الثابتة'), "client merges world deltas without clearing static cities");
 assert(cityLayout.includes("const ownedIdSet = new Set(ownedIds)"), "city-layout ownership lookup uses Set instead of repeated array includes");
 
 // العميل لا يضاعف delegates ولا يثبت نسخة محلية قبل موافقة الخادم.

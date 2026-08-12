@@ -613,10 +613,11 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 {
 	World.SeasonDay = (int32)Rok2Json::Num(Obj, TEXT("seasonDay"));
 
-	World.Cities.Empty();
 	const TArray<TSharedPtr<FJsonValue>>* CitiesArr;
 	if (Obj->TryGetArrayField(TEXT("cities"), CitiesArr))
 	{
+		// رسائل world_delta لا تحمل المدن الثابتة؛ لا تفرغها عند دمج دلتا.
+		World.Cities.Empty();
 		for (const auto& V : *CitiesArr)
 		{
 			const TSharedPtr<FJsonObject> C = V->AsObject();
@@ -1789,7 +1790,7 @@ void URok2Api::ConnectWebSocket()
 		FString Type;
 		if (!Obj->TryGetStringField(TEXT("type"), Type)) return;
 
-		if (Type == TEXT("snapshot") || Obj->HasField(TEXT("cities")))
+		if (Type == TEXT("snapshot") || Type == TEXT("world_delta") || Obj->HasField(TEXT("cities")))
 		{
 			Self->ParseWorld(Obj);
 		}

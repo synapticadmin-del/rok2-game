@@ -118,6 +118,12 @@ Auth header: `Authorization: Bearer <token>`
 {"type":"chat_history"}
 ```
 
+### WS server messages (world)
+
+- `{"type":"snapshot", ...}`: لقطة سلطوية كاملة عند اتصال العميل، وتشمل المدن والكتالوجات والحالة الخاصة اللازمة لبداية العالم.
+- `{"type":"world_delta","seasonDay", "passes", "marches", "nodes", "allianceStructures", "scouts", "queues", "zones", "seasonStory"}`: تحديث بعد `tick` غيّر حالة العالم. تمثل القوائم الديناميكية الواردة حالتها الكاملة الجديدة، بينما لا تُرسل المدن والتقارير والدردشة وبيانات الخريطة الثابتة؛ لذلك يجب **دمج** الدلتا في الحالة الموجودة لا إفراغها. يقلل ذلك إعادة إرسال اللقطة الكاملة في كل تغيير.
+- تبقى `march_update` رسالة تقدم خفيفة للـETA حين لا تغيّر `tick` الحالة السلطوية.
+
 ### WS server messages (chat)
 ```json
 {"type":"chat_message","message":{"id":"msg_...","channel":"kingdom","playerId":"...","playerName":"...","civ":"rome","text":"مرحبا","timestampMs":1723456789000}}

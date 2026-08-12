@@ -252,19 +252,9 @@ export class KingdomShard extends DurableObject<Env> {
     });
   }
 
-  private migrate() {
+  /** المصدر الوحيد لتعريف جداول عالم المملكة الأساسية؛ تعيد الهجرة 4 استعماله للشاردات القديمة. */
+  private ensureCoreWorldTables() {
     this.ctx.storage.sql.exec(`
-      CREATE TABLE IF NOT EXISTS _sql_schema_migrations (
-        id INTEGER PRIMARY KEY,
-        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-    `);
-    const ver = this.ctx.storage.sql
-      .exec<{ version: number }>("SELECT COALESCE(MAX(id), 0) as version FROM _sql_schema_migrations")
-      .one().version;
-
-    if (ver < 1) {
-      this.ctx.storage.sql.exec(`
         CREATE TABLE IF NOT EXISTS world_meta (
           id INTEGER PRIMARY KEY CHECK (id = 1),
           season_day INTEGER NOT NULL,
@@ -346,8 +336,24 @@ export class KingdomShard extends DurableObject<Env> {
           eta_ms INTEGER NOT NULL,
           state TEXT NOT NULL
         );
-        INSERT INTO _sql_schema_migrations (id) VALUES (1);
-      `);
+
+    `);
+  }
+
+  private migrate() {
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS _sql_schema_migrations (
+        id INTEGER PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    const ver = this.ctx.storage.sql
+      .exec<{ version: number }>("SELECT COALESCE(MAX(id), 0) as version FROM _sql_schema_migrations")
+      .one().version;
+
+    if (ver < 1) {
+      this.ensureCoreWorldTables();
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (1)");
     }
 
     if (ver < 2) {
@@ -380,89 +386,8 @@ export class KingdomShard extends DurableObject<Env> {
     if (ver < 4) {
       // شاردات قديمة بُذرت قبل اكتمال كتلة ver 1 (جداول مفقودة مثل flags/throne).
       // CREATE TABLE IF NOT EXISTS يجعل الخطوة آمنة أيضاً للقواعد الجديدة والسليمة.
-      this.ctx.storage.sql.exec(`
-        CREATE TABLE IF NOT EXISTS world_meta (
-          id INTEGER PRIMARY KEY CHECK (id = 1),
-          season_day INTEGER NOT NULL,
-          last_tick_ms INTEGER NOT NULL,
-          season_start_ms INTEGER NOT NULL DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS map_cities (
-          player_id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          alliance_id TEXT,
-          x REAL NOT NULL,
-          y REAL NOT NULL,
-          hall_level INTEGER NOT NULL,
-          region_id TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS passes (
-          pass_id TEXT PRIMARY KEY,
-          owner_alliance_id TEXT,
-          capture_progress REAL NOT NULL,
-          state TEXT NOT NULL,
-          level INTEGER NOT NULL,
-          from_region TEXT NOT NULL,
-          to_region TEXT NOT NULL,
-          x REAL NOT NULL,
-          y REAL NOT NULL,
-          unlock_day INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS marches (
-          id TEXT PRIMARY KEY,
-          owner_player_id TEXT NOT NULL,
-          alliance_id TEXT,
-          from_x REAL NOT NULL,
-          from_y REAL NOT NULL,
-          to_x REAL NOT NULL,
-          to_y REAL NOT NULL,
-          start_ms INTEGER NOT NULL,
-          eta_ms INTEGER NOT NULL,
-          troops_json TEXT NOT NULL,
-          state TEXT NOT NULL,
-          target_type TEXT NOT NULL,
-          target_id TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS throne (
-          id INTEGER PRIMARY KEY CHECK (id = 1),
-          owner_alliance_id TEXT,
-          capture_progress REAL NOT NULL,
-          state TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS throne_scores (
-          alliance_id TEXT PRIMARY KEY,
-          points INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS resource_nodes (
-          id TEXT PRIMARY KEY,
-          kind TEXT NOT NULL,
-          level INTEGER NOT NULL,
-          x REAL NOT NULL,
-          y REAL NOT NULL,
-          remaining REAL NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS battle_reports (
-          id TEXT PRIMARY KEY,
-          payload_json TEXT NOT NULL,
-          created_at INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS flags (
-          id TEXT PRIMARY KEY,
-          alliance_id TEXT NOT NULL,
-          x REAL NOT NULL,
-          y REAL NOT NULL,
-          radius REAL NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS queues (
-          id TEXT PRIMARY KEY,
-          player_id TEXT NOT NULL,
-          type TEXT NOT NULL,
-          data_json TEXT NOT NULL,
-          start_ms INTEGER NOT NULL,
-          eta_ms INTEGER NOT NULL,
-          state TEXT NOT NULL
-        );
-      `);
+      this.ensureCoreWorldTables();
+
       try {
         this.ctx.storage.sql.exec("ALTER TABLE marches ADD COLUMN payload_json TEXT");
       } catch {
@@ -1223,6 +1148,24 @@ export class KingdomShard extends DurableObject<Env> {
     };
   }
 
+  /**
+   * تحديث دوري جزئي بعد تغيّر المحاكاة. يترك البيانات الثابتة والخاصة
+   * (المدن، التقارير، سجل الدردشة، الخريطة والكتالوج) للّقطة الأولى/REST.
+   */
+  private worldDelta() {
+    return {
+      seasonDay: this.seasonDay,
+      passes: [...this.passes.values()],
+      marches: [...this.marches.values()].filter((m) => m.state === "moving"),
+      nodes: [...this.nodes.values()],
+      allianceStructures: [...this.allianceStructures.values()],
+      scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
+      queues: [...this.queues.values()].filter((q) => q.state === "running"),
+      zones: zonesStatus(this.seasonDay, this.regions),
+      seasonStory: this.seasonStory,
+    };
+  }
+
   private recordSeasonStory(event: Omit<SeasonStoryEvent, "id" | "createdAt" | "seasonDay">, now = nowMs()) {
     const id = `season_story:${event.kind}:${event.subjectId}`;
     if (this.seasonStory.some((existing) => existing.id === id)) return false;
@@ -1487,7 +1430,8 @@ export class KingdomShard extends DurableObject<Env> {
     );
 
     if (changed) {
-      this.broadcast({ type: "snapshot", ...this.snapshot() });
+      // لا تعاد اللقطة الكاملة مع كل tick: الاتصال الأول فقط يستلم snapshot.
+      this.broadcast({ type: "world_delta", ...this.worldDelta() });
     } else if (this.ctx.getWebSockets().length > 0) {
       // lightweight march progress updates
       const moving = [...this.marches.values()].filter((m) => m.state === "moving");
