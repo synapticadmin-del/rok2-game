@@ -53,7 +53,7 @@ requireText('Source/Rok2/Private/Rok2BootWidget.cpp', [
 ]);
 requireText('scripts/Import-CivVisuals.ps1', [
   "'-run=ImportAssets'", 'CivBackgrounds', 'CivIcons', 'CivCommanders',
-  'TextureFactory', 'icon_$($_)_runtime.png',
+  'CivCommanders2', 'TextureFactory', 'icon_$($_)_runtime.png',
 ]);
 requireText('scripts/Build-Rok2.ps1', [
   '$ImportCivVisuals', 'Import-CivVisuals.ps1', '-ReplaceExisting',
@@ -69,10 +69,19 @@ for (const civ of civs) {
   requirePng(`Content/Art/CivBackgrounds/bg_${civ}.png`);
   requirePng(`Content/Art/CivIcons/icon_${civ}_runtime.png`);
   requirePng(`Content/Art/Commanders/cmd_${civ}_starter.png`);
+  requirePng(`Content/Art/Commanders/cmd_${civ}_2.png`);
+}
+
+const roster2 = [
+  'cmd_rome_2', 'cmd_china_2', 'cmd_arabia_2',
+  'cmd_egypt_2', 'cmd_vikings_2', 'cmd_japan_2',
+];
+for (const id of roster2) {
+  requirePng(`Content/Art/Commanders/${id}.png`);
 }
 
 if (failures > 0) {
   console.error(`\nP7-T9 civilization showcase verification failed (${failures} issue(s)).`);
   process.exit(1);
 }
-console.log('P7-T9 civilization showcase verification passed: 18 Unreal-importable PNGs and complete UI/build contracts found.');
+console.log('P7-T9 civilization showcase verification passed: 24 Unreal-importable PNGs and complete UI/build contracts found.');

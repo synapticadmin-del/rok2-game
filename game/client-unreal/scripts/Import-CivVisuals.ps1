@@ -3,8 +3,9 @@
   يستورد أصول شاشة اختيار الحضارات كـ Texture2D داخل مشروع Unreal.
 
 .DESCRIPTION
-  ينشئ إعداد ImportAssetsCommandlet موقتاً ويستورد فقط خلفيات الحضارات الست
-  وشعاراتها التشغيلية وصور القادة المبدئية. يمكن تكراره بأمان بعد تحديث PNG.
+  ينشئ إعداد ImportAssetsCommandlet موقتاً ويستورد خلفيات الحضارات الست
+  وشعاراتها التشغيلية وصور القادة المبدئية الستة ثم بورتريهات القادة الستة
+  الإضافيين من roster البيانات (cmd_*_2). يمكن تكراره بأمان بعد تحديث PNG.
 
 .EXAMPLE
   .\scripts\Import-CivVisuals.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.4'
@@ -63,7 +64,8 @@ function New-ImportGroup {
 $Backgrounds = $Civs | ForEach-Object { Join-Path $ProjectRoot "Content\Art\CivBackgrounds\bg_$_.png" }
 $Icons = $Civs | ForEach-Object { Join-Path $ProjectRoot "Content\Art\CivIcons\icon_$($_)_runtime.png" }
 $Commanders = $Civs | ForEach-Object { Join-Path $ProjectRoot "Content\Art\Commanders\cmd_$($_)_starter.png" }
-foreach ($AssetPath in @($Backgrounds + $Icons + $Commanders)) {
+$CmdRoster2 = $Civs | ForEach-Object { Join-Path $ProjectRoot "Content\Art\Commanders\cmd_$($_)_2.png" }
+foreach ($AssetPath in @($Backgrounds + $Icons + $Commanders + $CmdRoster2)) {
     if (-not (Test-Path $AssetPath)) { throw "الأصل المطلوب غير موجود: $AssetPath" }
 }
 
@@ -74,7 +76,8 @@ $Config = @{
     ImportGroups = @(
         (New-ImportGroup -Name 'CivBackgrounds' -Destination '/Game/Art/CivBackgrounds' -Files $Backgrounds),
         (New-ImportGroup -Name 'CivIcons' -Destination '/Game/Art/CivIcons' -Files $Icons),
-        (New-ImportGroup -Name 'CivCommanders' -Destination '/Game/Art/Commanders' -Files $Commanders)
+        (New-ImportGroup -Name 'CivCommanders' -Destination '/Game/Art/Commanders' -Files $Commanders),
+        (New-ImportGroup -Name 'CivCommanders2' -Destination '/Game/Art/Commanders' -Files $CmdRoster2)
     )
 }
 $Config | ConvertTo-Json -Depth 8 | Set-Content -Path $ConfigPath -Encoding UTF8
@@ -83,7 +86,7 @@ $LogDirectory = Join-Path $ProjectRoot 'Saved\BuildLogs'
 New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
 $LogPath = Join-Path $LogDirectory ("import-civ-visuals-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 
-Write-Host "[ROK2] Importing 18 civilization visuals with UE 5.4.4: $Engine" -ForegroundColor Cyan
+Write-Host "[ROK2] Importing 24 civilization visuals with UE 5.4.4: $Engine" -ForegroundColor Cyan
 & $EditorCmd $ProjectFile '-run=ImportAssets' "-importSettings=$ConfigPath" '-nosourcecontrol' '-unattended' '-nop4' 2>&1 | Tee-Object -FilePath $LogPath
 if ($LASTEXITCODE -ne 0) {
     throw "فشل استيراد أصول الحضارات (رمز: $LASTEXITCODE). راجع: $LogPath"
