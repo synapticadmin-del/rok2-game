@@ -1,6 +1,7 @@
 // Copyright ROK2. Unified Arabic/Latin typography system (P6-T2).
 
 #include "Rok2Typography.h"
+#include "Rok2Accessibility.h"
 #include "Engine/Font.h"
 #include "Components/TextBlock.h"
 #include "Styling/CoreStyle.h"
@@ -121,23 +122,26 @@ ERok2Face URok2Typography::FaceOf(ERok2TextRole Role)
 
 float URok2Typography::SizeOf(ERok2TextRole Role)
 {
+	// P7-T7: كل الأحجام مضروبة في المقياس المركزي ولا تتجاوز السلم
+	float Raw = Rok2TypeScale::Body;
 	switch (Role)
 	{
-	case ERok2TextRole::Display:      return Rok2TypeScale::Display;
-	case ERok2TextRole::Title:        return Rok2TypeScale::Title;
-	case ERok2TextRole::Subtitle:     return Rok2TypeScale::Subtitle;
-	case ERok2TextRole::Button:       return Rok2TypeScale::Button;
-	case ERok2TextRole::Caption:      return Rok2TypeScale::Caption;
-	case ERok2TextRole::Micro:        return Rok2TypeScale::Micro;
-	case ERok2TextRole::TitleCompact: return Rok2TypeScale::Compact;
-	case ERok2TextRole::CardTitle:    return Rok2TypeScale::Button;
-	case ERok2TextRole::BodySmall:    return Rok2TypeScale::Compact;
+	case ERok2TextRole::Display:      Raw = Rok2TypeScale::Display;
+	case ERok2TextRole::Title:        Raw = Rok2TypeScale::Title;
+	case ERok2TextRole::Subtitle:     Raw = Rok2TypeScale::Subtitle;
+	case ERok2TextRole::Button:       Raw = Rok2TypeScale::Button;
+	case ERok2TextRole::Caption:      Raw = Rok2TypeScale::Caption;
+	case ERok2TextRole::Micro:        Raw = Rok2TypeScale::Micro;
+	case ERok2TextRole::TitleCompact: Raw = Rok2TypeScale::Compact;
+	case ERok2TextRole::CardTitle:    Raw = Rok2TypeScale::Button;
+	case ERok2TextRole::BodySmall:    Raw = Rok2TypeScale::Compact;
 	// المورد والمؤقّت على الدرجة الكثيفة
-	case ERok2TextRole::Numeric:      return Rok2TypeScale::Compact;
-	case ERok2TextRole::Timer:        return Rok2TypeScale::Compact;
+	case ERok2TextRole::Numeric:      Raw = Rok2TypeScale::Compact;
+	case ERok2TextRole::Timer:        Raw = Rok2TypeScale::Compact;
 	case ERok2TextRole::Body:
-	default:                          return Rok2TypeScale::Body;
+	default:                          Raw = Rok2TypeScale::Body;
 	}
+	return FMath::Clamp(Raw * URok2Accessibility::Get()->GetUiScale(), Rok2TypeScale::Min, Rok2TypeScale::Max);
 }
 
 FName URok2Typography::WeightOf(ERok2TextRole Role)

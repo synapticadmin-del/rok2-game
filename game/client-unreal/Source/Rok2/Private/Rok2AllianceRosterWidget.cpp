@@ -3,6 +3,7 @@
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على كل أزرار الكشف.
 
 #include "Rok2AllianceRosterWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2AllianceRallyWidget.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2Typography.h"
@@ -102,8 +103,11 @@ void URok2AllianceRosterWidget::NativeConstruct()
 			UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			HelpButton->AddChild(BtnBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("handshake"), 20.f, FLinearColor::White));
-			Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("handshake"), 20.f, FLinearColor::White));
+				Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+				// P7-T7: نص بديل لزر مساعدة التحالف
+				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("handshake")));
+				HelpButton->SetToolTipText(FText::FromString(TEXT("مساعدة التحالف")));
 			UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
 			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);

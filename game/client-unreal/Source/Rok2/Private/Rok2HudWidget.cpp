@@ -4,6 +4,7 @@
 // P6-T3: بطاقات الإشعارات تنبثق من الأسفل + كل زر بضغطة محسوسة (URok2MotionLibrary).
 
 #include "Rok2HudWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -45,8 +46,12 @@ namespace Rok2HudStyle
 static UImage* Rok2Icon(UWidgetTree* Tree, const FString& IconId, float Size, FLinearColor Tint)
 {
 	UImage* Img = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-	Img->SetBrush(URok2ArtAssets::GetIconBrush(IconId, Size, Tint));
-	Img->SetDesiredSizeOverride(FVector2D(Size, Size));
+	// P7-T7: الحجم يتبع مقياس الواجهة ولا يصغر عن 18px
+	const float Scaled = URok2Accessibility::Get()->ScaledIconSize(Size);
+	Img->SetBrush(URok2ArtAssets::GetIconBrush(IconId, Scaled, Tint));
+	Img->SetDesiredSizeOverride(FVector2D(Scaled, Scaled));
+	// P7-T7: نص بديل لكل أيقونة — لا تعتمد على الشكل أو اللون فقط
+	Img->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
 	return Img;
 }
 
@@ -111,6 +116,12 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 		Out->SetText(FText::FromString(TEXT("0")));
 		Out->SetColorAndOpacity(FSlateColor(Color));
 		URok2Typography::ApplyFont(Out, ERok2TextRole::Numeric);
+		// P7-T7: الحجم يتبع مقياس الواجهة
+		{
+			FSlateFontInfo F = Out->GetFont();
+			F.Size = (int32)URok2Accessibility::Get()->ScaledSize(F.Size);
+			Out->SetFont(F);
+		}
 		UHorizontalBoxSlot* TxtSlot = H->AddChildToHorizontalBox(Out);
 		TxtSlot->SetPadding(FMargin(0, 0, 2, 0));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
@@ -149,14 +160,20 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Timer);
 	H->AddChildToHorizontalBox(ZoneTimerText)->SetPadding(FMargin(0, 0, 16, 0));
 
-	// شارة الاتصال: دائرة إجرائية (خضراء/حمراء حسب الحالة)
+		// شارة الاتصال: دائرة إجرائية (خضراء/حمراء حسب الحالة) + نص الحالة
 	ConnIcon = Rok2Icon(WidgetTree, TEXT("conn"), 14.f, Rok2HudStyle::Success);
 	{
 		UHorizontalBoxSlot* IcoSlot = H->AddChildToHorizontalBox(ConnIcon);
-		IcoSlot->SetPadding(FMargin(0, 0, 10, 0));
+		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 	}
+	// P7-T7: نص حالة الاتصال — الحالة لا تعتمد على اللون فقط
+	ConnStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+	ConnStateText->SetText(FText::FromString(TEXT("متصل")));
+	ConnStateText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Success));
+	URok2Typography::ApplyFont(ConnStateText, ERok2TextRole::Caption);
+	H->AddChildToHorizontalBox(ConnStateText)->SetPadding(FMargin(0, 0, 10, 0));
 
 	UButton* BellBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 	BellBtn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBellClicked);
@@ -167,7 +184,8 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 
 	BellBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	BellBadgeText->SetText(FText::FromString(TEXT("")));
-	BellBadgeText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Danger));
+	// P7-T7: لون AA قابل للقراءة فوق الخلفية الداكنة (بدل Danger الضعيف)
+	BellBadgeText->SetColorAndOpacity(FSlateColor(URok2Accessibility::HighContrastForState(false)));
 	URok2Typography::ApplyFont(BellBadgeText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(BellBadgeText)->SetPadding(FMargin(0, 4, 16, 4));
 }
@@ -219,7 +237,8 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		// شارة البنّاء الخامل
 		BuildBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		BuildBadgeText->SetText(FText::FromString(TEXT("")));
-		BuildBadgeText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Danger));
+		// P7-T7: لون AA قابل للقراءة فوق الخلفية الداكنة (بدل Danger الضعيف)
+		BuildBadgeText->SetColorAndOpacity(FSlateColor(URok2Accessibility::HighContrastForState(false)));
 		URok2Typography::ApplyFont(BuildBadgeText, ERok2TextRole::Caption);
 		V->AddChildToVerticalBox(BuildBadgeText)->SetHorizontalAlignment(HAlign_Right);
 	}
@@ -294,6 +313,9 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(PillBox);
 		UImage* Ico = Rok2Icon(WidgetTree, IconId, 16.f, Rok2HudStyle::Ivory);
+		// P7-T7: نص بديل لأزرار HUD المصغرة
+		Ico->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
+		Btn->SetToolTipText(FText::FromString(Label));
 		UHorizontalBoxSlot* IcoSlot = PillBox->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(4, 2, 4, 2));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -333,9 +355,12 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 		PillBox->AddChildToHorizontalBox(T)->SetPadding(FMargin(2, 0, 6, 0));
 		ChatBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		ChatBadgeText->SetText(FText::GetEmpty());
-		ChatBadgeText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.3f, 0.3f)));
+		ChatBadgeText->SetColorAndOpacity(FSlateColor(URok2Accessibility::HighContrastForState(false))); // AA فوق الخلفية الداكنة
 		URok2Typography::ApplyFont(ChatBadgeText, ERok2TextRole::Caption);
 		PillBox->AddChildToHorizontalBox(ChatBadgeText)->SetVerticalAlignment(VAlign_Center);
+		// P7-T7: نص بديل لأيقونة التنبيه وزر الدردشة
+		ChatIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("bell")));
+		ChatButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("chat")));
 		ChatButton->OnClicked.AddDynamic(this, &URok2HudWidget::OnChatClickedHandler);
 		URok2MotionLibrary::BindPress(ChatButton);
 		H->AddChildToHorizontalBox(ChatButton)->SetPadding(FMargin(0, 0, 10, 0));
@@ -584,7 +609,9 @@ void URok2HudWidget::UpdateBuildBadge()
 	{
 		if (Q.Type == TEXT("build")) { bBuilding = true; break; }
 	}
-	BuildBadgeText->SetText(FText::FromString(bBuilding ? TEXT("") : TEXT("!")));
+	// P7-T7: شارة البنّاء — لا تعتمد على اللون فقط، فالنص صريح
+	BuildBadgeText->SetText(FText::FromString(bBuilding ? TEXT("") : TEXT("(خامل)")));
+	BuildBadgeText->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("build_idle")));
 }
 
 void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
@@ -690,10 +717,25 @@ void URok2HudWidget::OnZones(const TArray<FRok2ZoneStatus>& Zones)
 
 void URok2HudWidget::OnConnState(bool bOnline, const FString& StatusMessage)
 {
-	if (!ConnIcon) return;
-	// شارة الاتصال: نفس أيقونة الدائرة تُصبغ أخضر/أحمر حسب الحالة
-	ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f,
-		bOnline ? Rok2HudStyle::Success : Rok2HudStyle::Danger));
+	// P7-T7: الحالة نص + لون + أيقونة — لا اعتماد على اللون فقط
+	if (ConnIcon)
+	{
+		const FLinearColor StateColor = URok2Accessibility::HighContrastForState(bOnline);
+		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f, StateColor));
+	}
+	if (ConnStateText)
+	{
+		ConnStateText->SetText(FText::FromString(bOnline ? TEXT("متصل") : TEXT("منقطع")));
+		ConnStateText->SetColorAndOpacity(FSlateColor(URok2Accessibility::HighContrastForState(bOnline)));
+	}
+	if (BellIcon)
+	{
+		BellIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("bell")));
+	}
+	if (ChatIcon)
+	{
+		ChatIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("chat")));
+	}
 }
 
 void URok2HudWidget::OnBellClicked()

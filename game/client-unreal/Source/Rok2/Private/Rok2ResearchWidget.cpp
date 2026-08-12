@@ -1,6 +1,7 @@
 // P6-T3: تلاشي دخول الشاشة + ضغطة محسوسة على زر البحث.
 
 #include "Rok2ResearchWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -75,6 +76,9 @@ void URok2ResearchWidget::NativeConstruct()
             UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
             Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("flask"), 16.f, FLinearColor::White));
             Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+            // P7-T7: نص بديل لزر البحث العلمي
+            Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("flask")));
+            ResearchButton->SetToolTipText(FText::FromString(TEXT("بحث (Research)")));
             UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
             IcoSlot->SetPadding(FMargin(4, 0, 4, 0));
             IcoSlot->SetVerticalAlignment(VAlign_Center);

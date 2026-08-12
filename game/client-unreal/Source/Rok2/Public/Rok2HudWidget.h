@@ -25,6 +25,7 @@ class UProgressBar;
 class UScrollBox;
 class UImage;
 class UCanvasPanel;
+class URok2Accessibility;
 
 /** حدث زر في الـ HUD — يفوَّض لـ Blueprint/GameMode */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHudAction);
@@ -73,6 +74,8 @@ protected:
 	UPROPERTY(Transient) UTextBlock* ZoneTimerText;
 	// P6-T1: شارة الاتصال أصبحت UImage بأيقونة إجرائية (خضراء/حمراء)
 	UPROPERTY(Transient) UImage* ConnIcon;
+	// P7-T7: نص حالة الاتصال — الحالة لا تعتمد على اللون فقط
+	UPROPERTY(Transient) UTextBlock* ConnStateText;
 	UPROPERTY(Transient) UTextBlock* BellBadgeText;
 	// P6-T1: أيقونة الجرس الإجرائية — تُصبغ ذهب عند وجود غير مقروء
 	UPROPERTY(Transient) UImage* BellIcon;

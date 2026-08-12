@@ -1,6 +1,7 @@
 // Copyright ROK2. Civilization identity screen (P6-T5) — implementation.
 
 #include "Rok2CivInfoWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2CivLore.h"
 #include "Rok2Typography.h"
@@ -100,6 +101,8 @@ void URok2CivInfoWidget::BuildSheet(UCanvasPanel* RootCanvas)
 		UImage* Crown = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		Crown->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 30.f, Rok2CivInfoStyle::Gold));
 		Crown->SetDesiredSizeOverride(FVector2D(30.f, 30.f));
+		// P7-T7: نص بديل لأيقونة التاج في ترويسة الحضارة
+		Crown->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("crown")));
 		UHorizontalBoxSlot* CrownSlot = HeaderRow->AddChildToHorizontalBox(Crown);
 		CrownSlot->SetPadding(FMargin(0.f, 0.f, 10.f, 0.f));
 		CrownSlot->SetVerticalAlignment(VAlign_Center);
@@ -123,6 +126,9 @@ void URok2CivInfoWidget::BuildSheet(UCanvasPanel* RootCanvas)
 		UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 18.f, Rok2CivInfoStyle::Muted));
 		CloseIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+		// P7-T7: نص بديل لزر إغلاق لوحة الحضارة
+		CloseIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		CloseBtn->SetToolTipText(FText::FromString(TEXT("إغلاق لوحة الحضارة")));
 		CloseBtn->AddChild(CloseIco);
 		UHorizontalBoxSlot* CloseSlot = HeaderRow->AddChildToHorizontalBox(CloseBtn);
 		CloseSlot->SetVerticalAlignment(VAlign_Center);

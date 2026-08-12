@@ -1,6 +1,7 @@
 // Copyright ROK2.
 
 #include "Rok2AllianceRallyWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2Typography.h"
 #include "Rok2MotionLibrary.h"
@@ -77,11 +78,16 @@ void URok2AllianceRallyWidget::RefreshDisplay()
 	TargetText->SetText(FText::FromString(FString::Printf(TEXT("رالي %s: %s"), *Rally.TargetType.ToUpper(), *Rally.TargetId)));
 	const bool bForming = Rally.Status == TEXT("forming");
 	const bool bCanJoin = bForming && !Rally.bIsJoined && Api && !BuildHomeContribution().IsEmpty();
+	// P7-T7: بادئة شكلية تميز الحالة بصريًا دون الاعتماد على اللون
 	const FString State = Rally.bIsJoined
-		? TEXT("تم حجز قواتك في الرالي")
-		: (bForming ? FString::Printf(TEXT("قيد التجميع · المشاركون: %d"), Rally.Participants) : TEXT("انطلق الرالي"));
+		? TEXT("✔ تم حجز قواتك في الرالي")
+		: (bForming ? FString::Printf(TEXT("◔ قيد التجميع · المشاركون: %d"), Rally.Participants) : TEXT("▲ انطلق الرالي"));
 	StatusText->SetText(FText::FromString(State));
-	StatusText->SetColorAndOpacity(FSlateColor(Rally.bIsJoined ? FLinearColor(0.35f, 0.95f, 0.55f) : (bForming ? FLinearColor(0.95f, 0.78f, 0.30f) : FLinearColor(0.65f, 0.75f, 0.90f))));
+	// P7-T7: لا اعتماد على اللون فقط — بادئة شكلية + ألوان WCAG AA
+	const FLinearColor StatusColor = Rally.bIsJoined
+		? FLinearColor(0.45f, 1.0f, 0.62f)   // أخضر AA فوق #0A1020
+		: (bForming ? FLinearColor(1.0f, 0.85f, 0.35f) : FLinearColor(0.72f, 0.82f, 0.95f));
+	StatusText->SetColorAndOpacity(FSlateColor(StatusColor));
 	JoinButton->SetIsEnabled(bCanJoin);
 	if (CardBorder)
 	{

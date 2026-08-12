@@ -23,6 +23,7 @@
     "test:march-redirect-notifications": "node ../client-unreal/scripts/verify_march_redirect_notifications.mjs",
     "test:p7-baseline": "node ../client-unreal/scripts/verify_p7_baseline.mjs",
     "test:p7-t1-integration": "node ../client-unreal/scripts/verify_p7_t1_integration.mjs",
+    "test:p7-t7-accessibility": "node ../client-unreal/scripts/verify_p7_t7_accessibility.mjs",
     "test:p7-t2-build-pipeline": "node ../client-unreal/scripts/verify_p7_t2_build_pipeline.mjs",
     "test:p7-t9-civ-showcase": "node ../client-unreal/scripts/verify_p7_t9_civ_showcase.mjs",
     "test:city-map-ui-assets": "node ../client-unreal/scripts/verify_city_map_ui_assets.mjs",

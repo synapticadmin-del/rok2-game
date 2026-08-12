@@ -245,6 +245,14 @@ void URok2CommanderWidget::BuildUI()
 	UVerticalBoxSlot* XpSlot = InfoBox->AddChildToVerticalBox(DetailXpBar);
 	XpSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 
+	// P7-T7: نص نسبة الخبرة أسفل الشريط — لا اعتماد على الشريط الممتلئ وحده
+	DetailXpText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailXpText"));
+	DetailXpText->SetText(FText::FromString(TEXT("")));
+	DetailXpText->SetColorAndOpacity(FSlateColor(COLOR_IVORY));
+	URok2Typography::ApplyFont(DetailXpText, ERok2TextRole::Micro);
+	DetailXpText->SetJustification(ETextJustify::Center);
+	InfoBox->AddChildToVerticalBox(DetailXpText)->SetPadding(FMargin(0.f, 2.f, 0.f, 6.f));
+
 	// --- إحصائيات ---
 	DetailStatsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DetailStats"));
 	DetailStatsText->SetText(FText::FromString(TEXT("")));
@@ -567,10 +575,15 @@ void URok2CommanderWidget::PopulateDetailPanel(const FRok2CommanderDetailData& D
 	}
 	if (DetailStarsText) DetailStarsText->SetText(FText::FromString(StarsStr));
 
-	// شريط الخبرة
+	// شريط الخبرة — P7-T7: نص نسبة صريح بجانب الشريط
 	if (DetailXpBar && Detail.XpToNext > 0)
 	{
-		DetailXpBar->SetPercent(FMath::Clamp((float)Detail.Xp / (float)Detail.XpToNext, 0.f, 1.f));
+		const float Pct = FMath::Clamp((float)Detail.Xp / (float)Detail.XpToNext, 0.f, 1.f);
+		DetailXpBar->SetPercent(Pct);
+		if (DetailXpText)
+		{
+			DetailXpText->SetText(FText::FromString(FString::Printf(TEXT("خبرة %d / %d (٪%.0f)"), Detail.Xp, Detail.XpToNext, Pct * 100.f)));
+		}
 	}
 
 	// إحصائيات

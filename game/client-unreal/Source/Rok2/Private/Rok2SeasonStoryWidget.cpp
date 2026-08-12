@@ -20,10 +20,12 @@ namespace Rok2SeasonStory
 {
 	static const FLinearColor Ink(0.06f, 0.10f, 0.16f, 0.98f);
 	static const FLinearColor Paper(0.95f, 0.91f, 0.78f, 1.f);
-	static const FLinearColor Gold(1.f, 0.76f, 0.22f, 1.f);
-	static const FLinearColor Azure(0.34f, 0.68f, 0.95f, 1.f);
-	static const FLinearColor Crimson(0.85f, 0.28f, 0.22f, 1.f);
-	static const FLinearColor Jade(0.24f, 0.72f, 0.47f, 1.f);
+	// P7-T7: ألوان WCAG AA مقروءة فوق خلفية داكنة (الخلفية ~#0B1220):
+	// Gold يُفتح (1,0.76,0.22 يعطي تباين ~7.5:1)، Crimson وAzure وJade تُفتح لتجاوز 4.5:1
+	static const FLinearColor Gold(1.f, 0.80f, 0.34f, 1.f);
+	static const FLinearColor Azure(0.52f, 0.78f, 1.0f, 1.f);
+	static const FLinearColor Crimson(0.95f, 0.42f, 0.36f, 1.f);
+	static const FLinearColor Jade(0.40f, 0.85f, 0.58f, 1.f);
 }
 
 void URok2SeasonStoryWidget::NativeConstruct()
@@ -176,7 +178,11 @@ void URok2SeasonStoryWidget::RebuildTimeline()
 		UVerticalBox* Copy = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Row->AddChildToHorizontalBox(Copy)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		UTextBlock* Day = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		Day->SetText(FText::FromString(FString::Printf(TEXT("اليوم %d"), Event.SeasonDay)));
+		// P7-T7: بادئة رمزية لنوع الحدث — تمييز دون الاعتماد على اللون فقط
+		const FString DayPrefix = (Event.Kind == TEXT("season_champion") || Event.Kind == TEXT("throne_captured")) ? TEXT("★ ")
+			: (Event.Kind == TEXT("pass_conquered") || Event.Kind == TEXT("first_pass_capture")) ? TEXT("⚔ ")
+			: (Event.Kind == TEXT("region_unlocked")) ? TEXT("◈ ") : TEXT("• ");
+		Day->SetText(FText::FromString(DayPrefix + FString::Printf(TEXT("اليوم %d"), Event.SeasonDay)));
 		Day->SetColorAndOpacity(FSlateColor(ColorFor(Event)));
 		Copy->AddChildToVerticalBox(Day);
 		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());

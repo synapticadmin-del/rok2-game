@@ -3,9 +3,9 @@
 // P6-T3: البطاقة تفتح من المركز + خلفية تتلاشى + ضغطات محسوسة (URok2MotionLibrary).
 
 #include "Rok2BattleReportWidget.h"
-#include "Rok2Typography.h"
-#include "Rok2Api.h"
+#include "Rok2Accessibility.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2Api.h"
 #include "Rok2CivThemes.h"
 #include "Rok2MotionLibrary.h"
 #include "Components/TextBlock.h"
@@ -80,8 +80,10 @@ void URok2BattleReportWidget::NativeConstruct()
 
 		// P6-T1: أيقونة مخطوط إجرائية في ترويسة اللوحة
 		UImage* TitleIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("TitleIcon"));
-		TitleIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scroll"), 20.f, Rok2Gold()));
-		TitleIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			TitleIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scroll"), 20.f, Rok2Gold()));
+			TitleIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			// P7-T7: نص بديل لأيقونة التقارير
+			TitleIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("reports")));
 		UHorizontalBoxSlot* IcoSlot = TitleHBox->AddChildToHorizontalBox(TitleIco);
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetPadding(FMargin(0, 0, 8, 0));
@@ -97,8 +99,11 @@ void URok2BattleReportWidget::NativeConstruct()
 			UHorizontalBox* CloseBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			CloseButton->AddChild(CloseBox);
 			UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 14.f, FLinearColor::White));
-			CloseIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+				CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 14.f, FLinearColor::White));
+				CloseIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+				// P7-T7: نص بديل لزر الإغلاق
+				CloseIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+				CloseButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
 			UHorizontalBoxSlot* CIcoSlot = CloseBox->AddChildToHorizontalBox(CloseIco);
 			CIcoSlot->SetPadding(FMargin(4, 0, 4, 0));
 			CIcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -206,10 +211,12 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 
 		// أيقونة النتيجة الإجرائية
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(ResultIconId, 18.f, ResultColor));
-		Ico->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
-		UHorizontalBoxSlot* IcoSlot = RowBox->AddChildToHorizontalBox(Ico);
-		IcoSlot->SetPadding(FMargin(4, 0, 6, 0));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(ResultIconId, 18.f, ResultColor));
+			Ico->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+			// P7-T7: نص بديل لأيقونة النتيجة — لا اعتماد على اللون فقط
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(FString(ResultIconId)));
+			UHorizontalBoxSlot* IcoSlot = RowBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(4, 0, 6, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
@@ -272,8 +279,10 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	{
 		UHorizontalBox* HeadRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(HeadlineIconId, 20.f, Rok2Gold()));
-		Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(HeadlineIconId, 20.f, Rok2Gold()));
+			Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			// P7-T7: نص بديل لأيقونة النتيجة التفصيلية
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(FString(HeadlineIconId)));
 		UHorizontalBoxSlot* IcoSlot = HeadRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -296,8 +305,10 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	{
 		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 15.f, FLinearColor(0.95f, 0.45f, 0.4f)));
-		Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 15.f, FLinearColor(0.95f, 0.45f, 0.4f)));
+			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			// P7-T7: نص بديل لأيقونة المهاجم
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
 		UHorizontalBoxSlot* IcoSlot = SideRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -315,8 +326,10 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	{
 		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("shield"), 15.f, FLinearColor(0.45f, 0.65f, 1.0f)));
-		Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("shield"), 15.f, FLinearColor(0.45f, 0.65f, 1.0f)));
+			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
+			// P7-T7: نص بديل لأيقونة المدافع
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("shield")));
 		UHorizontalBoxSlot* IcoSlot = SideRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);

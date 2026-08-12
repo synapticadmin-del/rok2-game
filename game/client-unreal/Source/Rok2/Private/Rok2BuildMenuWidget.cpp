@@ -3,6 +3,7 @@
 // P6-T3: الورقة تنزلق من الأسفل + ضغطة محسوسة على التبويبات وبطاقات المباني.
 
 #include "Rok2BuildMenuWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
@@ -94,6 +95,8 @@ void URok2BuildMenuWidget::NativeConstruct()
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("build"), 20.f, Rok2Visual::Gold()));
 		Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+		// P7-T7: نص بديل لأيقونة قائمة البناء
+		Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("build")));
 		UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -118,8 +121,11 @@ void URok2BuildMenuWidget::NativeConstruct()
 		UHorizontalBox* TabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		B->AddChild(TabBox);
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Rok2Visual::Gold()));
-		Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 16.f, Rok2Visual::Gold()));
+			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			// P7-T7: نص بديل لتبويب الفئة
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
+			B->SetToolTipText(FText::FromString(Label));
 		UHorizontalBoxSlot* IcoSlot = TabBox->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -187,6 +193,8 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		Ico->SetBrush(URok2ArtAssets::GetIconBrush(E.Icon, 28.f, Rok2Visual::Ivory()));
 		Ico->SetDesiredSizeOverride(FVector2D(28.f, 28.f));
+		// P7-T7: نص بديل لأيقونة المبنى في شبكة البناء
+		Ico->SetToolTipText(URok2Accessibility::LabelForIcon(E.Icon));
 		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 
 		UTextBlock* Name = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());

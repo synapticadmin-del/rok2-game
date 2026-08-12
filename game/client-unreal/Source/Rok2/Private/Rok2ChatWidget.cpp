@@ -2,6 +2,7 @@
 // الودجة تُبنى بالكامل في الكود (لا Blueprint assets) — نفس نمط HUD و AllianceRoster.
 
 #include "Rok2ChatWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2Typography.h"
 #include "Rok2ArtAssets.h"
@@ -110,8 +111,11 @@ void URok2ChatWidget::BuildWidgetTree()
 
 	UnreadBadge = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UnreadBadge"));
 	UnreadBadge->SetText(FText::FromString(TEXT("")));
-	UnreadBadge->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.3f, 0.3f)));
+	UnreadBadge->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.45f, 0.40f))); // AA فوق الخلفية الداكنة
 	URok2Typography::ApplyFont(UnreadBadge, ERok2TextRole::Button);
+	// P7-T7: نص بديل للأيقونات التفاعلية
+	MinimizeButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("minimize")));
+	SendButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("send")));
 	UHorizontalBoxSlot* BadgeSlot = HeaderBox->AddChildToHorizontalBox(UnreadBadge);
 	BadgeSlot->SetPadding(FMargin(4.f, 0.f));
 	BadgeSlot->SetVerticalAlignment(VAlign_Center);
@@ -239,11 +243,12 @@ void URok2ChatWidget::AddMessageBubble(const FRok2ChatMessage& Msg)
 	UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Bubble->AddChild(VBox);
 
-	// اسم المرسل بلون الحضارة
+	// اسم المرسل بلون الحضارة + وسام النص يُكتب بجانبه — لا اعتماد على اللون فقط
 	UTextBlock* SenderText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	SenderText->SetText(FText::FromString(Msg.PlayerName));
-	SenderText->SetColorAndOpacity(FSlateColor(GetCivColor(Msg.Civ)));
+	SenderText->SetColorAndOpacity(FSlateColor(URok2Accessibility::Get()->AccessibleTextFor(GetCivColor(Msg.Civ))));
 	URok2Typography::ApplyFont(SenderText, ERok2TextRole::Button);
+	SenderText->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("chat_sender")));
 	UVerticalBoxSlot* SenderSlot = VBox->AddChildToVerticalBox(SenderText);
 	SenderSlot->SetPadding(FMargin(8.f, 4.f, 8.f, 0.f));
 
@@ -290,7 +295,7 @@ void URok2ChatWidget::UpdateUnreadBadge()
 	int32 Count = Api->GetUnreadChatCount();
 	if (Count > 0)
 	{
-		UnreadBadge->SetText(FText::FromString(FString::Printf(TEXT("%d"), FMath::Min(Count, 99))));
+		UnreadBadge->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), FMath::Min(Count, 99))));
 	}
 	else
 	{

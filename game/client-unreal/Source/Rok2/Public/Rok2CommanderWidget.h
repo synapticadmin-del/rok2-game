@@ -204,6 +204,10 @@ protected:
 	UPROPERTY(Transient)
 	UProgressBar* DetailXpBar;
 
+	// P7-T7: نص نسبة الخبرة الصريح أسفل الشريط (لا اعتماد على الشريط وحده)
+	UPROPERTY(Transient)
+	UTextBlock* DetailXpText;
+
 	UPROPERTY(Transient)
 	UTextBlock* DetailStatsText;
 

@@ -3,7 +3,7 @@
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على الكشافة والإرسال.
 
 #include "Rok2MarchPanel.h"
-#include "Rok2Typography.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
@@ -184,8 +184,11 @@ void URok2MarchPanel::NativeConstruct()
 			UHorizontalBox* ScoutBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			ScoutButton->AddChild(ScoutBox);
 			UImage* ScoutIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			ScoutIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scout"), 18.f, FLinearColor::White));
-			ScoutIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+				ScoutIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("scout"), 18.f, FLinearColor::White));
+				ScoutIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+				// P7-T7: نص بديل للأيقونة
+				ScoutIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("scout")));
+				ScoutButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("scout")));
 			UHorizontalBoxSlot* IcoSlot = ScoutBox->AddChildToHorizontalBox(ScoutIco);
 			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -211,6 +214,9 @@ void URok2MarchPanel::NativeConstruct()
 				UImage* RallyIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 				RallyIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("flag"), 18.f, FLinearColor::White));
 				RallyIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+				// P7-T7: نص بديل للأيقونة
+				RallyIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("flag")));
+				RallyButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("flag")));
 				RallyBox->AddChildToHorizontalBox(RallyIco)->SetVerticalAlignment(VAlign_Center);
 				UTextBlock* RallyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyText"));
 				RallyText->SetText(FText::FromString(TEXT("بدء رالي التحالف")));
@@ -226,10 +232,12 @@ void URok2MarchPanel::NativeConstruct()
 				UVerticalBoxSlot* RedirectButtonSlot = VBox->AddChildToVerticalBox(RedirectButton);
 				RedirectButtonSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 8.f));
 				UTextBlock* RedirectText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectText"));
-				RedirectText->SetText(FText::FromString(TEXT("تحويل المسيرة المحددة إلى هذا الهدف")));
-				RedirectText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-				URok2Typography::ApplyFont(RedirectText, ERok2TextRole::Button);
-				RedirectButton->AddChild(RedirectText);
+			RedirectText->SetText(FText::FromString(TEXT("تحويل المسيرة المحددة إلى هذا الهدف")));
+			RedirectText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			URok2Typography::ApplyFont(RedirectText, ERok2TextRole::Button);
+			RedirectButton->AddChild(RedirectText);
+			// P7-T7: نص بديل لزر التحويل
+			RedirectButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("redirect")));
 
 				DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
 		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
@@ -242,8 +250,11 @@ void URok2MarchPanel::NativeConstruct()
 			UHorizontalBox* DispatchBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			DispatchButton->AddChild(DispatchBox);
 			UImage* DispatchIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			DispatchIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 20.f, FLinearColor::White));
-			DispatchIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+				DispatchIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 20.f, FLinearColor::White));
+				DispatchIco->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+				// P7-T7: نص بديل للأيقونة
+				DispatchIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
+				DispatchButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("dispatch")));
 			UHorizontalBoxSlot* IcoSlot = DispatchBox->AddChildToHorizontalBox(DispatchIco);
 			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);

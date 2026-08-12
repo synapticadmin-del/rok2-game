@@ -2,6 +2,7 @@
 // P6-T5: نبذة الحضارة الأدبية تظهر تحت القائمة وتتبدّل مع كل اختيار.
 
 #include "Rok2BootWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
@@ -139,8 +140,10 @@ void URok2BootWidget::NativeConstruct()
 			TitleRowSlot->SetHorizontalAlignment(HAlign_Center);
 			TitleRowSlot->SetPadding(FMargin(0, 15, 0, 5));
 			UImage* CrownIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			CrownIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 26.f, FLinearColor(1.0f, 0.84f, 0.2f)));
-			CrownIco->SetDesiredSizeOverride(FVector2D(26.f, 26.f));
+				CrownIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 26.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+				CrownIco->SetDesiredSizeOverride(FVector2D(26.f, 26.f));
+				// P7-T7: نص بديل لأيقونة التاج
+				CrownIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("crown")));
 			UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(CrownIco);
 			IcoSlot->SetPadding(FMargin(0, 0, 8, 0));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -166,10 +169,13 @@ void URok2BootWidget::NativeConstruct()
 			UHorizontalBox* EnterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			EnterButton->AddChild(EnterBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("ap"), 16.f, FLinearColor::White));
-			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
-			UHorizontalBoxSlot* IcoSlot = EnterBox->AddChildToHorizontalBox(Ico);
-			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("ap"), 16.f, FLinearColor::White));
+				Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+				// P7-T7: نص بديل لزر الدخول السريع
+				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("ap")));
+				EnterButton->SetToolTipText(FText::FromString(TEXT("دخول سريع كضيف")));
+				UHorizontalBoxSlot* IcoSlot = EnterBox->AddChildToHorizontalBox(Ico);
+				IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* EnterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EnterText"));
@@ -205,10 +211,13 @@ void URok2BootWidget::NativeConstruct()
 			UHorizontalBox* StartBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			StartButton->AddChild(StartBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 16.f, FLinearColor::White));
-			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
-			UHorizontalBoxSlot* IcoSlot = StartBox->AddChildToHorizontalBox(Ico);
-			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 16.f, FLinearColor::White));
+				Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+				// P7-T7: نص بديل لزر بدء الرحلة
+				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
+				StartButton->SetToolTipText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد")));
+				UHorizontalBoxSlot* IcoSlot = StartBox->AddChildToHorizontalBox(Ico);
+				IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* StartText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartText"));

@@ -3,6 +3,7 @@
 // P6-T3: حركة الدخول والضغطات من URok2MotionLibrary (بدل انزلاق محلي في Tick).
 
 #include "Rok2BuildingDetailWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
@@ -62,6 +63,8 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 	// P6-T1: أيقونة المبنى الإجرائية في الترويسة (تُزرع في HeaderIconBox عند البناء)
 	if (TitleText) TitleText->SetText(FText::FromString(DisplayName));
 	if (HeaderIcon) HeaderIcon->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 28.f, Rok2Visual::Gold()));
+	// P7-T7: نص بديل لأيقونة المبنى
+	if (HeaderIcon) HeaderIcon->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
 	if (DescText) DescText->SetText(FText::FromString(Desc));
 	if (LevelText) LevelText->SetText(FText::FromString(FString::Printf(TEXT("المستوى %d  ➔  %d"), CurrentLevel, CurrentLevel + 1)));
 
@@ -75,6 +78,10 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 	if (CostWoodIcon) CostWoodIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("wood"), 16.f, Rok2Visual::Success()));
 	if (TimeText) TimeText->SetText(FText::FromString(FString::Printf(TEXT("%dث"), TimeSec)));
 	if (TimeIcon) TimeIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("clock"), 16.f, Rok2Visual::Muted()));
+	// P7-T7: نصوص بديلة لأيقونات التكلفة والوقت
+	if (CostFoodIcon) CostFoodIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("food")));
+	if (CostWoodIcon) CostWoodIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("wood")));
+	if (TimeIcon) TimeIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("clock")));
 
 	// الزر الثانوي حسب النوع
 	const FString ActionLabel = ActionLabelForBuilding(BuildingId);

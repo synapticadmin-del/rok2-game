@@ -1,6 +1,7 @@
 // P6-T3: ضغطة محسوسة على أزرار المدينة والتسريع + تلاشي دخول الشاشة.
 
 #include "Rok2CityWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2BlueprintLibrary.h"
@@ -123,6 +124,8 @@ void URok2CityWidget::NativeConstruct()
 			UImage* GovIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("GovIcon"));
 			GovIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("governor"), 18.f, FLinearColor(1.0f, 0.84f, 0.2f)));
 			GovIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+			// P7-T7: نص بديل لأيقونة الحاكم
+			GovIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("governor")));
 			UHorizontalBoxSlot* IcoSlot = TopHBox->AddChildToHorizontalBox(GovIco);
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetPadding(FMargin(20, 0, 4, 0));
@@ -167,6 +170,8 @@ void URok2CityWidget::NativeConstruct()
 		ConnIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("ConnIcon"));
 		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f, FLinearColor(0.4f, 1.0f, 0.5f)));
 		ConnIcon->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+		// P7-T7: نص بديل لأيقونة الاتصال
+		ConnIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("conn")));
 		{
 			UHorizontalBoxSlot* IcoSlot = TopHBox->AddChildToHorizontalBox(ConnIcon);
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -459,7 +464,8 @@ void URok2CityWidget::Refresh()
 					: (bHealQueue ? FLinearColor(0.30f, 0.90f, 0.45f) : FLinearColor(0.72f, 0.50f, 1.00f)));
 				UImage* QIco = NewObject<UImage>(this);
 				QIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, QueueColor));
-
+				// P7-T7: نص بديل لأيقونة الطابور
+				QIco->SetToolTipText(URok2Accessibility::LabelForIcon(FString(IconId)));
 			QIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
 			UHorizontalBoxSlot* IcoSlot = QHBox->AddChildToHorizontalBox(QIco);
 			IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
@@ -488,8 +494,11 @@ void URok2CityWidget::Refresh()
 			UHorizontalBox* SpdBox = NewObject<UHorizontalBox>(this);
 			SpeedupBtn->AddChild(SpdBox);
 			UImage* SpdIco = NewObject<UImage>(this);
-			SpdIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("speedup"), 13.f, FLinearColor::White));
-			SpdIco->SetDesiredSizeOverride(FVector2D(13.f, 13.f));
+				SpdIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("speedup"), 13.f, FLinearColor::White));
+				SpdIco->SetDesiredSizeOverride(FVector2D(13.f, 13.f));
+				// P7-T7: نص بديل لزر التسريع
+				SpdIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("speedup")));
+				SpeedupBtn->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("speedup")));
 			UHorizontalBoxSlot* SpdIcoSlot = SpdBox->AddChildToHorizontalBox(SpdIco);
 			SpdIcoSlot->SetPadding(FMargin(3, 0, 3, 0));
 			SpdIcoSlot->SetVerticalAlignment(VAlign_Center);

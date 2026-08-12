@@ -1,6 +1,7 @@
 // Copyright ROK2. First-minute onboarding — guidance overlay (P6-T4).
 
 #include "Rok2OnboardingWidget.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2Typography.h"
 #include "Rok2ArtAssets.h"
@@ -305,6 +306,8 @@ void URok2OnboardingWidget::ApplyStepInfo(const FRok2FtueStepInfo& Info)
 	if (StepIcon && URok2ArtAssets::HasIcon(Info.IconId))
 	{
 		StepIcon->SetBrush(URok2ArtAssets::GetIconBrush(Info.IconId, 28.f, Rok2FtueStyle::Gold));
+		// P7-T7: نص بديل لأيقونة خطوة الإرشاد
+		StepIcon->SetToolTipText(URok2Accessibility::LabelForIcon(Info.IconId));
 	}
 
 	if (OrdinalText)
