@@ -158,6 +158,9 @@ protected:
 	/** اسم فتحة الحفظ محصور بمعرّف اللاعب لتفادي خلط الحسابات على الجهاز. */
 	FString GetLocalLayoutSlotName() const;
 
+	/** لا تُكتب نسخة الجهاز إلا بعد قبول التخطيط السلطوي. */
+	void SaveAcceptedLayoutLocally(const TArray<FRok2BuildingPlacement>& Placements);
+
 	/** هل يمكن وضع مبنى ببصمته على خلية (داخل السور وبلا تراكب)؟ */
 	bool CanPlaceAt(const FString& BuildingId, ERok2Footprint Footprint, const FRok2HexCell& Cell, const FString& IgnoreBuildingId) const;
 

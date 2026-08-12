@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
 import { getMap, getChatConfig, getAllianceStructures, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
+import { assertAdminKey } from "../lib/secrets";
 import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
@@ -164,6 +165,8 @@ type HospitalSummary = { admitted: Troops; died: Troops; capacity: number };
 type ChatMessage = {
   id: string;
   channel: "kingdom" | "alliance";
+  // تُلتقط عضوية التحالف وقت الإرسال كي لا تُسرَّب الرسالة إذا غادر المرسل لاحقاً.
+  allianceId: string | null;
   playerId: string;
   playerName: string;
   civ: string;
@@ -538,6 +541,12 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (8)");
     }
+
+    if (ver < 9) {
+      // قناة التحالف لا تُستنتج من المرسل عند القراءة؛ تحفظ هوية التحالف وقت النشر.
+      this.ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN alliance_id TEXT");
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (9)");
+    }
   }
 
   private loadMapDefs() {
@@ -708,6 +717,7 @@ export class KingdomShard extends DurableObject<Env> {
       .map((r) => ({
         id: r.id,
         channel: r.channel,
+        allianceId: r.alliance_id || null,
         playerId: r.player_id,
         playerName: "", // يُملأ عند البث
         civ: "",
@@ -894,9 +904,8 @@ export class KingdomShard extends DurableObject<Env> {
 
   // P3-T3: تكثيف البرابرة أثناء حدث "غزو البرابرة" — يزرع معسكرات إضافية حتمياً
   // (id يعتمد على اليوم فلا يتكرر الزرع كل tick). يعيد true إن زرع شيئاً جديداً.
-  private seedEventBarbarians(extraPerRegion: number): boolean {
+  private seedEventBarbarians(extraPerRegion: number, tickInDay: number): boolean {
     let spawned = false;
-    const tickInDay = this.seasonStartMs > 0 ? Math.floor((nowMs() - this.seasonStartMs) / 1000) % 86_400 : 0;
     const lvlBonus = barbLevelBonus(this.seasonDay, tickInDay);
     const hpMult = eventBuff(this.seasonDay, tickInDay, "barb_hp_mult");
     for (const r of this.regions) {
@@ -1027,10 +1036,11 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
-  /** تُظهر التقرير لصاحبه أو لأعضاء تحالف الرالي فقط. */
+  /** تُظهر التقرير للمهاجم أو المدافع أو المشارك، ولتحالف أي طرف ذي صلة فقط. */
   private reportVisibleTo(report: any, playerId: string, allianceId: string | null | undefined) {
     if (!playerId) return false;
-    if (report.attackerPlayerId === playerId) return true;
+    if (report.attackerPlayerId === playerId || report.defenderPlayerId === playerId) return true;
+    if (allianceId && (report.attackerAllianceId === allianceId || report.defenderAllianceId === allianceId)) return true;
     const rally = report.rally;
     if (!rally) return false;
     if (Array.isArray(rally.participants) && rally.participants.some((p: any) => p.playerId === playerId)) return true;
@@ -1096,18 +1106,20 @@ export class KingdomShard extends DurableObject<Env> {
     const dead = this.distributeRallyTroops(contributions, result.attackerSplit.dead);
     const severely = this.distributeRallyTroops(contributions, result.attackerSplit.severely);
     const slightly = this.distributeRallyTroops(contributions, result.attackerSplit.slightly);
-    const participants: any[] = [];
-
-    for (const contribution of contributions) {
+    // عمليات المشاركين مستقلة بعد تثبيت توزيع الخسائر. Promise.all يحافظ على ترتيب
+    // contributions في مصفوفة الناتج، لذلك يبقى التقرير حتمياً مع تقليل دورات D1 المتسلسلة.
+    const participants = await Promise.all(contributions.map(async (contribution: { playerId: string; troops: Troops }) => {
       const playerLosses = losses[contribution.playerId] || {};
       const remaining: Troops = {};
       for (const [unitId, committed] of Object.entries(contribution.troops)) {
         const survivorCount = Math.max(0, Number(committed) - Number(playerLosses[unitId] || 0));
         if (survivorCount > 0) remaining[unitId] = survivorCount;
       }
-      const hospital = await this.admitToHospital(contribution.playerId, severely[contribution.playerId] || {});
-      await this.deductMarchLosses(contribution.playerId, playerLosses);
-      participants.push({
+      const [hospital] = await Promise.all([
+        this.admitToHospital(contribution.playerId, severely[contribution.playerId] || {}),
+        this.deductMarchLosses(contribution.playerId, playerLosses),
+      ]);
+      return {
         playerId: contribution.playerId,
         committed: contribution.troops,
         remaining,
@@ -1116,8 +1128,8 @@ export class KingdomShard extends DurableObject<Env> {
         severely: severely[contribution.playerId] || {},
         slightly: slightly[contribution.playerId] || {},
         hospital,
-      });
-    }
+      };
+    }));
 
     march.payload = { ...march.payload, rallyParticipants: participants };
     return {
@@ -1131,8 +1143,10 @@ export class KingdomShard extends DurableObject<Env> {
   private async settleAttackerCombat(march: MarchEntity, result: CombatResult) {
     const rally = await this.settleRallyCombat(march, result);
     if (rally) return { rally };
-    const hospital = await this.admitToHospital(march.ownerPlayerId, result.attackerSplit.severely);
-    await this.deductMarchLosses(march.ownerPlayerId, result.attackerLosses);
+    const [hospital] = await Promise.all([
+      this.admitToHospital(march.ownerPlayerId, result.attackerSplit.severely),
+      this.deductMarchLosses(march.ownerPlayerId, result.attackerLosses),
+    ]);
     return { hospital };
   }
 
@@ -1243,6 +1257,23 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
+  /** ترسل رسائل التحالف إلى أعضاء التحالف المُلتقط وقت النشر فقط. */
+  private broadcastChat(chatMsg: ChatMessage) {
+    const msg = JSON.stringify({ type: "chat_message", message: chatMsg });
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = ws.deserializeAttachment() as { playerId?: string } | null;
+      const recipientAllianceId = att?.playerId ? this.cities.get(att.playerId)?.allianceId : null;
+      if (chatMsg.channel === "alliance" && (!chatMsg.allianceId || recipientAllianceId !== chatMsg.allianceId)) {
+        continue;
+      }
+      try {
+        ws.send(msg);
+      } catch {
+        // ignore broken sockets
+      }
+    }
+  }
+
   private ensureAlarm() {
     // schedule next tick if active work
     const hasWork =
@@ -1294,7 +1325,7 @@ export class KingdomShard extends DurableObject<Env> {
     }
     // تكثيف البرابرة أثناء حدث البرابرة (حتمي: يُزرع مرة واحدة لكل منطقة/يوم)
     const extraBarbs = barbExtraPerRegion(this.seasonDay, tickInDay);
-    if (extraBarbs > 0) changed = this.seedEventBarbarians(extraBarbs) || changed;
+    if (extraBarbs > 0) changed = this.seedEventBarbarians(extraBarbs, tickInDay) || changed;
 
     // P5-T5: وصول الكشافة — بث scout_arrived ليكشف العميل ضباب الحرب حول الهدف
     for (const s of [...this.scouts.values()]) {
@@ -1354,7 +1385,7 @@ export class KingdomShard extends DurableObject<Env> {
     for (const m of this.marches.values()) {
       if (m.state === "moving") {
         if (now >= m.etaMs) {
-          await this.resolveMarchArrival(m, now);
+          await this.resolveMarchArrival(m, now, tickInDay);
           changed = true;
         }
       } else if (m.state === "gathering") {
@@ -1362,14 +1393,13 @@ export class KingdomShard extends DurableObject<Env> {
           const node = this.nodes.get(m.targetId);
           if (node) {
             // P3-T3: باف اندفاع الموارد — عقد أغنى أثناء الحدث
-            const tickInDay3 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
-            const richMult = eventBuff(this.seasonDay, tickInDay3, "resource_richness_mult");
+            const richMult = eventBuff(this.seasonDay, tickInDay, "resource_richness_mult");
             const gathered = Math.floor(node.remaining * richMult);
             node.remaining = 0;
             this.persistNode(node);
             m.payload = { kind: node.kind, amount: gathered };
             // نقاط الجمع أثناء اندفاع الموارد
-            const gatherScore = eventBuff(this.seasonDay, tickInDay3, "gather_score", true);
+            const gatherScore = eventBuff(this.seasonDay, tickInDay, "gather_score", true);
             if (gatherScore > 0 && m.allianceId) {
               const pts = gatherScore * node.level;
               const cur = this.throneScores.get(m.allianceId) || 0;
@@ -1446,9 +1476,14 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     this.ctx.storage.sql.exec(
-      "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms) VALUES (1, ?, ?)",
+      `INSERT INTO world_meta (id, season_day, last_tick_ms, season_start_ms)
+       VALUES (1, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         season_day=excluded.season_day,
+         last_tick_ms=excluded.last_tick_ms`,
       this.seasonDay,
       now,
+      this.seasonStartMs,
     );
 
     if (changed) {
@@ -1469,7 +1504,7 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
-  private async resolveMarchArrival(m: MarchEntity, now: number) {
+  private async resolveMarchArrival(m: MarchEntity, now: number, tickInDay: number) {
     // حدث وصول منفصل عن نتيجة القتال: يصل للعميل قبل أن تتحول المسيرة إلى قتال أو عودة.
     this.broadcast({ type: "march_arrived", march: m });
     if (m.targetType === "pass") {
@@ -1522,6 +1557,7 @@ export class KingdomShard extends DurableObject<Env> {
         passId: string;
         attackerPlayerId: string;
         attackerAllianceId: string | null;
+        defenderAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
         rally?: any;
@@ -1533,6 +1569,7 @@ export class KingdomShard extends DurableObject<Env> {
         passId: pass.id,
         attackerPlayerId: m.ownerPlayerId,
         attackerAllianceId: m.allianceId,
+        defenderAllianceId: previousPassOwnerAllianceId,
         result,
       };
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
@@ -1614,6 +1651,7 @@ export class KingdomShard extends DurableObject<Env> {
         kind: string;
         attackerPlayerId: string;
         attackerAllianceId: string | null;
+        defenderAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
         rally?: any;
@@ -1624,6 +1662,7 @@ export class KingdomShard extends DurableObject<Env> {
         kind: "throne_attack",
         attackerPlayerId: m.ownerPlayerId,
         attackerAllianceId: m.allianceId,
+        defenderAllianceId: previousThroneOwnerAllianceId,
         result,
       };
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
@@ -1677,6 +1716,7 @@ export class KingdomShard extends DurableObject<Env> {
         return;
       }
 
+      const previousObjectiveOwnerAllianceId = obj.ownerAllianceId;
       const garrisonCount = coreGarrison(obj.kind);
       const defenderTroops: Troops = obj.ownerAllianceId
         ? { infantry_t1: garrisonCount, archer_t1: Math.floor(garrisonCount / 2) }
@@ -1711,6 +1751,7 @@ export class KingdomShard extends DurableObject<Env> {
         objectiveId: string;
         attackerPlayerId: string;
         attackerAllianceId: string | null;
+        defenderAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
         rally?: any;
@@ -1723,6 +1764,7 @@ export class KingdomShard extends DurableObject<Env> {
         objectiveId: obj.id,
         attackerPlayerId: m.ownerPlayerId,
         attackerAllianceId: m.allianceId,
+        defenderAllianceId: previousObjectiveOwnerAllianceId,
         result,
       };
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
@@ -1798,8 +1840,7 @@ export class KingdomShard extends DurableObject<Env> {
           m.troops = result.attackerRemaining;
           if (result.winner === "attacker") {
             // P3-T3: نقاط قتل البرابرة أثناء حدث غزو البرابرة
-            const tickInDay2 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
-            const killScore = eventBuff(this.seasonDay, tickInDay2, "barb_kill_score", true);
+            const killScore = eventBuff(this.seasonDay, tickInDay, "barb_kill_score", true);
             if (killScore > 0 && m.allianceId) {
               const pts = killScore * node.level;
               const cur = this.throneScores.get(m.allianceId) || 0;
@@ -1817,8 +1858,7 @@ export class KingdomShard extends DurableObject<Env> {
         } else {
           m.state = "gathering";
           // P3-T3: باف اندفاع الموارد — جمع أسرع أثناء الحدث
-          const tickInDay2 = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
-          const gatherMult = eventBuff(this.seasonDay, tickInDay2, "gather_rate_mult");
+          const gatherMult = eventBuff(this.seasonDay, tickInDay, "gather_rate_mult");
           const rate = 0.5 * totalTroops(m.troops) * gatherMult; // units/sec
           const durationSec = node.remaining / rate;
           m.etaMs = now + durationSec * 1000;
@@ -2067,6 +2107,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/upsert-city") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       const c: CityEntity = {
         playerId: body.playerId,
         name: body.name,
@@ -2087,6 +2129,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/set-alliance") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       const c = this.cities.get(body.playerId);
       if (!c) return Response.json({ error: "city_not_found" }, { status: 404 });
       c.allianceId = body.allianceId;
@@ -2097,6 +2141,12 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/build-flag") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const builder = this.cities.get(body.playerId);
+      if (!builder || !body.allianceId || builder.allianceId !== body.allianceId) {
+        return Response.json({ error: "not_your_alliance" }, { status: 403 });
+      }
       // تحقق من الإحداثيات قبل الحفظ — أعلام خارج الخريطة/NaN تفسد الرسم والمنطق
       const map = getMap();
       const x = Number(body.x);
@@ -2122,6 +2172,12 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/build-alliance-structure") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.createdBy);
+      if (identityError) return identityError;
+      const builder = this.cities.get(body.createdBy);
+      if (!builder || !body.allianceId || builder.allianceId !== body.allianceId) {
+        return Response.json({ error: "not_your_alliance" }, { status: 403 });
+      }
       const map = getMap();
       const x = Number(body.x);
       const y = Number(body.y);
@@ -2175,6 +2231,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/march") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       try {
         const march = await this.createMarch(body);
         this.ensureAlarm();
@@ -2186,6 +2244,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/redirect-march") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       try {
         const march = await this.redirectMarch(body);
         return Response.json({ ok: true, march });
@@ -2196,6 +2256,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/pass-attack") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       try {
         const march = await this.createMarch({
           ...body,
@@ -2212,6 +2274,8 @@ export class KingdomShard extends DurableObject<Env> {
     // P5-T5: إرسال كشافة — تصل بعد زمن مسير قصير وتكشف المنطقة لدى العميل
     if (path.endsWith("/scout") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.ownerPlayerId);
+      if (identityError) return identityError;
       try {
         const scout = this.createScout(body);
         this.ensureAlarm();
@@ -2222,6 +2286,11 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     if (path.endsWith("/admin") && request.method === "POST") {
+      try {
+        assertAdminKey(request, this.env);
+      } catch {
+        return Response.json({ error: "admin_unauthorized" }, { status: 403 });
+      }
       const body = await request.json<any>();
       if (body.action === "tick") {
         // force-complete in-flight marches for deterministic tests/debug
@@ -2262,6 +2331,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/queue/list") && request.method === "GET") {
       const playerId = new URL(request.url).searchParams.get("playerId") || "";
+      const identityError = this.requireAuthenticatedPlayer(request, playerId);
+      if (identityError) return identityError;
       const queues = [...this.queues.values()]
         .filter((queue) => queue.playerId === playerId && queue.state === "running")
         .sort((a, b) => a.etaMs - b.etaMs);
@@ -2270,6 +2341,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/queue/add") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       // قناة واحدة نشطة لكل نوع داخل المدينة: البناء والتدريب والشفاء والبحث
       // تعمل بالتوازي، لكن لا يُسمح بتكرار نوع واحد قبل اكتماله.
       const queueType = String(body.type || "");
@@ -2299,6 +2372,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/queue/speedup") && request.method === "POST") {
       const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
       const q = this.queues.get(body.queueId);
       if (!q || q.state !== "running") return Response.json({ error: "queue_not_found" }, { status: 404 });
 
@@ -2333,6 +2408,16 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     return Response.json({ error: "not_found", path }, { status: 404 });
+  }
+
+  /** آخر خط دفاع لمسارات اللاعب: الرأس يحدده الراوتر بعد `requirePlayer`، ولا تثق الشارد بجسم الطلب. */
+  private requireAuthenticatedPlayer(request: Request, claimedPlayerId: unknown): Response | null {
+    const playerId = typeof claimedPlayerId === "string" ? claimedPlayerId : "";
+    const authenticatedPlayerId = request.headers.get("x-rok2-player") || "";
+    if (!playerId || !authenticatedPlayerId || authenticatedPlayerId !== playerId) {
+      return Response.json({ error: "player_identity_mismatch" }, { status: 403 });
+    }
+    return null;
   }
 
   /** P4-T5: تسجيل مخالفة anti-cheat (آخر violation_log_limit) للفحص الإداري. */
@@ -2549,7 +2634,8 @@ export class KingdomShard extends DurableObject<Env> {
     const now = nowMs();
     // لا يسبق التحويل معالجة الوصول: إن انتهى وقت المسيرة يحسم الشارد الوصول/القتال أولاً.
     if (now >= march.etaMs) {
-      await this.resolveMarchArrival(march, now);
+      const tickInDay = this.seasonStartMs > 0 ? Math.floor((now - this.seasonStartMs) / 1000) % 86_400 : 0;
+      await this.resolveMarchArrival(march, now, tickInDay);
       throw new Error("march_already_arrived");
     }
     const elapsedRatio = Math.max(0, Math.min(1, (now - march.startMs) / Math.max(1, march.etaMs - march.startMs)));
@@ -2721,12 +2807,10 @@ export class KingdomShard extends DurableObject<Env> {
 
       const { admitted, died } = admitWounded(severely, already, hospitalLevel);
 
-      for (const [u, c] of Object.entries(admitted)) {
-        await this.env.DB.prepare(
-          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'severely_wounded', ?)
-           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
-        ).bind(playerId, u, Number(c)).run();
-      }
+      await Promise.all(Object.entries(admitted).map(([u, c]) => this.env.DB.prepare(
+        `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'severely_wounded', ?)
+         ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+      ).bind(playerId, u, Number(c)).run()));
 
       const capacity = hospitalCapacity(hospitalLevel);
       return { admitted, died, capacity };
@@ -2737,12 +2821,11 @@ export class KingdomShard extends DurableObject<Env> {
 
   /** P2-T2: خصم خسائر المعركة من رصيد 'marching' (الناجون يُخصمون لاحقاً عند العودة للمدينة) */
   private async deductMarchLosses(playerId: string, losses: Troops) {
-    for (const [u, c] of Object.entries(losses)) {
-      if (Number(c) <= 0) continue;
-      await this.env.DB.prepare(
+    await Promise.all(Object.entries(losses)
+      .filter(([, c]) => Number(c) > 0)
+      .map(([u, c]) => this.env.DB.prepare(
         `UPDATE troops SET count = MAX(0, count - ?) WHERE player_id = ? AND unit_id = ? AND status = 'marching'`,
-      ).bind(Number(c), playerId, u).run();
-    }
+      ).bind(Number(c), playerId, u).run()));
   }
 
   /** P2-T3: باف هجوم القوات من أبحاث العسكر للاعب (troop_attack) */
@@ -2851,13 +2934,11 @@ export class KingdomShard extends DurableObject<Env> {
         return;
       }
 
-      // قناة التحالف تتطلب عضوية
-      if (channel === "alliance") {
-        const city = this.cities.get(att.playerId);
-        if (!city?.allianceId) {
-          ws.send(JSON.stringify({ type: "error", error: "no_alliance" }));
-          return;
-        }
+      // قناة التحالف تتطلب عضوية، وتلتقط الهوية قبل أن تتغير العضوية لاحقاً.
+      const city = this.cities.get(att.playerId);
+      if (channel === "alliance" && !city?.allianceId) {
+        ws.send(JSON.stringify({ type: "error", error: "no_alliance" }));
+        return;
       }
 
       // مُحدّد السرعة البسيط
@@ -2874,10 +2955,10 @@ export class KingdomShard extends DurableObject<Env> {
       }
 
       // بناء الرسالة
-      const city = this.cities.get(att.playerId);
       const chatMsg: ChatMessage = {
         id: newId("msg"),
         channel: channel as "kingdom" | "alliance",
+        allianceId: channel === "alliance" ? city?.allianceId ?? null : null,
         playerId: att.playerId,
         playerName: city?.name ?? att.playerId,
         civ: "",
@@ -2887,8 +2968,8 @@ export class KingdomShard extends DurableObject<Env> {
 
       // حفظ في SQLite
       this.ctx.storage.sql.exec(
-        `INSERT INTO chat_messages (id, channel, player_id, text, created_at) VALUES (?, ?, ?, ?, ?)`,
-        chatMsg.id, chatMsg.channel, chatMsg.playerId, chatMsg.text, chatMsg.timestampMs,
+        `INSERT INTO chat_messages (id, channel, alliance_id, player_id, text, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        chatMsg.id, chatMsg.channel, chatMsg.allianceId, chatMsg.playerId, chatMsg.text, chatMsg.timestampMs,
       );
 
       // إضافة للذاكرة (حلقة مُغلقة)
@@ -2898,8 +2979,8 @@ export class KingdomShard extends DurableObject<Env> {
         this.chatHistory = this.chatHistory.slice(-maxHistory);
       }
 
-      // بث لكل المتصلين
-      this.broadcast({ type: "chat_message", message: chatMsg });
+      // بث قناة المملكة عام، أما التحالف فمقيد بعضوية التحالف المُثبتة وقت الإرسال.
+      this.broadcastChat(chatMsg);
       ws.send(JSON.stringify({ type: "chat_sent", messageId: chatMsg.id }));
       return;
     }
@@ -2910,7 +2991,7 @@ export class KingdomShard extends DurableObject<Env> {
       const allianceId = city?.allianceId;
       const visible = this.chatHistory.filter((m) => {
         if (m.channel === "kingdom") return true;
-        return m.channel === "alliance" && m.playerId === att.playerId;
+        return m.channel === "alliance" && Boolean(allianceId && m.allianceId === allianceId);
       });
       ws.send(JSON.stringify({ type: "chat_history", messages: visible.slice(-100) }));
       return;

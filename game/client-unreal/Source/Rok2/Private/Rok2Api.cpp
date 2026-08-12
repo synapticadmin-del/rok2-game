@@ -1049,17 +1049,19 @@ void URok2Api::AddBattleReport(const FRok2BattleReport& R)
 
 void URok2Api::LoadCity()
 {
-	Get(TEXT("/v1/city"), [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/city"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseCity(Obj);
+		if (WeakThis.IsValid()) WeakThis->ParseCity(Obj);
 	});
 }
 
-void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements)
+void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements, TFunction<void(bool)> OnCompleted)
 {
 	if (!HasPlayer() || !IsLoggedIn())
 	{
 		PushNotification(TEXT("toast"), TEXT("تعذّر حفظ التخطيط"), TEXT("سجّل الدخول أولاً لمزامنة القلعة"), 5.f);
+		if (OnCompleted) OnCompleted(false);
 		return;
 	}
 
@@ -1082,17 +1084,20 @@ void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
 
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-	Post(TEXT("/v1/city/layout"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+	TSharedRef<TFunction<void(bool)>> Completion = MakeShared<TFunction<void(bool)>>(MoveTemp(OnCompleted));
+	Post(TEXT("/v1/city/layout"), BodyStr, true, [WeakThis, Completion](const TSharedPtr<FJsonObject>&)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
 		Self->PushNotification(TEXT("toast"), TEXT("تم حفظ تخطيط القلعة"), TEXT("تزامنت المواقع والواجهات مع حسابك"), 5.f);
+		if (*Completion) (*Completion)(true);
 		Self->LoadCity();
-	}, [WeakThis](const FString& Error)
+	}, [WeakThis, Completion](const FString& Error)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
 		Self->PushNotification(TEXT("toast"), TEXT("تعذّر حفظ التخطيط"), Error.IsEmpty() ? TEXT("رفض الخادم التخطيط؛ أعيدت مزامنة المدينة") : Error, 6.f);
+		if (*Completion) (*Completion)(false);
 		Self->LoadCity();
 	});
 }
@@ -1190,10 +1195,13 @@ void URok2Api::UpgradeCommanderSkill(const FString& CommanderId, int32 SkillSlot
 void URok2Api::UpgradeBuilding(const FString& BuildingId)
 {
 	FString Body = FString::Printf(TEXT("{\"buildingId\":\"%s\"}"), *BuildingId);
-	Post(TEXT("/v1/city/upgrade"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/upgrade"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseCity(Obj);
-		EmitToast(TEXT("تمت الترقية"));
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseCity(Obj);
+		Self->EmitToast(TEXT("تمت الترقية"));
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
 			Audio->PlaySfx(ERok2AudioType::Upgrade);
@@ -1249,10 +1257,13 @@ void URok2Api::UpgradeBuilding(const FString& BuildingId)
 void URok2Api::Train(const FString& UnitId, int32 Count)
 {
 	FString Body = FString::Printf(TEXT("{\"unit\":\"%s\",\"count\":%d}"), *UnitId, Count);
-	Post(TEXT("/v1/city/train"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/train"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseCity(Obj);
-		EmitToast(TEXT("اكتمل التدريب"));
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseCity(Obj);
+		Self->EmitToast(TEXT("اكتمل التدريب"));
 	});
 }
 
@@ -1270,24 +1281,30 @@ void URok2Api::HealWounded(const TMap<FString, int32>& TroopsMap)
 		Writer->WriteObjectEnd();
 	}
 	const FString Body = FString::Printf(TEXT("{\"troops\":%s}"), *TroopsJson);
-	Post(TEXT("/v1/city/heal"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/heal"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseCity(Obj);
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseCity(Obj);
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
 			Audio->PlaySfx(ERok2AudioType::HealComplete);
 		}
-		EmitToast(TEXT("بدأ شفاء الجرحى"));
+		Self->EmitToast(TEXT("بدأ شفاء الجرحى"));
 	});
 }
 
 void URok2Api::CreateAlliance(const FString& Name, const FString& Tag)
 {
 	FString Body = FString::Printf(TEXT("{\"name\":\"%s\",\"tag\":\"%s\"}"), *Name, *Tag);
-	Post(TEXT("/v1/alliance/create"), Body, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/create"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("تم إنشاء التحالف"));
-		LoadCity();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("تم إنشاء التحالف"));
+		Self->LoadCity();
 	});
 }
 
@@ -1308,18 +1325,22 @@ void URok2Api::BuildAllianceStructure(const FString& StructureKind, double X, do
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
 
-	Post(TEXT("/v1/alliance/structure/build"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/structure/build"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("تم إنشاء منشأة التحالف"));
-		RefreshWorld();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("تم إنشاء منشأة التحالف"));
+		Self->RefreshWorld();
 	});
 }
 
 void URok2Api::RefreshWorld()
 {
-	Get(TEXT("/v1/world/snapshot"), [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/world/snapshot"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		ParseWorld(Obj);
+		if (WeakThis.IsValid()) WeakThis->ParseWorld(Obj);
 	});
 }
 
@@ -1450,12 +1471,15 @@ void URok2Api::DispatchMarch(const FString& TargetType, const FString& TargetId,
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
 
-	Post(TEXT("/v1/world/march"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/world/march"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("انطلقت المسيرة"));
-		ForceTick();
-		RefreshWorld();
-		LoadCity();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("انطلقت المسيرة"));
+		Self->ForceTick();
+		Self->RefreshWorld();
+		Self->LoadCity();
 	});
 }
 
@@ -1479,20 +1503,25 @@ void URok2Api::RedirectMarch(const FString& MarchId, const FString& TargetType, 
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
 
+	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(FString::Printf(TEXT("/v1/world/march/%s/redirect"), *FGenericPlatformHttp::UrlEncode(MarchId)), BodyStr, true,
-		[this](const TSharedPtr<FJsonObject>& Obj)
+		[WeakThis](const TSharedPtr<FJsonObject>& Obj)
 		{
-			PushNotification(TEXT("toast"), TEXT("تم اعتماد إعادة التوجيه"), TEXT("تتحرك المسيرة الآن نحو الهدف الجديد"), 6.f);
-			RefreshWorld();
-			LoadCity();
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			Self->PushNotification(TEXT("toast"), TEXT("تم اعتماد إعادة التوجيه"), TEXT("تتحرك المسيرة الآن نحو الهدف الجديد"), 6.f);
+			Self->RefreshWorld();
+			Self->LoadCity();
 		},
-		[this](const FString& Err)
+		[WeakThis](const FString& Err)
 		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
 			const bool bNoLongerMoving = Err.Contains(TEXT("march_not_moving")) ||
 				Err.Contains(TEXT("march_already_arrived")) || Err.Contains(TEXT("march_in_combat"));
-			PushNotification(TEXT("toast"), TEXT("تعذّر تحويل المسيرة"),
+			Self->PushNotification(TEXT("toast"), TEXT("تعذّر تحويل المسيرة"),
 				bNoLongerMoving ? TEXT("المسيرة لم تعد في الحركة؛ جرى تحديث الخريطة") : Err, 6.f);
-			RefreshWorld();
+			Self->RefreshWorld();
 		});
 }
 
@@ -1506,11 +1535,14 @@ void URok2Api::SendScout(double ToX, double ToY)
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
 
-	Post(TEXT("/v1/world/scout"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/world/scout"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("انطلقت الكشافة"));
-		ForceTick();
-		RefreshWorld();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("انطلقت الكشافة"));
+		Self->ForceTick();
+		Self->RefreshWorld();
 	});
 }
 
@@ -1541,11 +1573,14 @@ void URok2Api::LaunchAllianceRally(const FString& TargetType, const FString& Tar
 	FString BodyStr;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
-	Post(TEXT("/v1/alliance/rally"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/rally"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("بدأ تجميع رالي التحالف"));
-		FetchAllianceRallies();
-		LoadCity();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("بدأ تجميع رالي التحالف"));
+		Self->FetchAllianceRallies();
+		Self->LoadCity();
 	});
 }
 
@@ -1569,11 +1604,14 @@ void URok2Api::JoinAllianceRally(const FString& RallyId, const TMap<FString, int
 	FString BodyStr;
 	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
 	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
-	Post(TEXT("/v1/alliance/rally/join"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/rally/join"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("انضممت إلى الرالي"));
-		FetchAllianceRallies();
-		LoadCity();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("انضممت إلى الرالي"));
+		Self->FetchAllianceRallies();
+		Self->LoadCity();
 	});
 }
 
@@ -1633,10 +1671,13 @@ void URok2Api::SendChat(const FString& Channel, const FString& Text)
 
 void URok2Api::AllianceHelp()
 {
-	Post(TEXT("/v1/alliance/help"), TEXT("{}"), true, [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/help"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
-		EmitToast(TEXT("تم تقديم المساعدة للحلفاء"));
-		LoadCity();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("تم تقديم المساعدة للحلفاء"));
+		Self->LoadCity();
 	});
 }
 

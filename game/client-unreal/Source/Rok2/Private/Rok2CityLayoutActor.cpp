@@ -312,7 +312,10 @@ void ARok2CityLayoutActor::RebuildFromApi()
 				}
 			}
 
-			B->OnClicked.AddDynamic(this, &ARok2CityLayoutActor::OnAnyBuildingClicked);
+							// المبنى قد يأتي من pool بعد إعادة بناء؛ أزل الربط السابق قبل إعادة إضافته.
+				B->OnClicked.RemoveDynamic(this, &ARok2CityLayoutActor::OnAnyBuildingClicked);
+				B->OnClicked.AddDynamic(this, &ARok2CityLayoutActor::OnAnyBuildingClicked);
+
 			Buildings.Add(Id, B);
 		}
 		idx++;
@@ -420,35 +423,48 @@ TMap<FString, FRok2BuildingPlacement> ARok2CityLayoutActor::LoadLocalLayout() co
 	return Out;
 }
 
-void ARok2CityLayoutActor::SaveLayoutToServer()
+void ARok2CityLayoutActor::SaveAcceptedLayoutLocally(const TArray<FRok2BuildingPlacement>& Placements)
 {
-	// الحفظ المحلي يعمل فوراً؛ يبقى اسم الدالة للتوافق مع HUD الحالي إلى أن تضيف API مزامنة خادمية.
 	URok2CityLayoutSaveGame* Save = Cast<URok2CityLayoutSaveGame>(UGameplayStatics::CreateSaveGameObject(URok2CityLayoutSaveGame::StaticClass()));
-	if (!Save)
+	if (!Save || !Api || !Api->HasPlayer())
 	{
 		return;
 	}
 
 	Save->SchemaVersion = 1;
-	Save->PlayerId = Api && Api->HasPlayer() ? Api->GetPlayer().Id : TEXT("guest");
-	Save->Placements = GetLayoutPlacements();
+	Save->PlayerId = Api->GetPlayer().Id;
+	Save->Placements = Placements;
 	UGameplayStatics::SaveGameToSlot(Save, GetLocalLayoutSlotName(), 0);
+}
 
-	if (Api && Api->HasPlayer())
+void ARok2CityLayoutActor::SaveLayoutToServer()
+{
+	if (!Api || !Api->HasPlayer())
 	{
-		TArray<FRok2CityLayoutPlacement> Payload;
-		for (const FRok2BuildingPlacement& Placement : Save->Placements)
-		{
-			FRok2CityLayoutPlacement WirePlacement;
-			WirePlacement.BuildingId = Placement.BuildingId;
-			WirePlacement.Q = Placement.Q;
-			WirePlacement.R = Placement.R;
-			WirePlacement.RotationSteps = FMath::Abs(Placement.RotationSteps) % 6;
-			WirePlacement.Facade = Rok2CityLayout::FacadeToWire(Placement.Facade);
-			Payload.Add(MoveTemp(WirePlacement));
-		}
-		Api->SaveCityLayout(Payload);
+		return;
 	}
+
+	const TArray<FRok2BuildingPlacement> Placements = GetLayoutPlacements();
+	TArray<FRok2CityLayoutPlacement> Payload;
+	for (const FRok2BuildingPlacement& Placement : Placements)
+	{
+		FRok2CityLayoutPlacement WirePlacement;
+		WirePlacement.BuildingId = Placement.BuildingId;
+		WirePlacement.Q = Placement.Q;
+		WirePlacement.R = Placement.R;
+		WirePlacement.RotationSteps = FMath::Abs(Placement.RotationSteps) % 6;
+		WirePlacement.Facade = Rok2CityLayout::FacadeToWire(Placement.Facade);
+		Payload.Add(MoveTemp(WirePlacement));
+	}
+
+	TWeakObjectPtr<ARok2CityLayoutActor> WeakThis(this);
+	Api->SaveCityLayout(Payload, [WeakThis, Placements](bool bAccepted)
+	{
+		if (bAccepted && WeakThis.IsValid())
+		{
+			WeakThis->SaveAcceptedLayoutLocally(Placements);
+		}
+	});
 
 	OnLayoutChanged.Broadcast();
 }

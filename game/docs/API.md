@@ -4,6 +4,8 @@ Base local: `http://127.0.0.1:8787`
 
 Auth header: `Authorization: Bearer <token>`
 
+> **حدود التفويض:** يحدد الراوتر `playerId` من الـBearer token ويضيف داخلياً رأس `x-rok2-player` عند استدعاء الـDurable Object. لا يثق الخادم في `playerId` المرسل من العميل إذا خالف الهوية الموثقة، ولا ينبغي للعملاء استدعاء مسارات الـDO الداخلية مباشرة. تستلزم مسارات الإدارة `x-admin-key` الصحيح في الراوتر ويتحقق الـDO منه مرة أخرى قبل تنفيذ أمر إداري.
+
 ## Health / Meta
 - `GET /v1/health`
 - `GET /v1/meta/map`
@@ -124,8 +126,8 @@ Auth header: `Authorization: Bearer <token>`
 
 **الدردشة الحية (P6-T6):**
 - `chat_send`: إرسال رسالة — القناة `kingdom` (عامة) أو `alliance` (تحتاج عضوية). الحد الأقصى 200 حرف، 5 رسائل كل 5 ثوانٍ.
-- `chat_message`: بث رسالة جديدة لكل المتصلين (مُ broadcasting).
-- `chat_history`: يُرسل آخر 100 رسالة للقنوات المتاحة (المملكة + تحالف اللاعب).
+- `chat_message`: تبث رسالة `kingdom` إلى كل متصلي المملكة؛ أما رسالة `alliance` فلا تُبث إلا إلى أعضاء التحالف المسجل وقت الإرسال.
+- `chat_history`: يُرسل آخر 100 رسالة للقنوات المتاحة (المملكة + تحالف اللاعب)، وتُفلتر رسائل التحالف بمعرّف التحالف المثبت في الرسالة لا بكون اللاعب هو مرسلها.
 - snapshot العالم يتضمن `chatHistory` (آخر 100 رسالة).
 
 ## Zones (P2-T4) — مناطق مقفلة بمؤقّت زمني + موارد أعلى
@@ -137,6 +139,8 @@ Auth header: `Authorization: Bearer <token>`
 - `GET /v1/meta/all` يتضمن `zones` أيضاً
 
 ## Admin (`x-admin-key`)
+
+> تتحقق طبقة HTTP من المفتاح ثم يمرَّر تفويض إداري داخلي إلى الـDurable Object، الذي يعيد التحقق قبل السماح بـ`tick` أو تغيير يوم الموسم أو المنح.
 - `POST /v1/admin/tick`
 - `POST /v1/admin/set-time` `{ day }`
 - `POST /v1/admin/grant` `{ playerId, food?, wood?, stone?, gold?, troops? }`

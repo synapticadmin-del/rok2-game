@@ -173,6 +173,11 @@ function kingdomStub(env: Env) {
   return env.KINGDOM_SHARD.get(env.KINGDOM_SHARD.idFromName(env.KINGDOM_ID || "kingdom-1"));
 }
 
+/** رأس موقّع ضمنياً داخل مسار Worker→Durable Object بعد نجاح `requirePlayer`. */
+function shardPlayerHeaders(playerId: string): HeadersInit {
+  return { "content-type": "application/json", "x-rok2-player": playerId };
+}
+
 type ActiveQueueView = {
   id: string;
   type: string;
@@ -186,7 +191,9 @@ type ActiveQueueView = {
 
 /** حالة طوابير اللاعب تُقرأ من الـ Durable Object، لا من العميل. */
 async function getActiveQueues(env: Env, playerId: string): Promise<ActiveQueueView[]> {
-  const res = await kingdomStub(env).fetch(`https://do/queue/list?playerId=${encodeURIComponent(playerId)}`);
+  const res = await kingdomStub(env).fetch(`https://do/queue/list?playerId=${encodeURIComponent(playerId)}`, {
+    headers: { "x-rok2-player": playerId },
+  });
   if (!res.ok) return [];
   const data = await res.json<{ queues?: Array<Omit<ActiveQueueView, "remainingSeconds" | "finishCostGems">> }>();
   const now = nowMs();
@@ -720,7 +727,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       await stub.fetch("https://do/upsert-city", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(playerId),
         body: JSON.stringify({
           playerId,
           name,
@@ -873,7 +880,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -936,7 +943,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1136,7 +1143,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/queue/speedup", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({ queueId: body.queueId, seconds, playerId: player.id }),
       });
       const data = await res.json<any>();
@@ -1292,7 +1299,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1385,7 +1392,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1562,7 +1569,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({ playerId: player.id, allianceId: id }),
       });
 
@@ -1596,7 +1603,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({ playerId: player.id, allianceId: body.allianceId }),
       });
       return json({ ok: true, allianceId: body.allianceId });
@@ -1721,7 +1728,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(target.id),
         body: JSON.stringify({ playerId: target.id, allianceId: null }),
       });
       return json({ ok: true, kicked: target.id });
@@ -1742,7 +1749,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({ playerId: player.id, allianceId: null }),
       });
       return json({ ok: true, left: allianceId });
@@ -1783,7 +1790,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const stub = kingdomStub(env);
         const res = await stub.fetch("https://do/queue/speedup", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: shardPlayerHeaders(q.playerId),
           // playerId هنا هو مالك الطابور — بدونه يرفض الـ DO (403 not_your_queue).
           // التحقق من الملكية ليس ثغرة هنا: الـ router أكّد أن المساعد في نفس
           // التحالف، وقواعد اللعبة تسمح لأي عضو بتسريع طابور عضو آخر.
@@ -1938,8 +1945,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/build-flag", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ allianceId: player.alliance_id, x: fx, y: fy })
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, x: fx, y: fy })
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "build_failed", data);
@@ -1968,7 +1975,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       const res = await kingdomStub(env).fetch("https://do/build-alliance-structure", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           allianceId: player.alliance_id,
           createdBy: player.id,
@@ -2114,7 +2121,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const stub = kingdomStub(env);
         const res = await stub.fetch("https://do/march", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: shardPlayerHeaders(player.id),
           body: JSON.stringify({
             playerId: player.id,
             troops,
@@ -2156,7 +2163,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/redirect-march", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({
           playerId: player.id,
           marchId: decodeURIComponent(redirectMatch[1]),
@@ -2203,7 +2210,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/scout", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: shardPlayerHeaders(player.id),
         body: JSON.stringify({ ownerPlayerId: player.id, fromX: player.x, fromY: player.y, toX, toY }),
       });
       const data: any = await res.json();
@@ -2253,7 +2260,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         const stub = kingdomStub(env);
         const res = await stub.fetch("https://do/pass-attack", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: shardPlayerHeaders(player.id),
           body: JSON.stringify({
             playerId: player.id,
             passId: body.passId,
@@ -2288,7 +2295,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/admin", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-admin-key": request.headers.get("x-admin-key") || "" },
         body: JSON.stringify({ action: "tick", force: body.force !== false }),
       });
       return json(await res.json());
@@ -2300,7 +2307,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const stub = kingdomStub(env);
       const res = await stub.fetch("https://do/admin", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-admin-key": request.headers.get("x-admin-key") || "" },
         body: JSON.stringify({ action: "set_day", day: body.day }),
       });
       return json(await res.json());

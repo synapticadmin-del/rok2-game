@@ -75,8 +75,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void LoadCity();
 
-	/** يحفظ تخطيط القلعة التجميلي كاملاً؛ الخادم يتحقق من الملكية والحدود والتراكب. */
-	void SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements);
+	/** يحفظ تخطيط القلعة التجميلي كاملاً؛ الخادم يتحقق من الملكية والحدود والتراكب. لا تُستدعى نتيجة النجاح إلا بعد قبول النسخة السلطوية. */
+	void SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements, TFunction<void(bool)> OnCompleted = nullptr);
 
 	/** يسحب القادة المملوكين ومستوياتهم من الخادم السلطوي. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")

@@ -73,6 +73,7 @@ export function validateCityLayout(
 ): CityLayoutPlacement[] {
   if (!Array.isArray(rawPlacements)) layoutError("layout_placements_required");
   const ownedIds = Object.keys(ownedBuildings).filter((id) => ownedBuildings[id] > 0).sort();
+  const ownedIdSet = new Set(ownedIds);
   if (rawPlacements.length !== ownedIds.length || rawPlacements.length > 64) layoutError("layout_building_count_invalid");
 
   const radius = cityLayoutRadiusForHallLevel(hallLevel);
@@ -89,7 +90,7 @@ export function validateCityLayout(
     const rotationSteps = placement.rotationSteps;
     const facade = placement.facade;
 
-    if (typeof buildingId !== "string" || !ownedIds.includes(buildingId)) layoutError("layout_building_not_owned");
+    if (typeof buildingId !== "string" || !ownedIdSet.has(buildingId)) layoutError("layout_building_not_owned");
     if (seenBuildings.has(buildingId)) layoutError("layout_building_duplicate");
     if (!isInteger(q) || !isInteger(r)) layoutError("layout_cell_invalid");
     if (!isInteger(rotationSteps) || rotationSteps < 0 || rotationSteps > 5) layoutError("layout_rotation_invalid");
