@@ -8,16 +8,16 @@
 | هدف المحرر | `Rok2Editor Win64 Development` |
 | هدف العميل | `Rok2 Win64 Development` أو `Shipping` |
 | خريطة البدء | `/Game/Maps/Rok2Main` |
-| المحرك المدعوم | Unreal Engine 5.4 أو أحدث؛ الارتباط الحالي للمشروع 5.8 |
+| المحرك المعتمد | **Unreal Engine 5.4.4**؛ `EngineAssociation` مضبوط على `5.4` ليطابق مسار Epic Launcher `UE_5.4` |
 | مسار العرض الافتراضي | DX11 / Shader Model 5 لتوافق أفضل مع العتاد الضعيف |
 | بوابة العقود البرمجية | `cd game/backend && npm run check` |
 
 ## 1. المتطلبات المحلية
 
-ثبّت Unreal Engine من Epic Games Launcher مع نسخة **5.4 أو أحدث**، وVisual Studio 2022 مع مكوّنات C++ اللازمة لتطوير الألعاب. إذا كان المحرك في مسار غير افتراضي، عيّن المتغير التالي في PowerShell قبل كل جلسة:
+ثبّت **Unreal Engine 5.4.4** من Epic Games Launcher. استخدم **Visual Studio 2022 17.8 أو أحدث** مع workload **Game development with C++** وMSVC `14.38+` وWindows SDK `10.0.22621.0+`. هذه توافقات UE 5.4 الموصى بها من Epic [1]. إذا كان المحرك في مسار غير افتراضي، عيّن المتغير التالي في PowerShell قبل كل جلسة:
 
 ```powershell
-$env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.8'
+$env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.4'
 ```
 
 يمكن تمرير المسار صراحةً إلى كل سكربت عبر `-EngineRoot`. لا تحفظ مساراتك الشخصية أو مفاتيح الوصول في ملفات المشروع.
@@ -38,21 +38,22 @@ $env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.8'
 
 > لا تستخدم `-Clean` كإجراء اعتيادي؛ فهو يحذف `Binaries` و`Intermediate` ويطيل زمن إعادة بناء المشروع.
 
-## 2.5 استيراد أصول اختيار الحضارات
+## 2.5 استيراد أصول الواجهة والمدينة والحضارات
 
-قبل أول بناء بعد هذه الدفعة، حوّل صور شاشة اختيار الحضارات إلى `Texture2D` داخل مشروع Unreal. ينشئ السكربت سجل الاستيراد ولا يتطلب أي أصل خارجي أو حساب Marketplace:
+قبل أول بناء بعد هذه الدفعة، حوّل صور شاشة اختيار الحضارات وحزمة المدينة والخريطة والواجهة إلى `Texture2D` داخل مشروع Unreal. تنشئ السكربتات سجلات استيراد ولا تتطلب حساب Marketplace:
 
 ```powershell
 .\scripts\Import-CivVisuals.ps1 -EngineRoot $env:UE_ROOT
+.\scripts\Import-CityMapUIAssets.ps1 -EngineRoot $env:UE_ROOT
 ```
 
-أو نفّذ الاستيراد تلقائياً قبل بناء المحرر:
+أو نفّذ استيراد جميع PNG تلقائياً قبل بناء المحرر:
 
 ```powershell
-.\scripts\Build-Rok2.ps1 -Target Editor -ImportCivVisuals -EngineRoot $env:UE_ROOT
+.\scripts\Build-Rok2.ps1 -Target Editor -ImportCivVisuals -ImportCityMapUiAssets -EngineRoot $env:UE_ROOT
 ```
 
-> بعد تعديل ملف PNG لاحقاً، مرر `-ReplaceExisting` إلى سكربت الاستيراد ثم أعد بناء المحرر. يجب أن تظهر المسارات `/Game/Art/CivBackgrounds` و`/Game/Art/CivIcons` و`/Game/Art/Commanders` في Content Browser.
+> بعد تعديل ملف PNG لاحقاً، مرر `-ReplaceExisting` إلى سكربت الاستيراد ثم أعد بناء المحرر. يجب أن تظهر المسارات `/Game/Art/CivBackgrounds` و`/Game/Art/CivIcons` و`/Game/Art/Commanders` و`/Game/Art/UIIcons` و`/Game/Art/UIButtons` و`/Game/Art/CityBuildingIcons` في Content Browser. لاستيراد نماذج Kenney GLB، فعّل GLTF Importer أو Interchange في UE 5.4.4 ثم أضف `-ImportMeshes` إلى سكربت المدينة.
 
 ## 3. اختبار دخان تشغيلي مستقل
 
@@ -112,7 +113,8 @@ $env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.8'
 
 | العرض | الإجراء الأول |
 |---|---|
-| لا يُعثر على `Build.bat` أو `UnrealEditor.exe` | اضبط `UE_ROOT` أو مرر `-EngineRoot` لمسار UE الصحيح. |
+| لا يُعثر على `Build.bat` أو `UnrealEditor.exe` | اضبط `UE_ROOT` أو مرر `-EngineRoot` إلى مجلد UE 5.4.4 الصحيح. |
+| رسالة اختلاف نسخة المحرك | تحقق أن `Engine\Build\Build.version` يسجل `5.4.4`؛ السكربتات ترفض أي إصدار آخر لحماية قابلية التكرار. |
 | خطأ C++/Visual Studio عند البناء | افتح سجل `Saved\BuildLogs\build-*.log`، أصلح أول خطأ C++ ظاهر فقط، ثم أعد البناء. |
 | شاشة سوداء/تشويش | شغّل `RunEditor_SafeMode.bat` واقرأ `TROUBLESHOOT_BLACK_SCREEN.md`. |
 | يفشل دخان التشغيل لغياب `Rok2Main` | تحقق من إعداد `GameMapsSettings` ومن سجل `runtime-smoke-*.log`. |
@@ -122,4 +124,8 @@ $env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.8'
 
 ## 7. قرار الإغلاق
 
-بعد تمرير بوابة `npm run check`، وبناء المحرر، ودخان التشغيل، والصفوف الثمانية أعلاه، أضف أدلة الاختبار إلى تقرير المراجعة ثم علّم **P7-T1** `[x]`. إذا فشل صف واحد، اترك P7-T1 مفتوحاً وسجّل المعرّف وملف السجل والخطوة اللازمة للإصلاح؛ لا توصف الدفعة بأنها مكتملة بناءً على اختبار بنيوي وحده.
+بعد تمرير بوابة `npm run check`، وبناء المحرر، ودخان التشغيل، **وجميع صفوف PIE-01 إلى PIE-11** أعلاه، أضف أدلة الاختبار إلى تقرير المراجعة ثم علّم **P7-T1** `[x]`. إذا فشل صف واحد، اترك P7-T1 مفتوحاً وسجّل المعرّف وملف السجل والخطوة اللازمة للإصلاح؛ لا توصف الدفعة بأنها مكتملة بناءً على اختبار بنيوي وحده.
+
+## المراجع
+
+[1]: https://dev.epicgames.com/documentation/unreal-engine/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine?lang=en-US "Epic Games — Setting Up Visual Studio"

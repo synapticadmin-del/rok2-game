@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  يبني عميل ROK2 من سطر الأوامر باستخدام Unreal Engine 5.4+ المثبت محلياً.
+  يبني عميل ROK2 من سطر الأوامر باستخدام Unreal Engine 5.4.4 المثبت محلياً.
 
 .DESCRIPTION
   يدعم بناء Rok2Editor للتحقق قبل PIE، وبناء Rok2 Development/Shipping لنظام
@@ -8,7 +8,7 @@
   ولا يمسح ملفات وسيطة إلا عند تمرير -Clean صراحةً.
 
 .EXAMPLE
-  .\scripts\Build-Rok2.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.8'
+  .\scripts\Build-Rok2.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.4'
   .\scripts\Build-Rok2.ps1 -Target Development -Package -OutputDirectory 'D:\Builds\ROK2'
 #>
 [CmdletBinding()]
@@ -27,6 +27,8 @@ param(
 
     [switch]$ImportCivVisuals,
 
+    [switch]$ImportCityMapUiAssets,
+
     [string]$OutputDirectory
 )
 
@@ -36,28 +38,28 @@ $ErrorActionPreference = 'Stop'
 function Resolve-UnrealEngineRoot {
     param([string]$RequestedRoot)
 
-    $Candidates = @()
-    if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
-        $Candidates += $RequestedRoot
+    # المشروع مقفل على UE 5.4.4 كي تظل نتائج البناء وإعادة الاستيراد قابلة للتكرار.
+    $Candidate = if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
+        $RequestedRoot
+    } else {
+        'C:\Program Files\Epic Games\UE_5.4'
     }
-
-    # الترتيب يطابق EngineAssociation الحالي، مع السماح بكل نسخة مدعومة >= 5.4.
-    foreach ($Version in @('5.8', '5.7', '5.6', '5.5', '5.4')) {
-        $Candidates += "C:\Program Files\Epic Games\UE_$Version"
-    }
-
-    foreach ($Candidate in $Candidates | Select-Object -Unique) {
-        if (Test-Path (Join-Path $Candidate 'Engine\Build\BatchFiles\Build.bat')) {
-            return (Resolve-Path $Candidate).Path
-        }
-    }
-
-    throw @"
-لم يتم العثور على Unreal Engine Build.bat.
-ثبّت Unreal Engine 5.4 أو أحدث عبر Epic Games Launcher، ثم مرر -EngineRoot
-أو عيّن المتغير UE_ROOT لمسار المحرك، مثال:
-`$env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.8'
+    $BuildBat = Join-Path $Candidate 'Engine\Build\BatchFiles\Build.bat'
+    $VersionFile = Join-Path $Candidate 'Engine\Build\Build.version'
+    if (-not (Test-Path $BuildBat) -or -not (Test-Path $VersionFile)) {
+        throw @"
+لم يتم العثور على Unreal Engine 5.4.4 في المسار: $Candidate
+ثبّت UE 5.4.4 عبر Epic Games Launcher، ثم مرر -EngineRoot أو عيّن UE_ROOT، مثال:
+`$env:UE_ROOT = 'C:\Program Files\Epic Games\UE_5.4'
 "@
+    }
+
+    $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
+    $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
+    if ($ActualVersion -ne '5.4.4') {
+        throw "يتطلب ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
+    }
+    return (Resolve-Path $Candidate).Path
 }
 
 function Invoke-UnrealBatchFile {
@@ -93,6 +95,14 @@ if ($ImportCivVisuals) {
         throw "فشل استيراد أصول الحضارات قبل البناء (رمز الخروج: $LASTEXITCODE)."
     }
 }
+if ($ImportCityMapUiAssets) {
+    $ImportScript = Join-Path $PSScriptRoot 'Import-CityMapUIAssets.ps1'
+    Write-Host '[ROK2] Importing city/map/UI PNG assets before build.' -ForegroundColor Cyan
+    & $ImportScript -EngineRoot $ResolvedEngineRoot -ReplaceExisting
+    if ($LASTEXITCODE -ne 0) {
+        throw "فشل استيراد أصول المدينة والخريطة والواجهة قبل البناء (رمز الخروج: $LASTEXITCODE)."
+    }
+}
 $BuildBat = Join-Path $ResolvedEngineRoot 'Engine\Build\BatchFiles\Build.bat'
 $RunUatBat = Join-Path $ResolvedEngineRoot 'Engine\Build\BatchFiles\RunUAT.bat'
 $LogDirectory = Join-Path $ProjectRoot 'Saved\BuildLogs'
@@ -100,7 +110,7 @@ New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
 $Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $BuildLog = Join-Path $LogDirectory "build-$Target-$Timestamp.log"
 
-Write-Host "[ROK2] Engine: $ResolvedEngineRoot" -ForegroundColor Cyan
+Write-Host "[ROK2] Engine: UE 5.4.4 — $ResolvedEngineRoot" -ForegroundColor Cyan
 Write-Host "[ROK2] Project: $ProjectFile" -ForegroundColor Cyan
 Write-Host "[ROK2] Target: $Target ($Platform)" -ForegroundColor Cyan
 

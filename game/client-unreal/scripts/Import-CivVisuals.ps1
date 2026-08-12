@@ -7,7 +7,7 @@
   وشعاراتها التشغيلية وصور القادة المبدئية. يمكن تكراره بأمان بعد تحديث PNG.
 
 .EXAMPLE
-  .\scripts\Import-CivVisuals.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.8'
+  .\scripts\Import-CivVisuals.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.4'
 #>
 [CmdletBinding()]
 param(
@@ -20,17 +20,22 @@ $ErrorActionPreference = 'Stop'
 
 function Resolve-UnrealEngineRoot {
     param([string]$RequestedRoot)
-    $Candidates = @()
-    if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) { $Candidates += $RequestedRoot }
-    foreach ($Version in @('5.8', '5.7', '5.6', '5.5', '5.4')) {
-        $Candidates += "C:\Program Files\Epic Games\UE_$Version"
+    $Candidate = if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
+        $RequestedRoot
+    } else {
+        'C:\Program Files\Epic Games\UE_5.4'
     }
-    foreach ($Candidate in $Candidates | Select-Object -Unique) {
-        if (Test-Path (Join-Path $Candidate 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe')) {
-            return (Resolve-Path $Candidate).Path
-        }
+    $EditorCmd = Join-Path $Candidate 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+    $VersionFile = Join-Path $Candidate 'Engine\Build\Build.version'
+    if (-not (Test-Path $EditorCmd) -or -not (Test-Path $VersionFile)) {
+        throw "لم يُعثر على UnrealEditor-Cmd.exe أو Build.version لمحرك UE 5.4.4 في: $Candidate"
     }
-    throw 'لم يُعثر على UnrealEditor-Cmd.exe. مرر -EngineRoot أو عيّن UE_ROOT لمحرك UE 5.4+.'
+    $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
+    $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
+    if ($ActualVersion -ne '5.4.4') {
+        throw "يتطلب استيراد أصول ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
+    }
+    return (Resolve-Path $Candidate).Path
 }
 
 if ($env:OS -ne 'Windows_NT') {
@@ -78,7 +83,7 @@ $LogDirectory = Join-Path $ProjectRoot 'Saved\BuildLogs'
 New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
 $LogPath = Join-Path $LogDirectory ("import-civ-visuals-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 
-Write-Host "[ROK2] Importing 18 civilization visuals with $Engine" -ForegroundColor Cyan
+Write-Host "[ROK2] Importing 18 civilization visuals with UE 5.4.4: $Engine" -ForegroundColor Cyan
 & $EditorCmd $ProjectFile '-run=ImportAssets' "-importSettings=$ConfigPath" '-nosourcecontrol' '-unattended' '-nop4' 2>&1 | Tee-Object -FilePath $LogPath
 if ($LASTEXITCODE -ne 0) {
     throw "فشل استيراد أصول الحضارات (رمز: $LASTEXITCODE). راجع: $LogPath"

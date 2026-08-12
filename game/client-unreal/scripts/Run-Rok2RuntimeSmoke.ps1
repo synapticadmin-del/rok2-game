@@ -8,7 +8,7 @@
   المحرر بحثاً عن أخطاء قاتلة قبل إيقاف العملية تلقائياً.
 
 .EXAMPLE
-  .\scripts\Run-Rok2RuntimeSmoke.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.8'
+  .\scripts\Run-Rok2RuntimeSmoke.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.4'
 #>
 [CmdletBinding()]
 param(
@@ -26,21 +26,22 @@ $ErrorActionPreference = 'Stop'
 function Resolve-UnrealEditor {
     param([string]$RequestedRoot)
 
-    $Candidates = @()
-    if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
-        $Candidates += $RequestedRoot
+    $Candidate = if (-not [string]::IsNullOrWhiteSpace($RequestedRoot)) {
+        $RequestedRoot
+    } else {
+        'C:\Program Files\Epic Games\UE_5.4'
     }
-    foreach ($Version in @('5.8', '5.7', '5.6', '5.5', '5.4')) {
-        $Candidates += "C:\Program Files\Epic Games\UE_$Version"
+    $Editor = Join-Path $Candidate 'Engine\Binaries\Win64\UnrealEditor.exe'
+    $VersionFile = Join-Path $Candidate 'Engine\Build\Build.version'
+    if (-not (Test-Path $Editor) -or -not (Test-Path $VersionFile)) {
+        throw "لم يتم العثور على UnrealEditor.exe أو Build.version لمحرك UE 5.4.4 في: $Candidate"
     }
-
-    foreach ($Candidate in $Candidates | Select-Object -Unique) {
-        $Editor = Join-Path $Candidate 'Engine\Binaries\Win64\UnrealEditor.exe'
-        if (Test-Path $Editor) {
-            return (Resolve-Path $Editor).Path
-        }
+    $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
+    $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
+    if ($ActualVersion -ne '5.4.4') {
+        throw "يتطلب دخان تشغيل ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
     }
-    throw 'لم يتم العثور على UnrealEditor.exe. مرر -EngineRoot أو عيّن UE_ROOT لمسار Unreal Engine 5.4+.'
+    return (Resolve-Path $Editor).Path
 }
 
 if ($env:OS -ne 'Windows_NT') {
@@ -62,7 +63,7 @@ $Arguments = @(
     "-Abslog=`"$LogPath`""
 )
 
-Write-Host "[ROK2] Starting standalone runtime smoke for $TimeoutSeconds seconds..." -ForegroundColor Cyan
+Write-Host "[ROK2] Starting UE 5.4.4 standalone runtime smoke for $TimeoutSeconds seconds..." -ForegroundColor Cyan
 $Process = Start-Process -FilePath $Editor -ArgumentList $Arguments -PassThru
 Start-Sleep -Seconds $TimeoutSeconds
 

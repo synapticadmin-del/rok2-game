@@ -30,7 +30,7 @@
 
 - **لا قيم توازن ثابتة في الكود** — اقرأ من `data/*.json` أو من API يخدمها.
 - **الخادم هو السلطة** (server-authoritative) — العميل لا يحسب نتائج قتال أو موارد.
-- **توافق المحرك:** الكود يجب أن يبني على UE 5.4+ (لا تستخدم API خاص بنسخة واحدة دون تحقق).
+- **توافق المحرك:** نسخة البناء المعتمدة هي **UE 5.4.4**؛ `Rok2.uproject` مرتبط بسلسلة `5.4` وسكربتات البناء/الاستيراد/الدخان تتحقق من `Engine\Build\Build.version`. لا تستخدم API خاصاً بإصدار أحدث من 5.4.4 دون مسار احتياطي موثق.
 - ملفات C++ الجديدة تتبع نفس نمط الموجود: header في `Public/`، تنفيذ في `Private/`، تسجيل في `Rok2.Build.cs` عند الحاجة.
 - **أي عمل بصري/واجهة يبدأ من `07-game-design/`** — GDD ومواصفة القلعة السداسية والحضارات و UI/UX والصور في `assets/` هي المرجع الملزم للشكل المستهدف. لا تخترع أسلوباً بصرياً من رأسك.
 
@@ -68,4 +68,4 @@
 
 ---
 
-*آخر تحديث: 2026-08-12 — أعمال P7-T1/P7-T2/P7-T9 في حالة WIP متحققة آلياً: أُغلقت فجوات الربط الثلاث في الكود، وأضيفت بوابة Windows للبناء والدخان (`Build-Rok2.ps1` و`Run-Rok2RuntimeSmoke.ps1`) وفحص `test:p7-t2-build-pipeline`، وحُوّلت شاشة الحضارات من ComboBox نصي إلى كاروسيل بصري. توجد الخلفيات في `Content/Art/CivBackgrounds` والشعارات التشغيلية في `Content/Art/CivIcons` والقادة كـ PNG في `Content/Art/Commanders`؛ تُستورد عبر `Import-CivVisuals.ps1` وتُراجع عبر `test:p7-t9-civ-showcase`. أُضيفت كذلك حزمة المدينة والخريطة والواجهة: الأيقونات في `Content/Art/UIIcons`، جلود الأزرار في `Content/Art/UIButtons`، صور المباني في `Content/Art/CityBuildingIcons`، ونماذج Kenney CC0 في `Content/Art/External/KenneyCastleKit` مع الترخيص؛ الاستيراد عبر `Import-CityMapUIAssets.ps1` والتحقق عبر `test:city-map-ui-assets`. اجتازت `npm run check`، لكن لا تتوفر أدوات Unreal هنا؛ على جهاز Windows مع UE 5.4+ استورد الأصول ونفّذ PIE قبل تعليم أي من البنود `[x]`.*
+*آخر تحديث: 2026-08-12 — أعمال P7-T1/P7-T2/P7-T9 في حالة WIP متحققة آلياً: أُغلقت فجوات الربط الثلاث في الكود، وأضيفت بوابة Windows للبناء والدخان (`Build-Rok2.ps1` و`Run-Rok2RuntimeSmoke.ps1`) وفحص `test:p7-t2-build-pipeline`، وحُوّلت شاشة الحضارات من ComboBox نصي إلى كاروسيل بصري. نسخة التشغيل المعتمدة الآن هي **UE 5.4.4** (`EngineAssociation: 5.4`)؛ ترفض سكربتات البناء والاستيراد والدخان أي `Build.version` آخر. توجد الخلفيات في `Content/Art/CivBackgrounds` والشعارات التشغيلية في `Content/Art/CivIcons` والقادة كـ PNG في `Content/Art/Commanders`؛ تُستورد عبر `Import-CivVisuals.ps1` وتُراجع عبر `test:p7-t9-civ-showcase`. أُضيفت كذلك حزمة المدينة والخريطة والواجهة: الأيقونات في `Content/Art/UIIcons`، جلود الأزرار في `Content/Art/UIButtons`، صور المباني في `Content/Art/CityBuildingIcons`، ونماذج Kenney CC0 في `Content/Art/KenneyCastleKit` مع الترخيص؛ الاستيراد عبر `Import-CityMapUIAssets.ps1` والتحقق عبر `test:city-map-ui-assets`. اجتازت `npm run check`، لكن لا تتوفر أدوات Unreal هنا؛ على جهاز Windows مع UE 5.4.4 استورد الأصول ونفّذ PIE قبل تعليم أي من البنود `[x]`.*
