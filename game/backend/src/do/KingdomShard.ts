@@ -1869,7 +1869,7 @@ export class KingdomShard extends DurableObject<Env> {
         await this.env.DB.prepare(
           `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
            ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
-        ).bind(Number(count), entry.playerId, u).run();
+        ).bind(entry.playerId, u, Number(count)).run();
       }
     }
 

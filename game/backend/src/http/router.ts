@@ -1988,7 +1988,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/world/snapshot" && request.method === "GET") {
       const auth = await requireAuth(request, env);
       const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/snapshot");
+      // التقارير وبيانات اللاعب حساسة؛ يمرر الراوتر الهوية الموثقة فقط إلى الـ shard.
+      // لا تستخدم قيمة يسيطر عليها العميل في query أو body لهذا الغرض.
+      const res = await stub.fetch("https://do/snapshot", {
+        headers: auth.playerId ? { "x-rok2-player": auth.playerId } : undefined,
+      });
       const data = await res.json<any>();
       if (!auth.playerId) {
         delete data.queues; // بلا طوابير للضيوف
