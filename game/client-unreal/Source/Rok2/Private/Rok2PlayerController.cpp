@@ -7,6 +7,8 @@
 #include "Rok2Types.h"
 #include "EngineUtils.h"
 #include "Rok2MarchPanel.h"
+#include "Rok2WorldRenderer.h"
+#include "Kismet/GameplayStatics.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Blueprint/UserWidget.h"
 
@@ -247,6 +249,11 @@ void ARok2PlayerController::HandleTapAtScreenPos(const FVector2D& ScreenPos)
 
 		if (MinDistSq < 100.f)
 		{
+			ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+			if (!WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(FoundType, false))
+			{
+				return;
+			}
 			if (URok2MarchPanel* Panel = Cast<URok2MarchPanel>(URok2BlueprintLibrary::CreateRok2Widget(this, URok2MarchPanel::StaticClass())))
 			{
 				Panel->Api = Api;

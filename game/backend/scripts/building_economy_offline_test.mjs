@@ -55,7 +55,7 @@ assert(router.includes("Another building upgrade is already running"), "router r
 assert(router.includes("gemsSpent") && router.includes("gems=gems+?"), "router compensates gem spend when the shard rejects a finish request");
 assert(router.includes("food=food+?") && router.includes("building_queue_failed"), "router compensates resources when building queue creation fails");
 assert(router.includes("/v1/city/collect") && router.includes("getProductionStatus"), "collection route returns authoritative production status");
-assert(shard.includes("/queue/list") && shard.includes("building_queue_busy"), "Durable Object owns the single-building-queue guard");
+assert(shard.includes("/queue/list") && shard.includes("${queueType}_queue_busy") && shard.includes("queue.type === queueType"), "Durable Object owns the type-scoped queue guard");
 
 console.log("\n==== RESULT ====");
 if (failed === 0) {

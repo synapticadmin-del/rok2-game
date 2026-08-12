@@ -43,6 +43,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2|Zoom Layers")
 	ERok2WorldZoomLayer GetZoomLayer() const { return CurrentZoomLayer; }
 
+	/** أمر المسيرة مسموح فقط عندما تكون الأهداف التكتيكية مرئية وقابلة للاختيار. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|World Interaction")
+	bool CanIssueMarchCommand() const;
+
+	/** يحدّد ما إذا كان نوع هدف معيّن قابلاً للمعاينة أو للأمر عند طبقة التكبير الحالية. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|World Interaction")
+	bool CanInteractWithWorldTarget(const FString& TargetType, bool bRequiresMarchOrder) const;
+
+	/** عدد المسيرات الحية للاعب، مشتق من آخر لقطة عالم سلطوية. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|World Interaction")
+	int32 GetActiveMarchCount() const;
+
+	/** سعة المسيرات التي تمنحها قاعة المدينة الحالية؛ تطابق التحقق السلطوي في الخادم. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|World Interaction")
+	int32 GetMarchCapacity() const;
+
 	/** ينشئ طلب بناء في موضع عالم Unreal؛ تحقق الخادم هو السلطة النهائية للنوع والرتبة والإقليم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance Structures")
 	void RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint);

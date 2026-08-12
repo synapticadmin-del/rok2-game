@@ -368,21 +368,35 @@ void URok2CityWidget::Refresh()
 		{
 			UHorizontalBox* QHBox = NewObject<UHorizontalBox>(this);
 
-			// P6-T1: أيقونة نوع الطابور إجرائية (بناء/تدريب) بدل الإيموجي
-			const TCHAR* IconId = Q.Type == TEXT("building") ? TEXT("build") : TEXT("sword");
-			UImage* QIco = NewObject<UImage>(this);
-			QIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, FLinearColor::White));
+							// قنوات التقدم مستقلة: بناء، تدريب، شفاء، وبحث.
+				const bool bBuildQueue = Q.Type == TEXT("building") || Q.Type == TEXT("build");
+				const bool bTrainQueue = Q.Type == TEXT("training") || Q.Type == TEXT("train");
+				const bool bHealQueue = Q.Type == TEXT("healing") || Q.Type == TEXT("heal");
+				const bool bResearchQueue = Q.Type == TEXT("research");
+				const TCHAR* IconId = bBuildQueue ? TEXT("build") : (bTrainQueue ? TEXT("sword") : TEXT("hourglass"));
+				const FLinearColor QueueColor = bBuildQueue ? FLinearColor(0.20f, 0.80f, 1.00f)
+					: (bTrainQueue ? FLinearColor(1.00f, 0.70f, 0.20f)
+					: (bHealQueue ? FLinearColor(0.30f, 0.90f, 0.45f) : FLinearColor(0.72f, 0.50f, 1.00f)));
+				UImage* QIco = NewObject<UImage>(this);
+				QIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, QueueColor));
+
 			QIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
 			UHorizontalBoxSlot* IcoSlot = QHBox->AddChildToHorizontalBox(QIco);
 			IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
-			UTextBlock* QTxt = NewObject<UTextBlock>(this);
-			FString QName = Q.Type == TEXT("building") ? FString::Printf(TEXT("ترقية %s"), *Q.RefId) : FString::Printf(TEXT("تدريب %s"), *Q.RefId);
+				UTextBlock* QTxt = NewObject<UTextBlock>(this);
+				FString QName;
+				if (bBuildQueue) QName = FString::Printf(TEXT("ترقية %s"), *Q.RefId);
+				else if (bTrainQueue) QName = FString::Printf(TEXT("تدريب %s"), *Q.RefId);
+				else if (bHealQueue) QName = FString::Printf(TEXT("شفاء %s"), *Q.RefId);
+				else if (bResearchQueue) QName = FString::Printf(TEXT("بحث %s"), *Q.RefId);
+				else QName = FString::Printf(TEXT("تقدم %s"), *Q.RefId);
 				const int32 DisplaySeconds = Q.RemainingSeconds > 0 ? Q.RemainingSeconds : FMath::Max(0, (int32)((Q.EndMs - FDateTime::UtcNow().ToUnixTimestamp() * 1000) / 1000));
 				const int32 Minutes = DisplaySeconds / 60;
 				const int32 Seconds = DisplaySeconds % 60;
+				QTxt->SetColorAndOpacity(FSlateColor(QueueColor));
 				QTxt->SetText(FText::FromString(FString::Printf(TEXT("%s إلى %d · %02d:%02d"), *QName, Q.Level, Minutes, Seconds)));
 
 			UHorizontalBoxSlot* TxtSlot = QHBox->AddChildToHorizontalBox(QTxt);

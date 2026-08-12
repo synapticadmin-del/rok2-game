@@ -45,6 +45,10 @@ protected:
 	UPROPERTY(Transient)
 	UTextBlock* DistanceText;
 
+	/** سعة القلعة وحالة طبقة الخريطة؛ تعرض قبل إرسال القوات أو الكشافة. */
+	UPROPERTY(Transient)
+	UTextBlock* MarchAvailabilityText;
+
 	UPROPERTY(Transient)
 	USpinBox* InfantrySpinBox;
 

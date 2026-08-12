@@ -1998,12 +1998,17 @@ export class KingdomShard extends DurableObject<Env> {
 
     if (path.endsWith("/queue/add") && request.method === "POST") {
       const body = await request.json<any>();
-      // مبنى واحد فقط قيد الترقية لكل مدينة؛ القطارات والأبحاث تبقى طوابير مستقلة.
-      if (body.type === "build") {
-        const existingBuild = [...this.queues.values()].find(
-          (queue) => queue.playerId === body.playerId && queue.type === "build" && queue.state === "running",
+      // قناة واحدة نشطة لكل نوع داخل المدينة: البناء والتدريب والشفاء والبحث
+      // تعمل بالتوازي، لكن لا يُسمح بتكرار نوع واحد قبل اكتماله.
+      const queueType = String(body.type || "");
+      const independentQueueTypes = new Set(["build", "train", "heal", "research"]);
+      if (independentQueueTypes.has(queueType)) {
+        const existingQueue = [...this.queues.values()].find(
+          (queue) => queue.playerId === body.playerId && queue.type === queueType && queue.state === "running",
         );
-        if (existingBuild) return Response.json({ error: "building_queue_busy", queueId: existingBuild.id }, { status: 409 });
+        if (existingQueue) {
+          return Response.json({ error: `${queueType}_queue_busy`, queueId: existingQueue.id, type: queueType }, { status: 409 });
+        }
       }
       const q: QueueEntity = {
         id: body.id || newId("q"),
@@ -2078,6 +2083,13 @@ export class KingdomShard extends DurableObject<Env> {
     const activeForPlayer = [...this.marches.values()].filter(
       (m) => m.ownerPlayerId === playerId && (m.state === "moving" || m.state === "gathering"),
     ).length;
+    // سعة المسيرات جزء من تقدّم القلعة وليست قيمة يحددها العميل.
+    // كل خمس مستويات لقاعة المدينة تضيف مسيرة، حتى سقف خمس مسيرات حية.
+    const hallLevel = Math.max(1, Math.trunc(Number(city.hallLevel) || 1));
+    const marchCapacity = Math.min(5, 1 + Math.floor((hallLevel - 1) / 5));
+    if (activeForPlayer >= marchCapacity) {
+      throw new Error("march_capacity_reached");
+    }
     const anomaly = checkMarchPayload(troops, activeForPlayer);
     if (anomaly) {
       this.logAntiCheatViolation(playerId, "march", anomaly);

@@ -110,6 +110,54 @@ bool ARok2WorldRenderer::UpdateZoomLayer(float TargetZoomDistance)
 	return true;
 }
 
+bool ARok2WorldRenderer::CanIssueMarchCommand() const
+{
+	return Api && Api->HasPlayer() && CurrentZoomLayer == ERok2WorldZoomLayer::Tactical
+		&& GetActiveMarchCount() < GetMarchCapacity();
+}
+
+bool ARok2WorldRenderer::CanInteractWithWorldTarget(const FString& TargetType, bool bRequiresMarchOrder) const
+{
+	const FString Normalized = TargetType.ToLower();
+	const bool bTacticalTarget = Normalized == TEXT("resource") || Normalized == TEXT("node")
+		|| Normalized == TEXT("barb") || Normalized == TEXT("barbarian") || Normalized == TEXT("city")
+		|| Normalized == TEXT("pass") || Normalized == TEXT("throne")
+		|| Normalized == TEXT("core_objective") || Normalized == TEXT("point");
+	const bool bRegionalTarget = Normalized == TEXT("city") || Normalized == TEXT("pass")
+		|| Normalized == TEXT("march") || Normalized == TEXT("alliance_structure");
+	const bool bKingdomTarget = Normalized == TEXT("city") || Normalized == TEXT("alliance_structure");
+
+	if (bRequiresMarchOrder)
+	{
+		return bTacticalTarget && CanIssueMarchCommand();
+	}
+	if (CurrentZoomLayer == ERok2WorldZoomLayer::Tactical) return bTacticalTarget || bRegionalTarget;
+	if (CurrentZoomLayer == ERok2WorldZoomLayer::Regional) return bRegionalTarget;
+	return bKingdomTarget;
+}
+
+int32 ARok2WorldRenderer::GetActiveMarchCount() const
+{
+	if (!Api || !Api->HasPlayer()) return 0;
+
+	const FString& PlayerId = Api->GetPlayer().Id;
+	int32 Count = 0;
+	for (const FRok2MarchEntity& March : CurrentMarches)
+	{
+		if (March.OwnerPlayerId == PlayerId && (March.State == TEXT("moving") || March.State == TEXT("gathering")))
+		{
+			++Count;
+		}
+	}
+	return Count;
+}
+
+int32 ARok2WorldRenderer::GetMarchCapacity() const
+{
+	const int32 HallLevel = Api ? FMath::Max(1, Api->GetCity().HallLevel) : 1;
+	return FMath::Min(5, 1 + (HallLevel - 1) / 5);
+}
+
 void ARok2WorldRenderer::ApplyZoomLayerVisibility()
 {
 	const bool bTactical = IsTacticalLayer();
@@ -126,6 +174,11 @@ void ARok2WorldRenderer::ApplyZoomLayerVisibility()
 
 void ARok2WorldRenderer::RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint)
 {
+	if (CurrentZoomLayer != ERok2WorldZoomLayer::Tactical)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Alliance structure placement requires tactical map zoom."));
+		return;
+	}
 	if (!Api)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Cannot build alliance structure: API is unavailable."));

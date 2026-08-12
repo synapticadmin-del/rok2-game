@@ -873,7 +873,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const duration = Math.max(1, Math.floor(10 * count / ((1 + researchBuff(await getResearchLevels(env, player.id), "training_speed")) * vipT.train_speed_mult)));
       const queueId = newId("q");
       const stub = kingdomStub(env);
-      await stub.fetch("https://do/queue/add", {
+      const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -885,6 +885,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           etaMs: nowMs() + duration * 1000,
         })
       });
+      const queueData = await queueResponse.json<any>();
+      if (!queueResponse.ok) {
+        await env.DB.prepare(
+          "UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+?, updated_at=? WHERE player_id=?",
+        ).bind(Number(cost.food || 0), Number(cost.wood || 0), Number(cost.stone || 0), Number(cost.gold || 0), nowMs(), player.id).run();
+        throw new HttpError(queueResponse.status, queueData.error || "train_queue_failed", queueData);
+      }
 
       const all = await getTroopsMap(env, player.id);
       city = await refreshCity(env, player.id);
@@ -1222,7 +1229,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const duration = healDurationSec(count);
       const queueId = newId("q");
       const stub = kingdomStub(env);
-      await stub.fetch("https://do/queue/add", {
+      const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -1234,6 +1241,18 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           etaMs: nowMs() + duration * 1000,
         })
       });
+      const queueData = await queueResponse.json<any>();
+      if (!queueResponse.ok) {
+        await env.DB.prepare(
+          "UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+?, updated_at=? WHERE player_id=?",
+        ).bind(Number(cost.food || 0), Number(cost.wood || 0), Number(cost.stone || 0), Number(cost.gold || 0), nowMs(), player.id).run();
+        for (const [u, c] of Object.entries(body.troops || {})) {
+          await env.DB.prepare(
+            "UPDATE troops SET count=count+? WHERE player_id=? AND unit_id=? AND status='severely_wounded'",
+          ).bind(Number(c), player.id, u).run();
+        }
+        throw new HttpError(queueResponse.status, queueData.error || "heal_queue_failed", queueData);
+      }
 
       city = await refreshCity(env, player.id);
       // P4-T1: نقاط Battle Pass عن الشفاء
@@ -1303,7 +1322,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const duration = researchDurationSec(body.techId, nextLevel);
       const queueId = newId("q");
       const stub = kingdomStub(env);
-      await stub.fetch("https://do/queue/add", {
+      const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -1315,6 +1334,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           etaMs: nowMs() + duration * 1000,
         })
       });
+      const queueData = await queueResponse.json<any>();
+      if (!queueResponse.ok) {
+        await env.DB.prepare(
+          "UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+?, updated_at=? WHERE player_id=?",
+        ).bind(Number(cost.food || 0), Number(cost.wood || 0), Number(cost.stone || 0), Number(cost.gold || 0), nowMs(), player.id).run();
+        throw new HttpError(queueResponse.status, queueData.error || "research_queue_failed", queueData);
+      }
 
       city = await refreshCity(env, player.id);
       // P4-T1: نقاط Battle Pass عن البحث

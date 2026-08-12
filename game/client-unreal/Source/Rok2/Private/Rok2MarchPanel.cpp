@@ -7,6 +7,8 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2WorldRenderer.h"
+#include "Kismet/GameplayStatics.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -65,10 +67,25 @@ void URok2MarchPanel::NativeConstruct()
 			Dist = FVector2D::Distance(FVector2D(P.X, P.Y), FVector2D(ToX, ToY));
 		}
 		DistanceText->SetText(FText::FromString(FString::Printf(TEXT("Distance: %.0f"), Dist)));
-		DistanceText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-		UVerticalBoxSlot* DistSlot = VBox->AddChildToVerticalBox(DistanceText);
-		DistSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 20.f));
-		DistSlot->SetHorizontalAlignment(HAlign_Center);
+					DistanceText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			UVerticalBoxSlot* DistSlot = VBox->AddChildToVerticalBox(DistanceText);
+			DistSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 6.f));
+			DistSlot->SetHorizontalAlignment(HAlign_Center);
+
+			MarchAvailabilityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MarchAvailabilityText"));
+			ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+			const int32 ActiveMarches = WorldRenderer ? WorldRenderer->GetActiveMarchCount() : 0;
+			const int32 MarchCapacity = WorldRenderer ? WorldRenderer->GetMarchCapacity() : 1;
+			const bool bCanDispatch = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
+			MarchAvailabilityText->SetText(FText::FromString(bCanDispatch
+				? FString::Printf(TEXT("المسيرات: %d / %d · تكبير تكتيكي جاهز"), ActiveMarches, MarchCapacity)
+				: FString::Printf(TEXT("المسيرات: %d / %d · قرّب الخريطة أو حرّر مسيرة"), ActiveMarches, MarchCapacity)));
+			MarchAvailabilityText->SetColorAndOpacity(FSlateColor(bCanDispatch ? FLinearColor(0.35f, 0.95f, 0.55f) : FLinearColor(1.0f, 0.65f, 0.25f)));
+			UVerticalBoxSlot* AvailabilitySlot = VBox->AddChildToVerticalBox(MarchAvailabilityText);
+			AvailabilitySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 14.f));
+			AvailabilitySlot->SetHorizontalAlignment(HAlign_Center);
+
+
 
 		auto CreateTroopInput = [this, VBox](const FString& Label, USpinBox*& OutSpinBox)
 		{
@@ -173,8 +190,12 @@ void URok2MarchPanel::NativeConstruct()
 			DispatchBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
 		}
 
-		DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
-		URok2MotionLibrary::BindPress(DispatchButton);	// P6-T3: ضغطة محسوسة
+			ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+			const bool bCanDispatch = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
+			DispatchButton->SetIsEnabled(bCanDispatch);
+			ScoutButton->SetIsEnabled(bCanDispatch);
+			DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
+			URok2MotionLibrary::BindPress(DispatchButton);	// P6-T3: ضغطة محسوسة
 
 		// P6-T3: لوحة المسيرة تفتح من المركز (المعيار الموحد 0.25s)
 		URok2MotionLibrary::PlayScaleInCenter(MainBorder);
@@ -183,7 +204,8 @@ void URok2MarchPanel::NativeConstruct()
 
 void URok2MarchPanel::OnDispatchClicked()
 {
-	if (!Api) return;
+	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+	if (!Api || !WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(TargetType, true)) return;
 
 	TMap<FString, int32> TroopsMap;
 	if (InfantrySpinBox && InfantrySpinBox->GetValue() > 0)
@@ -216,7 +238,8 @@ void URok2MarchPanel::OnDispatchClicked()
 
 void URok2MarchPanel::OnScoutClicked()
 {
-	if (!Api) return;
+	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+	if (!Api || !WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(TargetType, true)) return;
 
 	// P5-T5: إرسال كشافة للنقطة المحددة (بدون قوات)
 	Api->SendScout(ToX, ToY);
