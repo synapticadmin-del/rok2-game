@@ -11,9 +11,11 @@ import process from 'node:process';
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const clientRoot = path.resolve(scriptDir, '..');
 const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+// قائمة UIIcons الكاملة = الحارس السابق + المعرفات التي يتوقعها URok2ArtAssets::ImportedIds
 const icons = [
   'alliance', 'bag', 'bell', 'build', 'food', 'gems', 'gold', 'heal',
-  'map', 'reports', 'research', 'settings', 'speed', 'stone', 'train', 'wood',
+  'hospital', 'mail', 'map', 'reports', 'research', 'settings', 'speed',
+  'speedup', 'stone', 'train', 'upgrade', 'wood',
 ];
 const buttons = ['danger_red', 'primary_gold', 'secondary_blue', 'success_green'];
 const cityBuildings = [
