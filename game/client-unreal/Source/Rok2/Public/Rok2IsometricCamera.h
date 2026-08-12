@@ -52,6 +52,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void FocusOn(const FVector& WorldLocation);
 
+	/** يغيّر هدف مسافة الكاميرا؛ المسافة المرئية تنتقل إليه بالتنعيم داخل Tick. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void SetTargetZoomDistance(float NewDistance);
+
+	/** نقطة التركيز المقصودة؛ تستخدم لحفظ موضع الخريطة أثناء انتقال العرض. */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	FVector GetTargetFocusLocation() const { return TargetLocation; }
+
+	/** مسافة التكبير المقصودة التي تقود طبقات عرض خريطة العالم. */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	float GetTargetZoomDistance() const { return TargetDistance; }
+
 	/** سحب بالإصبع: يحرّك الهدف بمقدار متناسب مع بُعد الكاميرا، فيبقى
 	 *  إحساس "الأرض تتبع الإصبع" ثابتاً عند كل مستويات التكبير. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Touch")
@@ -78,6 +90,13 @@ public:
 
 	UPROPERTY(Transient)
 	float TargetDistance = 2200.f;
+
+	/** المسافة المعروضة حالياً؛ تفصل استجابة الإدخال عن حركة الانتقال البصرية. */
+	UPROPERTY(Transient)
+	float CurrentDistance = 2200.f;
+
+	UPROPERTY(EditAnywhere, Category = "Rok2")
+	float CameraTransitionSpeed = 8.f;
 
 	UPROPERTY(Transient)
 	FVector CurrentVelocity = FVector::ZeroVector;

@@ -35,6 +35,15 @@ enum class ERok2BuildingVisualState : uint8
 	HasWounded      // جرحى موجودون (مستشفى — صليب نابض)
 };
 
+/** واجهة تجميلية تغيّر الزخرفة والهيئة، لا أثر لها في قوة أو وظيفة المبنى. */
+UENUM(BlueprintType)
+enum class ERok2BuildingFacade : uint8
+{
+	Standard = 0,
+	Ceremonial,
+	Fortified
+};
+
 UCLASS()
 class ROK2_API ARok2BuildingActor : public AActor
 {
@@ -93,6 +102,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	ERok2BuildingVisualState VisualState = ERok2BuildingVisualState::Complete;
 
+	/** واجهة المبنى التجميلية التي اختارها اللاعب. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rok2|Facade")
+	ERok2BuildingFacade Facade = ERok2BuildingFacade::Standard;
+
 	/** هل المبنى ثابت (City Hall) لا يُنقل؟ */
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	bool bIsStatic = false;
@@ -112,6 +125,10 @@ public:
 	/** ضبط الحالة البصرية وتحديث المؤشر العائم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SetVisualState(ERok2BuildingVisualState NewState);
+
+	/** يبدّل واجهة المبنى مع الحفاظ على المستوى والبصمة ووظيفة المبنى. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Facade")
+	void SetFacade(ERok2BuildingFacade NewFacade);
 
 	/**
 	 * يعلن أن المبنى يستخدم أصلاً فنياً حقيقياً (GLB) بدل الشكل المركّب placeholder،
@@ -149,6 +166,9 @@ protected:
 
 	/** يضبط شكل السقف حسب نمط عمارة الحضارة. */
 	void ApplyArchStyleToRoof();
+
+	/** يضيف اختلافات واجهة واضحة ومحدودة فوق نمط الحضارة. */
+	void ApplyFacadeStyle();
 
 	float FootprintWorldScale() const;
 

@@ -1,4 +1,6 @@
-// Copyright ROK2. View Manager.
+//
+// يدير الانتقال السلس بين مدينة اللاعب وخريطة العالم، مع حفظ موضع الخريطة.
+//
 
 #pragma once
 
@@ -10,12 +12,19 @@ class ARok2WorldRenderer;
 class ARok2CityBuilder;
 class ARok2IsometricCamera;
 
+enum class ERok2ViewTransition : uint8
+{
+	None,
+	ToMap,
+	ToCity
+};
+
 UCLASS()
 class ROK2_API ARok2ViewManager : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	ARok2ViewManager();
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
@@ -27,6 +36,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void ToggleView();
 
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	bool IsCityView() const { return bIsCityView; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	bool IsTransitioning() const { return ActiveTransition != ERok2ViewTransition::None; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
 	ARok2WorldRenderer* WorldRenderer;
 
@@ -36,18 +51,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
 	ARok2IsometricCamera* IsoCamera;
 
-	/** موضع كاميرا المدينة. المدينة تُبنى حول نقطة الأصل في Rok2CityBuilder،
-	 *  فالارتفاع وحده هو ما يلزم — القيمة القديمة (5000,5000) كانت تضع
-	 *  الكاميرا بعيداً عن المدينة تماماً. */
+	/** مركز مدينة اللاعب؛ Rok2CityBuilder يبني القلعة حول هذه النقطة. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
-	FVector CityViewLocation = FVector(0.f, 0.f, 0.f);
+	FVector CityViewLocation = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Transition")
+	float CityViewZoomDistance = 2200.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Transition")
+	float DefaultMapZoomDistance = 26000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Transition")
+	float CityToMapDuration = 0.65f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Transition")
+	float MapToCityDuration = 0.55f;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
 
 private:
-	bool bIsCityView;
+	bool bIsCityView = false;
+	ERok2ViewTransition ActiveTransition = ERok2ViewTransition::None;
+	float TransitionElapsed = 0.f;
 
-	/** آخر موضع للكاميرا على الخريطة، ليعود اللاعب حيث كان. */
+	/** آخر هدف للكاميرا على الخريطة، لا موضع الممثل المتأخر بالتنعيم. */
 	FVector LastMapLocation = FVector::ZeroVector;
+	float LastMapZoomDistance = 26000.f;
+
+	void BeginTransition(ERok2ViewTransition Direction);
+	void FinishTransition();
+	void SetWorldVisibility(bool bVisible);
+	void SetCityVisibility(bool bVisible);
 };

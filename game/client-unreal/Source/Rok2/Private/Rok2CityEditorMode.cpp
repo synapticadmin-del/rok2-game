@@ -179,9 +179,14 @@ void ARok2CityEditorMode::LoadLayout(int32 Slot)
 			ARok2BuildingActor* B = Layout->Buildings[P.BuildingId];
 			if (B)
 			{
-				B->RotationSteps = P.RotationSteps % 6;
+				B->RotationSteps = FMath::Abs(P.RotationSteps) % 6;
 				B->SetActorRotation(FRotator(0.f, B->RotationSteps * 60.f, 0.f));
+				if (!B->bIsStatic)
+				{
+					B->SetFacade(P.Facade);
+				}
 			}
 		}
 	}
+	Layout->SaveLayoutToServer();
 }

@@ -10,6 +10,7 @@
 #include "Rok2FogOfWar.h"
 #include "Rok2AudioManager.h"
 #include "Rok2Perf.h"
+#include "Rok2IsometricCamera.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
@@ -89,6 +90,40 @@ void ARok2WorldRenderer::BeginPlay()
 	}
 }
 
+bool ARok2WorldRenderer::UpdateZoomLayer(float TargetZoomDistance)
+{
+	const ERok2WorldZoomLayer NextLayer = TargetZoomDistance < TacticalZoomMaxDistance
+		? ERok2WorldZoomLayer::Tactical
+		: (TargetZoomDistance < RegionalZoomMaxDistance ? ERok2WorldZoomLayer::Regional : ERok2WorldZoomLayer::Kingdom);
+	if (NextLayer == CurrentZoomLayer)
+	{
+		return false;
+	}
+
+	CurrentZoomLayer = NextLayer;
+	ApplyZoomLayerVisibility();
+	// تعاد قراءة اللقطة المخزنة في API فقط عند تغير الطبقة؛ لا طلب شبكة إضافي ولا churn لكل إطار.
+	if (Api)
+	{
+		RefreshFromApi();
+	}
+	return true;
+}
+
+void ARok2WorldRenderer::ApplyZoomLayerVisibility()
+{
+	const bool bTactical = IsTacticalLayer();
+	const bool bRegional = IsRegionalOrCloserLayer();
+	if (PassHISM) PassHISM->SetVisibility(bRegional, true);
+	if (ResourceNodeHISM) ResourceNodeHISM->SetVisibility(bTactical, true);
+	if (BarbarianNodeHISM) BarbarianNodeHISM->SetVisibility(bTactical, true);
+
+	for (const auto& Entry : SpawnedMarches)
+	{
+		if (Entry.Value) Entry.Value->SetActorHiddenInGame(!bRegional);
+	}
+}
+
 void ARok2WorldRenderer::RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint)
 {
 	if (!Api)
@@ -118,6 +153,14 @@ void ARok2WorldRenderer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+	{
+		if (ARok2IsometricCamera* Camera = Cast<ARok2IsometricCamera>(PC->GetViewTarget()))
+		{
+			UpdateZoomLayer(Camera->GetTargetZoomDistance());
+		}
+	}
+
 	// P5-T5: تحديث الكشافة من نظام ضباب الحرب
 	if (URok2FogOfWar* Fog = URok2FogOfWar::Get())
 	{
@@ -130,6 +173,11 @@ void ARok2WorldRenderer::Tick(float DeltaSeconds)
 	for (const FRok2MarchEntity& M : CurrentMarches)
 	{
 		AActor** ActorPtr = SpawnedMarches.Find(M.Id);
+		if (!IsRegionalOrCloserLayer())
+		{
+			if (ActorPtr && *ActorPtr) (*ActorPtr)->SetActorHiddenInGame(true);
+			continue;
+		}
 		if (ActorPtr && *ActorPtr)
 		{
 			AActor* MarchActor = *ActorPtr;
@@ -247,6 +295,7 @@ void ARok2WorldRenderer::RefreshFromApi()
 	// P5-T2: جلب ثيم حضارة اللاعب لتلوين مدينته الخاصة
 	URok2CivThemes* CivThemes = URok2CivThemes::Get();
 	const FString MyCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
+	const FString MyAlliance = Api->HasPlayer() ? Api->GetPlayer().AllianceId : TEXT("");
 	const FRok2CivTheme& MyTheme = CivThemes->GetTheme(MyCiv);
 
 	// P5-T5: جلب نظام ضباب الحرب
@@ -322,6 +371,7 @@ void ARok2WorldRenderer::RefreshFromApi()
 
 	for (const FRok2PassEntity& P : W.Passes)
 	{
+		if (!IsRegionalOrCloserLayer()) continue;
 		FVector Loc(P.X * WorldToUnrealScale, P.Y * WorldToUnrealScale, PassZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
 
@@ -339,6 +389,7 @@ void ARok2WorldRenderer::RefreshFromApi()
 
 	for (const FRok2NodeEntity& N : W.Nodes)
 	{
+		if (!IsTacticalLayer()) continue;
 		FVector Loc(N.X * WorldToUnrealScale, N.Y * WorldToUnrealScale, NodeZ);
 		if (FVector::DistSquared(Loc, CamLoc) > RenderDistanceSq) continue;
 
@@ -381,7 +432,7 @@ void ARok2WorldRenderer::RefreshFromApi()
 			}
 		}
 
-		if (ProtectionRadiusMesh && S.ProtectionRadius > 0.0)
+		if (IsTacticalLayer() && ProtectionRadiusMesh && S.ProtectionRadius > 0.0)
 		{
 			const float DiameterScale = FMath::Max(0.01f, float((S.ProtectionRadius * WorldToUnrealScale) / 50.0));
 			if (AActor* Range = SpawnMarkerActor(ProtectionRadiusMesh, FVector(Loc.X, Loc.Y, AllianceStructureZ - 4.f), FString::Printf(TEXT("ProtectionRange_%s"), *S.Id), StructureColor.CopyWithNewOpacity(0.18f)))
@@ -435,13 +486,13 @@ void ARok2WorldRenderer::RefreshFromApi()
 	CurrentMarches = W.Marches;
 	TSet<FString> ActiveMarches;
 	const FString MyId = Api->GetPlayer().Id;
-	const FString MyAlliance = Api->GetPlayer().AllianceId;
 	for (const FRok2MarchEntity& M : CurrentMarches)
 	{
 		// لا نرسم المسيرات المنتهية
 		if (M.State == TEXT("returned") || M.State == TEXT("cancelled") || M.State == TEXT("arrived")) continue;
 
 		ActiveMarches.Add(M.Id);
+		if (!IsRegionalOrCloserLayer()) continue;
 		if (!SpawnedMarches.Contains(M.Id))
 		{
 			// اللون: أخضر لي، أزرق لتحالفي، أحمر للأعداء؛ العائدة رمادية-زرقاء

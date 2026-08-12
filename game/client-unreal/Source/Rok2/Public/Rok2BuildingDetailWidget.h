@@ -16,6 +16,7 @@ class UVerticalBox;
 class UBorder;
 class UProgressBar;
 class UImage;
+class ARok2CityLayoutActor;
 
 /** حدث زر ثانوي حسب نوع المبنى (تدريب/شفاء/بحث/صناديق) — يفوَّض للخارج */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBuildingAction, const FString&, BuildingId, const FString&, ActionKind);
@@ -67,6 +68,8 @@ protected:
 	UPROPERTY() UTextBlock* UpgradeBtnText;
 	UPROPERTY() UButton* ActionButton;
 	UPROPERTY() UTextBlock* ActionBtnText;
+	UPROPERTY() UButton* FacadeButton;
+	UPROPERTY() UTextBlock* FacadeBtnText;
 	// P6-T1: أيقونة الزر الثانوي حسب نوع الإجراء (تدريب/شفاء/بحث/صناديق)
 	UPROPERTY() UImage* ActionBtnIcon;
 	UPROPERTY() UButton* CloseButton;
@@ -77,6 +80,10 @@ protected:
 	UFUNCTION()
 	void OnActionClicked();
 
+	/** يبدّل بين standard وceremonial وfortified للمباني المتحركة. */
+	UFUNCTION()
+	void OnFacadeClicked();
+
 	UFUNCTION()
 	void OnCloseClicked();
 
@@ -85,6 +92,8 @@ protected:
 	FString ActionLabelForBuilding(const FString& Id) const;
 	// P6-T1: معرّف أيقونة الزر الثانوي الإجرائية
 	FString ActionIconForBuilding(const FString& Id) const;
+	FString FacadeLabel() const;
+	ARok2CityLayoutActor* FindCityLayout() const;
 
 	// أنيميشن الدخول (انزلاق من أسفل)
 	// P6-T3: حالة الانزلاق المحلية أُزيلت — الحركة صارت في URok2MotionLibrary

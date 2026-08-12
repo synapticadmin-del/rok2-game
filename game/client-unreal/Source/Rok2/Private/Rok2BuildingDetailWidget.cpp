@@ -9,6 +9,8 @@
 #include "Rok2MotionLibrary.h"
 #include "Rok2DelegateBind.h"
 #include "Rok2VisualTheme.h"
+#include "Rok2CityLayoutActor.h"
+#include "Rok2BuildingActor.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -22,6 +24,7 @@
 #include "Components/Spacer.h"
 #include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
+#include "Kismet/GameplayStatics.h"
 
 void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& InBuildingId, int32 InLevel)
 {
@@ -83,6 +86,10 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 		ActionBtnIcon->SetVisibility(ActionIcon.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
 	if (ActionButton) ActionButton->SetVisibility(ActionLabel.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+
+	const bool bCanCustomize = BuildingId != TEXT("city_hall") && FindCityLayout() && FindCityLayout()->Buildings.Contains(BuildingId);
+	if (FacadeButton) FacadeButton->SetVisibility(bCanCustomize ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	if (FacadeBtnText) FacadeBtnText->SetText(FText::FromString(FacadeLabel()));
 }
 
 FString URok2BuildingDetailWidget::ActionKindForBuilding(const FString& Id) const
@@ -257,6 +264,8 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	UImage* UpgradeIco = nullptr;
 	MakeBtn(UpgradeButton, UpgradeBtnText, UpgradeIco, TEXT("build"), TEXT("ترقية"), Rok2Visual::PrimaryAction(), FName(TEXT("OnUpgradeClicked")));
 	MakeBtn(ActionButton, ActionBtnText, ActionBtnIcon, TEXT("sword"), TEXT(""), Rok2Visual::Card(), FName(TEXT("OnActionClicked")));
+	UImage* FacadeIco = nullptr;
+	MakeBtn(FacadeButton, FacadeBtnText, FacadeIco, TEXT("build"), TEXT("واجهة"), Rok2Visual::Card(), FName(TEXT("OnFacadeClicked")));
 
 	UTextBlock* CloseTxt = nullptr;
 	UImage* CloseIco = nullptr;
@@ -294,6 +303,51 @@ void URok2BuildingDetailWidget::OnActionClicked()
 	}
 	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
 	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+ARok2CityLayoutActor* URok2BuildingDetailWidget::FindCityLayout() const
+{
+	return GetWorld() ? Cast<ARok2CityLayoutActor>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2CityLayoutActor::StaticClass())) : nullptr;
+}
+
+FString URok2BuildingDetailWidget::FacadeLabel() const
+{
+	if (ARok2CityLayoutActor* Layout = FindCityLayout())
+	{
+		if (ARok2BuildingActor** Building = Layout->Buildings.Find(BuildingId))
+		{
+			switch ((*Building)->Facade)
+			{
+			case ERok2BuildingFacade::Ceremonial: return TEXT("واجهة: احتفالية");
+			case ERok2BuildingFacade::Fortified: return TEXT("واجهة: محصنة");
+			case ERok2BuildingFacade::Standard:
+			default: return TEXT("واجهة: عادية");
+			}
+		}
+	}
+	return TEXT("واجهة");
+}
+
+void URok2BuildingDetailWidget::OnFacadeClicked()
+{
+	ARok2CityLayoutActor* Layout = FindCityLayout();
+	if (!Layout || BuildingId == TEXT("city_hall"))
+	{
+		return;
+	}
+
+	ARok2BuildingActor** Building = Layout->Buildings.Find(BuildingId);
+	if (!Building || !*Building)
+	{
+		return;
+	}
+
+	const uint8 NextValue = (static_cast<uint8>((*Building)->Facade) + 1) % 3;
+	if (Layout->SetBuildingFacade(BuildingId, static_cast<ERok2BuildingFacade>(NextValue)))
+	{
+		Layout->SaveLayoutToServer();
+		if (FacadeBtnText) FacadeBtnText->SetText(FText::FromString(FacadeLabel()));
+	}
 }
 
 void URok2BuildingDetailWidget::OnCloseClicked()

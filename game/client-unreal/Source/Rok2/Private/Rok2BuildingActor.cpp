@@ -118,7 +118,8 @@ void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const 
 	else if (Medium.Contains(InId)) Footprint = ERok2Footprint::Medium;
 	else Footprint = ERok2Footprint::Small;
 
-	if (InId == TEXT("city_hall")) bIsStatic = true;
+	// القلعة المركزية ثابتة دائماً؛ إعادة الضبط ضرورية عند إعادة استخدام ممثل مبنى.
+	bIsStatic = InId == TEXT("city_hall");
 
 	// الموضع العالمي من الخلية
 	const FVector Loc = URok2HexGrid::HexToWorld(AnchorCell, HexSize);
@@ -131,13 +132,26 @@ void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const 
 	const float S = FootprintWorldScale();
 	if (!bUsingArtAsset)
 	{
-		Mesh->SetWorldScale3D(FVector(S, S, 0.8f + Level * 0.1f));
+		const bool bCityCore = InId == TEXT("city_hall");
+		Mesh->SetWorldScale3D(bCityCore
+			? FVector(S * 1.16f, S * 1.16f, 1.18f + Level * 0.14f)
+			: FVector(S, S, 0.8f + Level * 0.1f));
+		if (bCityCore)
+		{
+			Tags.AddUnique(FName(TEXT("city_core")));
+		}
 	}
 }
 
 void ARok2BuildingActor::MarkUsingArtAsset()
 {
 	bUsingArtAsset = true;
+	ApplyCivTheme();
+}
+
+void ARok2BuildingActor::SetFacade(ERok2BuildingFacade NewFacade)
+{
+	Facade = NewFacade;
 	ApplyCivTheme();
 }
 
@@ -158,6 +172,7 @@ void ARok2BuildingActor::ApplyCivTheme()
 			Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
 			Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
 		}
+		ApplyFacadeStyle();
 		return;
 	}
 
@@ -190,8 +205,57 @@ void ARok2BuildingActor::ApplyCivTheme()
 		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Accent * 0.6f); // توهج خفيف للذهب
 	}
 
-	// ضبط أشكال الأجزاء حسب نمط العمارة
+	// ضبط أشكال الأجزاء حسب نمط العمارة ثم طبقة الواجهة التجميلية.
 	ApplyArchStyleToRoof();
+	ApplyFacadeStyle();
+}
+
+void ARok2BuildingActor::ApplyFacadeStyle()
+{
+	if (!Mesh || !TrimMesh || !AccentMesh)
+	{
+		return;
+	}
+
+	Tags.Remove(FName(TEXT("facade_standard")));
+	Tags.Remove(FName(TEXT("facade_ceremonial")));
+	Tags.Remove(FName(TEXT("facade_fortified")));
+
+	const float S = FootprintWorldScale();
+	switch (Facade)
+	{
+	case ERok2BuildingFacade::Ceremonial:
+		// شريط احتفالي وراية/شعلة أعلى المبنى؛ لا يغيّر من خصائص اللعب.
+		Tags.Add(FName(TEXT("facade_ceremonial")));
+		TrimMesh->SetVisibility(true);
+		AccentMesh->SetVisibility(true);
+		TrimMesh->SetWorldScale3D(FVector(S * 1.05f, S * 1.05f, 0.22f));
+		AccentMesh->SetWorldScale3D(FVector(0.42f, 0.42f, 0.68f));
+		AccentMesh->SetRelativeLocation(FVector(0.f, 0.f, (0.8f + Level * 0.1f) * 100.f + 70.f));
+		break;
+
+	case ERok2BuildingFacade::Fortified:
+		// قاعدة أعرض وعلامة حراسة أعلى المبنى لتأكيد نطاق عسكري/دفاعي.
+		Tags.Add(FName(TEXT("facade_fortified")));
+		TrimMesh->SetVisibility(true);
+		AccentMesh->SetVisibility(true);
+		TrimMesh->SetWorldScale3D(FVector(S * 1.2f, S * 1.2f, 0.30f));
+		TrimMesh->SetRelativeLocation(FVector(0.f, 0.f, 15.f));
+		AccentMesh->SetWorldScale3D(FVector(0.32f, 0.32f, 0.9f));
+		AccentMesh->SetRelativeLocation(FVector(0.f, 0.f, (0.8f + Level * 0.1f) * 100.f + 55.f));
+		break;
+
+	case ERok2BuildingFacade::Standard:
+	default:
+		Tags.Add(FName(TEXT("facade_standard")));
+		// الأصل الفني يبقى نظيفاً في الوضع القياسي، أما placeholder فيحتفظ بزخارف الحضارة.
+		if (bUsingArtAsset)
+		{
+			TrimMesh->SetVisibility(false);
+			AccentMesh->SetVisibility(false);
+		}
+		break;
+	}
 }
 
 void ARok2BuildingActor::ApplyArchStyleToRoof()
@@ -293,6 +357,16 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 		AccentMesh->SetWorldScale3D(FVector(0.2f, 0.2f, 0.3f));
 		AccentMesh->SetRelativeLocation(FVector(0, 0, BaseHeight * 100.f + 52.f));
 		break;
+	}
+
+	if (BuildingId == TEXT("city_hall"))
+	{
+		// القلعة = كتلة أعلى + سقف أوسع + شارة أعلى، مع الاحتفاظ بسمات الحضارة.
+		RoofScale *= 1.18f;
+		RoofLoc.Z += 38.f;
+		TrimMesh->SetWorldScale3D(TrimMesh->GetComponentScale() * 1.18f);
+		AccentMesh->SetWorldScale3D(AccentMesh->GetComponentScale() * 1.35f);
+		AccentMesh->SetRelativeLocation(AccentMesh->GetRelativeLocation() + FVector(0.f, 0.f, 32.f));
 	}
 
 	if (RoofMeshAsset)

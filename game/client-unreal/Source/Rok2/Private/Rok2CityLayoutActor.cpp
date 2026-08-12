@@ -6,11 +6,13 @@
 #include "Rok2HexWallActor.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
+#include "Rok2CityLayoutSaveGame.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
+#include "Kismet/GameplayStatics.h"
 
 ARok2CityLayoutActor::ARok2CityLayoutActor()
 {
@@ -62,11 +64,12 @@ void ARok2CityLayoutActor::BeginPlay()
 
 int32 ARok2CityLayoutActor::RadiusForCityHallLevel(int32 L)
 {
+	// يضمن المستوى الأول مساحة كافية للقلعة (بصمة 2) ولمناطق مدنية وعسكرية مفصولة.
 	if (L >= 22) return 12;
 	if (L >= 16) return 10;
 	if (L >= 10) return 8;
-	if (L >= 5) return 6;
-	return 5;
+	if (L >= 5) return 7;
+	return 6;
 }
 
 void ARok2CityLayoutActor::BuildGround()
@@ -122,13 +125,39 @@ void ARok2CityLayoutActor::ClearBuildings()
 	Buildings.Empty();
 }
 
-FRok2HexCell ARok2CityLayoutActor::DefaultCellForIndex(int32 Index, int32 Total) const
+FRok2HexCell ARok2CityLayoutActor::DefaultCellForBuilding(const FString& BuildingId, int32 Index) const
 {
-	// توزيع حلقي لولبي حول المركز كتخطيط افتراضي
-	if (Index == 0) return FRok2HexCell(0, 0); // city_hall في المركز
-	const TArray<FRok2HexCell> Spiral = URok2HexGrid::FilledHexagon(CityRadiusCells - 1);
-	int32 SpiralIdx = FMath::Min(Index, Spiral.Num() - 1);
-	return Spiral[SpiralIdx];
+	// تخطيط المناطق الافتراضي: قلعة مركزية، ثم نطاق مدني، ثم قطاعات جيش/اقتصاد.
+	// الإحداثيات مختارة لتترك مسافات فاصلة بين البصمات المتوسطة والقلعة الكبيرة.
+	static const TMap<FString, FRok2HexCell> ZonedCells = {
+		{ TEXT("city_hall"), FRok2HexCell(0, 0) },
+		{ TEXT("tavern"), FRok2HexCell(-3, 3) },
+		{ TEXT("trading_post"), FRok2HexCell(3, -3) },
+		{ TEXT("academy"), FRok2HexCell(-4, 4) },
+		{ TEXT("alliance_center"), FRok2HexCell(4, -4) },
+		{ TEXT("barracks"), FRok2HexCell(-4, 0) },
+		{ TEXT("stable"), FRok2HexCell(0, -4) },
+		{ TEXT("archery_range"), FRok2HexCell(4, 0) },
+		{ TEXT("siege_workshop"), FRok2HexCell(0, 4) },
+		{ TEXT("hospital"), FRok2HexCell(0, 4) },
+		{ TEXT("farm"), FRok2HexCell(-3, 2) },
+		{ TEXT("lumber_mill"), FRok2HexCell(2, -3) },
+		{ TEXT("quarry"), FRok2HexCell(3, -1) },
+		{ TEXT("goldmine"), FRok2HexCell(-1, 3) },
+		{ TEXT("storehouse"), FRok2HexCell(3, 2) },
+		// مركز بوابة رمزي: لا يحل محل السور السداسي الفعلي.
+		{ TEXT("wall"), FRok2HexCell(4, -2) },
+		{ TEXT("builders_hut"), FRok2HexCell(-2, -1) }
+	};
+
+	if (const FRok2HexCell* Zoned = ZonedCells.Find(BuildingId))
+	{
+		return *Zoned;
+	}
+
+	// احتياط منظم لمبانٍ مستقبلية: حلقات بعيدة عن مركز القلعة، لا عودة إلى الخلية (0,0).
+	const TArray<FRok2HexCell> Ring = URok2HexGrid::Ring(FMath::Max(3, CityRadiusCells - 2));
+	return Ring.IsValidIndex(Index % Ring.Num()) ? Ring[Index % Ring.Num()] : FRok2HexCell(CityRadiusCells - 2, 0);
 }
 
 bool ARok2CityLayoutActor::CanPlaceAt(const FString& BuildingId, ERok2Footprint Footprint, const FRok2HexCell& Cell, const FString& IgnoreBuildingId) const
@@ -181,13 +210,20 @@ void ARok2CityLayoutActor::RebuildFromApi()
 	const FString PlayerCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
 
 	const TMap<FString, int32>& ApiBuildings = Api->GetBuildings();
-	TArray<FString> Order = { TEXT("city_hall"), TEXT("farm"), TEXT("lumber_mill"), TEXT("quarry"), TEXT("goldmine"), TEXT("barracks"), TEXT("stable"), TEXT("archery_range"), TEXT("hospital"), TEXT("wall"), TEXT("storehouse") };
+	const TMap<FString, FRok2BuildingPlacement> SavedPlacements = LoadLocalLayout();
+	TArray<FString> Order = {
+		TEXT("city_hall"), TEXT("tavern"), TEXT("academy"), TEXT("trading_post"), TEXT("alliance_center"),
+		TEXT("farm"), TEXT("lumber_mill"), TEXT("quarry"), TEXT("goldmine"), TEXT("storehouse"),
+		TEXT("barracks"), TEXT("stable"), TEXT("archery_range"), TEXT("siege_workshop"), TEXT("hospital"),
+		TEXT("wall"), TEXT("builders_hut")
+	};
 
 	int32 idx = 0;
 	for (const FString& Id : Order)
 	{
 		const int32 Level = ApiBuildings.Contains(Id) ? ApiBuildings[Id] : 1;
-		const FRok2HexCell Cell = DefaultCellForIndex(idx, Order.Num());
+		const FRok2BuildingPlacement* Saved = SavedPlacements.Find(Id);
+		const FRok2HexCell Cell = Saved ? FRok2HexCell(Saved->Q, Saved->R) : DefaultCellForBuilding(Id, idx);
 
 		// P4-T7: إعادة استخدام المبنى المخفي بنفس المعرف إن وُجد (تجديد سريع)، وإلا زرع جديد
 		ARok2BuildingActor* B = nullptr;
@@ -208,9 +244,15 @@ void ARok2CityLayoutActor::RebuildFromApi()
 		}
 		if (B)
 		{
-			B->SetupWithCiv(Id, Level, Cell, HexSize, PlayerCiv);
+				B->SetupWithCiv(Id, Level, Cell, HexSize, PlayerCiv);
+				if (Saved)
+				{
+					B->RotationSteps = FMath::Abs(Saved->RotationSteps) % 6;
+					B->SetActorRotation(FRotator(0.f, B->RotationSteps * 60.f, 0.f));
+					B->SetFacade(Saved->Facade);
+				}
 
-			// P5-T6: حركة بناء عند الزرع الجديد فقط (المُعاد استخدامه يظهر مباشرة — لا تشويش)
+				// P5-T6: حركة بناء عند الزرع الجديد فقط (المُعاد استخدامه يظهر مباشرة — لا تشويش)
 			if (!bReused) B->PlayBuildAnimation();
 
 			// أصل فني إن توفر (KayKit) — وإلا يبقى placeholder
@@ -277,6 +319,19 @@ void ARok2CityLayoutActor::RotateBuilding(const FString& BuildingId)
 	OnLayoutChanged.Broadcast();
 }
 
+bool ARok2CityLayoutActor::SetBuildingFacade(const FString& BuildingId, ERok2BuildingFacade NewFacade)
+{
+	ARok2BuildingActor** Found = Buildings.Find(BuildingId);
+	if (!Found || !*Found || (*Found)->bIsStatic)
+	{
+		return false;
+	}
+
+	(*Found)->SetFacade(NewFacade);
+	OnLayoutChanged.Broadcast();
+	return true;
+}
+
 TArray<FRok2BuildingPlacement> ARok2CityLayoutActor::GetLayoutPlacements() const
 {
 	TArray<FRok2BuildingPlacement> Out;
@@ -288,15 +343,52 @@ TArray<FRok2BuildingPlacement> ARok2CityLayoutActor::GetLayoutPlacements() const
 		P.Q = KV.Value->AnchorCell.Q;
 		P.R = KV.Value->AnchorCell.R;
 		P.RotationSteps = KV.Value->RotationSteps;
+		P.Facade = KV.Value->Facade;
 		Out.Add(P);
+	}
+	return Out;
+}
+
+FString ARok2CityLayoutActor::GetLocalLayoutSlotName() const
+{
+	const FString PlayerId = Api && Api->HasPlayer() ? Api->GetPlayer().Id : TEXT("guest");
+	return FString::Printf(TEXT("Rok2_CityLayout_%s"), *PlayerId);
+}
+
+TMap<FString, FRok2BuildingPlacement> ARok2CityLayoutActor::LoadLocalLayout() const
+{
+	TMap<FString, FRok2BuildingPlacement> Out;
+	if (!Api || !Api->HasPlayer())
+	{
+		return Out;
+	}
+
+	if (URok2CityLayoutSaveGame* Save = Cast<URok2CityLayoutSaveGame>(UGameplayStatics::LoadGameFromSlot(GetLocalLayoutSlotName(), 0)))
+	{
+		if (Save->SchemaVersion == 1 && Save->PlayerId == Api->GetPlayer().Id)
+		{
+			for (const FRok2BuildingPlacement& Placement : Save->Placements)
+			{
+				Out.Add(Placement.BuildingId, Placement);
+			}
+		}
 	}
 	return Out;
 }
 
 void ARok2CityLayoutActor::SaveLayoutToServer()
 {
-	// ملاحظة للـ backend: endpoint مقترح POST /v1/city/layout يستقبل GetLayoutPlacements().
-	// يُربط عبر URok2Api عند إضافة الدالة (خارج نطاق ملف العميل هذا — يُسجَّل في PLAN).
+	// الحفظ المحلي يعمل فوراً؛ يبقى اسم الدالة للتوافق مع HUD الحالي إلى أن تضيف API مزامنة خادمية.
+	URok2CityLayoutSaveGame* Save = Cast<URok2CityLayoutSaveGame>(UGameplayStatics::CreateSaveGameObject(URok2CityLayoutSaveGame::StaticClass()));
+	if (!Save)
+	{
+		return;
+	}
+
+	Save->SchemaVersion = 1;
+	Save->PlayerId = Api && Api->HasPlayer() ? Api->GetPlayer().Id : TEXT("guest");
+	Save->Placements = GetLayoutPlacements();
+	UGameplayStatics::SaveGameToSlot(Save, GetLocalLayoutSlotName(), 0);
 	OnLayoutChanged.Broadcast();
 }
 

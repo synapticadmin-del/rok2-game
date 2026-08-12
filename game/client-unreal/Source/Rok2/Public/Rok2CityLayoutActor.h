@@ -37,6 +37,10 @@ struct FRok2BuildingPlacement
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
 	int32 RotationSteps = 0;
+
+	/** الواجهة التجميلية المحفوظة للمبنى؛ لا تغير الإحصاءات أو البصمة. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
+	ERok2BuildingFacade Facade = ERok2BuildingFacade::Standard;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRok2OnBuildingPicked, const FString&, BuildingId);
@@ -105,7 +109,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RotateBuilding(const FString& BuildingId);
 
-	/** التخطيط الحالي كقائمة مواضع (للحفظ على الخادم). */
+	/** يضبط واجهة تجميلية لمبنى متحرك؛ لا يمنح أي أثر لعب. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Facade")
+	bool SetBuildingFacade(const FString& BuildingId, ERok2BuildingFacade NewFacade);
+
+	/** التخطيط الحالي كقائمة مواضع وواجهات للحفظ. */
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	TArray<FRok2BuildingPlacement> GetLayoutPlacements() const;
 
@@ -144,11 +152,17 @@ protected:
 	void SpawnBuildings();
 	void ClearBuildings();
 
+	/** يعيد المواقع التجميلية المحفوظة محلياً للحساب النشط. */
+	TMap<FString, FRok2BuildingPlacement> LoadLocalLayout() const;
+
+	/** اسم فتحة الحفظ محصور بمعرّف اللاعب لتفادي خلط الحسابات على الجهاز. */
+	FString GetLocalLayoutSlotName() const;
+
 	/** هل يمكن وضع مبنى ببصمته على خلية (داخل السور وبلا تراكب)؟ */
 	bool CanPlaceAt(const FString& BuildingId, ERok2Footprint Footprint, const FRok2HexCell& Cell, const FString& IgnoreBuildingId) const;
 
-	/** تخطيط افتراضي دائري عند غياب layout محفوظ (توزيع حلقي حول المركز). */
-	FRok2HexCell DefaultCellForIndex(int32 Index, int32 Total) const;
+	/** تخطيط افتراضي مقسّم إلى مركز مدني وعسكري واقتصادي عند غياب layout محفوظ. */
+	FRok2HexCell DefaultCellForBuilding(const FString& BuildingId, int32 Index) const;
 
 	void RefreshHighlights(const FString& ForBuildingId);
 };

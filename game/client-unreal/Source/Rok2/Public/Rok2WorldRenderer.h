@@ -13,6 +13,15 @@ class UHierarchicalInstancedStaticMeshComponent;
 class USceneComponent;
 class UStaticMesh;
 
+/** طبقة العرض المحسوبة من مسافة التكبير المستهدفة، لا من عدد العناصر في اللقطة. */
+UENUM(BlueprintType)
+enum class ERok2WorldZoomLayer : uint8
+{
+	Tactical,
+	Regional,
+	Kingdom
+};
+
 UCLASS()
 class ARok2WorldRenderer : public AActor
 {
@@ -26,6 +35,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RefreshFromApi();
+
+	/** يحدّث طبقة العالم وفق مسافة الكاميرا؛ يعيد true فقط عند تغير الطبقة. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Zoom Layers")
+	bool UpdateZoomLayer(float TargetZoomDistance);
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Zoom Layers")
+	ERok2WorldZoomLayer GetZoomLayer() const { return CurrentZoomLayer; }
 
 	/** ينشئ طلب بناء في موضع عالم Unreal؛ تحقق الخادم هو السلطة النهائية للنوع والرتبة والإقليم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance Structures")
@@ -59,6 +75,17 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float WorldToUnrealScale = 100.f;
+
+	/** دون هذا الحد تظهر العقد والبرابرة وأنصاف أقطار الحماية. */
+	UPROPERTY(EditAnywhere, Category = "Rok2|Zoom Layers")
+	float TacticalZoomMaxDistance = 12000.f;
+
+	/** دون هذا الحد تظهر الممرات والمسيرات، وفوقه تبقى المدن ومنشآت التحالف فقط. */
+	UPROPERTY(EditAnywhere, Category = "Rok2|Zoom Layers")
+	float RegionalZoomMaxDistance = 35000.f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Rok2|Zoom Layers")
+	ERok2WorldZoomLayer CurrentZoomLayer = ERok2WorldZoomLayer::Tactical;
 
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	UHierarchicalInstancedStaticMeshComponent* GroundHISM;
@@ -115,6 +142,9 @@ protected:
 	int64 ArtHillsKey = 0;
 
 	void ClearActors();
+	void ApplyZoomLayerVisibility();
+	bool IsTacticalLayer() const { return CurrentZoomLayer == ERok2WorldZoomLayer::Tactical; }
+	bool IsRegionalOrCloserLayer() const { return CurrentZoomLayer != ERok2WorldZoomLayer::Kingdom; }
 	AActor* SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
 	void SpawnMarker(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
 

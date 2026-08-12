@@ -17,6 +17,7 @@ ARok2IsometricCamera::ARok2IsometricCamera()
 
 	TargetLocation = FVector(0, 0, 0);
 	TargetDistance = 2200.f;
+	CurrentDistance = TargetDistance;
 }
 
 void ARok2IsometricCamera::Tick(float DeltaSeconds)
@@ -48,11 +49,17 @@ void ARok2IsometricCamera::FocusOn(const FVector& WorldLocation)
 	TargetLocation = WorldLocation;
 }
 
+void ARok2IsometricCamera::SetTargetZoomDistance(float NewDistance)
+{
+	TargetDistance = FMath::Clamp(NewDistance, MinZoom, MaxZoom);
+}
+
 void ARok2IsometricCamera::SnapTo(const FVector& WorldLocation)
 {
 	// الهدف والموضع معاً — وإلا أعاد Tick إقحام الكاميرا نحو الهدف القديم.
 	TargetLocation = WorldLocation;
 	SetActorLocation(WorldLocation);
+	CurrentDistance = TargetDistance;
 }
 
 void ARok2IsometricCamera::PanByScreenDelta(const FVector2D& ScreenDelta)
@@ -92,9 +99,12 @@ void ARok2IsometricCamera::UpdateCameraTransform(float DeltaSeconds)
 	FVector New = FMath::VInterpTo(Cur, TargetLocation, DeltaSeconds, 8.f);
 	SetActorLocation(New);
 
+	// المسافة تستقر نحو هدفها مثل نقطة التركيز كي لا تتحول إيماءة التكبير إلى قفزة بصرية.
+	CurrentDistance = FMath::FInterpTo(CurrentDistance, TargetDistance, DeltaSeconds, CameraTransitionSpeed);
+
 	// Apply camera offset along pitch direction
 	FRotator CamRot(Pitch, Yaw, 0.f);
-	FVector Offset = UKismetMathLibrary::GetForwardVector(CamRot) * (-TargetDistance);
+	FVector Offset = UKismetMathLibrary::GetForwardVector(CamRot) * (-CurrentDistance);
 	if (Camera)
 	{
 		Camera->SetRelativeLocation(Offset);
