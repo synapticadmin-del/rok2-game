@@ -166,6 +166,47 @@ bool URok2ArtAssets::HasIcon(const FString& IconId)
 }
 
 // ---------------------------------------------------------------------------
+// P7-T10: أيقونات خريطة العالم — عُقد موارد وأهداف ومسيرات فرع.
+// ---------------------------------------------------------------------------
+
+static const TSet<FString> WorldMapIconIds = {
+	TEXT("node_wheat"), TEXT("node_wood"), TEXT("node_stone"), TEXT("node_gold"),
+	TEXT("node_barbarian"), TEXT("node_resource_generic"),
+	TEXT("objective_throne_crown"), TEXT("objective_pass_gate"),
+	TEXT("alliance_bastion"), TEXT("alliance_catapult"),
+	TEXT("march_infantry"), TEXT("march_cavalry"), TEXT("march_archer"), TEXT("march_siege")
+};
+
+FString URok2ArtAssets::GetWorldMapIconAssetPath(const FString& IconId)
+{
+	if (!WorldMapIconIds.Contains(IconId))
+	{
+		return FString();
+	}
+	return FString::Printf(TEXT("/Game/Art/WorldMapIcons/icon_%s.icon_%s"), *IconId, *IconId);
+}
+
+UTexture2D* URok2ArtAssets::LoadWorldMapIcon(const FString& IconId)
+{
+	static TMap<FString, UTexture2D*> Cached;
+	UTexture2D** Found = Cached.Find(IconId);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	const FString Path = GetWorldMapIconAssetPath(IconId);
+	UTexture2D* Texture = Path.IsEmpty() ? nullptr : LoadObject<UTexture2D>(nullptr, *Path);
+	Cached.Add(IconId, Texture);
+	return Texture;
+}
+
+bool URok2ArtAssets::HasWorldMapIcon(const FString& IconId)
+{
+	return WorldMapIconIds.Contains(IconId);
+}
+
+// ---------------------------------------------------------------------------
 // P6-T8: مسارات أصول الإحساس الصوتي للواجهة.
 // تحتفظ المكتبة بالمعرّفات فقط؛ فلا تملك الموسيقى ولا تتدخل في دورة حياة الصوت.
 // ---------------------------------------------------------------------------

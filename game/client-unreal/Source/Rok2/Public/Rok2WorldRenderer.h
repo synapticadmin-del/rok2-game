@@ -12,6 +12,7 @@ class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 class USceneComponent;
 class UStaticMesh;
+class UTexture2D;
 
 /** لقطة خفيفة لأعباء تمثيل خريطة العالم؛ تستعمل في PIE ولا تمثل زمن GPU أو ذاكرة النظام. */
 USTRUCT(BlueprintType)
@@ -190,6 +191,14 @@ protected:
 	bool IsRegionalOrCloserLayer() const { return CurrentZoomLayer != ERok2WorldZoomLayer::Kingdom; }
 	AActor* SpawnMarkerActor(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
 	void SpawnMarker(UStaticMesh* Mesh, const FVector& Loc, const FString& Label, const FLinearColor& Color);
+
+	/**
+	 * P7-T10: ينشئ أيقونة Sprite تواجه الكاميرا (BillboardComponent بـ UTexture2D
+	 * لأيقونة خريطة العالم من Content/Art/WorldMapIcons). يعيد nullptr إذا لم
+	 * تُستورد الحزمة بعد، وعندها يعود الراسم إلى الشكل الهندسي الافتراضي.
+	 * Scale يُطبّق على أبعاد sprite في مستويات العالم.
+	 */
+	AActor* SpawnSpriteActor(UTexture2D* Icon, const FVector& Loc, const FString& Label, float Scale = 1.f);
 
 	UFUNCTION()
 	void OnWorldSnapshotHandler(const FRok2WorldSnapshot& Snapshot);

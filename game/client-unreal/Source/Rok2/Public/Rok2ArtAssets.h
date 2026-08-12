@@ -12,6 +12,7 @@
 #include "Rok2ArtAssets.generated.h"
 
 class UStaticMesh;
+class UTexture2D;
 
 /** خريطة مبنى اللعبة → ملف GLB في Content/Art/kaykit (بدون الامتداد) */
 USTRUCT(BlueprintType)
@@ -86,6 +87,30 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
 	static FString GetImportedUiIconAssetPath(const FString& IconId);
+
+	// -------------------------------------------------------------------
+	// P7-T10: أيقونات خريطة العالم (عُقد موارد، برابرة، عرش، ممرات، منشآت
+	// تحالف، وأيقونات مسيرات الفروع) — حزمة Content/Art/WorldMapIcons.
+	// -------------------------------------------------------------------
+
+	/**
+	 * مسار أصل Texture2D لأيقونة خريطة العالم، أو سلسلة فارغة لمعرّف خارج
+	 * الحزمة. يستهلكه WorldRenderer عند رسم العُقد والمسيرات بدل الأشكال
+	 * الهندسية الافتراضية، مع fallback آمن للسلوك القديم عند فشل التحميل.
+	 * المعرّفات: node_wheat/node_wood/node_stone/node_gold/node_barbarian/
+	 * objective_throne_crown/objective_pass_gate/alliance_bastion/
+	 * alliance_catapult/march_infantry/march_cavalry/march_archer/march_siege.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
+	static FString GetWorldMapIconAssetPath(const FString& IconId);
+
+	/** يحمّل UTexture2D لأيقونة خريطة العالم (مع تخزين مؤقت)، أو nullptr. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Icons")
+	static UTexture2D* LoadWorldMapIcon(const FString& IconId);
+
+	/** يتحقق من أن المعرّف يطابق أيقونة خريطة العالم المعروفة في الحزمة. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
+	static bool HasWorldMapIcon(const FString& IconId);
 
 	// -------------------------------------------------------------------
 	// P6-T8: فهرس أصوات الواجهة (أصول WAV مشتركة + همس حضاري عند الفتح).

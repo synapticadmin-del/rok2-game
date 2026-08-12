@@ -873,6 +873,24 @@ void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEnti
 			? TEXT("rally")
 			: Rok2Json::Str(*PayloadObj, TEXT("kind"));
 	}
+
+	// P7-T10: الفرع الأبرز للمسيرات (infantry/cavalry/archer/siege) يقود أيقونة
+	// المسيرة على خريطة العالم — الفروع غير المعروفة تُتجاهل (infantry الافتراضي).
+	{
+		const TArray<FString> Branches = { TEXT("infantry"), TEXT("cavalry"), TEXT("archer"), TEXT("siege") };
+		int32 BestCount = 0;
+		FString BestBranch = TEXT("infantry");
+		for (const FString& B : Branches)
+		{
+			const int32* Count = E.Troops.Find(B);
+			if (Count && *Count > BestCount)
+			{
+				BestCount = *Count;
+				BestBranch = B;
+			}
+		}
+		E.Branch = BestBranch;
+	}
 }
 
 void URok2Api::ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const

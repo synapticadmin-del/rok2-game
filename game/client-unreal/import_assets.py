@@ -31,9 +31,10 @@ MAGIC = {".glb": b"glTF", ".wav": b"RIFF", ".png": b"\x89PNG"}
 
 # (مجلد المصدر النسبي, وجهة /Game, هل نحافظ على الشجرة الفرعية؟)
 JOBS = [
-    ("Art/kaykit",      "/Game/Art/kaykit",      False),
-    ("Art/Commanders",  "/Game/Art/Commanders",  False),
-    ("Audio",           "/Game/Audio",           True),   # لازم: <civ>/music
+    ("Art/kaykit",         "/Game/Art/kaykit",         False),
+    ("Art/Commanders",     "/Game/Art/Commanders",     False),
+    ("Art/WorldMapIcons",  "/Game/Art/WorldMapIcons",  False),  # P7-T10: أيقونات خريطة العالم (14 PNG)
+    ("Audio",              "/Game/Audio",              True),   # لازم: <civ>/music
 ]
 
 log = unreal.log

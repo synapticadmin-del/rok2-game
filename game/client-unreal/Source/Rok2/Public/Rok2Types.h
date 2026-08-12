@@ -210,6 +210,13 @@ struct FRok2MarchEntity
 	/** نوع الحمولة لمسيرات الجمع (food/wood/stone/gold) — يملؤه ParseMarchEntity من m.payload.kind */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FString Kind;
+
+	/**
+	 * P7-T10: الفرع الأبرز للمسيرات (infantry/cavalry/archer/siege) المشتق من
+	 * Troops map؛ يقود اختيار أيقونة المسيرة من حزمة WorldMapIcons.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Branch = TEXT("infantry");
 };
 
 USTRUCT(BlueprintType)

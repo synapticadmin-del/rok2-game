@@ -14,6 +14,8 @@
 #include "Rok2Perf.h"
 #include "Rok2IsometricCamera.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BillboardComponent.h"
+#include "Engine/Texture2D.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -352,6 +354,31 @@ void ARok2WorldRenderer::SpawnMarker(UStaticMesh* Mesh, const FVector& Loc, cons
 	}
 }
 
+AActor* ARok2WorldRenderer::SpawnSpriteActor(UTexture2D* Icon, const FVector& Loc, const FString& Label, float Scale)
+{
+	if (!Icon) return nullptr;
+
+	AActor* Owner = nullptr;
+	FActorSpawnParameters P;
+	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Owner = GetWorld()->SpawnActor<AActor>(Loc, FRotator::ZeroRotator, P);
+	if (!Owner) return nullptr;
+
+	// P7-T10: billboard يواجه الكاميرا دائماً — الأيقونة المولدة مصممة باتجاه +X.
+	UBillboardComponent* Sprite = NewObject<UBillboardComponent>(Owner);
+	Sprite->Sprite = Icon;
+	Sprite->SpriteInfo.Scale = FVector(Scale * 100.f, Scale * 100.f, Scale * 100.f);
+	Sprite->bIsScreenSizeScaled = false;
+	Sprite->SpriteWidthScale = 0.f;
+	Sprite->SetupAttachment(Owner->GetRootComponent());
+	Sprite->RegisterComponent();
+	Owner->SetActorLocation(Loc);
+#if WITH_EDITOR
+	Owner->SetActorLabel(Label);
+#endif
+	return Owner;
+}
+
 void ARok2WorldRenderer::RefreshFromApi()
 {
 	if (!Api) return;
@@ -475,7 +502,17 @@ void ARok2WorldRenderer::RefreshFromApi()
 			? TEXT("throne") : TEXT("pass");
 		const FRok2WorldIconStyle Style = URok2WorldIconography::Resolve(PassTargetType, P.Id, P.Level);
 		const FLinearColor IconColor = FMath::Lerp(Style.BaseColor, Style.TierColor, 0.35f);
-		if (PassMesh)
+
+		// P7-T10: أيقونة PNG مخصصة للعرش والممرات عند توفر الحزمة، مع fallback هندسي.
+		if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(Style.IconId.ToString()))
+		{
+			if (AActor* Marker = SpawnSpriteActor(Icon, Loc,
+				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *P.Id, Style.Tier), Style.WorldScale))
+			{
+				SpawnedActors.Add(Marker);
+			}
+		}
+		else if (PassMesh)
 		{
 			if (AActor* Marker = SpawnMarkerActor(PassMesh, Loc,
 				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *P.Id, Style.Tier), IconColor))
@@ -499,13 +536,25 @@ void ARok2WorldRenderer::RefreshFromApi()
 		}
 
 		// P7-T1: تستخدم كل عقدة قاموس P6 لاختيار مورد/برابرة وتدرج المستوى.
-		// نرسمها كعلامة مجمّعة لأن HISM لا يملك لوناً مستقلاً لكل مثيل في المادة الحالية.
+		// P7-T10: عند توفر حزمة أيقونات خريطة العالم نرسم العُقد كـ sprites مخصصة
+		// (أيقونة المورد/البرابرة)، وإلا نبقى على الشكل الهندسي المجمّع.
 		const FRok2WorldIconStyle Style = URok2WorldIconography::Resolve(N.Kind, N.Kind, N.Level);
 		const FLinearColor IconColor = FMath::Lerp(Style.BaseColor, Style.TierColor, 0.35f);
-		UStaticMesh* MarkerMesh = NodeMesh;
-		if (MarkerMesh)
+		FString IconId = Style.IconId.ToString();
+		if (IconId.StartsWith(TEXT("barbarian"))) IconId = TEXT("node_barbarian");
+		else if (IconId == TEXT("node_resource") || IconId == TEXT("world_marker")) IconId = TEXT("node_resource_generic");
+
+		if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(IconId))
 		{
-			if (AActor* Marker = SpawnMarkerActor(MarkerMesh, Loc,
+			if (AActor* Marker = SpawnSpriteActor(Icon, Loc,
+				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *N.Id, Style.Tier), Style.WorldScale))
+			{
+				SpawnedActors.Add(Marker);
+			}
+		}
+		else if (NodeMesh)
+		{
+			if (AActor* Marker = SpawnMarkerActor(NodeMesh, Loc,
 				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *N.Id, Style.Tier), IconColor))
 			{
 				Marker->SetActorScale3D(FVector(Style.WorldScale));
@@ -526,14 +575,29 @@ void ARok2WorldRenderer::RefreshFromApi()
 		const FLinearColor StructureColor = bFriendly
 			? Rok2Visual::Information()
 			: Rok2Visual::Danger();
-		UStaticMesh* MarkerMesh = AllianceStructureMesh ? AllianceStructureMesh : NodeMesh;
-		if (MarkerMesh)
+
+		// P7-T10: أيقونة مخصصة للبرج/المنجنيق عند توفر الحزمة، مع fallback هندسي.
+		const FString StructureIconId = S.Kind == TEXT("catapult_emplacement")
+			? TEXT("alliance_catapult") : TEXT("alliance_bastion");
+		const float StructureScale = S.Kind == TEXT("bastion") ? 1.35f : (S.Kind == TEXT("catapult_emplacement") ? 1.15f : 0.95f);
+
+		if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(StructureIconId))
 		{
-			if (AActor* Marker = SpawnMarkerActor(MarkerMesh, Loc, FString::Printf(TEXT("AllianceStructure_%s"), *S.Id), StructureColor))
+			if (AActor* Marker = SpawnSpriteActor(Icon, Loc, FString::Printf(TEXT("AllianceStructure_%s"), *S.Id), StructureScale))
 			{
-				const float StructureScale = S.Kind == TEXT("bastion") ? 1.35f : (S.Kind == TEXT("catapult_emplacement") ? 1.15f : 0.95f);
-				Marker->SetActorScale3D(FVector(StructureScale));
 				SpawnedActors.Add(Marker);
+			}
+		}
+		else
+		{
+			UStaticMesh* MarkerMesh = AllianceStructureMesh ? AllianceStructureMesh : NodeMesh;
+			if (MarkerMesh)
+			{
+				if (AActor* Marker = SpawnMarkerActor(MarkerMesh, Loc, FString::Printf(TEXT("AllianceStructure_%s"), *S.Id), StructureColor))
+				{
+					Marker->SetActorScale3D(FVector(StructureScale));
+					SpawnedActors.Add(Marker);
+				}
 			}
 		}
 
@@ -623,13 +687,29 @@ void ARok2WorldRenderer::RefreshFromApi()
 			{
 				Audio->PlaySfx(ERok2AudioType::MarchStart);
 			}
-			AActor* NewMarch = SpawnMarkerActor(
-				MarchMesh,
-				FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
-				FString::Printf(TEXT("March_%s"), *M.Id), Col);
+
+			// P7-T10: أيقونة الفرع الأبرز للمسيرات (infantry/cavalry/archer/siege)
+			// عند توفر الحزمة، وإلا المخروط الهندسي الافتراضي بلون التحالف.
+			AActor* NewMarch = nullptr;
+			if (UTexture2D* MarchIcon = URok2ArtAssets::LoadWorldMapIcon(TEXT("march_") + M.Branch))
+			{
+				NewMarch = SpawnSpriteActor(MarchIcon,
+					FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
+					FString::Printf(TEXT("March_%s_%s"), *M.Branch, *M.Id), 0.75f);
+			}
+			if (!NewMarch)
+			{
+				NewMarch = SpawnMarkerActor(
+					MarchMesh,
+					FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
+					FString::Printf(TEXT("March_%s"), *M.Id), Col);
+				if (NewMarch)
+				{
+					NewMarch->SetActorScale3D(FVector(0.6f, 0.6f, 0.6f));
+				}
+			}
 			if (NewMarch)
 			{
-				NewMarch->SetActorScale3D(FVector(0.6f, 0.6f, 0.6f));
 				SpawnedMarches.Add(M.Id, NewMarch);
 			}
 		}
