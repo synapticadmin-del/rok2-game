@@ -3,20 +3,21 @@
   يبني عميل ROK2 من سطر الأوامر باستخدام Unreal Engine 5.4.4 المثبت محلياً.
 
 .DESCRIPTION
-  يدعم بناء Rok2Editor للتحقق قبل PIE، وبناء Rok2 Development/Shipping لنظام
-  Windows، والتحزيم الاختياري عبر Unreal Automation Tool. لا يغير ملفات المشروع
+  يدعم بناء Rok2Editor للتحقق قبل PIE، وبناء Rok2 Development/Shipping لنظامي
+  Windows وAndroid، والتحزيم الاختياري عبر Unreal Automation Tool. لا يغير ملفات المشروع
   ولا يمسح ملفات وسيطة إلا عند تمرير -Clean صراحةً.
 
 .EXAMPLE
   .\scripts\Build-Rok2.ps1 -EngineRoot 'C:\Program Files\Epic Games\UE_5.4'
-  .\scripts\Build-Rok2.ps1 -Target Development -Package -OutputDirectory 'D:\Builds\ROK2'
+  .\scripts\Build-Rok2.ps1 -Target Development -Platform Win64 -Package -OutputDirectory 'D:\Builds\ROK2'
+  .\scripts\Build-Rok2.ps1 -Target Development -Platform Android -Package -OutputDirectory 'D:\Builds\ROK2-Android'
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Editor', 'Development', 'Shipping')]
     [string]$Target = 'Editor',
 
-    [ValidateSet('Win64')]
+    [ValidateSet('Win64', 'Android')]
     [string]$Platform = 'Win64',
 
     [string]$EngineRoot = $env:UE_ROOT,
@@ -125,6 +126,9 @@ if ($Clean) {
 }
 
 if ($Target -eq 'Editor') {
+    if ($Platform -eq 'Android') {
+        throw 'لا يدعم Android هدف Editor. استخدم -Target Development أو -Target Shipping.'
+    }
     $BuildArguments = @('Rok2Editor', $Platform, 'Development', $ProjectFile, '-WaitMutex', '-NoHotReload')
 } else {
     $BuildArguments = @('Rok2', $Platform, $Target, $ProjectFile, '-WaitMutex', '-NoHotReload')
@@ -136,15 +140,18 @@ if ($Package) {
         throw 'التحزيم يتطلب -Target Development أو -Target Shipping، وليس Editor.'
     }
     if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-        $OutputDirectory = Join-Path $ProjectRoot "Artifacts\Win64-$Target"
+        $OutputDirectory = Join-Path $ProjectRoot "Artifacts\$Platform-$Target"
     }
     $ResolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
     $PackageLog = Join-Path $LogDirectory "package-$Target-$Timestamp.log"
+    # Keep each supported UAT platform explicit: Win64 remains the established
+    # desktop contract while Android uses the same Development/Shipping flow.
+    $UatPlatformArgument = if ($Platform -eq 'Win64') { '-platform=Win64' } else { '-platform=Android' }
     $UatArguments = @(
         'BuildCookRun',
         "-project=$ProjectFile",
         '-noP4',
-        '-platform=Win64',
+        $UatPlatformArgument,
         "-clientconfig=$Target",
         '-build', '-cook', '-stage', '-pak', '-iostore', '-archive',
         "-archivedirectory=$ResolvedOutputDirectory"
