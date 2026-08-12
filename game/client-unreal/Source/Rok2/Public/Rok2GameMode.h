@@ -18,6 +18,7 @@ class URok2BattleReportWidget;
 class URok2OnboardingWidget;
 class URok2CivInfoWidget;
 class URok2ChatWidget;
+class URok2SeasonStoryWidget;
 class ARok2ViewManager;
 class ARok2CityBuilder;
 
@@ -90,6 +91,10 @@ public:
 	UPROPERTY(Transient)
 	URok2ChatWidget* ChatWidget;
 
+	// P7-T1: حكاية المملكة — تُنشأ عند الطلب وتبقى متزامنة مع لقطة API.
+	UPROPERTY(Transient)
+	URok2SeasonStoryWidget* SeasonStoryWidget;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")
 	float TickIntervalSeconds;
@@ -108,6 +113,8 @@ protected:
 	UFUNCTION() void HandleReportsAction();
 	UFUNCTION() void HandleCivInfoAction();
 	UFUNCTION() void HandleChatAction();
+	UFUNCTION() void HandleSeasonStoryAction();
+	UFUNCTION() void HandleSeasonStoryEvent(const FRok2SeasonStoryEntry& Event);
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 
 	/** ربط أحداث HUD بالمعالجات بعد إنشائها */

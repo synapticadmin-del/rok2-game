@@ -305,6 +305,33 @@ struct FRok2ChatMessage
 	int64 TimestampMs = 0;
 };
 
+/**
+ * معلم عام في الموسم مصدره KingdomShard. لا يحمل تفاصيل قتالية خاصة؛
+ * يُستخدم في snapshot.seasonStory وحدث WS من النوع season_story_event.
+ */
+USTRUCT(BlueprintType)
+struct FRok2SeasonStoryEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	FString Kind;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	int32 SeasonDay = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	int64 CreatedAt = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	FString SubjectId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	FString AllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	FString PreviousAllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	int32 Score = 0;
+};
+
 /** حالة فتح/قفل منطقة واحدة — من snapshot.zones (P2-T4) */
 USTRUCT(BlueprintType)
 struct FRok2ZoneStatus
@@ -365,6 +392,10 @@ struct FRok2WorldSnapshot
 	TArray<FRok2MarchEntity> Marches;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2NodeEntity> Nodes;
+
+	/** خط زمني عام للموسم من KingdomShard (P6-T10؛ يصل فعلياً في P7-T1). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season Story")
+	TArray<FRok2SeasonStoryEntry> SeasonStory;
 
 	/** منشآت التحالف المرئية ونطاقات الحماية الخاصة بها. */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")

@@ -4,40 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2Types.h"
 #include "Rok2SeasonStoryWidget.generated.h"
 
 class UBorder;
 class UButton;
 class UTextBlock;
 class UVerticalBox;
-
-/** Client representation of the public `seasonStory` events emitted by KingdomShard. */
-USTRUCT(BlueprintType)
-struct FRok2SeasonStoryEntry
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	FString Id;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	FString Kind;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	int32 SeasonDay = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	FString SubjectId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	FString AllianceId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	FString PreviousAllianceId;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ROK2|Season Story")
-	int32 Score = 0;
-};
 
 /**
  * A self-contained modal presenting the season timeline supplied by the shard.

@@ -46,6 +46,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHudNotification, const FRok2HudNo
 // P6-T6: يُبث عند وصول رسالة دردشة جديدة
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatMessage, const FRok2ChatMessage&, Message);
 
+// P7-T1: يُبث عند وصول معلم عام جديد في خط حكاية المملكة.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSeasonStoryEvent, const FRok2SeasonStoryEntry&, Event);
+
 /** يُبث عند مزامنة الراليات النشطة للتحالف؛ لا تُشتق من واجهة العميل. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceRalliesUpdated, const TArray<FRok2AllianceRally>&, Rallies);
 
@@ -233,6 +236,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void MarkChatRead() { UnreadChatCount = 0; }
 
+	/** حكاية الموسم المحفوظة من آخر لقطة، وتبقى متاحة قبل فتح الودجة. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Season Story")
+	const TArray<FRok2SeasonStoryEntry>& GetSeasonStory() const { return World.SeasonStory; }
+
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	bool IsLoggedIn() const { return !Token.IsEmpty(); }
 
@@ -283,6 +290,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnChatMessage OnChatMessage;
 
+	// P7-T1: حدث حكاية موسم حي، منفصل عن التقارير والرسائل الخاصة.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season Story")
+	FOnSeasonStoryEvent OnSeasonStoryEvent;
+
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
 	FOnAllianceRalliesUpdated OnAllianceRalliesUpdated;
 
@@ -318,6 +329,9 @@ protected:
 	int32 UnreadChatCount = 0;
 	/** يضيف رسالة دردشة ويبثها */
 	void PushChatMessage(const FRok2ChatMessage& Msg);
+
+	/** يزيل التكرار، يخزن حدث الموسم ضمن لقطة العالم ويبثه للواجهة. */
+	void PushSeasonStoryEvent(const FRok2SeasonStoryEntry& Event);
 
 	/**
 	 * P6-T5: يُلقي تحية الحضارة مرة واحدة في الجلسة عبر نظام الإشعارات.

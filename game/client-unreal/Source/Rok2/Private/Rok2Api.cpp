@@ -48,6 +48,22 @@ namespace Rok2Json
 	}
 }
 
+// P7-T1: بنية seasonStory متطابقة بين لقطة REST ورسالة WebSocket، لذلك
+// تُحلل في موضع واحد مع القارئات الآمنة نفسها المستخدمة في باقي العقد.
+static bool ParseSeasonStoryEntry(const TSharedPtr<FJsonObject>& Obj, FRok2SeasonStoryEntry& Out)
+{
+	if (!Obj.IsValid()) return false;
+	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Out.Kind = Rok2Json::Str(Obj, TEXT("kind"));
+	Out.SeasonDay = (int32)Rok2Json::Num(Obj, TEXT("seasonDay"));
+	Out.CreatedAt = (int64)Rok2Json::Num(Obj, TEXT("createdAt"));
+	Out.SubjectId = Rok2Json::Str(Obj, TEXT("subjectId"));
+	Out.AllianceId = Rok2Json::Str(Obj, TEXT("allianceId"));
+	Out.PreviousAllianceId = Rok2Json::Str(Obj, TEXT("previousAllianceId"));
+	Out.Score = (int32)Rok2Json::Num(Obj, TEXT("score"));
+	return !Out.Id.IsEmpty() && !Out.Kind.IsEmpty();
+}
+
 void URok2Api::Init(const FString& ApiBaseUrl, const FString& InKingdomId, const FString& InAdminKey)
 {
 	BaseUrl = ApiBaseUrl;
@@ -772,6 +788,25 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			World.Zones.Add(E);
 		}
 		OnZonesUpdated.Broadcast(World.Zones);
+	}
+
+	// ---- P7-T1: خط حكاية المملكة من لقطة العالم السلطوية ----
+	const TArray<TSharedPtr<FJsonValue>>* StoryArr;
+	if (Obj->TryGetArrayField(TEXT("seasonStory"), StoryArr))
+	{
+		World.SeasonStory.Empty();
+		for (const auto& V : *StoryArr)
+		{
+			FRok2SeasonStoryEntry Entry;
+			if (ParseSeasonStoryEntry(V->AsObject(), Entry))
+			{
+				World.SeasonStory.Add(Entry);
+			}
+		}
+		if (World.SeasonStory.Num() > 120)
+		{
+			World.SeasonStory.RemoveAt(0, World.SeasonStory.Num() - 120);
+		}
 	}
 
 	// ---- P6-T6: سجل الدردشة الحية ----
@@ -1774,8 +1809,21 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 			Self->PushNotification(TEXT("toast"), TEXT("عادت الكشافة"),
 				FString::Printf(TEXT("كشفت المنطقة حول (%.0f, %.0f)"), ToX, ToY), 6.f);
 		}
-		// P6-T6: رسالة دردشة جديدة
-		else if (Type == TEXT("chat_message"))
+			// P7-T1: معلم موسم حي — يحفظه العميل حتى لو لم تُفتح الودجة بعد.
+			else if (Type == TEXT("season_story_event"))
+			{
+				const TSharedPtr<FJsonObject>* EventObj;
+				if (Obj->TryGetObjectField(TEXT("event"), EventObj) && EventObj && EventObj->IsValid())
+				{
+					FRok2SeasonStoryEntry Entry;
+					if (ParseSeasonStoryEntry(*EventObj, Entry))
+					{
+						Self->PushSeasonStoryEvent(Entry);
+					}
+				}
+			}
+			// P6-T6: رسالة دردشة جديدة
+			else if (Type == TEXT("chat_message"))
 		{
 			const TSharedPtr<FJsonObject>& MsgObj = Obj->GetObjectField(TEXT("message"));
 			if (MsgObj.IsValid())
@@ -1821,6 +1869,10 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
 		UE_LOG(LogRok2, Error, TEXT("WS error: %s"), *Err);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiError);
+		}
 		Self->bWsConnected = false;
 		Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
 		// سيُعاد الاتصال من PumpEvents بعد WsReconnectDelay
@@ -1876,6 +1928,22 @@ void URok2Api::PushChatMessage(const FRok2ChatMessage& Msg)
 	if (ChatHistory.Num() > 100) ChatHistory.RemoveAt(0);
 	UnreadChatCount++;
 	OnChatMessage.Broadcast(Msg);
+}
+
+// P7-T1: إدخال معلم الموسم في اللقطة يمنع فقد الحدث إن كانت الودجة مغلقة.
+void URok2Api::PushSeasonStoryEvent(const FRok2SeasonStoryEntry& Event)
+{
+	if (Event.Id.IsEmpty()) return;
+	if (const int32 Existing = World.SeasonStory.IndexOfByPredicate([&Event](const FRok2SeasonStoryEntry& Item)
+		{ return Item.Id == Event.Id; }); Existing != INDEX_NONE)
+	{
+		World.SeasonStory[Existing] = Event;
+		return;
+	}
+
+	World.SeasonStory.Add(Event);
+	if (World.SeasonStory.Num() > 120) World.SeasonStory.RemoveAt(0);
+	OnSeasonStoryEvent.Broadcast(Event);
 }
 
 void URok2Api::PumpEvents(float DeltaSeconds)

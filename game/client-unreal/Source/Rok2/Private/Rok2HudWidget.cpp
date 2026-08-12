@@ -279,7 +279,7 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	Slot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
 	Slot->SetAlignment(FVector2D(0.f, 1.f));
 	Slot->SetPosition(FVector2D(18.f, -18.f));
-	Slot->SetSize(FVector2D(340.f, 52.f));
+	Slot->SetSize(FVector2D(470.f, 52.f));
 
 	// P6-T1: كل زر = أيقونة إجرائية + نص
 	// P6-T4: صارت تعيد Pill (كانت void) ليتمكّن الإرشاد من ترسية زر الخريطة —
@@ -311,6 +311,8 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 
 	UBorder* MapPill = MakePill(TEXT("map"), TEXT("الخريطة"), FName(TEXT("OnMapBtnClickedHandler")));
 	MakePill(TEXT("scroll"), TEXT("التقارير"), FName(TEXT("OnReportsBtnClickedHandler")));
+	// P7-T1: مدخل دائم للخط الزمني العام؛ لا يعتمد على وصول إشعار مؤقت.
+	MakePill(TEXT("scroll"), TEXT("حكاية المملكة"), FName(TEXT("OnSeasonStoryClickedHandler")));
 	MakePill(TEXT("edit"), TEXT("تحرير المدينة"), FName(TEXT("OnEditCityClickedHandler")));
 
 	// P6-T6: زر الدردشة الحية — أيقونة دردشة + شارة غير المقروء
@@ -737,6 +739,12 @@ void URok2HudWidget::OnAllianceClickedHandler() { OnAllianceAction.Broadcast(); 
 void URok2HudWidget::OnItemsClickedHandler() { OnItemsAction.Broadcast(); }
 void URok2HudWidget::OnEventsClickedHandler() { OnEventsAction.Broadcast(); }
 void URok2HudWidget::OnCivInfoClickedHandler() { OnCivInfoAction.Broadcast(); }
+
+// P7-T1: زر حكاية المملكة
+void URok2HudWidget::OnSeasonStoryClickedHandler()
+{
+	OnSeasonStoryAction.Broadcast();
+}
 
 // P6-T6: زر الدردشة
 void URok2HudWidget::OnChatClickedHandler()

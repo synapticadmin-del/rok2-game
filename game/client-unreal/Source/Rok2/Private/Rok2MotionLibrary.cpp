@@ -35,7 +35,7 @@ void URok2ButtonPressFx::HandlePressed()
 	{
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
-			Audio->PlaySfx(ERok2AudioType::ButtonClick);
+			Audio->PlaySfx(ERok2AudioType::UiButtonClick);
 		}
 	}
 }
@@ -315,7 +315,7 @@ void URok2MotionLibrary::PlayPress(UWidget* Target, bool bWithSound)
 	{
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
-			Audio->PlaySfx(ERok2AudioType::ButtonClick);
+			Audio->PlaySfx(ERok2AudioType::UiButtonClick);
 		}
 	}
 }

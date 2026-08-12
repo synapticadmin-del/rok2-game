@@ -1,5 +1,6 @@
 #include "Rok2GameMode.h"
 #include "Rok2Api.h"
+#include "Rok2AudioManager.h"
 #include "Rok2WorldRenderer.h"
 #include "Rok2CityBuilder.h"
 #include "Rok2PlayerController.h"
@@ -13,6 +14,7 @@
 #include "Rok2OnboardingWidget.h"
 #include "Rok2CivInfoWidget.h"
 #include "Rok2ChatWidget.h"
+#include "Rok2SeasonStoryWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
@@ -93,6 +95,7 @@ void ARok2GameMode::BeginPlay()
 	Api->SetCivilizations(URok2BlueprintLibrary::GetDefaultCivilizations());
 	Api->Init(ApiBaseUrl, KingdomId, AdminKey);
 	Api->OnPlayerLoaded.AddDynamic(this, &ARok2GameMode::OnPlayerLoadedHandler);
+	Api->OnSeasonStoryEvent.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryEvent);
 
 	// Boot Widget
 	if (!BootWidget && World)
@@ -183,6 +186,7 @@ void ARok2GameMode::BindHudEvents()
 	HudWidget->OnReportsAction.AddDynamic(this, &ARok2GameMode::HandleReportsAction);
 	HudWidget->OnCivInfoAction.AddDynamic(this, &ARok2GameMode::HandleCivInfoAction);
 	HudWidget->OnChatAction.AddDynamic(this, &ARok2GameMode::HandleChatAction);
+	HudWidget->OnSeasonStoryAction.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryAction);
 }
 
 void ARok2GameMode::EnsureViewManager()
@@ -375,6 +379,50 @@ void ARok2GameMode::HandleCivInfoAction()
 	}
 }
 
+// P7-T1: شاشة حكاية المملكة — تُنشأ عند فتحها وتُملأ من اللقطة المحفوظة.
+void ARok2GameMode::HandleSeasonStoryAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!SeasonStoryWidget)
+	{
+		SeasonStoryWidget = Cast<URok2SeasonStoryWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2SeasonStoryWidget::StaticClass()));
+	}
+	if (SeasonStoryWidget)
+	{
+		SeasonStoryWidget->SetStoryEvents(Api->GetSeasonStory());
+		if (!SeasonStoryWidget->IsInViewport())
+		{
+			// نفس طبقة لوحات الدردشة والتقارير، فوق HUD وتحت الإرشاد.
+			SeasonStoryWidget->AddToViewport(50);
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+			}
+		}
+		else if (SeasonStoryWidget->GetVisibility() != ESlateVisibility::Visible)
+		{
+			SeasonStoryWidget->SetVisibility(ESlateVisibility::Visible);
+			if (URok2AudioManager* Audio = URok2AudioManager::Get())
+			{
+				Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+			}
+		}
+	}
+}
+
+void ARok2GameMode::HandleSeasonStoryEvent(const FRok2SeasonStoryEntry& Event)
+{
+	// تظل الأحداث مخزنة في API إن كانت الشاشة مغلقة. أما إن كانت منشأة فيُحدّث
+	// خطها فوراً، سواءً كانت مرئية أو مخفية في انتظار إعادة فتحها.
+	if (SeasonStoryWidget)
+	{
+		SeasonStoryWidget->AddStoryEvent(Event);
+	}
+}
+
 // P6-T6: دردشة حية — إنشاء كسند ودجة (نفس نمط AllianceWidget)
 void ARok2GameMode::HandleChatAction()
 {
@@ -394,5 +442,9 @@ void ARok2GameMode::HandleChatAction()
 	{
 		// ترتيب 50 كبقية اللوحات (تحت طبقة الإرشاد 60، فوق الـHUD 20)
 		ChatWidget->AddToViewport(50);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+		}
 	}
 }

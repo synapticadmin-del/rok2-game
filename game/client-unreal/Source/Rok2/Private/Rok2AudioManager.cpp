@@ -2,6 +2,7 @@
 
 #include "Rok2AudioManager.h"
 #include "Rok2CivThemes.h"
+#include "Rok2ArtAssets.h"
 #include "Components/AudioComponent.h"
 #include "Sound/SoundWave.h"
 #include "Kismet/GameplayStatics.h"
@@ -27,6 +28,14 @@ void URok2AudioManager::InitForCiv(const FString& CivId)
 	CurrentCivId = CivId;
 
 	BuildAudioPaths();
+
+	// P7-T1: همس الحضارة جزء من لحظة الدخول فقط؛ حارس InitForCiv يمنع تكراره
+	// عند وصول لقطات مدينة لاحقة للحضارة نفسها.
+	const FString WhisperPath = URok2ArtAssets::GetCivilizationWhisperAssetPath(CivId);
+	if (bAudioEnabled && !WhisperPath.IsEmpty())
+	{
+		PlaySoundAtPath(WhisperPath, MasterVolume * 0.7f);
+	}
 
 	UE_LOG(LogRok2Audio, Log, TEXT("AudioManager initialized for civ: %s"), *CivId);
 }
@@ -58,8 +67,15 @@ void URok2AudioManager::BuildAudioPaths()
 	SfxPaths.Add(ERok2AudioType::BattleVictory,  TEXT("Audio/sfx/victory"));
 	SfxPaths.Add(ERok2AudioType::BattleDefeat,   TEXT("Audio/sfx/defeat"));
 	SfxPaths.Add(ERok2AudioType::MarchStart,     TEXT("Audio/sfx/march_start"));
-	SfxPaths.Add(ERok2AudioType::ButtonClick,    TEXT("Audio/sfx/button_click"));
-	SfxPaths.Add(ERok2AudioType::Notification,   TEXT("Audio/sfx/notification"));
+	// P7-T1: P6-T8 هو المصدر الوحيد لمسارات أصوات الواجهة. نبقي ButtonClick
+	// متوافقاً مع الودجات القديمة لكنه يستخدم الأصل الموحد نفسه.
+	const FString UiButtonPath = URok2ArtAssets::GetUiSfxAssetPath(TEXT("button_click"));
+	SfxPaths.Add(ERok2AudioType::ButtonClick,   UiButtonPath);
+	SfxPaths.Add(ERok2AudioType::UiButtonClick, UiButtonPath);
+	SfxPaths.Add(ERok2AudioType::UiPanelOpen,   URok2ArtAssets::GetUiSfxAssetPath(TEXT("panel_open")));
+	SfxPaths.Add(ERok2AudioType::UiPanelClose,  URok2ArtAssets::GetUiSfxAssetPath(TEXT("panel_close")));
+	SfxPaths.Add(ERok2AudioType::UiError,       URok2ArtAssets::GetUiSfxAssetPath(TEXT("error")));
+	SfxPaths.Add(ERok2AudioType::Notification,  TEXT("Audio/sfx/notification"));
 	// P4-T4: أحداث اللعب
 	SfxPaths.Add(ERok2AudioType::GatherComplete,   TEXT("Audio/sfx/gather_complete"));
 	SfxPaths.Add(ERok2AudioType::ResearchComplete, TEXT("Audio/sfx/research_complete"));

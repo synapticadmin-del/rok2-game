@@ -24,7 +24,13 @@ enum class ERok2AudioType : uint8
 	BattleVictory,  // نصر في قتال
 	BattleDefeat,   // هزيمة
 	MarchStart,     // انطلاق مسيرة
-	ButtonClick,    // لمس زر
+	ButtonClick,    // لمس زر قديم (متوافق مع الودجات السابقة)
+	// P7-T1: أصوات الواجهة الموحدة من فهرس أصول P6-T8.
+	UiButtonClick,  // ui_button_click.wav
+	UiPanelOpen,    // ui_panel_open.wav
+	UiPanelClose,   // ui_panel_close.wav
+	UiError,        // ui_error.wav
+	CivWhisper,     // ui_civ_whisper_<civ>.wav — يُشغَّل عند InitForCiv
 	Notification,   // إشعار
 	// P4-T4: أحداث اللعب
 	GatherComplete, // عودة مسيرة جمع بالموارد

@@ -55,6 +55,8 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCivInfoAction;
 	// P6-T6: زر الدردشة الحية
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnChatAction;
+	// P7-T1: مدخل خط حكاية المملكة العام.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season Story") FOnHudAction OnSeasonStoryAction;
 
 protected:
 	UPROPERTY(Transient)
@@ -132,6 +134,7 @@ protected:
 	UFUNCTION() void OnEventsClickedHandler();
 	UFUNCTION() void OnCivInfoClickedHandler();
 	UFUNCTION() void OnChatClickedHandler();
+	UFUNCTION() void OnSeasonStoryClickedHandler();
 	void UpdateChatBadge();
 
 private:

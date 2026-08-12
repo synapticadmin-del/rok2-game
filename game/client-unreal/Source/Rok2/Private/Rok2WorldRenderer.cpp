@@ -6,6 +6,7 @@
 #include "Rok2ProceduralAssets.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
+#include "Rok2WorldIconography.h"
 #include "Rok2VisualTheme.h"
 #include "Rok2FogOfWar.h"
 #include "Rok2AudioManager.h"
@@ -434,9 +435,20 @@ void ARok2WorldRenderer::RefreshFromApi()
 			continue;
 		}
 
-		if (PassHISM)
+		// P7-T1: نحول هدف الممر إلى بوابة دلالية؛ والعرش يطلب تاجاً حين يظهر
+		// بمعرّفه السلطوي. يحتفظ Label بالـ glyph كي يُرى التشخيص في محرر UE.
+		const FString PassTargetType = P.Id.Contains(TEXT("throne"), ESearchCase::IgnoreCase)
+			? TEXT("throne") : TEXT("pass");
+		const FRok2WorldIconStyle Style = URok2WorldIconography::Resolve(PassTargetType, P.Id, P.Level);
+		const FLinearColor IconColor = FMath::Lerp(Style.BaseColor, Style.TierColor, 0.35f);
+		if (PassMesh)
 		{
-			PassHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(1.5f, 1.5f, 1.5f)));
+			if (AActor* Marker = SpawnMarkerActor(PassMesh, Loc,
+				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *P.Id, Style.Tier), IconColor))
+			{
+				Marker->SetActorScale3D(FVector(Style.WorldScale));
+				SpawnedActors.Add(Marker);
+			}
 		}
 	}
 
@@ -452,13 +464,19 @@ void ARok2WorldRenderer::RefreshFromApi()
 			continue;
 		}
 
-		if (N.Kind == TEXT("barb"))
+		// P7-T1: تستخدم كل عقدة قاموس P6 لاختيار مورد/برابرة وتدرج المستوى.
+		// نرسمها كعلامة مجمّعة لأن HISM لا يملك لوناً مستقلاً لكل مثيل في المادة الحالية.
+		const FRok2WorldIconStyle Style = URok2WorldIconography::Resolve(N.Kind, N.Kind, N.Level);
+		const FLinearColor IconColor = FMath::Lerp(Style.BaseColor, Style.TierColor, 0.35f);
+		UStaticMesh* MarkerMesh = NodeMesh;
+		if (MarkerMesh)
 		{
-			if (BarbarianNodeHISM) BarbarianNodeHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(0.8f, 0.8f, 0.8f)));
-		}
-		else
-		{
-			if (ResourceNodeHISM) ResourceNodeHISM->AddInstance(FTransform(FRotator::ZeroRotator, Loc, FVector(0.8f, 0.8f, 0.8f)));
+			if (AActor* Marker = SpawnMarkerActor(MarkerMesh, Loc,
+				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *N.Id, Style.Tier), IconColor))
+			{
+				Marker->SetActorScale3D(FVector(Style.WorldScale));
+				SpawnedActors.Add(Marker);
+			}
 		}
 	}
 

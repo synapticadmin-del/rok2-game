@@ -2,6 +2,8 @@
 
 #include "Rok2SeasonStoryWidget.h"
 #include "Rok2Typography.h"
+#include "Rok2AudioManager.h"
+#include "Rok2MotionLibrary.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
 #include "Components/CanvasPanel.h"
@@ -65,6 +67,7 @@ void URok2SeasonStoryWidget::NativeConstruct()
 	CloseText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 	Close->AddChild(CloseText);
 	Close->OnClicked.AddDynamic(this, &URok2SeasonStoryWidget::OnCloseClicked);
+	URok2MotionLibrary::BindPress(Close);
 	Header->AddChildToHorizontalBox(Close)->SetVerticalAlignment(VAlign_Center);
 
 	ChampionCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ChampionCard"));
@@ -108,6 +111,10 @@ void URok2SeasonStoryWidget::AddStoryEvent(const FRok2SeasonStoryEntry& InEvent)
 
 void URok2SeasonStoryWidget::OnCloseClicked()
 {
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
 	SetVisibility(ESlateVisibility::Collapsed);
 }
 
