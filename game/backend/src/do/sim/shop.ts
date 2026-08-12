@@ -31,6 +31,17 @@ export function getSpeedup(itemId: string): SpeedupItem | undefined {
   return getShop().speedups.find((s) => s.id === itemId);
 }
 
+/** تكلفة إنهاء طابور بالجواهر، مشتقة من أفضل قيمة زمن/جوهرة في كتالوج التسريعات. */
+export function gemFinishCost(remainingSeconds: number): number {
+  const seconds = Math.max(0, Math.ceil(Number(remainingSeconds) || 0));
+  if (seconds <= 0) return 0;
+  const rates = shopCatalog()
+    .filter((item) => item.seconds > 0 && item.cost_gems > 0)
+    .map((item) => item.cost_gems / item.seconds);
+  const gemsPerSecond = rates.length > 0 ? Math.min(...rates) : 1 / 60;
+  return Math.max(1, Math.ceil(seconds * gemsPerSecond));
+}
+
 export function vipTiers(): VipTier[] {
   return getShop().vip_tiers;
 }

@@ -420,8 +420,10 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 		City.Resources.Food = Rok2Json::Num((*CityObj), TEXT("food"));
 		City.Resources.Wood = Rok2Json::Num((*CityObj), TEXT("wood"));
 		City.Resources.Stone = Rok2Json::Num((*CityObj), TEXT("stone"));
-		City.Resources.Gold = Rok2Json::Num((*CityObj), TEXT("gold"));
-		City.UpdatedAt = (int64)Rok2Json::Num((*CityObj), TEXT("updated_at"));
+					City.Resources.Gold = Rok2Json::Num((*CityObj), TEXT("gold"));
+			City.Gems = (int32)Rok2Json::Num((*CityObj), TEXT("gems"));
+			City.UpdatedAt = (int64)Rok2Json::Num((*CityObj), TEXT("updated_at"));
+
 	}
 	const TSharedPtr<FJsonObject>* PlayerObj;
 	if (Obj->TryGetObjectField(TEXT("player"), PlayerObj) && PlayerObj->IsValid())
@@ -458,25 +460,49 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 	// queues
 	City.ActiveQueues.Empty();
 	const TArray<TSharedPtr<FJsonValue>>* QueuesArr;
-	if (Obj->TryGetArrayField(TEXT("active_queues"), QueuesArr))
-	{
-		for (const auto& V : *QueuesArr)
+		const bool bHasQueues = Obj->TryGetArrayField(TEXT("activeQueues"), QueuesArr)
+			|| Obj->TryGetArrayField(TEXT("active_queues"), QueuesArr);
+		if (bHasQueues && QueuesArr)
 		{
-			const TSharedPtr<FJsonObject> Q = V->AsObject();
-			if (!Q.IsValid()) continue;
-			FRok2QueueEntry Entry;
-			Entry.Id = Rok2Json::Str(Q, TEXT("id"));
-			Entry.Type = Rok2Json::Str(Q, TEXT("type"));
-			Entry.RefId = Rok2Json::Str(Q, TEXT("refId"));
-			Entry.Level = (int32)Rok2Json::Num(Q, TEXT("level"));
-			Entry.StartMs = (int64)Rok2Json::Num(Q, TEXT("startMs"));
-			Entry.EndMs = (int64)Rok2Json::Num(Q, TEXT("endMs"));
-			City.ActiveQueues.Add(Entry);
+			for (const auto& V : *QueuesArr)
+			{
+				const TSharedPtr<FJsonObject> Q = V->AsObject();
+				if (!Q.IsValid()) continue;
+				FRok2QueueEntry Entry;
+				Entry.Id = Rok2Json::Str(Q, TEXT("id"));
+				Entry.Type = Rok2Json::Str(Q, TEXT("type"));
+				if (Entry.Type == TEXT("build")) Entry.Type = TEXT("building");
+				Entry.StartMs = (int64)Rok2Json::Num(Q, TEXT("startMs"));
+				Entry.EndMs = (int64)Rok2Json::Num(Q, TEXT("etaMs"));
+				if (Entry.EndMs <= 0) Entry.EndMs = (int64)Rok2Json::Num(Q, TEXT("endMs"));
+				Entry.RemainingSeconds = (int32)Rok2Json::Num(Q, TEXT("remainingSeconds"));
+				Entry.FinishCostGems = (int32)Rok2Json::Num(Q, TEXT("finishCostGems"));
+				Entry.State = Rok2Json::Str(Q, TEXT("state"));
+				const TSharedPtr<FJsonObject>* DataObj = nullptr;
+				if (Q->TryGetObjectField(TEXT("data"), DataObj) && DataObj && DataObj->IsValid())
+				{
+					Entry.RefId = Rok2Json::Str(*DataObj, TEXT("buildingId"));
+					Entry.Level = (int32)Rok2Json::Num(*DataObj, TEXT("level"));
+				}
+				if (Entry.RefId.IsEmpty()) Entry.RefId = Rok2Json::Str(Q, TEXT("refId"));
+				City.ActiveQueues.Add(Entry);
+			}
 		}
-	}
 
-	// معدلات الإنتاج من المباني المحدّثة (P1-T5)
-	RecomputeResourceRates();
+		const TSharedPtr<FJsonObject>* ProductionObj = nullptr;
+		if (Obj->TryGetObjectField(TEXT("production"), ProductionObj) && ProductionObj && ProductionObj->IsValid())
+		{
+			const TSharedPtr<FJsonObject>* RatesObj = nullptr;
+			if ((*ProductionObj)->TryGetObjectField(TEXT("ratesPerHour"), RatesObj) && RatesObj && RatesObj->IsValid())
+			{
+				City.Rates.Food = Rok2Json::Num(*RatesObj, TEXT("food"));
+				City.Rates.Wood = Rok2Json::Num(*RatesObj, TEXT("wood"));
+				City.Rates.Stone = Rok2Json::Num(*RatesObj, TEXT("stone"));
+				City.Rates.Gold = Rok2Json::Num(*RatesObj, TEXT("gold"));
+			}
+			else RecomputeResourceRates();
+		}
+		else RecomputeResourceRates();
 
 	// P6-T5: تحية الحضارة بنبرتها — هنا لأن الـApi هو منتج الإشعارات كلها
 	// (قتال/منطقة/بحث/حملة/كشافة)، وهذه أول لحظة تُعرف فيها حضارة اللاعب من
@@ -992,25 +1018,50 @@ void URok2Api::UpgradeBuilding(const FString& BuildingId)
 	});
 }
 
-void URok2Api::SpeedupQueue(const FString& QueueId)
-{
-	// كان هذا يستدعي /v1/city/speedup التي حُذفت من الخادم — ثغرة إنهاء
-	// فوري مجاني بلا سقف ولا تحقق من الملكية. وكان معطوباً أصلاً للاعب
-	// الشرعي: الخادم يشترط حقل "seconds" والعميل لا يرسله، فالردّ 400 دائماً.
-	//
-	// المسار الشرعي يخصم مصدراً حقيقياً. نستخدم تسريع VIP اليومي المجاني؛
-	// إن لم يكن متاحاً يردّ الخادم بخطأ واضح يظهر للاعب عبر OnApiError.
-	const FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\",\"useFreeDaily\":true}"), *QueueId);
-	TWeakObjectPtr<URok2Api> WeakThis(this);
-	Post(TEXT("/v1/shop/use-speedup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	void URok2Api::SpeedupQueue(const FString& QueueId)
 	{
-		if (!WeakThis.IsValid()) return;
-		URok2Api* Self = WeakThis.Get();
-		// الردّ حالة تسريع لا كائن مدينة — نعيد تحميل المدينة لتحديث الطوابير.
-		Self->EmitToast(TEXT("تم التسريع"));
-		Self->LoadCity();
-	});
-}
+		FinishQueueWithGems(QueueId);
+	}
+
+	void URok2Api::FinishQueueWithGems(const FString& QueueId)
+	{
+		if (QueueId.IsEmpty()) return;
+		const FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\",\"finishWithGems\":true}"), *QueueId);
+		TWeakObjectPtr<URok2Api> WeakThis(this);
+		Post(TEXT("/v1/shop/use-speedup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			Self->EmitToast(TEXT("اكتمل الطابور بالجواهر"));
+			Self->LoadCity();
+		});
+	}
+
+	void URok2Api::UseSpeedupItem(const FString& QueueId, const FString& ItemId)
+	{
+		if (QueueId.IsEmpty() || ItemId.IsEmpty()) return;
+		const FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\",\"itemId\":\"%s\"}"), *QueueId, *ItemId);
+		TWeakObjectPtr<URok2Api> WeakThis(this);
+		Post(TEXT("/v1/shop/use-speedup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			Self->EmitToast(TEXT("تم استخدام عنصر التسريع"));
+			Self->LoadCity();
+		});
+	}
+
+	void URok2Api::CollectCityProduction()
+	{
+		TWeakObjectPtr<URok2Api> WeakThis(this);
+		Post(TEXT("/v1/city/collect"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			Self->ParseCity(Obj);
+			Self->EmitToast(TEXT("تم تحصيل إنتاج المدينة"));
+		});
+	}
 
 void URok2Api::Train(const FString& UnitId, int32 Count)
 {

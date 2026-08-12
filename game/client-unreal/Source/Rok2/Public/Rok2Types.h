@@ -60,6 +60,14 @@ struct FRok2QueueEntry
 	int64 StartMs = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	int64 EndMs = 0;
+	/** زمن متبقٍ صادر من الخادم؛ يعاد حسابه دورياً فقط للعرض. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 RemainingSeconds = 0;
+	/** سعر إتمام الطابور بالجواهر، محسوب في الخادم من كتالوج التسريعات. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 FinishCostGems = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString State;
 };
 
 USTRUCT(BlueprintType)
@@ -71,7 +79,10 @@ struct FRok2City
 	int32 HallLevel = 1;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FRok2Resources Resources;
-	/** معدلات الإنتاج في الساعة — تحسب من المباني لعرض العدّاد الحي (P1-T5) */
+	/** رصيد عملة التسريع داخل اللعبة؛ يُحدَّث من الخادم فقط. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Gems = 0;
+	/** معدلات الإنتاج في الساعة — يرسلها الخادم بعد تطبيق المباني والأبحاث وVIP. */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FRok2Resources Rates;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")

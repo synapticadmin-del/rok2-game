@@ -1988,8 +1988,23 @@ export class KingdomShard extends DurableObject<Env> {
       return Response.json({ error: "unknown_action" }, { status: 400 });
     }
 
+    if (path.endsWith("/queue/list") && request.method === "GET") {
+      const playerId = new URL(request.url).searchParams.get("playerId") || "";
+      const queues = [...this.queues.values()]
+        .filter((queue) => queue.playerId === playerId && queue.state === "running")
+        .sort((a, b) => a.etaMs - b.etaMs);
+      return Response.json({ ok: true, queues });
+    }
+
     if (path.endsWith("/queue/add") && request.method === "POST") {
       const body = await request.json<any>();
+      // مبنى واحد فقط قيد الترقية لكل مدينة؛ القطارات والأبحاث تبقى طوابير مستقلة.
+      if (body.type === "build") {
+        const existingBuild = [...this.queues.values()].find(
+          (queue) => queue.playerId === body.playerId && queue.type === "build" && queue.state === "running",
+        );
+        if (existingBuild) return Response.json({ error: "building_queue_busy", queueId: existingBuild.id }, { status: 409 });
+      }
       const q: QueueEntity = {
         id: body.id || newId("q"),
         playerId: body.playerId,

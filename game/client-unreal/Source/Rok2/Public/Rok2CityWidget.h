@@ -35,6 +35,9 @@ public:
 	UTextBlock* ResStoneVal;
 	UPROPERTY(meta = (BindWidgetOptional))
 	UTextBlock* ResGoldVal;
+	/** رصيد عملة التسريع؛ لا يُستنتج محلياً. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UTextBlock* ResGemsVal;
 
 	// P6-T1: شارة الاتصال أيقونة إجرائية (خضراء/حمراء)
 	UPROPERTY(meta = (BindWidgetOptional))
@@ -80,6 +83,10 @@ public:
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* RefreshButton;
 
+	/** يطلب تسوية الإنتاج المتراكم من الخادم السلطوي. */
+	UPROPERTY(meta = (BindWidgetOptional))
+	UButton* CollectButton;
+
 	/** زر فتح تقارير القتال (P1-T4) */
 	UPROPERTY(meta = (BindWidgetOptional))
 	UButton* ReportsButton;
@@ -116,6 +123,9 @@ protected:
 	void OnRefreshClicked();
 
 	UFUNCTION()
+	void OnCollectClicked();
+
+	UFUNCTION()
 	void OnReportsClicked();
 
 	UFUNCTION()
@@ -126,6 +136,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<URok2QueueBtnHandler*> QueueHandlers;
+
+	/** يحدّث نصوص الطوابير محلياً مرة كل ثانية بين نبضات الخادم. */
+	float QueueDisplayRefreshAccumulator = 0.f;
 };
 
 UCLASS()

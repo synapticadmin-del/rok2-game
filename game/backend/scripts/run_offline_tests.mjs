@@ -14,6 +14,7 @@ const testScripts = [
   "season_scoring_offline_test.mjs",
   "events_offline_test.mjs",
   "shop_offline_test.mjs",
+  "building_economy_offline_test.mjs",
   "retention_offline_test.mjs",
   "battlepass_offline_test.mjs",
   "matchmaking_offline_test.mjs"

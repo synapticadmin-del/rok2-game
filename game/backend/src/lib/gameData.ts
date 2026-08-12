@@ -156,6 +156,30 @@ export function upgradeCost(buildingId: string, nextLevel: number) {
   };
 }
 
+/**
+ * مدة ترقية مبنى بالثواني. تعتمد على المستوى المستهدف وتُطبق سرعة البناء
+ * السلطوية هنا حتى لا يرسل العميل مدة قابلة للتلاعب.
+ */
+export function buildingUpgradeDurationSec(nextLevel: number, buildSpeedMultiplier = 1): number {
+  const normalizedMultiplier = Math.max(0.1, Number(buildSpeedMultiplier) || 1);
+  const baseSeconds = 30 * Math.pow(1.35, Math.max(0, nextLevel - 1));
+  return Math.max(5, Math.ceil(baseSeconds / normalizedMultiplier));
+}
+
+/** معدلات الموارد الأربع في الساعة قبل تحويلها إلى تسوية زمنية. */
+export function resourceProductionRates(
+  buildingsById: Record<string, number>,
+  productionMultiplier = 1,
+): { food: number; wood: number; stone: number; gold: number } {
+  const normalizedMultiplier = Math.max(0, Number(productionMultiplier) || 0);
+  return {
+    food: productionPerHour("farm", buildingsById.farm || 0) * normalizedMultiplier,
+    wood: productionPerHour("lumber_mill", buildingsById.lumber_mill || 0) * normalizedMultiplier,
+    stone: productionPerHour("quarry", buildingsById.quarry || 0) * normalizedMultiplier,
+    gold: productionPerHour("goldmine", buildingsById.goldmine || 0) * normalizedMultiplier,
+  };
+}
+
 export function trainCost(unitId: string, count: number) {
   const unitCosts: Record<string, { food: number; wood: number; stone: number; gold: number }> = {
     infantry_t1: { food: 50, wood: 20, stone: 0, gold: 0 },

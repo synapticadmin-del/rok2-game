@@ -52,12 +52,18 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 		MapButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnMapClicked);
 		URok2MotionLibrary::BindPress(MapButton);
 	}
-	if (RefreshButton)
-	{
-		RefreshButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnRefreshClicked);
-		URok2MotionLibrary::BindPress(RefreshButton);
-	}
-	if (ReportsButton)
+			if (RefreshButton)
+		{
+			RefreshButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnRefreshClicked);
+			URok2MotionLibrary::BindPress(RefreshButton);
+		}
+		if (CollectButton)
+		{
+			CollectButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnCollectClicked);
+			URok2MotionLibrary::BindPress(CollectButton);
+		}
+		if (ReportsButton)
+
 	{
 		ReportsButton->OnClicked.AddDynamic(this, &URok2CityWidget::OnReportsClicked);
 		URok2MotionLibrary::BindPress(ReportsButton);
@@ -152,6 +158,7 @@ void URok2CityWidget::NativeConstruct()
 			ResWoodVal = AddResPair(TEXT("wood"), ResColor);
 			ResStoneVal = AddResPair(TEXT("stone"), ResColor);
 			ResGoldVal = AddResPair(TEXT("gold"), ResColor);
+			ResGemsVal = AddResPair(TEXT("gems"), FLinearColor(0.65f, 0.45f, 1.0f));
 			ResourcesText = ResFoodVal; // توافق خلفي — لم يعد سطراً واحداً
 		}
 
@@ -194,8 +201,10 @@ void URok2CityWidget::NativeConstruct()
 			S->SetPadding(BtnPad);
 		};
 
-		MakeIconBtn(RefreshButton, TEXT("refresh"), TEXT("تحديث"), FMargin(5, 0, 3, 0), FMargin(10, 5, 10, 5));
-		MakeIconBtn(MapButton, TEXT("map"), TEXT("الخريطة"), FMargin(5, 0, 3, 0), FMargin(10, 5, 20, 5));
+					MakeIconBtn(RefreshButton, TEXT("refresh"), TEXT("تحديث"), FMargin(5, 0, 3, 0), FMargin(10, 5, 8, 5));
+			MakeIconBtn(CollectButton, TEXT("food"), TEXT("تحصيل"), FMargin(5, 0, 3, 0), FMargin(4, 5, 8, 5));
+			MakeIconBtn(MapButton, TEXT("map"), TEXT("الخريطة"), FMargin(5, 0, 3, 0), FMargin(10, 5, 20, 5));
+
 		MakeIconBtn(ReportsButton, TEXT("scroll"), TEXT("التقارير"), FMargin(5, 0, 3, 0), FMargin(0, 5, 10, 5));
 
 		// 2. Bottom Left Panel (Buildings)
@@ -371,7 +380,10 @@ void URok2CityWidget::Refresh()
 
 			UTextBlock* QTxt = NewObject<UTextBlock>(this);
 			FString QName = Q.Type == TEXT("building") ? FString::Printf(TEXT("ترقية %s"), *Q.RefId) : FString::Printf(TEXT("تدريب %s"), *Q.RefId);
-			QTxt->SetText(FText::FromString(FString::Printf(TEXT("%s إلى %d"), *QName, Q.Level)));
+				const int32 DisplaySeconds = Q.RemainingSeconds > 0 ? Q.RemainingSeconds : FMath::Max(0, (int32)((Q.EndMs - FDateTime::UtcNow().ToUnixTimestamp() * 1000) / 1000));
+				const int32 Minutes = DisplaySeconds / 60;
+				const int32 Seconds = DisplaySeconds % 60;
+				QTxt->SetText(FText::FromString(FString::Printf(TEXT("%s إلى %d · %02d:%02d"), *QName, Q.Level, Minutes, Seconds)));
 
 			UHorizontalBoxSlot* TxtSlot = QHBox->AddChildToHorizontalBox(QTxt);
 			TxtSlot->SetPadding(FMargin(0, 0, 10, 0));
@@ -389,7 +401,10 @@ void URok2CityWidget::Refresh()
 			SpdIcoSlot->SetVerticalAlignment(VAlign_Center);
 			SpdIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* BtnTxt = NewObject<UTextBlock>(this);
-			BtnTxt->SetText(FText::FromString(TEXT("تسريع")));
+							BtnTxt->SetText(FText::FromString(Q.FinishCostGems > 0
+					? FString::Printf(TEXT("إنهاء %d ج"), Q.FinishCostGems)
+					: TEXT("تحديث")));
+
 			SpdBox->AddChildToHorizontalBox(BtnTxt)->SetVerticalAlignment(VAlign_Center);
 
 			URok2QueueBtnHandler* Handler = NewObject<URok2QueueBtnHandler>(this);
@@ -424,6 +439,14 @@ void URok2CityWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	// عدّاد حي سلس — المزامنة الحقيقية تتم في URok2Api كل 30 ثانية (P1-T5)
 	UpdateResourceText();
+
+	QueueDisplayRefreshAccumulator += InDeltaTime;
+	if (QueueDisplayRefreshAccumulator >= 1.f)
+	{
+		QueueDisplayRefreshAccumulator = 0.f;
+		// يعيد إنشاء نص الزمن فقط من الحالة المخزنة؛ لا يرسل أي طلب شبكة.
+		Refresh();
+	}
 }
 
 void URok2CityWidget::UpdateResourceText()
@@ -450,6 +473,7 @@ void URok2CityWidget::UpdateResourceText()
 	if (ResWoodVal) ResWoodVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Wood, (int32)C.Rates.Wood)));
 	if (ResStoneVal) ResStoneVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Stone, (int32)C.Rates.Stone)));
 	if (ResGoldVal) ResGoldVal->SetText(FText::FromString(FString::Printf(TEXT("%d (+%d/س)"), Gold, (int32)C.Rates.Gold)));
+	if (ResGemsVal) ResGemsVal->SetText(FText::FromString(FString::Printf(TEXT("%d ج"), C.Gems)));
 }
 
 void URok2CityWidget::OnCityLoaded(const FRok2City& City)
@@ -488,6 +512,11 @@ void URok2CityWidget::OnMapClicked()
 void URok2CityWidget::OnRefreshClicked()
 {
 	if (Api) Api->LoadCity();
+}
+
+void URok2CityWidget::OnCollectClicked()
+{
+	if (Api) Api->CollectCityProduction();
 }
 
 void URok2CityWidget::OnReportsClicked()

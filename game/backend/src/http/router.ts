@@ -16,6 +16,8 @@ import {
   getAllianceStructures,
   starterBuildings,
   upgradeCost,
+  buildingUpgradeDurationSec,
+  resourceProductionRates,
   trainCost,
   unitPower,
 } from "../lib/gameData";
@@ -24,6 +26,7 @@ import {
   shopConstants,
   shopCatalog,
   getSpeedup,
+  gemFinishCost,
   vipTiers,
   vipTierForPoints,
   vipPointsForPurchase,
@@ -167,6 +170,41 @@ async function vipProductionMod(env: Env, playerId: string): Promise<number> {
 
 function kingdomStub(env: Env) {
   return env.KINGDOM_SHARD.get(env.KINGDOM_SHARD.idFromName(env.KINGDOM_ID || "kingdom-1"));
+}
+
+type ActiveQueueView = {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+  startMs: number;
+  etaMs: number;
+  state: string;
+  remainingSeconds: number;
+  finishCostGems: number;
+};
+
+/** حالة طوابير اللاعب تُقرأ من الـ Durable Object، لا من العميل. */
+async function getActiveQueues(env: Env, playerId: string): Promise<ActiveQueueView[]> {
+  const res = await kingdomStub(env).fetch(`https://do/queue/list?playerId=${encodeURIComponent(playerId)}`);
+  if (!res.ok) return [];
+  const data = await res.json<{ queues?: Array<Omit<ActiveQueueView, "remainingSeconds" | "finishCostGems">> }>();
+  const now = nowMs();
+  return (data.queues || []).map((queue) => {
+    const remainingSeconds = Math.max(0, Math.ceil((queue.etaMs - now) / 1000));
+    return { ...queue, remainingSeconds, finishCostGems: gemFinishCost(remainingSeconds) };
+  });
+}
+
+/** معدلات الإنتاج المعروضة للعميل، محسوبة من المباني والأبحاث وVIP في الخادم. */
+async function getProductionStatus(env: Env, playerId: string, buildings: Record<string, number>) {
+  const research = await getResearchLevels(env, playerId);
+  const vip = await getOrCreateVip(env, playerId);
+  const multiplier = (1 + researchBuff(research, "resource_production")) * vipTierForPoints(vip.points).production_mult;
+  return {
+    ratesPerHour: resourceProductionRates(buildings, multiplier),
+    multiplier,
+    collectPath: "/v1/city/collect",
+  };
 }
 
 /** P2-T5: رتبة اللاعب داخل تحالفه (من alliance_members؛ القائد R5 افتراضياً) */
@@ -694,6 +732,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const city = await refreshCity(env, player.id);
       const buildings = await getBuildingsMap(env, player.id);
       const troops = await getTroopsMap(env, player.id);
+      const activeQueues = await getActiveQueues(env, player.id);
+      const production = await getProductionStatus(env, player.id, buildings);
 
       // P2-T2: الجرحى وسعة المستشفى
       const wRows = await env.DB.prepare("SELECT unit_id, count FROM troops WHERE player_id = ? AND status = 'severely_wounded'")
@@ -719,6 +759,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         city,
         buildings,
         troops,
+        activeQueues,
+        production,
         wounded,
         hospital: {
           level: hospitalLevel,
@@ -738,6 +780,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       let city = await refreshCity(env, player.id);
       const buildings = await getBuildingsMap(env, player.id);
+      const activeQueues = await getActiveQueues(env, player.id);
+      if (activeQueues.some((queue) => queue.type === "build")) {
+        throw new HttpError(409, "Another building upgrade is already running", { queueId: activeQueues.find((queue) => queue.type === "build")?.id });
+      }
       const cur = buildings[body.buildingId] || 0;
       if (cur <= 0) throw new HttpError(400, "Building not owned");
       const nextLevel = cur + 1;
@@ -760,10 +806,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         player.id,
       ).run();
 
-      const duration = 30 * Math.pow(1.35, nextLevel - 1);
+      const vip = await getOrCreateVip(env, player.id);
+      const duration = buildingUpgradeDurationSec(nextLevel, vipTierForPoints(vip.points).build_speed_mult);
       const queueId = newId("q");
       const stub = kingdomStub(env);
-      await stub.fetch("https://do/queue/add", {
+      const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -775,16 +822,29 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           etaMs: nowMs() + duration * 1000,
         })
       });
+      if (!queueResponse.ok) {
+        // لا نترك خصماً بلا طابور عند تعارض طلبين أو خطأ مؤقت في الشارد.
+        await env.DB.prepare("UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+?, updated_at=? WHERE player_id=?")
+          .bind(cost.food, cost.wood, cost.stone, cost.gold, nowMs(), player.id).run();
+        const error = await queueResponse.json<{ error?: string }>();
+        throw new HttpError(queueResponse.status, error.error || "building_queue_failed");
+      }
 
       city = await refreshCity(env, player.id);
+      const refreshedBuildings = await getBuildingsMap(env, player.id);
+      const queues = await getActiveQueues(env, player.id);
       // P4-T1: نقاط Battle Pass عن البناء
       await grantBpXp(env, player.id, "build");
       return json({
         ok: true,
         buildingId: body.buildingId,
         level: nextLevel,
+        queueId,
+        durationSeconds: duration,
         city,
-        buildings: await getBuildingsMap(env, player.id),
+        buildings: refreshedBuildings,
+        activeQueues: queues,
+        production: await getProductionStatus(env, player.id, refreshedBuildings),
       });
     }
 
@@ -833,11 +893,27 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, unit, count: count, queueId, city, troops: all });
     }
 
-    // Collect / refresh
+    // Collect / refresh: التسوية تتم في الخادم وتعيد فقط ما تراكم منذ آخر ختم زمني.
     if (path === "/v1/city/collect" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
+      const before = await env.DB.prepare("SELECT food, wood, stone, gold FROM cities WHERE player_id = ?")
+        .bind(player.id)
+        .first<{ food: number; wood: number; stone: number; gold: number }>();
       const city = await refreshCity(env, player.id);
-      return json({ ok: true, city });
+      const buildings = await getBuildingsMap(env, player.id);
+      const collected = {
+        food: Math.max(0, city.food - (before?.food || 0)),
+        wood: Math.max(0, city.wood - (before?.wood || 0)),
+        stone: Math.max(0, city.stone - (before?.stone || 0)),
+        gold: Math.max(0, city.gold - (before?.gold || 0)),
+      };
+      return json({
+        ok: true,
+        city,
+        collected,
+        activeQueues: await getActiveQueues(env, player.id),
+        production: await getProductionStatus(env, player.id, buildings),
+      });
     }
 
     // ═══ P3-T4: متجر sandbox + speedups + VIP (بدون مدفوعات حقيقية) ═══
@@ -943,16 +1019,30 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     // استخدام speedup من المخزون على طابور جاري + المطالبة بالتسريع المجاني اليومي من VIP
     if (path === "/v1/shop/use-speedup" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
-      const body = await readJson<{ queueId: string; itemId?: string; useFreeDaily?: boolean }>(request);
+      const body = await readJson<{ queueId: string; itemId?: string; useFreeDaily?: boolean; finishWithGems?: boolean }>(request);
       if (!body.queueId) throw new HttpError(400, "queueId required");
       // P4-T5: anti-cheat — حد المعدل على استخدام التسريعات
       enforceRateLimit(player.id, "use_speedup");
 
       let seconds = 0;
       let source: string;
+      let gemsSpent = 0;
       const now = nowMs();
 
-      if (body.useFreeDaily) {
+      if (body.finishWithGems) {
+        const queue = (await getActiveQueues(env, player.id)).find((entry) => entry.id === body.queueId);
+        if (!queue) throw new HttpError(404, "Queue not found or already completed");
+        if (queue.remainingSeconds <= 0 || queue.finishCostGems <= 0) throw new HttpError(400, "Queue does not need a gem finish");
+        const city = await refreshCity(env, player.id);
+        if (city.gems < queue.finishCostGems) {
+          throw new HttpError(400, "Not enough gems", { cost: queue.finishCostGems, gems: city.gems });
+        }
+        seconds = queue.remainingSeconds;
+        source = "gems_finish";
+        gemsSpent = queue.finishCostGems;
+        await env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+          .bind(city.gems - gemsSpent, now, player.id).run();
+      } else if (body.useFreeDaily) {
         // التسريع المجاني اليومي من مزايا VIP
         const vip = await getOrCreateVip(env, player.id);
         const tier = vipTierForPoints(vip.points);
@@ -982,8 +1072,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         body: JSON.stringify({ queueId: body.queueId, seconds, playerId: player.id }),
       });
       const data = await res.json<any>();
-      if (!res.ok) throw new HttpError(res.status, data.error || "speedup_failed");
-      return json({ ok: true, queueId: body.queueId, seconds, source });
+      if (!res.ok) {
+        // تعويض الجواهر فقط إن فشل الشارد قبل تطبيق الإنهاء؛ عناصر المخزون تعالجها دورة المخزون القائمة.
+        if (source === "gems_finish" && gemsSpent > 0) {
+          await env.DB.prepare("UPDATE cities SET gems=gems+?, updated_at=? WHERE player_id=?")
+            .bind(gemsSpent, nowMs(), player.id).run();
+        }
+        throw new HttpError(res.status, data.error || "speedup_failed");
+      }
+      const remainingSeconds = Math.max(0, Math.ceil(((data.queue?.etaMs || now) - nowMs()) / 1000));
+      return json({
+        ok: true,
+        queueId: body.queueId,
+        seconds,
+        source,
+        finishCostGems: source === "gems_finish" ? 0 : gemFinishCost(remainingSeconds),
+        queue: data.queue,
+      });
     }
 
     // ═══ P4-T1: Battle Pass (sandbox — مسار مجاني + مدفوع بالـ gems) ═══

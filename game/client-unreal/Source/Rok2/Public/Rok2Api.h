@@ -84,8 +84,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void UpgradeBuilding(const FString& BuildingId);
 
+	/** زر التسريع الافتراضي: ينهي الطابور بالجواهر وفق السعر الصادر من الخادم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SpeedupQueue(const FString& QueueId);
+
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void FinishQueueWithGems(const FString& QueueId);
+
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void UseSpeedupItem(const FString& QueueId, const FString& ItemId);
+
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void CollectCityProduction();
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void Train(const FString& UnitId, int32 Count);
