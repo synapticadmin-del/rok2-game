@@ -358,25 +358,23 @@ AActor* ARok2WorldRenderer::SpawnSpriteActor(UTexture2D* Icon, const FVector& Lo
 {
 	if (!Icon) return nullptr;
 
-	AActor* Owner = nullptr;
 	FActorSpawnParameters P;
 	P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	Owner = GetWorld()->SpawnActor<AActor>(Loc, FRotator::ZeroRotator, P);
-	if (!Owner) return nullptr;
+	AActor* SpriteActor = GetWorld()->SpawnActor<AActor>(Loc, FRotator::ZeroRotator, P);
+	if (!SpriteActor) return nullptr;
 
 	// P7-T10: billboard يواجه الكاميرا دائماً — الأيقونة المولدة مصممة باتجاه +X.
-	UBillboardComponent* Sprite = NewObject<UBillboardComponent>(Owner);
-	Sprite->Sprite = Icon;
-	Sprite->SpriteInfo.Scale = FVector(Scale * 100.f, Scale * 100.f, Scale * 100.f);
+	UBillboardComponent* Sprite = NewObject<UBillboardComponent>(SpriteActor);
+	Sprite->SetSprite(Icon);
+	Sprite->SetRelativeScale3D(FVector(Scale, Scale, Scale));
 	Sprite->bIsScreenSizeScaled = false;
-	Sprite->SpriteWidthScale = 0.f;
-	Sprite->SetupAttachment(Owner->GetRootComponent());
+	Sprite->SetupAttachment(SpriteActor->GetRootComponent());
 	Sprite->RegisterComponent();
-	Owner->SetActorLocation(Loc);
+	SpriteActor->SetActorLocation(Loc);
 #if WITH_EDITOR
-	Owner->SetActorLabel(Label);
+	SpriteActor->SetActorLabel(Label);
 #endif
-	return Owner;
+	return SpriteActor;
 }
 
 void ARok2WorldRenderer::RefreshFromApi()

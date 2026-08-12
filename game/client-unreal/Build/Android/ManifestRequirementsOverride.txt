@@ -4,4 +4,10 @@
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 <uses-feature android:glEsVersion="0x00030001" android:required="true" />
 <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-<uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="true" />
+<!-- P7-T12 إصلاح تعليق Splash:
+     DefaultGraphicsRHI=OpenGLES3 لكن `uses-feature vulkan required=true` كان يجبر
+     المحرك على طلب Vulkan من المتجر والـ runtime. مع بُنية Intel UHD / Adreno
+     منخفضة وMinSDK 26 تتعطل الإقلاع أو يقفز إلى برنامج تشغيل تجريبي.
+     الإبقاء على Vulkan كخيار ثانوي غير إلزامي (required=false) يحرر OpenGLES3
+     للنسخ الافتراضي دون كسر الأجهزة القادرة على Vulkan. -->
+<uses-feature android:name="android.hardware.vulkan.level" android:version="1" android:required="false" />

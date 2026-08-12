@@ -8,6 +8,7 @@
 #include "Rok2Api.h"
 #include "Rok2CivThemes.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Typography.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"

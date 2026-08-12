@@ -2036,21 +2036,21 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 		{
 			Audio->PlaySfx(ERok2AudioType::UiError);
 		}
-			const bool bWasLive = Self->bWsConnected;
-			Self->bWsConnected = false;
-			Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
-			Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
+		const bool bWasLive = Self->bWsConnected;
+		Self->bWsConnected = false;
+		Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
+		Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
 		// سيُعاد الاتصال من PumpEvents بعد WsReconnectDelay
 	});
 
 	WebSocket->OnClosed().AddLambda([WeakThis](int32 Code, const FString& Reason, bool bWasClean)
 	{
-			if (!WeakThis.IsValid()) return;
-			URok2Api* Self = WeakThis.Get();
-			const bool bWasLive = Self->bWsConnected;
-			Self->bWsConnected = false;
-			Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
-			if (Self->bWsDesired)
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		const bool bWasLive = Self->bWsConnected;
+		Self->bWsConnected = false;
+		Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
+		if (Self->bWsDesired)
 		{
 			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال الحي — إعادة خلال %.0f ث"), Self->WsReconnectDelay));
 		}

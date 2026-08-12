@@ -64,3 +64,6 @@ tmp_*
 !game/client-unreal/Build/Android/
 !game/client-unreal/Build/Android/ManifestRequirementsOverride.txt
 !game/client-unreal/Build/Android/ManifestApplicationAdditions.txt
+# P7-T12 fix: GoogleVR PermissionHelper stub (template imports unconditionally)
+!game/client-unreal/Build/Android/JavaLibs/vrpermissionstub/AndroidManifest.xml
+!game/client-unreal/Build/Android/JavaLibs/vrpermissionstub/src/main/java/com/google/vr/sdk/samples/permission/PermissionHelper.java

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   يبني عميل ROK2 من سطر الأوامر باستخدام Unreal Engine 5.4.4 المثبت محلياً.
 
@@ -58,7 +58,7 @@ function Resolve-UnrealEngineRoot {
     $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
     $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
     if ($ActualVersion -ne '5.4.4') {
-        throw "يتطلب ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
+        throw "يتطلب ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion في المسار: ${Candidate}"
     }
     return (Resolve-Path $Candidate).Path
 }
@@ -111,6 +111,19 @@ New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
 $Timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $BuildLog = Join-Path $LogDirectory "build-$Target-$Timestamp.log"
 
+# P7-T12 fix: Gradle 7.6.3 bundled with UE 5.4 cannot parse class file
+# major version 65 (Java 21). The Android Studio JBR ships Java 21, so
+# we redirect JAVA_HOME to Microsoft JDK 17 before invoking Build.bat.
+# UEDeployAndroid inherits JAVA_HOME from the process environment.
+if ($Platform -eq 'Android') {
+    $Jdk17 = 'C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot'
+    if (Test-Path (Join-Path $Jdk17 'bin\java.exe')) {
+        $env:JAVA_HOME = $Jdk17
+        $env:PATH = "$Jdk17\bin;$env:PATH"
+        Write-Host "[ROK2] JAVA_HOME redirected to JDK 17 for Gradle compatibility" -ForegroundColor DarkGray
+    }
+}
+
 Write-Host "[ROK2] Engine: UE 5.4.4 — $ResolvedEngineRoot" -ForegroundColor Cyan
 Write-Host "[ROK2] Project: $ProjectFile" -ForegroundColor Cyan
 Write-Host "[ROK2] Target: $Target ($Platform)" -ForegroundColor Cyan
@@ -133,6 +146,19 @@ if ($Target -eq 'Editor') {
 } else {
     $BuildArguments = @('Rok2', $Platform, $Target, $ProjectFile, '-WaitMutex', '-NoHotReload')
 }
+
+# P7-T12 fix:Copy GoogleVR PermissionHelper stub into Intermediate/Android JavaLibs before any Android build.
+if ($Platform -eq 'Android') {
+    $StubSrc = Join-Path $ProjectRoot 'Build\Android\JavaLibs\vrpermissionstub'
+    $JavaLibsBase = Join-Path $ProjectRoot 'Intermediate\Android\arm64\JavaLibs'
+    if ((Test-Path $StubSrc) -and (Test-Path $JavaLibsBase)) {
+        $StubDest = Join-Path $JavaLibsBase 'vrpermissionstub'
+        if (Test-Path $StubDest) { Remove-Item -Recurse -Force $StubDest }
+        Copy-Item -Recurse -Force $StubSrc $StubDest
+        Write-Host "[ROK2] Copied vrpermissionstub to Intermediate JavaLibs" -ForegroundColor DarkGray
+    }
+}
+
 Invoke-UnrealBatchFile -FilePath $BuildBat -Arguments $BuildArguments -LogPath $BuildLog
 
 if ($Package) {

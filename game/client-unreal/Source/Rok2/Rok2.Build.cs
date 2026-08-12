@@ -38,7 +38,8 @@ public class Rok2 : ModuleRules
 			"NavigationSystem",
 			"AIModule",
 			"RenderCore",
-			"RHI"
+			"RHI",
+			"ApplicationCore"
 		});
 
 		// Allow Android target build

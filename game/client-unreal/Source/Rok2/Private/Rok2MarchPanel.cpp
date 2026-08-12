@@ -7,6 +7,7 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Typography.h"
 #include "Rok2WorldRenderer.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/WidgetTree.h"
