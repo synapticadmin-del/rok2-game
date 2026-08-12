@@ -13,6 +13,25 @@ class UHierarchicalInstancedStaticMeshComponent;
 class USceneComponent;
 class UStaticMesh;
 
+/** لقطة خفيفة لأعباء تمثيل خريطة العالم؛ تستعمل في PIE ولا تمثل زمن GPU أو ذاكرة النظام. */
+USTRUCT(BlueprintType)
+struct FRok2WorldPerfSnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 CityInstances = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 PassInstances = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 ResourceNodeInstances = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 BarbarianNodeInstances = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 MarkerActors = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 MarchActors = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 HillActors = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 PooledMarkerActors = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") int32 WorldFrameSamples = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") float WorldFrameAverageMs = 0.f;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|Perf") float WorldFramePeakMs = 0.f;
+};
+
 /** طبقة العرض المحسوبة من مسافة التكبير المستهدفة، لا من عدد العناصر في اللقطة. */
 UENUM(BlueprintType)
 enum class ERok2WorldZoomLayer : uint8
@@ -62,6 +81,14 @@ public:
 	/** ينشئ طلب بناء في موضع عالم Unreal؛ تحقق الخادم هو السلطة النهائية للنوع والرتبة والإقليم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance Structures")
 	void RequestAllianceStructureAtWorldPoint(const FString& StructureKind, FVector WorldPoint);
+
+	/** لقطة أعداد تمثيل العالم وزمن tick المتراكم لراسم الخريطة. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Perf")
+	FRok2WorldPerfSnapshot GetPerformanceSnapshot() const;
+
+	/** يبدأ نافذة قياس جديدة لزمن tick راسم العالم قبل مسار قبول PIE. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Perf")
+	void ResetPerformanceSnapshot();
 
 	UPROPERTY(VisibleAnywhere, Category = "Rok2")
 	USceneComponent* Root;

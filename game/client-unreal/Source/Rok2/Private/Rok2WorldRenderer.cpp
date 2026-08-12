@@ -159,6 +159,34 @@ int32 ARok2WorldRenderer::GetMarchCapacity() const
 	return FMath::Min(5, 1 + (HallLevel - 1) / 5);
 }
 
+FRok2WorldPerfSnapshot ARok2WorldRenderer::GetPerformanceSnapshot() const
+{
+	FRok2WorldPerfSnapshot Snapshot;
+	Snapshot.CityInstances = CityHISM ? CityHISM->GetInstanceCount() : 0;
+	Snapshot.PassInstances = PassHISM ? PassHISM->GetInstanceCount() : 0;
+	Snapshot.ResourceNodeInstances = ResourceNodeHISM ? ResourceNodeHISM->GetInstanceCount() : 0;
+	Snapshot.BarbarianNodeInstances = BarbarianNodeHISM ? BarbarianNodeHISM->GetInstanceCount() : 0;
+	Snapshot.MarkerActors = SpawnedActors.Num();
+	Snapshot.MarchActors = SpawnedMarches.Num();
+	Snapshot.HillActors = SpawnedHills.Num();
+	if (const URok2Perf* Perf = URok2Perf::Get(this))
+	{
+		Snapshot.PooledMarkerActors = Perf->PoolSize();
+		Snapshot.WorldFrameSamples = Perf->GetWorldFrameSampleCount();
+		Snapshot.WorldFrameAverageMs = Perf->GetWorldFrameAverageMs();
+		Snapshot.WorldFramePeakMs = Perf->GetWorldFramePeakMs();
+	}
+	return Snapshot;
+}
+
+void ARok2WorldRenderer::ResetPerformanceSnapshot()
+{
+	if (URok2Perf* Perf = URok2Perf::Get(this))
+	{
+		Perf->ResetWorldFrameTelemetry();
+	}
+}
+
 void ARok2WorldRenderer::ApplyZoomLayerVisibility()
 {
 	const bool bTactical = IsTacticalLayer();
@@ -206,6 +234,11 @@ void ARok2WorldRenderer::OnWorldSnapshotHandler(const FRok2WorldSnapshot& Snapsh
 void ARok2WorldRenderer::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	if (URok2Perf* Perf = URok2Perf::Get(this))
+	{
+		Perf->RecordWorldFrame(DeltaSeconds);
+	}
 
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
 	{

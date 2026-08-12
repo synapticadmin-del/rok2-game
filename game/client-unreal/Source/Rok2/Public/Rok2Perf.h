@@ -57,6 +57,23 @@ public:
 	/** عدد الممثلات الخاملة حالياً في المسبح (للتشخيص/الاختبارات). */
 	int32 PoolSize() const { return Pool.Num(); }
 
+	// ---- World-frame telemetry ----
+	/** يسجل زمن tick لراسم العالم. لا يُعد بديلاً عن stat unit أو profiler بل عداد خفيف داخل اللعبة. */
+	void RecordWorldFrame(float DeltaSeconds);
+
+	/** يمسح المتوسط والقمة قبل لقطة أداء جديدة. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Perf")
+	void ResetWorldFrameTelemetry();
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Perf")
+	float GetWorldFrameAverageMs() const { return WorldFrameAverageMs; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Perf")
+	float GetWorldFramePeakMs() const { return WorldFramePeakMs; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Perf")
+	int32 GetWorldFrameSampleCount() const { return WorldFrameSampleCount; }
+
 	/** سقف المسبح — الفائض يُدمّر عند الإعادة بدل التضخم بلا حد. */
 	UPROPERTY(EditAnywhere, Category = "Rok2|Perf")
 	int32 MaxPoolSize = 64;
@@ -77,4 +94,16 @@ protected:
 	/** ممثلات خاملة قابلة لإعادة الاستخدام. */
 	UPROPERTY(Transient)
 	TArray<AStaticMeshActor*> Pool;
+
+	/** متوسط متحرك لزمن Tick راسم العالم بالميلي ثانية؛ يقيّم عبء العميل لا زمن GPU. */
+	UPROPERTY(Transient)
+	float WorldFrameAverageMs = 0.f;
+
+	/** أعلى زمن Tick لراسم العالم منذ آخر Reset بالميلي ثانية. */
+	UPROPERTY(Transient)
+	float WorldFramePeakMs = 0.f;
+
+	/** عدد العينات المسجلة منذ آخر Reset. */
+	UPROPERTY(Transient)
+	int32 WorldFrameSampleCount = 0;
 };

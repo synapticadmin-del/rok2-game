@@ -24,6 +24,7 @@ void URok2Perf::Deinitialize()
 {
 	FlushPool();
 	EngineMeshCache.Empty();
+	ResetWorldFrameTelemetry();
 	Super::Deinitialize();
 }
 
@@ -100,4 +101,19 @@ void URok2Perf::FlushPool()
 		if (IsValid(A)) A->Destroy();
 	}
 	Pool.Empty();
+}
+
+void URok2Perf::RecordWorldFrame(float DeltaSeconds)
+{
+	const float FrameMs = FMath::Max(0.f, DeltaSeconds) * 1000.f;
+	++WorldFrameSampleCount;
+	WorldFrameAverageMs += (FrameMs - WorldFrameAverageMs) / static_cast<float>(WorldFrameSampleCount);
+	WorldFramePeakMs = FMath::Max(WorldFramePeakMs, FrameMs);
+}
+
+void URok2Perf::ResetWorldFrameTelemetry()
+{
+	WorldFrameAverageMs = 0.f;
+	WorldFramePeakMs = 0.f;
+	WorldFrameSampleCount = 0;
 }
