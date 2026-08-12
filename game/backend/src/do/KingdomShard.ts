@@ -1377,6 +1377,8 @@ export class KingdomShard extends DurableObject<Env> {
   }
 
   private async resolveMarchArrival(m: MarchEntity, now: number) {
+    // حدث وصول منفصل عن نتيجة القتال: يصل للعميل قبل أن تتحول المسيرة إلى قتال أو عودة.
+    this.broadcast({ type: "march_arrived", march: m });
     if (m.targetType === "pass") {
       const pass = this.passes.get(m.targetId);
       if (!pass) {
@@ -2428,6 +2430,11 @@ export class KingdomShard extends DurableObject<Env> {
     const city = this.cities.get(playerId);
     if (!city) throw new Error("player_city_not_on_map");
     const now = nowMs();
+    // لا يسبق التحويل معالجة الوصول: إن انتهى وقت المسيرة يحسم الشارد الوصول/القتال أولاً.
+    if (now >= march.etaMs) {
+      await this.resolveMarchArrival(march, now);
+      throw new Error("march_already_arrived");
+    }
     const elapsedRatio = Math.max(0, Math.min(1, (now - march.startMs) / Math.max(1, march.etaMs - march.startMs)));
     const fromX = march.fromX + (march.toX - march.fromX) * elapsedRatio;
     const fromY = march.fromY + (march.toY - march.fromY) * elapsedRatio;

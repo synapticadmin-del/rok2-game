@@ -1296,9 +1296,17 @@ void URok2Api::RedirectMarch(const FString& MarchId, const FString& TargetType, 
 	Post(FString::Printf(TEXT("/v1/world/march/%s/redirect"), *FGenericPlatformHttp::UrlEncode(MarchId)), BodyStr, true,
 		[this](const TSharedPtr<FJsonObject>& Obj)
 		{
-			EmitToast(TEXT("تم تغيير وجهة المسيرة"));
+			PushNotification(TEXT("toast"), TEXT("تم اعتماد إعادة التوجيه"), TEXT("تتحرك المسيرة الآن نحو الهدف الجديد"), 6.f);
 			RefreshWorld();
 			LoadCity();
+		},
+		[this](const FString& Err)
+		{
+			const bool bNoLongerMoving = Err.Contains(TEXT("march_not_moving")) ||
+				Err.Contains(TEXT("march_already_arrived")) || Err.Contains(TEXT("march_in_combat"));
+			PushNotification(TEXT("toast"), TEXT("تعذّر تحويل المسيرة"),
+				bNoLongerMoving ? TEXT("المسيرة لم تعد في الحركة؛ جرى تحديث الخريطة") : Err, 6.f);
+			RefreshWorld();
 		});
 }
 
@@ -1550,11 +1558,16 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 					{
 						Self->EmitToast(TEXT("انطلقت المسيرة"));
 					}
-					else if (Type == TEXT("march_redirected") && E.OwnerPlayerId == Self->Player.Id)
-					{
-						Self->EmitToast(TEXT("تم تغيير وجهة المسيرة"));
-					}
-				// P4-T4: عودة مسيرة جمع بموارد — صوت حصاد للاعب صاحب المسيرة
+						else if (Type == TEXT("march_redirected") && E.OwnerPlayerId == Self->Player.Id)
+						{
+							// التنبيه الفوري يُعرض من استجابة الأمر؛ يبقى حدث WS لتحديث المسيرة على بقية الجلسات.
+						}
+						else if (Type == TEXT("march_returning") && E.OwnerPlayerId == Self->Player.Id)
+						{
+							Self->PushNotification(TEXT("toast"), TEXT("المسيرة عائدة"),
+								TEXT("لا يمكن إعادة توجيه المسيرة أثناء العودة"), 6.f);
+						}
+					// P4-T4: عودة مسيرة جمع بموارد — صوت حصاد للاعب صاحب المسيرة
 				if (Type == TEXT("march_returning") && E.OwnerPlayerId == Self->Player.Id &&
 					(E.Kind.Contains(TEXT("gather")) || E.Kind.Contains(TEXT("node"))))
 				{
@@ -1565,8 +1578,23 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 				}
 			}
 		}
-		else if (Type == TEXT("march_update"))
-		{
+			else if (Type == TEXT("march_arrived"))
+			{
+				const TSharedPtr<FJsonObject>* MarchObj;
+				if (Obj->TryGetObjectField(TEXT("march"), MarchObj) && MarchObj->IsValid())
+				{
+					FRok2MarchEntity E;
+					Self->ParseMarchEntity(*MarchObj, E);
+					if (E.OwnerPlayerId == Self->Player.Id)
+					{
+						Self->PushNotification(TEXT("toast"), TEXT("وصلت المسيرة"),
+							FString::Printf(TEXT("وصلت مسيرتك إلى %s"), *E.TargetId), 7.f);
+						Self->RefreshWorld();
+					}
+				}
+			}
+			else if (Type == TEXT("march_update"))
+			{
 			// تحديث تقدم خفيف — نحدّث الـ ETA فقط إن تغيّر (الحركة الفعلية تُحسب من startMs/etaMs)
 			const TArray<TSharedPtr<FJsonValue>>* Arr;
 			if (Obj->TryGetArrayField(TEXT("marches"), Arr))
