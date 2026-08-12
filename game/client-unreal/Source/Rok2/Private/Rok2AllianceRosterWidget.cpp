@@ -4,6 +4,7 @@
 
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2AllianceRallyWidget.h"
+#include "Rok2BattleReportWidget.h"
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
@@ -71,7 +72,18 @@ void URok2AllianceRosterWidget::NativeConstruct()
 
 			RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
 			UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyVBox);
-			RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 8.f));
+			RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 4.f));
+
+			RallyReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyReportsButton"));
+			RallyReportsButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.52f, 0.18f));
+			UTextBlock* RallyReportsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyReportsText"));
+			RallyReportsText->SetText(FText::FromString(TEXT("تقارير الراليات والقتال")));
+			RallyReportsText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			URok2Typography::ApplyFont(RallyReportsText, ERok2TextRole::Button);
+			RallyReportsButton->AddChild(RallyReportsText);
+			RallyReportsButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnRallyReportsClicked);
+			URok2MotionLibrary::BindPress(RallyReportsButton);
+			VBox->AddChildToVerticalBox(RallyReportsButton)->SetPadding(FMargin(20.f, 2.f, 20.f, 8.f));
 
 			RosterVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RosterVBox"));
 			UVerticalBoxSlot* RosterSlot = VBox->AddChildToVerticalBox(RosterVBox);
@@ -200,6 +212,21 @@ void URok2AllianceRosterWidget::PopulateRallies(const TArray<FRok2AllianceRally>
 void URok2AllianceRosterWidget::OnRalliesUpdated(const TArray<FRok2AllianceRally>& Rallies)
 {
 	PopulateRallies(Rallies);
+}
+
+void URok2AllianceRosterWidget::OnRallyReportsClicked()
+{
+	if (!Api || !GetWorld()) return;
+	if (!RallyReportsWidget)
+	{
+		RallyReportsWidget = CreateWidget<URok2BattleReportWidget>(GetWorld(), URok2BattleReportWidget::StaticClass());
+		if (RallyReportsWidget) RallyReportsWidget->Setup(Api);
+	}
+	if (RallyReportsWidget && !RallyReportsWidget->IsInViewport())
+	{
+		RallyReportsWidget->AddToViewport(55);
+	}
+	Api->FetchBattleReports();
 }
 
 void URok2AllianceRosterWidget::OnHelpClicked()

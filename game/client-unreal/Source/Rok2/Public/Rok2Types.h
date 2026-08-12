@@ -470,6 +470,44 @@ struct FRok2BattleSide
 };
 
 USTRUCT(BlueprintType)
+struct FRok2RallyReportParticipant
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Committed;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Remaining;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Losses;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Dead;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Severely;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> Slightly;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> HospitalAdmitted;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TroopLoss> HospitalDied;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 HospitalCapacity = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2BattleReward
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Kind;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Amount = 0;
+};
+
+USTRUCT(BlueprintType)
 struct FRok2BattleReport
 {
 	GENERATED_BODY()
@@ -494,6 +532,18 @@ struct FRok2BattleReport
 	FRok2BattleSide Attacker;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	FRok2BattleSide Defender;
+	/** حقل غير فارغ يعني أن القتال نتج عن رالي تحالف. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString RallyId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString RallyAllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString RallyLeaderPlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2RallyReportParticipant> RallyParticipants;
+	/** مكافآت صادرة من الخادم فقط، مثل نقاط الموسم أو أول احتلال. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2BattleReward> Rewards;
 };
 
 

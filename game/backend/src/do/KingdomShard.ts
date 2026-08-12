@@ -979,6 +979,115 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  /** تُظهر التقرير لصاحبه أو لأعضاء تحالف الرالي فقط. */
+  private reportVisibleTo(report: any, playerId: string, allianceId: string | null | undefined) {
+    if (!playerId) return false;
+    if (report.attackerPlayerId === playerId) return true;
+    const rally = report.rally;
+    if (!rally) return false;
+    if (Array.isArray(rally.participants) && rally.participants.some((p: any) => p.playerId === playerId)) return true;
+    return Boolean(allianceId && rally.allianceId && rally.allianceId === allianceId);
+  }
+
+  private visibleReportsFor(playerId: string, allianceId: string | null | undefined) {
+    return this.reports.filter((report) => this.reportVisibleTo(report, playerId, allianceId)).slice(0, 30);
+  }
+
+  /** يبث التقرير فقط للاتصالات التي يحق لها قراءته؛ لا يُستخدم البث العام للتقارير. */
+  private broadcastReport(report: any) {
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const attachment = (ws.deserializeAttachment() || { playerId: "" }) as Attach;
+        const city = this.cities.get(attachment.playerId);
+        if (this.reportVisibleTo(report, attachment.playerId, city?.allianceId)) {
+          ws.send(JSON.stringify({ type: "battle_report", report }));
+        }
+      } catch {
+        // تجاهل اتصال مغلق أو مرفق غير صالح.
+      }
+    }
+  }
+
+  /** توزيع حتمي لمجموع قوات على مساهمي الرالي، بالتناسب ثم بأكبر كسر متبقٍ. */
+  private distributeRallyTroops(
+    contributions: Array<{ playerId: string; troops: Troops }>,
+    total: Troops,
+  ): Record<string, Troops> {
+    const distributed: Record<string, Troops> = {};
+    for (const contribution of contributions) distributed[contribution.playerId] = {};
+    for (const [unitId, rawTotal] of Object.entries(total || {})) {
+      const eligible = contributions
+        .filter((contribution) => Number(contribution.troops?.[unitId] || 0) > 0)
+        .sort((a, b) => a.playerId.localeCompare(b.playerId));
+      const capacity = eligible.reduce((sum, contribution) => sum + Number(contribution.troops[unitId] || 0), 0);
+      let amount = Math.min(Math.max(0, Math.floor(Number(rawTotal) || 0)), capacity);
+      if (amount <= 0 || capacity <= 0) continue;
+      const shares = eligible.map((contribution) => {
+        const raw = (amount * Number(contribution.troops[unitId] || 0)) / capacity;
+        return { contribution, count: Math.floor(raw), fraction: raw - Math.floor(raw) };
+      });
+      let assigned = shares.reduce((sum, share) => sum + share.count, 0);
+      shares.sort((a, b) => (b.fraction - a.fraction) || a.contribution.playerId.localeCompare(b.contribution.playerId));
+      for (let i = 0; assigned < amount && shares.length > 0; i++, assigned++) shares[i % shares.length].count++;
+      for (const share of shares) {
+        if (share.count > 0) distributed[share.contribution.playerId][unitId] = share.count;
+      }
+    }
+    return distributed;
+  }
+
+  /** يسوي أثر قتال رالي على أرصدة كل عضو ويعيد سياق التقرير التفصيلي. */
+  private async settleRallyCombat(march: MarchEntity, result: CombatResult) {
+    const source = Array.isArray(march.payload?.rallyParticipants) ? march.payload.rallyParticipants : [];
+    const contributions = source
+      .map((entry: any) => ({ playerId: String(entry.playerId || ""), troops: (entry.committed || entry.troops || {}) as Troops }))
+      .filter((entry: { playerId: string }) => Boolean(entry.playerId));
+    if (!march.payload?.rallyId || contributions.length === 0) return null;
+
+    const losses = this.distributeRallyTroops(contributions, result.attackerLosses);
+    const dead = this.distributeRallyTroops(contributions, result.attackerSplit.dead);
+    const severely = this.distributeRallyTroops(contributions, result.attackerSplit.severely);
+    const slightly = this.distributeRallyTroops(contributions, result.attackerSplit.slightly);
+    const participants: any[] = [];
+
+    for (const contribution of contributions) {
+      const playerLosses = losses[contribution.playerId] || {};
+      const remaining: Troops = {};
+      for (const [unitId, committed] of Object.entries(contribution.troops)) {
+        const survivorCount = Math.max(0, Number(committed) - Number(playerLosses[unitId] || 0));
+        if (survivorCount > 0) remaining[unitId] = survivorCount;
+      }
+      const hospital = await this.admitToHospital(contribution.playerId, severely[contribution.playerId] || {});
+      await this.deductMarchLosses(contribution.playerId, playerLosses);
+      participants.push({
+        playerId: contribution.playerId,
+        committed: contribution.troops,
+        remaining,
+        losses: playerLosses,
+        dead: dead[contribution.playerId] || {},
+        severely: severely[contribution.playerId] || {},
+        slightly: slightly[contribution.playerId] || {},
+        hospital,
+      });
+    }
+
+    march.payload = { ...march.payload, rallyParticipants: participants };
+    return {
+      rallyId: String(march.payload.rallyId),
+      allianceId: march.allianceId || null,
+      leaderPlayerId: march.ownerPlayerId,
+      participants,
+    };
+  }
+
+  private async settleAttackerCombat(march: MarchEntity, result: CombatResult) {
+    const rally = await this.settleRallyCombat(march, result);
+    if (rally) return { rally };
+    const hospital = await this.admitToHospital(march.ownerPlayerId, result.attackerSplit.severely);
+    await this.deductMarchLosses(march.ownerPlayerId, result.attackerLosses);
+    return { hospital };
+  }
+
   private saveReport(report: any) {
     this.reports.unshift(report);
     this.reports = this.reports.slice(0, 50);
@@ -1009,7 +1118,8 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
-  private snapshot() {
+  private snapshot(playerId?: string) {
+    const playerAllianceId = playerId ? this.cities.get(playerId)?.allianceId : null;
     return {
       seasonDay: this.seasonDay,
       cities: [...this.cities.values()],
@@ -1026,7 +1136,8 @@ export class KingdomShard extends DurableObject<Env> {
       allianceStructureCatalog: getAllianceStructures(),
       // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
-      reports: this.reports.slice(0, 10),
+      // التقارير خاصة؛ لا تدخل في اللقطات العامة أو إرسال الحالة لكل العالم.
+      reports: playerId ? this.visibleReportsFor(playerId, playerAllianceId).slice(0, 10) : [],
       // P2-T5: الطوابير الجارية (لمساعدات التحالف — تقليل المدة عبر /v1/alliance/help)
       queues: [...this.queues.values()].filter((q) => q.state === "running"),
       // P6-T6: سجل الدردشة الحية (آخر 100 رسالة — playerName/civ يُملأ من cities)
@@ -1316,6 +1427,8 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
+        rally?: any;
+        rewards?: Array<{ kind: string; amount: number }>;
       } = {
         id: newId("br"),
         createdAt: now,
@@ -1325,14 +1438,10 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: m.allianceId,
         result,
       };
-      this.saveReport(report);
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
-
-      // P2-T2: الجرحى الخطيرون للمستشفى حسب السعة (الفائض يموت)
-      const hospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
-      report.hospital = hospital;
-      // كل الخسائر (موتى + جرحى) خرجت من رصيد المسيرة
-      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+      const settlement = await this.settleAttackerCombat(m, result);
+      if ("rally" in settlement) report.rally = settlement.rally;
+      else report.hospital = settlement.hospital;
 
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
@@ -1349,10 +1458,10 @@ export class KingdomShard extends DurableObject<Env> {
           pass.state = "open";
         }
         this.persistPass(pass);
-        this.broadcast({ type: "pass_owner_changed", pass, report });
-      } else {
-        this.broadcast({ type: "battle_report", report });
+        this.broadcast({ type: "pass_owner_changed", pass });
       }
+      this.saveReport(report);
+      this.broadcastReport(report);
 
       m.troops = result.attackerRemaining;
       this.spawnReturnMarch(m, now);
@@ -1398,6 +1507,8 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
+        rally?: any;
+        rewards?: Array<{ kind: string; amount: number }>;
       } = {
         id: newId("br"),
         createdAt: now,
@@ -1406,12 +1517,10 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: m.allianceId,
         result,
       };
-      this.saveReport(report);
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
-
-      const throneHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
-      report.hospital = throneHospital;
-      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+      const settlement = await this.settleAttackerCombat(m, result);
+      if ("rally" in settlement) report.rally = settlement.rally;
+      else report.hospital = settlement.hospital;
 
       if (result.winner === "attacker") {
         const gain = Math.min(100, 35 + Math.floor(troopPower(result.attackerRemaining) / 20));
@@ -1428,6 +1537,8 @@ export class KingdomShard extends DurableObject<Env> {
         }
         this.persistThrone();
       }
+      this.saveReport(report);
+      this.broadcastReport(report);
 
       m.troops = result.attackerRemaining;
       this.spawnReturnMarch(m, now);
@@ -1483,7 +1594,9 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: string | null;
         result: CombatResult;
         hospital?: HospitalSummary;
+        rally?: any;
         firstCaptureBonus?: number;
+        rewards?: Array<{ kind: string; amount: number }>;
       } = {
         id: newId("br"),
         createdAt: now,
@@ -1493,11 +1606,10 @@ export class KingdomShard extends DurableObject<Env> {
         attackerAllianceId: m.allianceId,
         result,
       };
-      this.saveReport(report);
       await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
-      const coHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
-      report.hospital = coHospital;
-      await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+      const settlement = await this.settleAttackerCombat(m, result);
+      if ("rally" in settlement) report.rally = settlement.rally;
+      else report.hospital = settlement.hospital;
 
       if (result.winner === "attacker") {
         const gain = coreCaptureGain(obj.kind, troopPower(result.attackerRemaining));
@@ -1516,16 +1628,17 @@ export class KingdomShard extends DurableObject<Env> {
             this.throneScores.set(m.allianceId, cur + bonus);
             this.persistThroneScore(m.allianceId, cur + bonus);
             report.firstCaptureBonus = bonus;
+            report.rewards = [{ kind: "season_points", amount: bonus }];
           }
           obj.ownerAllianceId = m.allianceId;
           obj.captureProgress = 100;
           obj.state = "open";
         }
         this.persistCoreObjective(obj);
-        this.broadcast({ type: "core_objective_changed", objective: obj, report });
-      } else {
-        this.broadcast({ type: "battle_report", report });
+        this.broadcast({ type: "core_objective_changed", objective: obj });
       }
+      this.saveReport(report);
+      this.broadcastReport(report);
 
       m.troops = result.attackerRemaining;
       this.spawnReturnMarch(m, now);
@@ -1547,9 +1660,11 @@ export class KingdomShard extends DurableObject<Env> {
             nodeId: string;
             attackerPlayerId: string;
             result: CombatResult;
-            hospital?: HospitalSummary;
-            barbKillScore?: number;
-          } = {
+        hospital?: HospitalSummary;
+        rally?: any;
+        barbKillScore?: number;
+        rewards?: Array<{ kind: string; amount: number }>;
+      } = {
             id: newId("br"),
             createdAt: now,
             kind: "barb",
@@ -1557,11 +1672,10 @@ export class KingdomShard extends DurableObject<Env> {
             attackerPlayerId: m.ownerPlayerId,
             result,
           };
-          this.saveReport(report);
           await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
-          const barbHospital = await this.admitToHospital(m.ownerPlayerId, result.attackerSplit.severely);
-          report.hospital = barbHospital;
-          await this.deductMarchLosses(m.ownerPlayerId, result.attackerLosses);
+          const settlement = await this.settleAttackerCombat(m, result);
+          if ("rally" in settlement) report.rally = settlement.rally;
+          else report.hospital = settlement.hospital;
           m.troops = result.attackerRemaining;
           if (result.winner === "attacker") {
             // P3-T3: نقاط قتل البرابرة أثناء حدث غزو البرابرة
@@ -1573,11 +1687,13 @@ export class KingdomShard extends DurableObject<Env> {
               this.throneScores.set(m.allianceId, cur + pts);
               this.persistThroneScore(m.allianceId, cur + pts);
               report.barbKillScore = pts;
+              report.rewards = [{ kind: "barbarian_event_points", amount: pts }];
             }
             node.remaining = Math.max(0, node.remaining - 50);
             this.persistNode(node);
           }
-          this.broadcast({ type: "battle_report", report });
+          this.saveReport(report);
+          this.broadcastReport(report);
           this.spawnReturnMarch(m, now);
         } else {
           m.state = "gathering";
@@ -1616,16 +1732,26 @@ export class KingdomShard extends DurableObject<Env> {
     m.state = "returned";
     this.persistMarch(m);
 
-    // Transfer troops to home
-    for (const [u, count] of Object.entries(m.troops)) {
-      await this.env.DB.prepare(
-        `UPDATE troops SET count=count-? WHERE player_id=? AND unit_id=? AND status='marching'`
-      ).bind(Number(count), m.ownerPlayerId, u).run();
-
-      await this.env.DB.prepare(
-        `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
-         ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`
-      ).bind(m.ownerPlayerId, u, Number(count)).run();
+    // مسيرة الرالي تعيد الناجين إلى أصحاب المساهمات، لا إلى القائد وحده.
+    const rallyParticipants = Array.isArray(m.payload?.rallyParticipants) ? m.payload.rallyParticipants : [];
+    const returnEntries = rallyParticipants.length > 0
+      ? rallyParticipants.map((entry: any) => ({
+          playerId: String(entry.playerId || ""),
+          troops: (entry.remaining || entry.committed || entry.troops || {}) as Troops,
+        }))
+      : [{ playerId: m.ownerPlayerId, troops: m.troops }];
+    for (const entry of returnEntries) {
+      if (!entry.playerId) continue;
+      for (const [u, count] of Object.entries(entry.troops)) {
+        if (Number(count) <= 0) continue;
+        await this.env.DB.prepare(
+          `UPDATE troops SET count=MAX(0, count-?) WHERE player_id=? AND unit_id=? AND status='marching'`,
+        ).bind(Number(count), entry.playerId, u).run();
+        await this.env.DB.prepare(
+          `INSERT INTO troops (player_id, unit_id, status, count) VALUES (?, ?, 'home', ?)
+           ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`,
+        ).bind(Number(count), entry.playerId, u).run();
+      }
     }
 
     // Add gathered resources
@@ -1662,7 +1788,16 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     if (path.endsWith("/snapshot") && request.method === "GET") {
-      return Response.json(this.snapshot());
+      const playerId = request.headers.get("x-rok2-player") || "";
+      return Response.json(this.snapshot(playerId));
+    }
+
+    // التقارير تصل من router مصادقاً عليه؛ لا نثق في هوية جسم طلب من عميل مباشر.
+    if (path.endsWith("/reports") && request.method === "GET") {
+      const playerId = request.headers.get("x-rok2-player") || "";
+      const allianceId = request.headers.get("x-rok2-alliance") || this.cities.get(playerId)?.allianceId || null;
+      if (!playerId) return Response.json({ error: "auth_required" }, { status: 401 });
+      return Response.json({ reports: this.visibleReportsFor(playerId, allianceId) });
     }
 
     if (path.endsWith("/leaderboard") && request.method === "GET") {
@@ -1764,7 +1899,15 @@ export class KingdomShard extends DurableObject<Env> {
               primaryCommanderId: r.commander_id || undefined,
               commanderSkills: r.commander_skills_json ? JSON.parse(r.commander_skills_json) : undefined,
             });
-            march.payload = { rallyId: r.id, participantIds: list.map((p) => p.player_id) };
+            march.payload = {
+              rallyId: r.id,
+              participantIds: list.map((p) => p.player_id),
+              // لقطة مساهمات سلطوية تُستخدم لاحقاً لتوزيع الخسائر والناجين وتقرير الرالي.
+              rallyParticipants: list.map((p) => ({
+                playerId: p.player_id,
+                committed: JSON.parse(p.troops_json || "{}") as Troops,
+              })),
+            };
             this.persistMarch(march);
             await this.env.DB.prepare(
               "UPDATE rallies SET status='launched', march_id=? WHERE id=?",
@@ -2409,7 +2552,7 @@ export class KingdomShard extends DurableObject<Env> {
     if (msg.type === "hello") {
       // لا نقرأ playerId من الرسالة — الهوية جاءت موثّقة من التوكن عبر header
       ws.send(JSON.stringify({ type: "hello_ok", playerId: att.playerId }));
-      ws.send(JSON.stringify({ type: "snapshot", ...this.snapshot() }));
+      ws.send(JSON.stringify({ type: "snapshot", ...this.snapshot(att.playerId) }));
       return;
     }
 

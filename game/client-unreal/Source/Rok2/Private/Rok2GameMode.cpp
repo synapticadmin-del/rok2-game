@@ -343,6 +343,8 @@ void ARok2GameMode::HandleReportsAction()
 	{
 		BattleReportWidget->AddToViewport(50);
 	}
+	// التقرير قد يصل أثناء إغلاق النافذة؛ اقرأ السجل الخاص المصفّى عند كل فتح.
+	Api->FetchBattleReports();
 }
 
 // ---------------------------------------------------------------------------

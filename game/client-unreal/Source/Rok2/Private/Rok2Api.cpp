@@ -880,6 +880,7 @@ void URok2Api::ParseTroopMap(const TSharedPtr<FJsonObject>& Obj, TArray<FRok2Tro
 
 void URok2Api::ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2BattleReport& Out) const
 {
+	Out = FRok2BattleReport();
 	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
 	Out.CreatedAt = (int64)Rok2Json::Num(Obj, TEXT("createdAt"));
 	Out.Kind = Rok2Json::Str(Obj, TEXT("kind"));
@@ -920,6 +921,54 @@ void URok2Api::ParseBattleReport(const TSharedPtr<FJsonObject>& Obj, FRok2Battle
 		{
 			Out.Attacker.PowerBefore = (int32)Rok2Json::Num((*PowerObj), TEXT("attacker"));
 			Out.Defender.PowerBefore = (int32)Rok2Json::Num((*PowerObj), TEXT("defender"));
+		}
+	}
+
+	const TSharedPtr<FJsonObject>* RallyObj = nullptr;
+	if (Obj->TryGetObjectField(TEXT("rally"), RallyObj) && RallyObj && RallyObj->IsValid())
+	{
+		Out.RallyId = Rok2Json::Str(*RallyObj, TEXT("rallyId"));
+		Out.RallyAllianceId = Rok2Json::Str(*RallyObj, TEXT("allianceId"));
+		Out.RallyLeaderPlayerId = Rok2Json::Str(*RallyObj, TEXT("leaderPlayerId"));
+		const TArray<TSharedPtr<FJsonValue>>* ParticipantArr = nullptr;
+		if ((*RallyObj)->TryGetArrayField(TEXT("participants"), ParticipantArr) && ParticipantArr)
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *ParticipantArr)
+			{
+				const TSharedPtr<FJsonObject> P = Value.IsValid() ? Value->AsObject() : nullptr;
+				if (!P.IsValid()) continue;
+				FRok2RallyReportParticipant Participant;
+				Participant.PlayerId = Rok2Json::Str(P, TEXT("playerId"));
+				const TSharedPtr<FJsonObject>* Field = nullptr;
+				if (P->TryGetObjectField(TEXT("committed"), Field)) ParseTroopMap(*Field, Participant.Committed);
+				if (P->TryGetObjectField(TEXT("remaining"), Field)) ParseTroopMap(*Field, Participant.Remaining);
+				if (P->TryGetObjectField(TEXT("losses"), Field)) ParseTroopMap(*Field, Participant.Losses);
+				if (P->TryGetObjectField(TEXT("dead"), Field)) ParseTroopMap(*Field, Participant.Dead);
+				if (P->TryGetObjectField(TEXT("severely"), Field)) ParseTroopMap(*Field, Participant.Severely);
+				if (P->TryGetObjectField(TEXT("slightly"), Field)) ParseTroopMap(*Field, Participant.Slightly);
+				const TSharedPtr<FJsonObject>* Hospital = nullptr;
+				if (P->TryGetObjectField(TEXT("hospital"), Hospital) && Hospital && Hospital->IsValid())
+				{
+					if ((*Hospital)->TryGetObjectField(TEXT("admitted"), Field)) ParseTroopMap(*Field, Participant.HospitalAdmitted);
+					if ((*Hospital)->TryGetObjectField(TEXT("died"), Field)) ParseTroopMap(*Field, Participant.HospitalDied);
+					Participant.HospitalCapacity = (int32)Rok2Json::Num(*Hospital, TEXT("capacity"));
+				}
+				Out.RallyParticipants.Add(MoveTemp(Participant));
+			}
+		}
+	}
+
+	const TArray<TSharedPtr<FJsonValue>>* RewardsArr = nullptr;
+	if (Obj->TryGetArrayField(TEXT("rewards"), RewardsArr) && RewardsArr)
+	{
+		for (const TSharedPtr<FJsonValue>& Value : *RewardsArr)
+		{
+			const TSharedPtr<FJsonObject> RewardObj = Value.IsValid() ? Value->AsObject() : nullptr;
+			if (!RewardObj.IsValid()) continue;
+			FRok2BattleReward Reward;
+			Reward.Kind = Rok2Json::Str(RewardObj, TEXT("kind"));
+			Reward.Amount = (int32)Rok2Json::Num(RewardObj, TEXT("amount"));
+			Out.Rewards.Add(MoveTemp(Reward));
 		}
 	}
 }
@@ -1151,6 +1200,31 @@ void URok2Api::RefreshWorld()
 	Get(TEXT("/v1/world/snapshot"), [this](const TSharedPtr<FJsonObject>& Obj)
 	{
 		ParseWorld(Obj);
+	});
+}
+
+void URok2Api::FetchBattleReports()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/combat/reports"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->BattleReports.Empty();
+		const TArray<TSharedPtr<FJsonValue>>* ReportsArr = nullptr;
+		if (Obj->TryGetArrayField(TEXT("reports"), ReportsArr) && ReportsArr)
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *ReportsArr)
+			{
+				const TSharedPtr<FJsonObject> ReportObj = Value.IsValid() ? Value->AsObject() : nullptr;
+				if (!ReportObj.IsValid()) continue;
+				FRok2BattleReport Report;
+				Self->ParseBattleReport(ReportObj, Report);
+				if (!Report.Id.IsEmpty()) Self->BattleReports.Add(MoveTemp(Report));
+			}
+		}
+		Self->OnBattleReports.Broadcast(Self->BattleReports);
 	});
 }
 

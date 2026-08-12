@@ -142,6 +142,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
 	void FetchAllianceRallies();
 
+	/** يسترد سجل تقارير القتال المرئي للاعب من الخادم السلطوي. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Combat")
+	void FetchBattleReports();
+
 	// P6-T6: إرسال رسالة دردشة عبر WebSocket
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SendChat(const FString& Channel, const FString& Text);

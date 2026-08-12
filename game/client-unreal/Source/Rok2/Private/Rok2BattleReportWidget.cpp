@@ -37,11 +37,8 @@ void URok2BattleReportWidget::Setup(URok2Api* InApi)
 	Api->OnBattleReports.AddDynamic(this, &URok2BattleReportWidget::OnBattleReports);
 	RebuildList(Api->GetBattleReports());
 
-	// اطلب أحدث البيانات لو القائمة فاضية
-	if (Api->GetBattleReports().Num() == 0)
-	{
-		Api->RefreshWorld();
-	}
+	// السجل خاص بكل لاعب/تحالف، لذلك يُقرأ دائماً من الاستعلام السلطوي عند فتح النافذة.
+	Api->FetchBattleReports();
 }
 
 void URok2BattleReportWidget::NativeConstruct()
@@ -217,9 +214,9 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 		UTextBlock* RowText = NewObject<UTextBlock>(this);
-		const FString Label = FString::Printf(TEXT("%s · %s\n%02d:%02d"),
-			*KindLabel(R.Kind), bMine ? TEXT("هجومك") : TEXT("معركة"),
-			Dt.GetHour(), Dt.GetMinute());
+		const FString Label = FString::Printf(TEXT("%s%s · %s\n%02d:%02d"),
+				*KindLabel(R.Kind), R.RallyId.IsEmpty() ? TEXT("") : TEXT(" · رالي"),
+				bMine ? TEXT("هجومك") : TEXT("معركة"), Dt.GetHour(), Dt.GetMinute());
 		RowText->SetText(FText::FromString(Label));
 		RowText->SetColorAndOpacity(FSlateColor(ResultColor));
 		RowText->SetAutoWrapText(true);
@@ -332,6 +329,43 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
 	}
 	AddLine(SummarizeSide(R.Defender), FLinearColor::White);
+
+	// تسوية الرالي: هذه الصفوف مخرجات الخادم لكل مشارك، لا حسابات عميل.
+	if (!R.RallyId.IsEmpty())
+	{
+		AddLine(FString::Printf(TEXT("نتيجة رالي التحالف · %d مشاركين"), R.RallyParticipants.Num()),
+			FLinearColor(0.95f, 0.78f, 0.30f), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
+		const FString MyId = Api ? Api->GetPlayer().Id : FString();
+		auto TotalOf = [](const TArray<FRok2TroopLoss>& Units)
+		{
+			int32 Total = 0;
+			for (const FRok2TroopLoss& Unit : Units) Total += Unit.Count;
+			return Total;
+		};
+		for (const FRok2RallyReportParticipant& Participant : R.RallyParticipants)
+		{
+			const bool bIsMe = Participant.PlayerId == MyId;
+			const int32 HospitalTotal = TotalOf(Participant.HospitalAdmitted);
+			const FString MemberName = bIsMe ? TEXT("مساهمتك") : FString::Printf(TEXT("عضو التحالف %s"), *Participant.PlayerId.Left(8));
+			AddLine(FString::Printf(TEXT("%s — أرسل %d · عاد %d · خسر %d · قتلى %d · مستشفى %d"),
+				*MemberName, TotalOf(Participant.Committed), TotalOf(Participant.Remaining),
+				TotalOf(Participant.Losses), TotalOf(Participant.Dead), HospitalTotal),
+				bIsMe ? FLinearColor(0.45f, 0.9f, 0.75f) : FLinearColor(0.82f, 0.85f, 0.9f),
+				ERok2TextRole::Caption, FMargin(16, 3, 12, 0));
+		}
+	}
+
+	if (R.Rewards.Num() > 0)
+	{
+		AddLine(TEXT("المكافآت السلطوية"), FLinearColor(0.95f, 0.78f, 0.30f), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
+		for (const FRok2BattleReward& Reward : R.Rewards)
+		{
+			const FString RewardLabel = Reward.Kind == TEXT("season_points") ? TEXT("نقاط الموسم")
+				: Reward.Kind == TEXT("barbarian_event_points") ? TEXT("نقاط حدث البرابرة") : Reward.Kind;
+			AddLine(FString::Printf(TEXT("%s: +%d"), *RewardLabel, Reward.Amount),
+				FLinearColor(0.95f, 0.84f, 0.35f), ERok2TextRole::Caption, FMargin(16, 3, 12, 0));
+		}
+	}
 
 	// ملاحظة المستشفى (أيقونة صليب خضراء)
 	int32 SevTotal = 0;

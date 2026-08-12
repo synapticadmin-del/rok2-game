@@ -2082,6 +2082,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
     }
 
+    // تقارير القتال والراليات — القائمة مصفاة داخل الشارد وفق اللاعب والتحالف الموثقين.
+    if (path === "/v1/combat/reports" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/reports", {
+        method: "GET",
+        headers: {
+          "x-rok2-player": player.id,
+          "x-rok2-alliance": player.alliance_id || "",
+        },
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "reports_unavailable");
+      return json({ reports: data.reports || [] });
+    }
+
     // Pass attack REST
     // P5-T5: كشافة ضباب الحرب (بدون قوات) — الخادم سلطة على زمن الوصول ويبث scout_arrived
     if (path === "/v1/world/scout" && request.method === "POST") {

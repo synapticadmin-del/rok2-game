@@ -11,6 +11,7 @@ class URok2Api;
 class UVerticalBox;
 class UButton;
 class UTextBlock;
+class URok2BattleReportWidget;
 
 USTRUCT(BlueprintType)
 struct FRok2AllianceMemberData
@@ -52,8 +53,17 @@ protected:
 	UPROPERTY(Transient)
 	UButton* HelpButton;
 
+	UPROPERTY(Transient)
+	UButton* RallyReportsButton;
+
+	UPROPERTY(Transient)
+	URok2BattleReportWidget* RallyReportsWidget;
+
 	UFUNCTION()
 	void OnHelpClicked();
+
+	UFUNCTION()
+	void OnRallyReportsClicked();
 
 	UFUNCTION()
 	void OnPromoteClicked();
