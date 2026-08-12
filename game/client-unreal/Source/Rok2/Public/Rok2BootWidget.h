@@ -17,6 +17,7 @@ class UButton;
 class UTextBlock;
 class UBorder;
 class UVerticalBox;
+class UImage;
 
 UCLASS()
 class URok2BootWidget : public UUserWidget
@@ -82,6 +83,31 @@ protected:
 	/** آخر معرّف عُرضت نبذته — يمنع إعادة الحركة على اختيارٍ لم يتغيّر */
 	FString LastLoreCivId;
 
+	// P7-T3: بطاقة حضارة مرئية. تبقى CivCombo مصدر المعرّف المتوافق مع الخادم،
+	// فيما ينقل هذا العرض الاختيار من قائمة نصية إلى كاروسيل قابل للمراجعة.
+	UPROPERTY(Transient)
+	UBorder* CivShowcasePanel;
+	UPROPERTY(Transient)
+	UImage* CivBackdropImage;
+	UPROPERTY(Transient)
+	UImage* CivEmblemImage;
+	UPROPERTY(Transient)
+	UImage* CivCommanderImage;
+	UPROPERTY(Transient)
+	UTextBlock* CivNameText;
+	UPROPERTY(Transient)
+	UTextBlock* CivFantasyText;
+	UPROPERTY(Transient)
+	UTextBlock* CivPerksText;
+	UPROPERTY(Transient)
+	UTextBlock* CivUnitText;
+	UPROPERTY(Transient)
+	UTextBlock* CivCounterText;
+	UPROPERTY(Transient)
+	UButton* PreviousCivButton;
+	UPROPERTY(Transient)
+	UButton* NextCivButton;
+
 	virtual void NativeConstruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
@@ -94,8 +120,23 @@ protected:
 	/** يعرض نبذة حضارة. معرّف بلا نبذة يُخفي اللوحة بلا ضجيج. */
 	void ShowLoreFor(const FString& CivId);
 
+	/** يبني كاروسيل الحضارة، ويقرأ صوره من /Game/Art بعد استيراد PNGs. */
+	void BuildCivShowcase(class UVerticalBox* VBox);
+
+	/** يحدّث الخلفية والشعار والقائد والنصوص من الحضارة المختارة. */
+	void ShowCivVisuals(const FString& CivId);
+
+	/** يختار حضارة بحسب ترتيب البيانات؛ يُستدعى من سهمَي الكاروسيل. */
+	void SelectCivIndex(int32 RequestedIndex);
+
 	UFUNCTION()
 	void OnCivSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+	UFUNCTION()
+	void OnPreviousCivClicked();
+
+	UFUNCTION()
+	void OnNextCivClicked();
 
 	/** حمولة الخادم قد تصل بعد بناء القائمة — تُعاد الملء ويُحفظ الاختيار */
 	UFUNCTION()

@@ -20,7 +20,9 @@
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
+#include "Components/Overlay.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/Texture2D.h"
 
 // ألوان الهوية من ui-ux-design-system.md §1 — محلية للملف على اصطلاح
 // Rok2FtueStyle/Rok2HudStyle (الألوان بقيت مسؤولية كل ودجة في P6-T2).
@@ -31,8 +33,23 @@ namespace Rok2BootLoreStyle
 	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);			// #F5E9D0
 	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.95f);
 
-	/** عرض النبذة داخل بطاقة الدخول (520px ناقص هامشَي 30) */
-	static constexpr float StoryWidth = 460.f;
+	/** عرض النبذة داخل بطاقة الدخول (760px ناقص هامشَي 30) */
+	static constexpr float StoryWidth = 680.f;
+	static const FLinearColor ShowcaseFallback(0.05f, 0.08f, 0.13f, 1.0f);
+	static const FLinearColor ShowcaseVeil(0.02f, 0.03f, 0.06f, 0.68f);
+
+	/** يحمل Texture2D مستورداً؛ يبقى التخطيط صالحاً مع لون احتياطي إن لم يُستورد المصدر بعد. */
+	static UTexture2D* LoadImportedVisual(const FString& Folder, const FString& AssetName)
+	{
+		if (AssetName.IsEmpty()) return nullptr;
+		const FString Path = FString::Printf(TEXT("/Game/Art/%s/%s.%s"), *Folder, *AssetName, *AssetName);
+		return LoadObject<UTexture2D>(nullptr, *Path);
+	}
+
+	static FString JoinLoreHints(const FRok2CivLore& Lore)
+	{
+		return FString::Join(Lore.Hints, TEXT("\n"));
+	}
 }
 
 void URok2BootWidget::Setup(URok2Api* InApi)
@@ -56,6 +73,16 @@ void URok2BootWidget::Setup(URok2Api* InApi)
 	{
 		StartButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnStartClicked);
 		URok2MotionLibrary::BindPress(StartButton);	// P6-T3: ضغطة محسوسة
+	}
+	if (PreviousCivButton)
+	{
+		PreviousCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnPreviousCivClicked);
+		URok2MotionLibrary::BindPress(PreviousCivButton);
+	}
+	if (NextCivButton)
+	{
+		NextCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnNextCivClicked);
+		URok2MotionLibrary::BindPress(NextCivButton);
 	}
 
 	// Populate civ combo — P6-T5: القائمة من البيانات، والنبذة تتبع الاختيار
@@ -100,7 +127,7 @@ void URok2BootWidget::NativeConstruct()
 		UCanvasPanelSlot* CardSlot = RootCanvas->AddChildToCanvas(CardBorder);
 		CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-		CardSlot->SetSize(FVector2D(520.f, 480.f));
+			CardSlot->SetSize(FVector2D(800.f, 780.f));
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
 		CardBorder->SetContent(VBox);
@@ -164,13 +191,15 @@ void URok2BootWidget::NativeConstruct()
 		UVerticalBoxSlot* NameSlot = VBox->AddChildToVerticalBox(NameInput);
 		NameSlot->SetPadding(FMargin(30, 5, 30, 10));
 
-		// Civ Dropdown Combo
-		CivCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("CivCombo"));
-		UVerticalBoxSlot* CivSlot = VBox->AddChildToVerticalBox(CivCombo);
-		CivSlot->SetPadding(FMargin(30, 5, 30, 8));
+			// CivCombo يبقى مصدر المعرّف المتوافق مع API، لكن الاختيار الفعلي يتم
+			// من الكاروسيل البصري أدناه؛ لا نعرض Dropdown نصياً للاعب.
+			CivCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("CivCombo"));
+			UVerticalBoxSlot* CivSlot = VBox->AddChildToVerticalBox(CivCombo);
+			CivSlot->SetPadding(FMargin(0.f));
 
-		// P6-T5: نبذة الحضارة — تحت القائمة مباشرة، فالعين تقرأ ما اختارته
-		BuildLorePanel(VBox);
+			// P7-T3: البطاقة المرئية أولاً، ثم الحكاية الأدبية التي تشرح الاختيار.
+			BuildCivShowcase(VBox);
+			BuildLorePanel(VBox);
 
 		// Start Journey Button — P6-T1: أيقونة سيف إجرائية + نص
 		StartButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartButton"));
@@ -224,11 +253,103 @@ void URok2BootWidget::NativeConstruct()
 		LoadingPanel->SetVisibility(ESlateVisibility::Collapsed);
 		StatusText->SetText(FText::GetEmpty());
 		// النبذة تُطوى مع القائمة: قبل تسجيل الدخول لا اختيار فلا نبذة
-		if (LorePanel) LorePanel->SetVisibility(ESlateVisibility::Collapsed);
+			if (LorePanel) LorePanel->SetVisibility(ESlateVisibility::Collapsed);
+			if (CivShowcasePanel) CivShowcasePanel->SetVisibility(ESlateVisibility::Collapsed);
 
 		// P6-T3: أول شاشة يراها اللاعب تظهر بتلاشٍ هادئ لا ظهور مفاجئ
 		URok2MotionLibrary::PlayFadeIn(CardBorder);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// P7-T3: كاروسيل الحضارة — الفن يكشف الهوية، والنص يحافظ على مصدر بيانات واحد.
+// ---------------------------------------------------------------------------
+
+void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
+{
+	if (!VBox || !WidgetTree) return;
+
+	CivShowcasePanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivShowcasePanel"));
+	CivShowcasePanel->SetBrushColor(Rok2BootLoreStyle::ShowcaseFallback);
+	CivShowcasePanel->SetPadding(FMargin(16.f));
+	VBox->AddChildToVerticalBox(CivShowcasePanel)->SetPadding(FMargin(30.f, 4.f, 30.f, 10.f));
+
+	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CivShowcaseLayers"));
+	CivShowcasePanel->SetContent(Layers);
+
+	CivBackdropImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivBackdropImage"));
+	CivBackdropImage->SetColorAndOpacity(FLinearColor::White);
+	Layers->AddChildToOverlay(CivBackdropImage);
+
+	UBorder* Veil = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivShowcaseVeil"));
+	Veil->SetBrushColor(Rok2BootLoreStyle::ShowcaseVeil);
+	Layers->AddChildToOverlay(Veil);
+
+	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CivShowcaseContent"));
+	Layers->AddChildToOverlay(Content);
+
+	CivEmblemImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivEmblemImage"));
+	CivEmblemImage->SetDesiredSizeOverride(FVector2D(76.f, 76.f));
+	CivEmblemImage->SetColorAndOpacity(Rok2BootLoreStyle::Gold);
+	UVerticalBoxSlot* EmblemSlot = Content->AddChildToVerticalBox(CivEmblemImage);
+	EmblemSlot->SetHorizontalAlignment(HAlign_Center);
+	EmblemSlot->SetPadding(FMargin(0.f, 10.f, 0.f, 2.f));
+
+	CivNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivNameText"));
+	CivNameText->SetJustification(ETextJustify::Center);
+	CivNameText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Gold));
+	URok2Typography::ApplyFont(CivNameText, ERok2TextRole::Display);
+	Content->AddChildToVerticalBox(CivNameText)->SetHorizontalAlignment(HAlign_Center);
+
+	CivFantasyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivFantasyText"));
+	CivFantasyText->SetJustification(ETextJustify::Center);
+	CivFantasyText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Ivory));
+	URok2Typography::ApplyFont(CivFantasyText, ERok2TextRole::BodySmall);
+	Content->AddChildToVerticalBox(CivFantasyText)->SetHorizontalAlignment(HAlign_Center);
+
+	UHorizontalBox* Details = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CivShowcaseDetails"));
+	UVerticalBoxSlot* DetailsSlot = Content->AddChildToVerticalBox(Details);
+	DetailsSlot->SetPadding(FMargin(12.f, 6.f, 12.f, 2.f));
+	DetailsSlot->SetHorizontalAlignment(HAlign_Center);
+
+	CivCommanderImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivCommanderImage"));
+	CivCommanderImage->SetDesiredSizeOverride(FVector2D(116.f, 116.f));
+	Details->AddChildToHorizontalBox(CivCommanderImage)->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
+
+	UVerticalBox* TextColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CivShowcaseTextColumn"));
+	Details->AddChildToHorizontalBox(TextColumn)->SetVerticalAlignment(VAlign_Center);
+	CivPerksText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivPerksText"));
+	CivPerksText->SetAutoWrapText(true);
+	CivPerksText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Ivory));
+	URok2Typography::ApplyFont(CivPerksText, ERok2TextRole::Caption);
+	TextColumn->AddChildToVerticalBox(CivPerksText);
+	CivUnitText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivUnitText"));
+	CivUnitText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Gold));
+	URok2Typography::ApplyFont(CivUnitText, ERok2TextRole::Caption);
+	TextColumn->AddChildToVerticalBox(CivUnitText)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+
+	UHorizontalBox* Navigation = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CivNavigation"));
+	UVerticalBoxSlot* NavSlot = Content->AddChildToVerticalBox(Navigation);
+	NavSlot->SetHorizontalAlignment(HAlign_Center);
+	NavSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
+	PreviousCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PreviousCivButton"));
+	UTextBlock* PreviousLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PreviousCivLabel"));
+	PreviousLabel->SetText(FText::FromString(TEXT("الحضارة السابقة")));
+	URok2Typography::ApplyFont(PreviousLabel, ERok2TextRole::Button);
+	PreviousCivButton->AddChild(PreviousLabel);
+	Navigation->AddChildToHorizontalBox(PreviousCivButton)->SetPadding(FMargin(4.f));
+
+	CivCounterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivCounterText"));
+	CivCounterText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Muted));
+	URok2Typography::ApplyFont(CivCounterText, ERok2TextRole::Caption);
+	Navigation->AddChildToHorizontalBox(CivCounterText)->SetPadding(FMargin(12.f, 6.f));
+
+	NextCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NextCivButton"));
+	UTextBlock* NextLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextCivLabel"));
+	NextLabel->SetText(FText::FromString(TEXT("الحضارة التالية")));
+	URok2Typography::ApplyFont(NextLabel, ERok2TextRole::Button);
+	NextCivButton->AddChild(NextLabel);
+	Navigation->AddChildToHorizontalBox(NextCivButton)->SetPadding(FMargin(4.f));
 }
 
 // ---------------------------------------------------------------------------
@@ -317,12 +438,89 @@ void URok2BootWidget::PopulateCivCombo(const FString& PreferCivId)
 	{
 		// لا حضارات: لا نبذة تُعرض ولا اختيار يُرسَل
 		ShowLoreFor(FString());
+		ShowCivVisuals(FString());
 	}
 }
 
 void URok2BootWidget::OnCivSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
 {
+	ShowCivVisuals(SelectedCivId());
 	ShowLoreFor(SelectedCivId());
+}
+
+void URok2BootWidget::SelectCivIndex(int32 RequestedIndex)
+{
+	if (!CivCombo || !Api) return;
+	const int32 Count = Api->GetCivilizations().Num();
+	if (Count <= 0) return;
+
+	const int32 WrappedIndex = ((RequestedIndex % Count) + Count) % Count;
+	CivCombo->SetSelectedIndex(WrappedIndex);
+}
+
+void URok2BootWidget::OnPreviousCivClicked()
+{
+	SelectCivIndex(CivCombo ? CivCombo->GetSelectedIndex() - 1 : -1);
+}
+
+void URok2BootWidget::OnNextCivClicked()
+{
+	SelectCivIndex(CivCombo ? CivCombo->GetSelectedIndex() + 1 : 0);
+}
+
+void URok2BootWidget::ShowCivVisuals(const FString& CivId)
+{
+	if (!CivShowcasePanel) return;
+	URok2CivLore* Lore = URok2CivLore::Get();
+	const bool bHasLore = Lore && Lore->HasLore(CivId);
+	if (!bHasLore)
+	{
+		CivShowcasePanel->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	const FRok2CivLore& Entry = Lore->GetLore(CivId);
+	const FString AssetId = CivId.ToLower();
+	const auto ApplyTexture = [](UImage* Image, UTexture2D* Texture, const FLinearColor& Fallback)
+	{
+		if (!Image) return;
+		if (Texture)
+		{
+			Image->SetBrushFromTexture(Texture, true);
+			Image->SetColorAndOpacity(FLinearColor::White);
+		}
+		else
+		{
+			Image->SetBrush(FSlateBrush());
+			Image->SetColorAndOpacity(Fallback);
+		}
+	};
+
+	ApplyTexture(CivBackdropImage, LoadImportedVisual(TEXT("CivBackgrounds"), FString::Printf(TEXT("bg_%s"), *AssetId)), Rok2BootLoreStyle::ShowcaseFallback);
+	ApplyTexture(CivEmblemImage, LoadImportedVisual(TEXT("CivIcons"), FString::Printf(TEXT("icon_%s_runtime"), *AssetId)), Rok2BootLoreStyle::Gold);
+	ApplyTexture(CivCommanderImage, LoadImportedVisual(TEXT("Commanders"), FString::Printf(TEXT("cmd_%s_starter"), *AssetId)), Rok2BootLoreStyle::Muted);
+
+	if (CivNameText) CivNameText->SetText(FText::FromString(Entry.NameAr.IsEmpty() ? Entry.NameLatin : Entry.NameAr));
+	if (CivFantasyText) CivFantasyText->SetText(FText::FromString(Entry.FantasyAr));
+	if (CivPerksText) CivPerksText->SetText(FText::FromString(JoinLoreHints(Entry)));
+	if (CivUnitText)
+	{
+		CivUnitText->SetText(FText::FromString(Entry.SpecialUnitId.IsEmpty()
+			? TEXT("")
+			: FString::Printf(TEXT("الوحدة الخاصة عند T4: %s"), *Entry.SpecialUnitId)));
+	}
+	if (CivCounterText && Api)
+	{
+		const TArray<FRok2Civilization>& Civilizations = Api->GetCivilizations();
+		int32 Index = 0;
+		for (int32 I = 0; I < Civilizations.Num(); ++I)
+		{
+			if (Civilizations[I].Id == CivId) { Index = I + 1; break; }
+		}
+		CivCounterText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), Index, Civilizations.Num())));
+	}
+
+	CivShowcasePanel->SetVisibility(ESlateVisibility::Visible);
 }
 
 void URok2BootWidget::OnMetaLoaded(bool bFromServer)
@@ -465,9 +663,12 @@ void URok2BootWidget::OnLoginComplete(const FString& Token)
 		// Reveal civ selection
 		if (StartButton) StartButton->SetVisibility(ESlateVisibility::Visible);
 		if (NameInput) NameInput->SetVisibility(ESlateVisibility::Visible);
-		if (CivCombo) CivCombo->SetVisibility(ESlateVisibility::Visible);
-		// P6-T5: النبذة تظهر مع القائمة — الاختيار الحالي هو أول ما يُقرأ
-		ShowLoreFor(SelectedCivId());
+					// القائمة باقية كمخزن اختيار فقط؛ البطاقة هي مسار اللاعب المرئي.
+			if (CivCombo) CivCombo->SetVisibility(ESlateVisibility::Collapsed);
+			if (CivShowcasePanel) CivShowcasePanel->SetVisibility(ESlateVisibility::Visible);
+			ShowCivVisuals(SelectedCivId());
+			ShowLoreFor(SelectedCivId());
+
 	}
 }
 
