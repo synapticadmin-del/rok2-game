@@ -22,6 +22,7 @@
 #include "Components/Border.h"
 #include "Components/ScrollBox.h"
 #include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "Blueprint/WidgetTree.h"
 
 void URok2CityWidget::Setup(URok2Api* InApi)
@@ -180,9 +181,35 @@ void URok2CityWidget::NativeConstruct()
 		ConnSlot->SetVerticalAlignment(VAlign_Center);
 		ConnSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-		// P6-T1: منشئ زر بأيقونة إجرائية + نص
-		auto MakeIconBtn = [&](UButton*& OutBtn, const TCHAR* IconId, const FString& Label, FMargin IcoPad, FMargin BtnPad) {
-			OutBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+			// P7-T9: جلود أزرار مستوردة؛ إن لم تستورد Texture2D بعد يبقى نمط Unreal الافتراضي.
+			auto ApplyButtonSkin = [](UButton* Button, const TCHAR* SkinId) {
+				if (!Button) return;
+				const FString AssetPath = FString::Printf(TEXT("/Game/Art/UIButtons/%s.%s"), SkinId, SkinId);
+				UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *AssetPath);
+				if (!Texture) return;
+
+				auto MakeBrush = [Texture](const FLinearColor& Tint) {
+					FSlateBrush Brush;
+					Brush.SetResourceObject(Texture);
+					Brush.DrawAs = ESlateBrushDrawType::Box;
+					Brush.Margin = FMargin(0.25f);
+					Brush.ImageSize = FVector2D(128.f, 48.f);
+					Brush.TintColor = Tint;
+					return Brush;
+				};
+
+				FButtonStyle Style = Button->GetStyle();
+				Style.Normal = MakeBrush(FLinearColor::White);
+				Style.Hovered = MakeBrush(FLinearColor(1.12f, 1.12f, 1.12f, 1.f));
+				Style.Pressed = MakeBrush(FLinearColor(0.78f, 0.78f, 0.78f, 1.f));
+				Style.Disabled = MakeBrush(FLinearColor(0.42f, 0.42f, 0.42f, 0.7f));
+				Button->SetStyle(Style);
+			};
+
+			// P6-T1: منشئ زر بأيقونة إجرائية + نص
+			auto MakeIconBtn = [&](UButton*& OutBtn, const TCHAR* IconId, const TCHAR* SkinId, const FString& Label, FMargin IcoPad, FMargin BtnPad) {
+				OutBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+				ApplyButtonSkin(OutBtn, SkinId);
 			UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			OutBtn->AddChild(BtnBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -201,11 +228,11 @@ void URok2CityWidget::NativeConstruct()
 			S->SetPadding(BtnPad);
 		};
 
-					MakeIconBtn(RefreshButton, TEXT("refresh"), TEXT("تحديث"), FMargin(5, 0, 3, 0), FMargin(10, 5, 8, 5));
-			MakeIconBtn(CollectButton, TEXT("food"), TEXT("تحصيل"), FMargin(5, 0, 3, 0), FMargin(4, 5, 8, 5));
-			MakeIconBtn(MapButton, TEXT("map"), TEXT("الخريطة"), FMargin(5, 0, 3, 0), FMargin(10, 5, 20, 5));
+						MakeIconBtn(RefreshButton, TEXT("refresh"), TEXT("button_secondary_blue"), TEXT("تحديث"), FMargin(5, 0, 3, 0), FMargin(10, 5, 8, 5));
+				MakeIconBtn(CollectButton, TEXT("food"), TEXT("button_primary_gold"), TEXT("تحصيل"), FMargin(5, 0, 3, 0), FMargin(4, 5, 8, 5));
+				MakeIconBtn(MapButton, TEXT("map"), TEXT("button_secondary_blue"), TEXT("الخريطة"), FMargin(5, 0, 3, 0), FMargin(10, 5, 20, 5));
 
-		MakeIconBtn(ReportsButton, TEXT("scroll"), TEXT("التقارير"), FMargin(5, 0, 3, 0), FMargin(0, 5, 10, 5));
+			MakeIconBtn(ReportsButton, TEXT("scroll"), TEXT("button_secondary_blue"), TEXT("التقارير"), FMargin(5, 0, 3, 0), FMargin(0, 5, 10, 5));
 
 		// 2. Bottom Left Panel (Buildings)
 		UBorder* LeftPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanel"));
@@ -303,8 +330,9 @@ void URok2CityWidget::NativeConstruct()
 		TrainCountSpin->SetValue(50.f);
 		TrainHBox->AddChildToHorizontalBox(TrainCountSpin)->SetPadding(FMargin(0, 0, 5, 0));
 
-		TrainButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("TrainButton"));
-		UTextBlock* TrnBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TrnBtnText"));
+					TrainButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("TrainButton"));
+			ApplyButtonSkin(TrainButton, TEXT("button_primary_gold"));
+			UTextBlock* TrnBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TrnBtnText"));
 		TrnBtnText->SetText(FText::FromString(TEXT("تدريب")));
 		TrainButton->AddChild(TrnBtnText);
 		TrainHBox->AddChildToHorizontalBox(TrainButton);
@@ -323,8 +351,9 @@ void URok2CityWidget::NativeConstruct()
 		AllianceTagInput->SetHintText(FText::FromString(TEXT("TAG")));
 		AllHBox->AddChildToHorizontalBox(AllianceTagInput)->SetPadding(FMargin(0, 0, 5, 0));
 
-		CreateAllianceButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateAllianceButton"));
-		UTextBlock* AllBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AllBtnText"));
+					CreateAllianceButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateAllianceButton"));
+			ApplyButtonSkin(CreateAllianceButton, TEXT("button_primary_gold"));
+			UTextBlock* AllBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AllBtnText"));
 		AllBtnText->SetText(FText::FromString(TEXT("إنشاء")));
 		CreateAllianceButton->AddChild(AllBtnText);
 		AllHBox->AddChildToHorizontalBox(CreateAllianceButton);
@@ -348,14 +377,65 @@ void URok2CityWidget::Refresh()
 	if (BuildingsList)
 	{
 		BuildingsList->ClearChildren();
+
+		// حزمة أصول المدينة: تعيين هوية المبنى السلطوية إلى صورة Textue2D قابلة للاستيراد.
+		// إن لم تستورد الصور بعد، يبقى رمز القلعة الإجرائي احتياطاً آمناً.
+		auto ResolveCityBuildingArtId = [](const FString& RawId) -> FString
+		{
+			const FString Id = RawId.ToLower();
+			if (Id.Contains(TEXT("barrack"))) return TEXT("barracks");
+			if (Id.Contains(TEXT("archer")) || Id.Contains(TEXT("archery"))) return TEXT("archery_range");
+			if (Id.Contains(TEXT("smith")) || Id.Contains(TEXT("forge"))) return TEXT("smithy");
+			if (Id.Contains(TEXT("lumber")) || Id.Contains(TEXT("wood"))) return TEXT("lumbermill");
+			if (Id.Contains(TEXT("quarry")) || Id.Contains(TEXT("stone"))) return TEXT("quarry");
+			if (Id.Contains(TEXT("farm"))) return TEXT("farm");
+			if (Id.Contains(TEXT("market")) || Id.Contains(TEXT("trade"))) return TEXT("market");
+			if (Id.Contains(TEXT("tavern"))) return TEXT("tavern");
+			if (Id.Contains(TEXT("academy")) || Id.Contains(TEXT("research"))) return TEXT("academy");
+			return TEXT("castle");
+		};
+
 		for (const auto& KV : Api->GetBuildings())
 		{
+			UHorizontalBox* BuildingRow = NewObject<UHorizontalBox>(this);
+			if (!BuildingRow) continue;
+
+			const FString ArtId = ResolveCityBuildingArtId(KV.Key);
+			const FString AssetPath = FString::Printf(TEXT("/Game/Art/CityBuildingIcons/building_%s.building_%s"), *ArtId, *ArtId);
+			UTexture2D* BuildingTexture = LoadObject<UTexture2D>(nullptr, *AssetPath);
+
+			UImage* BuildingImage = NewObject<UImage>(this);
+			if (BuildingImage)
+			{
+				if (BuildingTexture)
+				{
+					FSlateBrush BuildingBrush;
+					BuildingBrush.SetResourceObject(BuildingTexture);
+					BuildingBrush.ImageSize = FVector2D(28.f, 28.f);
+					BuildingImage->SetBrush(BuildingBrush);
+				}
+				else
+				{
+					BuildingImage->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("castle"), 24.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+				}
+				BuildingImage->SetDesiredSizeOverride(FVector2D(28.f, 28.f));
+				UHorizontalBoxSlot* ImageSlot = BuildingRow->AddChildToHorizontalBox(BuildingImage);
+				ImageSlot->SetVerticalAlignment(VAlign_Center);
+				ImageSlot->SetPadding(FMargin(0.f, 2.f, 7.f, 2.f));
+				ImageSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+			}
+
 			UTextBlock* Txt = NewObject<UTextBlock>(this);
 			if (Txt)
 			{
 				Txt->SetText(FText::FromString(FString::Printf(TEXT("%s: Lv %d"), *KV.Key, KV.Value)));
-				BuildingsList->AddChildToVerticalBox(Txt);
+				Txt->SetColorAndOpacity(FSlateColor(FLinearColor(0.88f, 0.92f, 1.0f)));
+				URok2Typography::ApplyFont(Txt, ERok2TextRole::Caption);
+				UHorizontalBoxSlot* TextSlot = BuildingRow->AddChildToHorizontalBox(Txt);
+				TextSlot->SetVerticalAlignment(VAlign_Center);
 			}
+
+			BuildingsList->AddChildToVerticalBox(BuildingRow)->SetPadding(FMargin(0.f, 1.f));
 		}
 	}
 

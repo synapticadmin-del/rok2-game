@@ -3,6 +3,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2IconLibrary.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "Misc/Paths.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -119,14 +120,49 @@ UStaticMesh* URok2ArtAssets::LoadMesh(const FString& Id)
 // P6-T1: نظام أيقونات UI الموحد — تفويض لـ URok2IconLibrary
 // ---------------------------------------------------------------------------
 
+FString URok2ArtAssets::GetImportedUiIconAssetPath(const FString& IconId)
+{
+	FString CanonicalId = IconId;
+	if (CanonicalId == TEXT("scroll"))
+	{
+		CanonicalId = TEXT("reports");
+	}
+
+	static const TSet<FString> ImportedIds = {
+		TEXT("build"), TEXT("upgrade"), TEXT("train"), TEXT("research"),
+		TEXT("alliance"), TEXT("map"), TEXT("reports"), TEXT("mail"),
+		TEXT("settings"), TEXT("food"), TEXT("wood"), TEXT("stone"),
+		TEXT("gold"), TEXT("gems"), TEXT("speedup"), TEXT("hospital")
+	};
+	if (!ImportedIds.Contains(CanonicalId))
+	{
+		return FString();
+	}
+
+	return FString::Printf(TEXT("/Game/Art/UIIcons/icon_%s.icon_%s"), *CanonicalId, *CanonicalId);
+}
+
 FSlateBrush URok2ArtAssets::GetIconBrush(const FString& IconId, float Size, FLinearColor Tint)
 {
+	const FString ImportedPath = GetImportedUiIconAssetPath(IconId);
+	if (!ImportedPath.IsEmpty())
+	{
+		if (UTexture2D* ImportedTexture = LoadObject<UTexture2D>(nullptr, *ImportedPath))
+		{
+			FSlateBrush Brush;
+			Brush.SetResourceObject(ImportedTexture);
+			Brush.ImageSize = FVector2D(Size, Size);
+			Brush.TintColor = Tint;
+			return Brush;
+		}
+	}
+
 	return URok2IconLibrary::BrushFromArtAssets(IconId, Size, Tint);
 }
 
 bool URok2ArtAssets::HasIcon(const FString& IconId)
 {
-	return URok2IconLibrary::Get()->HasIcon(IconId);
+	return !GetImportedUiIconAssetPath(IconId).IsEmpty() || URok2IconLibrary::Get()->HasIcon(IconId);
 }
 
 // ---------------------------------------------------------------------------

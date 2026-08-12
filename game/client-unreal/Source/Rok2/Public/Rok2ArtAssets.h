@@ -80,6 +80,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
 	static bool HasIcon(const FString& IconId);
 
+	/**
+	 * مسار أصل Texture2D المستورد لرموز المدينة والخريطة، أو سلسلة فارغة إن
+	 * كان المعرّف خارج الحزمة. يبقى GetIconBrush مسؤولاً عن الاحتياط الإجرائي.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
+	static FString GetImportedUiIconAssetPath(const FString& IconId);
+
 	// -------------------------------------------------------------------
 	// P6-T8: فهرس أصوات الواجهة (أصول WAV مشتركة + همس حضاري عند الفتح).
 	// يقتصر على المسارات؛ التشغيل يتولاه مالك الواجهة/مدير الصوت عند الربط.
