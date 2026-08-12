@@ -290,7 +290,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	// القوة قبل المعركة
 	AddLine(FString::Printf(TEXT("القوة قبل المعركة — مهاجم: %d · مدافع: %d"),
 		R.Attacker.PowerBefore, R.Defender.PowerBefore),
-		FLinearColor(0.8f, 0.85f, 0.9f), 13, FMargin(12, 8, 12, 0));
+		FLinearColor(0.8f, 0.85f, 0.9f), ERok2TextRole::BodySmall, FMargin(12, 8, 12, 0));
 
 	// المهاجم (أيقونة سيف حمراء)
 	{

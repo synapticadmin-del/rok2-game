@@ -10,6 +10,10 @@ REM
 REM  عدّل UE_ROOT فقط، ثم شغّل الملف.
 REM ============================================================
 
+if not defined ANDROID_HOME set "ANDROID_HOME=C:\Users\kayf\AppData\Local\Android\Sdk"
+if not defined NDKROOT set "NDKROOT=C:\Users\kayf\AppData\Local\Android\Sdk\ndk\27.2.12479018"
+if not defined NDK_ROOT set "NDK_ROOT=C:\Users\kayf\AppData\Local\Android\Sdk\ndk\27.2.12479018"
+if not defined JAVA_HOME set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
 if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.4"
 set "PROJECT=%~dp0Rok2.uproject"
 set "ARCHIVE=%~dp0Build\Android"

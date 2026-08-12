@@ -32,7 +32,7 @@ TArray<FRok2Civilization> URok2BlueprintLibrary::GetDefaultCivilizations()
 {
 	TArray<FRok2Civilization> List;
 
-	URok2CivLore* Lore = URok2CivLore::Get();
+	URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get();
 	if (!Lore) return List;
 
 	for (const FString& CivId : Lore->GetCivIds())

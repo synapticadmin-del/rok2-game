@@ -146,9 +146,7 @@ void URok2ChatWidget::BuildWidgetTree()
 
 	InputField = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("InputField"));
 	InputField->SetHintText(FText::FromString(TEXT("اكتب رسالة...")));
-	InputField->WidgetStyle.TextColor = FSlateColor(FLinearColor::White);
 	InputField->WidgetStyle.BackgroundColor = FSlateColor(FLinearColor(0.15f, 0.15f, 0.2f));
-	InputField->WidgetStyle.HintColor = FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f));
 	InputField->OnTextCommitted.AddDynamic(this, &URok2ChatWidget::OnInputTextCommitted);
 	UHorizontalBoxSlot* FieldSlot = InputBar->AddChildToHorizontalBox(InputField);
 	FieldSlot->SetPadding(FMargin(2.f));

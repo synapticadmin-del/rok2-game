@@ -175,6 +175,7 @@ protected:
 	/** هل يوجد أصل فني حقيقي (GLB) مستخدم حالياً؟ */
 	bool bUsingArtAsset = false;
 
+public:
 	// ---- P5-T6: حركات البناء والترقية ----
 	/** يشغّل حركة بناء (scale-in من 0 إلى الحجم الكامل) — تُستدعى عند إنشاء المبنى. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")

@@ -151,8 +151,9 @@ void URok2CommanderWidget::BuildUI()
 	// ========================================================================
 	UVerticalBox* ListPanel = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ListPanel"));
 	UHorizontalBoxSlot* ListPanelSlot = MainHBox->AddChildToHorizontalBox(ListPanel);
-	ListPanelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	ListPanelSlot->SizeParam = 0.4f;
+	FSlateChildSize ListSize(ESlateSizeRule::Fill);
+	ListSize.Value = 0.4f;
+	ListPanelSlot->SetSize(ListSize);
 
 	// عنوان القائمة
 	UTextBlock* ListTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ListTitle"));
@@ -181,8 +182,9 @@ void URok2CommanderWidget::BuildUI()
 	// ========================================================================
 	UScrollBox* DetailScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("DetailScroll"));
 	UHorizontalBoxSlot* DetailScrollSlot = MainHBox->AddChildToHorizontalBox(DetailScroll);
-	DetailScrollSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	DetailScrollSlot->SizeParam = 0.6f;
+	FSlateChildSize DetailSize(ESlateSizeRule::Fill);
+	DetailSize.Value = 0.6f;
+	DetailScrollSlot->SetSize(DetailSize);
 
 	DetailPanel = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("DetailPanel"));
 	DetailScroll->AddChild(DetailPanel);
@@ -495,9 +497,6 @@ UWidget* URok2CommanderWidget::BuildPortraitPlaceholder(const FString& Commander
 	InitialText->SetFont(URok2Typography::FontSized(ERok2Face::Display, Size * 0.5f));
 	InitialText->SetJustification(ETextJustify::Center);
 	DarkBg->SetContent(InitialText);
-
-	// ضبط الحجم
-	PortraitBorder->SetDesiredSizeOverride(FVector2D(Size, Size));
 
 	return PortraitBorder;
 }

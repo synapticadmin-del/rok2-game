@@ -3,6 +3,7 @@
 #include "Rok2ProceduralAssets.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "Engine/Engine.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -33,7 +34,7 @@ void URok2ProceduralAssets::Init()
 	if (!BaseMaterial)
 	{
 		// Ultimate fallback — guaranteed to exist
-		BaseMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+		BaseMaterial = UMaterial::GetDefaultMaterial(EMaterialDomain::MD_Surface);
 	}
 
 	auto CreateDyn = [&](const FLinearColor& Color) -> UMaterialInstanceDynamic*

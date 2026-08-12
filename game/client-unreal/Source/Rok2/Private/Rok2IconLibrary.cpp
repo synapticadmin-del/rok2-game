@@ -953,7 +953,7 @@ FSlateBrush URok2IconLibrary::GetBrush(const FString& IconId, float Size, FLinea
 {
 	BuildCatalog();
 
-	const int32 TexSize = FMath::RoundToInt(Size <= 24.f ? 32 : Size <= 32.f ? 32 : 64);
+	const int32 TexSize = (Size <= 24.f ? 32 : Size <= 32.f ? 32 : 64);
 	const FString Key = FString::Printf(TEXT("%s@%d"), *IconId, TexSize);
 
 	UTexture2D* Tex = Cache.FindRef(Key);

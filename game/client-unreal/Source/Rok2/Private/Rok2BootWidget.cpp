@@ -149,7 +149,6 @@ void URok2BootWidget::NativeConstruct()
 			TitleText->SetText(FText::FromString(TEXT("ROK2 : RISE OF KINGDOMS 2")));
 			TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
 			URok2Typography::ApplyFont(TitleText, ERok2TextRole::Display);
-			TitleText->SetFont(TitleFont);
 			TitleRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 		}
 
@@ -177,7 +176,6 @@ void URok2BootWidget::NativeConstruct()
 			EnterText->SetText(FText::FromString(TEXT("دخول سريع كضيف (Quick Guest Login)")));
 			EnterText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 			URok2Typography::ApplyFont(EnterText, ERok2TextRole::Button);
-			EnterText->SetFont(BtnFont);
 			EnterBox->AddChildToHorizontalBox(EnterText)->SetVerticalAlignment(VAlign_Center);
 		}
 
@@ -217,7 +215,6 @@ void URok2BootWidget::NativeConstruct()
 			StartText->SetText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد (Start Journey)")));
 			StartText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 			URok2Typography::ApplyFont(StartText, ERok2TextRole::Button);
-			StartText->SetFont(StartBtnFont);
 			StartBox->AddChildToHorizontalBox(StartText)->SetVerticalAlignment(VAlign_Center);
 		}
 
@@ -230,7 +227,6 @@ void URok2BootWidget::NativeConstruct()
 		LoadingText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LoadingText"));
 		LoadingText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.85f, 1.0f)));
 		URok2Typography::ApplyFont(LoadingText, ERok2TextRole::BodySmall);
-		LoadingText->SetFont(LoadFont);
 		LoadingText->SetJustification(ETextJustify::Center);
 		LoadingPanel->SetContent(LoadingText);
 		LoadingPanel->SetPadding(FMargin(0, 10, 0, 10));
@@ -241,7 +237,6 @@ void URok2BootWidget::NativeConstruct()
 		StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusText"));
 		StatusText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.55f, 0.4f)));
 		URok2Typography::ApplyFont(StatusText, ERok2TextRole::Caption);
-		StatusText->SetFont(StatusFont);
 		StatusText->SetJustification(ETextJustify::Center);
 		UVerticalBoxSlot* StatusSlot = VBox->AddChildToVerticalBox(StatusText);
 		StatusSlot->SetPadding(FMargin(30, 2, 30, 12));
@@ -328,8 +323,8 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	URok2Typography::ApplyFont(CivUnitText, ERok2TextRole::Caption);
 	TextColumn->AddChildToVerticalBox(CivUnitText)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 
-	UHorizontalBox* Navigation = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CivNavigation"));
-	UVerticalBoxSlot* NavSlot = Content->AddChildToVerticalBox(Navigation);
+	UHorizontalBox* CivNav = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CivNavigation"));
+	UVerticalBoxSlot* NavSlot = Content->AddChildToVerticalBox(CivNav);
 	NavSlot->SetHorizontalAlignment(HAlign_Center);
 	NavSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
 	PreviousCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PreviousCivButton"));
@@ -337,19 +332,19 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	PreviousLabel->SetText(FText::FromString(TEXT("الحضارة السابقة")));
 	URok2Typography::ApplyFont(PreviousLabel, ERok2TextRole::Button);
 	PreviousCivButton->AddChild(PreviousLabel);
-	Navigation->AddChildToHorizontalBox(PreviousCivButton)->SetPadding(FMargin(4.f));
+	CivNav->AddChildToHorizontalBox(PreviousCivButton)->SetPadding(FMargin(4.f));
 
 	CivCounterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivCounterText"));
 	CivCounterText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Muted));
 	URok2Typography::ApplyFont(CivCounterText, ERok2TextRole::Caption);
-	Navigation->AddChildToHorizontalBox(CivCounterText)->SetPadding(FMargin(12.f, 6.f));
+	CivNav->AddChildToHorizontalBox(CivCounterText)->SetPadding(FMargin(12.f, 6.f));
 
 	NextCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NextCivButton"));
 	UTextBlock* NextLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextCivLabel"));
 	NextLabel->SetText(FText::FromString(TEXT("الحضارة التالية")));
 	URok2Typography::ApplyFont(NextLabel, ERok2TextRole::Button);
 	NextCivButton->AddChild(NextLabel);
-	Navigation->AddChildToHorizontalBox(NextCivButton)->SetPadding(FMargin(4.f));
+	CivNav->AddChildToHorizontalBox(NextCivButton)->SetPadding(FMargin(4.f));
 }
 
 // ---------------------------------------------------------------------------
@@ -471,7 +466,7 @@ void URok2BootWidget::OnNextCivClicked()
 void URok2BootWidget::ShowCivVisuals(const FString& CivId)
 {
 	if (!CivShowcasePanel) return;
-	URok2CivLore* Lore = URok2CivLore::Get();
+	URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get();
 	const bool bHasLore = Lore && Lore->HasLore(CivId);
 	if (!bHasLore)
 	{
@@ -496,13 +491,13 @@ void URok2BootWidget::ShowCivVisuals(const FString& CivId)
 		}
 	};
 
-	ApplyTexture(CivBackdropImage, LoadImportedVisual(TEXT("CivBackgrounds"), FString::Printf(TEXT("bg_%s"), *AssetId)), Rok2BootLoreStyle::ShowcaseFallback);
-	ApplyTexture(CivEmblemImage, LoadImportedVisual(TEXT("CivIcons"), FString::Printf(TEXT("icon_%s_runtime"), *AssetId)), Rok2BootLoreStyle::Gold);
-	ApplyTexture(CivCommanderImage, LoadImportedVisual(TEXT("Commanders"), FString::Printf(TEXT("cmd_%s_starter"), *AssetId)), Rok2BootLoreStyle::Muted);
+	ApplyTexture(CivBackdropImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivBackgrounds"), FString::Printf(TEXT("bg_%s"), *AssetId)), Rok2BootLoreStyle::ShowcaseFallback);
+	ApplyTexture(CivEmblemImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivIcons"), FString::Printf(TEXT("icon_%s_runtime"), *AssetId)), Rok2BootLoreStyle::Gold);
+	ApplyTexture(CivCommanderImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("Commanders"), FString::Printf(TEXT("cmd_%s_starter"), *AssetId)), Rok2BootLoreStyle::Muted);
 
 	if (CivNameText) CivNameText->SetText(FText::FromString(Entry.NameAr.IsEmpty() ? Entry.NameLatin : Entry.NameAr));
 	if (CivFantasyText) CivFantasyText->SetText(FText::FromString(Entry.FantasyAr));
-	if (CivPerksText) CivPerksText->SetText(FText::FromString(JoinLoreHints(Entry)));
+	if (CivPerksText) CivPerksText->SetText(FText::FromString(Rok2BootLoreStyle::JoinLoreHints(Entry)));
 	if (CivUnitText)
 	{
 		CivUnitText->SetText(FText::FromString(Entry.SpecialUnitId.IsEmpty()
@@ -543,7 +538,7 @@ void URok2BootWidget::ShowLoreFor(const FString& CivId)
 {
 	if (!LorePanel) return;
 
-	URok2CivLore* Lore = URok2CivLore::Get();
+	URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get();
 	const bool bHas = Lore && Lore->HasLore(CivId);
 
 	// معرّف بلا نبذة: تُطوى اللوحة بلا رسالة خطأ — شاشة الدخول ليست موضع

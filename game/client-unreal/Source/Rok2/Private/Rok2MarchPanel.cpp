@@ -141,7 +141,7 @@ void URok2MarchPanel::NativeConstruct()
 			UTextBlock* RedirectLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectLabel"));
 			RedirectLabel->SetText(FText::FromString(TEXT("إعادة توجيه جيش متحرك")));
 			RedirectLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.82f, 1.f)));
-			URok2Typography::ApplyFont(RedirectLabel, ERok2TextRole::Label);
+			URok2Typography::ApplyFont(RedirectLabel, ERok2TextRole::Subtitle);
 			UVerticalBoxSlot* RedirectLabelSlot = VBox->AddChildToVerticalBox(RedirectLabel);
 			RedirectLabelSlot->SetPadding(FMargin(20.f, 12.f, 20.f, 4.f));
 
@@ -255,17 +255,17 @@ void URok2MarchPanel::NativeConstruct()
 			DispatchBox->AddChildToHorizontalBox(BtnText)->SetVerticalAlignment(VAlign_Center);
 		}
 
-			ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
-			const bool bCanDispatch = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
-				DispatchButton->SetIsEnabled(bCanDispatch);
-				ScoutButton->SetIsEnabled(bCanDispatch);
+			WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+			const bool bCanDispatchAction = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
+				DispatchButton->SetIsEnabled(bCanDispatchAction);
+				ScoutButton->SetIsEnabled(bCanDispatchAction);
 					if (RallyButton)
 					{
-						RallyButton->SetIsEnabled(bCanDispatch && Api && !Api->GetPlayer().AllianceId.IsEmpty());
+						RallyButton->SetIsEnabled(bCanDispatchAction && Api && !Api->GetPlayer().AllianceId.IsEmpty());
 					}
 					if (RedirectButton)
 					{
-						RedirectButton->SetIsEnabled(bCanDispatch && RedirectOptionIds.Num() > 0);
+						RedirectButton->SetIsEnabled(bCanDispatchAction && RedirectOptionIds.Num() > 0);
 						RedirectButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnRedirectClicked);
 						URok2MotionLibrary::BindPress(RedirectButton);
 					}

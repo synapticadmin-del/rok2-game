@@ -67,7 +67,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 			UTextBlock* RallyTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyTitle"));
 			RallyTitle->SetText(FText::FromString(TEXT("الراليات النشطة")));
 			RallyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
-			URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Heading);
+			URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Subtitle);
 			VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
 
 			RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
@@ -118,8 +118,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		HelpButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnHelpClicked);
 		URok2MotionLibrary::BindPress(HelpButton);	// P6-T3: ضغطة محسوسة
 
-			PopulateRoster();
-		}
+		PopulateRoster();
 	}
 
 	if (Api)

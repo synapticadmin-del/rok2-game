@@ -14,6 +14,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "GenericPlatform/GenericPlatformHttp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2, Log, All);
 
@@ -183,7 +184,7 @@ void URok2Api::FetchMeta()
 			const TArray<TSharedPtr<FJsonValue>>* CivsArr;
 			if ((*CivsObj)->TryGetArrayField(TEXT("civilizations"), CivsArr) && CivsArr)
 			{
-				if (URok2CivLore* Lore = URok2CivLore::Get())
+				if (URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get())
 				{
 					if (Lore->ApplyServerCivs(*CivsArr))
 					{
@@ -408,7 +409,7 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 			// P5-T6: تشغيل موسيقى الحضارة
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
-			Audio->InitForCiv(Civ);
+			Audio->InitForCiv(Self->Player.Civ);
 			Audio->PlayMusic();
 		}
 		Self->LoadCity();
@@ -571,7 +572,7 @@ void URok2Api::MaybeGreetCiv()
 	const FString CivId = Player.Civ;
 	if (CivId.IsEmpty()) return;
 
-	URok2CivLore* Lore = URok2CivLore::Get();
+	URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get();
 	if (!Lore || !Lore->HasLore(CivId)) return;
 
 	const FRok2CivLore& L = Lore->GetLore(CivId);

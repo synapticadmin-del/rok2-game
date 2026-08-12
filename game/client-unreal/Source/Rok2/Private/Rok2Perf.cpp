@@ -3,7 +3,7 @@
 #include "Rok2Perf.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
-#include "GameFramework/GameInstance.h"
+#include "Engine/GameInstance.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
 

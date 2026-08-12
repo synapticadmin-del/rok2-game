@@ -201,7 +201,7 @@ void URok2CivInfoWidget::RefreshFromPlayer()
 	// حضارة اللاعب من حمولة الخادم — لا من اختيار محلي قد لا يكون جرى أصلاً
 	const FString CivId = Api->GetPlayer().Civ;
 
-	URok2CivLore* Lore = URok2CivLore::Get();
+	URok2CivLoreRegistry* Lore = URok2CivLoreRegistry::Get();
 	const bool bHasLore = Lore && Lore->HasLore(CivId);
 
 	if (NameText)

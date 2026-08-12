@@ -18,12 +18,12 @@ namespace Rok2CivLoreSpec
 	const FString JsonRelativePath(TEXT("../../data/civilizations.json"));
 }
 
-URok2CivLore* URok2CivLore::Get()
+URok2CivLoreRegistry* URok2CivLoreRegistry::Get()
 {
-	static URok2CivLore* Instance = nullptr;
+	static URok2CivLoreRegistry* Instance = nullptr;
 	if (!Instance || !IsValid(Instance))
 	{
-		Instance = NewObject<URok2CivLore>();
+		Instance = NewObject<URok2CivLoreRegistry>();
 		Instance->AddToRoot();
 		Instance->LoadFromDiskOrDefaults();
 	}
@@ -34,7 +34,7 @@ URok2CivLore* URok2CivLore::Get()
 // قراءة
 // ---------------------------------------------------------------------------
 
-const FRok2CivLore& URok2CivLore::GetLore(const FString& CivId) const
+const FRok2CivLore& URok2CivLoreRegistry::GetLore(const FString& CivId) const
 {
 	for (const FRok2CivLore& E : Entries)
 	{
@@ -44,12 +44,12 @@ const FRok2CivLore& URok2CivLore::GetLore(const FString& CivId) const
 	return EmptyEntry;
 }
 
-bool URok2CivLore::HasLore(const FString& CivId) const
+bool URok2CivLoreRegistry::HasLore(const FString& CivId) const
 {
 	return GetLore(CivId).IsValid();
 }
 
-TArray<FString> URok2CivLore::GetCivIds() const
+TArray<FString> URok2CivLoreRegistry::GetCivIds() const
 {
 	TArray<FString> Out;
 	Out.Reserve(Entries.Num());
@@ -60,14 +60,14 @@ TArray<FString> URok2CivLore::GetCivIds() const
 	return Out;
 }
 
-FString URok2CivLore::StoryText(const FString& CivId) const
+FString URok2CivLoreRegistry::StoryText(const FString& CivId) const
 {
 	const FRok2CivLore& E = GetLore(CivId);
 	// FString::Join على مصفوفة فارغة يعيد نصاً فارغاً — لا حاجة لحرس منفصل.
 	return FString::Join(E.Story, TEXT("\n"));
 }
 
-FString URok2CivLore::HintAt(const FString& CivId, int32 Index) const
+FString URok2CivLoreRegistry::HintAt(const FString& CivId, int32 Index) const
 {
 	const FRok2CivLore& E = GetLore(CivId);
 	if (E.Hints.Num() <= 0) return FString();
@@ -81,7 +81,7 @@ FString URok2CivLore::HintAt(const FString& CivId, int32 Index) const
 // تحليل
 // ---------------------------------------------------------------------------
 
-FRok2CivLore URok2CivLore::ParseFromJson(const TSharedPtr<FJsonObject>& Obj)
+FRok2CivLore URok2CivLoreRegistry::ParseFromJson(const TSharedPtr<FJsonObject>& Obj)
 {
 	FRok2CivLore E;
 	if (!Obj.IsValid()) return E;
@@ -134,7 +134,7 @@ FRok2CivLore URok2CivLore::ParseFromJson(const TSharedPtr<FJsonObject>& Obj)
 	return E;
 }
 
-bool URok2CivLore::IsCompleteEntry(const FRok2CivLore& Entry)
+bool URok2CivLoreRegistry::IsCompleteEntry(const FRok2CivLore& Entry)
 {
 	if (Entry.CivId.IsEmpty()) return false;
 	if (Entry.NameAr.IsEmpty()) return false;
@@ -145,7 +145,7 @@ bool URok2CivLore::IsCompleteEntry(const FRok2CivLore& Entry)
 	return true;
 }
 
-bool URok2CivLore::AddEntry(const FRok2CivLore& Entry)
+bool URok2CivLoreRegistry::AddEntry(const FRok2CivLore& Entry)
 {
 	if (!IsCompleteEntry(Entry))
 	{
@@ -161,7 +161,7 @@ bool URok2CivLore::AddEntry(const FRok2CivLore& Entry)
 	return true;
 }
 
-int32 URok2CivLore::LoadFromJsonString(const FString& JsonString)
+int32 URok2CivLoreRegistry::LoadFromJsonString(const FString& JsonString)
 {
 	TSharedPtr<FJsonObject> RootObj;
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -192,7 +192,7 @@ int32 URok2CivLore::LoadFromJsonString(const FString& JsonString)
 // مسار الخادم — أعلى سلطة (AGENTS.md §3)
 // ---------------------------------------------------------------------------
 
-bool URok2CivLore::ApplyServerCivs(const TArray<TSharedPtr<FJsonValue>>& CivsArray)
+bool URok2CivLoreRegistry::ApplyServerCivs(const TArray<TSharedPtr<FJsonValue>>& CivsArray)
 {
 	// نبني جانباً ثم نستبدل: حمولة من نسخة backend قديمة (ids بلا story) كانت
 	// ستمحو النصّ المدمج على مسار الاستبدال المباشر فتُترك الشاشة بلا حكاية.
@@ -232,7 +232,7 @@ bool URok2CivLore::ApplyServerCivs(const TArray<TSharedPtr<FJsonValue>>& CivsArr
 // التحميل المحلي: القرص (تطوير) ثم المدمج (الشحن)
 // ---------------------------------------------------------------------------
 
-void URok2CivLore::LoadFromDiskOrDefaults()
+void URok2CivLoreRegistry::LoadFromDiskOrDefaults()
 {
 	if (bLoaded) return;
 	bLoaded = true;
@@ -270,7 +270,7 @@ void URok2CivLore::LoadFromDiskOrDefaults()
 // مولَّدة من الملف لا مكتوبة يدوياً (scripts/verify_civ_lore.mjs يحرس التطابق).
 // ---------------------------------------------------------------------------
 
-void URok2CivLore::BuildDefaults()
+void URok2CivLoreRegistry::BuildDefaults()
 {
 	auto Add = [this](const TCHAR* Id, const TCHAR* NameAr, const TCHAR* NameLatin,
 		const TCHAR* FantasyAr, const TCHAR* FantasyLatin, const TCHAR* SpecialUnitId,

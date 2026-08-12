@@ -144,13 +144,13 @@ static_assert(Rok2CivLoreSpec::MinStoryLines <= Rok2CivLoreSpec::MaxStoryLines,
  * إعادة بناء الودجات، والودجات تُبنى وتُهدم بحرية في هذا المشروع.
  */
 UCLASS(BlueprintType)
-class ROK2_API URok2CivLore : public UObject
+class ROK2_API URok2CivLoreRegistry : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Lore")
-	static URok2CivLore* Get();
+	static URok2CivLoreRegistry* Get();
 
 	// ---------------------------------------------------------------------
 	// قراءة

@@ -47,6 +47,7 @@ protected:
 	UFUNCTION()
 	void OnCloseClicked();
 
+public:
 	/** يعيد بناء قائمة التقارير */
 	void RebuildList(const TArray<FRok2BattleReport>& Reports);
 
@@ -59,7 +60,6 @@ protected:
 	/** اسم ودّي لنوع المعركة */
 	static FString KindLabel(const FString& Kind);
 
-private:
 	TArray<FRok2BattleReport> Current;
 };
 

@@ -47,7 +47,7 @@ void URok2AllianceRallyWidget::BuildCard()
 	TargetText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TargetText"));
 	TargetText->SetText(FText::FromString(FString::Printf(TEXT("رالي %s: %s"), *Rally.TargetType.ToUpper(), *Rally.TargetId)));
 	TargetText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
-	URok2Typography::ApplyFont(TargetText, ERok2TextRole::Heading);
+	URok2Typography::ApplyFont(TargetText, ERok2TextRole::Subtitle);
 	Box->AddChildToVerticalBox(TargetText)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 
 	StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusText"));

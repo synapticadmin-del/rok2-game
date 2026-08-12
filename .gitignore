@@ -22,6 +22,17 @@ game/client-unreal/*.sln
 *.aab
 *.ipa
 
+# Unreal Engine binary assets (حجم كبير — لا تُلتزم في Git)
+*.uasset
+*.umap
+
+# Build logs
+*.log
+build_log.txt
+build_android.ps1
+setup_log.txt
+setup_android.log
+
 # Node.js & Cloudflare Workers
 node_modules/
 .wrangler/

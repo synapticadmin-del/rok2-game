@@ -1,6 +1,7 @@
 // Copyright Rok2. World renderer impl.
 
 #include "Rok2WorldRenderer.h"
+#include "Rok2BuildingActor.h"
 #include "Rok2GameMode.h"
 #include "Rok2Api.h"
 #include "Rok2ProceduralAssets.h"

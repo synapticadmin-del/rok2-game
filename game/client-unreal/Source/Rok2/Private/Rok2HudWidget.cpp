@@ -90,11 +90,11 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudTopBar"));
 	Bar->SetBrushColor(Rok2HudStyle::BarBg);
 	// إطار سفلي ذهبي خفيف عبر Border thickness يُدار من المادة — نستخدم لون الخلفية فقط
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Bar);
-	Slot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.f));
-	Slot->SetAlignment(FVector2D(0.f, 0.f));
-	Slot->SetPosition(FVector2D(0.f, 0.f));
-	Slot->SetSize(FVector2D(0.f, 46.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(Bar);
+	PanelSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.f));
+	PanelSlot->SetAlignment(FVector2D(0.f, 0.f));
+	PanelSlot->SetPosition(FVector2D(0.f, 0.f));
+	PanelSlot->SetSize(FVector2D(0.f, 46.f));
 
 	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudTopHBox"));
 	Bar->SetContent(H);
@@ -178,11 +178,11 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 {
 	UCanvasPanel* Cluster = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("HudActionCluster"));
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(Cluster);
-	Slot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
-	Slot->SetAlignment(FVector2D(1.f, 1.f));
-	Slot->SetPosition(FVector2D(-18.f, -18.f));
-	Slot->SetSize(FVector2D(220.f, 220.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(Cluster);
+	PanelSlot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
+	PanelSlot->SetAlignment(FVector2D(1.f, 1.f));
+	PanelSlot->SetPosition(FVector2D(-18.f, -18.f));
+	PanelSlot->SetSize(FVector2D(220.f, 220.f));
 
 	// زر البناء الكبير — أسفل يمين الزاوية
 	{
@@ -275,11 +275,11 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 {
 	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudLeftCluster"));
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(H);
-	Slot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
-	Slot->SetAlignment(FVector2D(0.f, 1.f));
-	Slot->SetPosition(FVector2D(18.f, -18.f));
-	Slot->SetSize(FVector2D(470.f, 52.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(H);
+	PanelSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
+	PanelSlot->SetAlignment(FVector2D(0.f, 1.f));
+	PanelSlot->SetPosition(FVector2D(18.f, -18.f));
+	PanelSlot->SetSize(FVector2D(470.f, 52.f));
 
 	// P6-T1: كل زر = أيقونة إجرائية + نص
 	// P6-T4: صارت تعيد Pill (كانت void) ليتمكّن الإرشاد من ترسية زر الخريطة —
@@ -354,11 +354,11 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 {
 	QueuesPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudQueuesPanel"));
 	QueuesPanel->SetBrushColor(Rok2HudStyle::PanelBg);
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(QueuesPanel);
-	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
-	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-14.f, 56.f));
-	Slot->SetSize(FVector2D(280.f, 150.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(QueuesPanel);
+	PanelSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
+	PanelSlot->SetAlignment(FVector2D(1.f, 0.f));
+	PanelSlot->SetPosition(FVector2D(-14.f, 56.f));
+	PanelSlot->SetSize(FVector2D(280.f, 150.f));
 
 	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	QueuesPanel->SetContent(V);
@@ -386,11 +386,11 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 void URok2HudWidget::BuildToastsStack(UCanvasPanel* RootCanvas)
 {
 	ToastsBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("HudToastsBox"));
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(ToastsBox);
-	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
-	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-14.f, 216.f));
-	Slot->SetSize(FVector2D(300.f, 400.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(ToastsBox);
+	PanelSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
+	PanelSlot->SetAlignment(FVector2D(1.f, 0.f));
+	PanelSlot->SetPosition(FVector2D(-14.f, 216.f));
+	PanelSlot->SetSize(FVector2D(300.f, 400.f));
 }
 
 void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
@@ -398,11 +398,11 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	NotifCenterPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudNotifCenter"));
 	NotifCenterPanel->SetBrushColor(Rok2HudStyle::PanelBg);
 	NotifCenterPanel->SetVisibility(ESlateVisibility::Collapsed);
-	UCanvasPanelSlot* Slot = RootCanvas->AddChildToCanvas(NotifCenterPanel);
-	Slot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
-	Slot->SetAlignment(FVector2D(1.f, 0.f));
-	Slot->SetPosition(FVector2D(-14.f, 56.f));
-	Slot->SetSize(FVector2D(320.f, 420.f));
+	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(NotifCenterPanel);
+	PanelSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
+	PanelSlot->SetAlignment(FVector2D(1.f, 0.f));
+	PanelSlot->SetPosition(FVector2D(-14.f, 56.f));
+	PanelSlot->SetSize(FVector2D(320.f, 420.f));
 
 	UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	NotifCenterPanel->SetContent(V);
