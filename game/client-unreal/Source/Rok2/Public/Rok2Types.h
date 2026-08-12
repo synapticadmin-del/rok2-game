@@ -71,6 +71,24 @@ struct FRok2QueueEntry
 };
 
 USTRUCT(BlueprintType)
+struct FRok2CityLayoutPlacement
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	FString BuildingId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	int32 Q = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	int32 R = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	int32 RotationSteps = 0;
+	/** standard / ceremonial / fortified؛ قيمة تجميلية صادرة من الخادم. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	FString Facade = TEXT("standard");
+};
+
+USTRUCT(BlueprintType)
 struct FRok2City
 {
 	GENERATED_BODY()
@@ -90,6 +108,13 @@ struct FRok2City
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2QueueEntry> ActiveQueues;
+	/** تخطيط القلعة المعتمد على الخادم؛ فارغ عند أول دخول أو تعذر القراءة. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	TArray<FRok2CityLayoutPlacement> LayoutPlacements;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	int32 LayoutVersion = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
+	int64 LayoutUpdatedAt = 0;
 };
 
 USTRUCT(BlueprintType)

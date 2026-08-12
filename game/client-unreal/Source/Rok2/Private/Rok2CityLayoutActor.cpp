@@ -14,6 +14,26 @@
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 
+namespace Rok2CityLayout
+{
+	static ERok2BuildingFacade FacadeFromWire(const FString& Value)
+	{
+		if (Value == TEXT("ceremonial")) return ERok2BuildingFacade::Ceremonial;
+		if (Value == TEXT("fortified")) return ERok2BuildingFacade::Fortified;
+		return ERok2BuildingFacade::Standard;
+	}
+
+	static FString FacadeToWire(ERok2BuildingFacade Value)
+	{
+		switch (Value)
+		{
+		case ERok2BuildingFacade::Ceremonial: return TEXT("ceremonial");
+		case ERok2BuildingFacade::Fortified: return TEXT("fortified");
+		default: return TEXT("standard");
+		}
+	}
+}
+
 ARok2CityLayoutActor::ARok2CityLayoutActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -210,7 +230,26 @@ void ARok2CityLayoutActor::RebuildFromApi()
 	const FString PlayerCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
 
 	const TMap<FString, int32>& ApiBuildings = Api->GetBuildings();
-	const TMap<FString, FRok2BuildingPlacement> SavedPlacements = LoadLocalLayout();
+	TMap<FString, FRok2BuildingPlacement> SavedPlacements;
+	const FRok2City& AuthoritativeCity = Api->GetCity();
+	if (AuthoritativeCity.LayoutPlacements.Num() > 0)
+	{
+		for (const FRok2CityLayoutPlacement& ServerPlacement : AuthoritativeCity.LayoutPlacements)
+		{
+			FRok2BuildingPlacement Placement;
+			Placement.BuildingId = ServerPlacement.BuildingId;
+			Placement.Q = ServerPlacement.Q;
+			Placement.R = ServerPlacement.R;
+			Placement.RotationSteps = ServerPlacement.RotationSteps;
+			Placement.Facade = Rok2CityLayout::FacadeFromWire(ServerPlacement.Facade);
+			SavedPlacements.Add(Placement.BuildingId, Placement);
+		}
+	}
+	else
+	{
+		// ترحيل لطيف: التخزين المحلي احتياطي لجلسات لم تحفظ بعد نسخة خادمية.
+		SavedPlacements = LoadLocalLayout();
+	}
 	TArray<FString> Order = {
 		TEXT("city_hall"), TEXT("tavern"), TEXT("academy"), TEXT("trading_post"), TEXT("alliance_center"),
 		TEXT("farm"), TEXT("lumber_mill"), TEXT("quarry"), TEXT("goldmine"), TEXT("storehouse"),
@@ -221,7 +260,10 @@ void ARok2CityLayoutActor::RebuildFromApi()
 	int32 idx = 0;
 	for (const FString& Id : Order)
 	{
-		const int32 Level = ApiBuildings.Contains(Id) ? ApiBuildings[Id] : 1;
+		const int32* OwnedLevel = ApiBuildings.Find(Id);
+		// لا نزرع مبنى مستقبلياً على أنه مملوك؛ الخادم لا يقبل حفظ مبنى غير مملوك.
+		if (!OwnedLevel || *OwnedLevel <= 0) continue;
+		const int32 Level = *OwnedLevel;
 		const FRok2BuildingPlacement* Saved = SavedPlacements.Find(Id);
 		const FRok2HexCell Cell = Saved ? FRok2HexCell(Saved->Q, Saved->R) : DefaultCellForBuilding(Id, idx);
 
@@ -338,6 +380,8 @@ TArray<FRok2BuildingPlacement> ARok2CityLayoutActor::GetLayoutPlacements() const
 	for (const auto& KV : Buildings)
 	{
 		if (!KV.Value) continue;
+		// طبقة العرض لا تضيف مباني مستقبلية إلى الحمولة السلطوية.
+		if (Api && Api->HasPlayer() && !Api->GetBuildings().Contains(KV.Key)) continue;
 		FRok2BuildingPlacement P;
 		P.BuildingId = KV.Key;
 		P.Q = KV.Value->AnchorCell.Q;
@@ -389,6 +433,23 @@ void ARok2CityLayoutActor::SaveLayoutToServer()
 	Save->PlayerId = Api && Api->HasPlayer() ? Api->GetPlayer().Id : TEXT("guest");
 	Save->Placements = GetLayoutPlacements();
 	UGameplayStatics::SaveGameToSlot(Save, GetLocalLayoutSlotName(), 0);
+
+	if (Api && Api->HasPlayer())
+	{
+		TArray<FRok2CityLayoutPlacement> Payload;
+		for (const FRok2BuildingPlacement& Placement : Save->Placements)
+		{
+			FRok2CityLayoutPlacement WirePlacement;
+			WirePlacement.BuildingId = Placement.BuildingId;
+			WirePlacement.Q = Placement.Q;
+			WirePlacement.R = Placement.R;
+			WirePlacement.RotationSteps = FMath::Abs(Placement.RotationSteps) % 6;
+			WirePlacement.Facade = Rok2CityLayout::FacadeToWire(Placement.Facade);
+			Payload.Add(MoveTemp(WirePlacement));
+		}
+		Api->SaveCityLayout(Payload);
+	}
+
 	OnLayoutChanged.Broadcast();
 }
 

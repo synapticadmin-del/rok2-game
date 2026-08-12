@@ -1,5 +1,6 @@
 import type { Env, PlayerRow, CityRow, VipRow } from "../env";
 import { HttpError, json, readJson } from "../lib/errors";
+import { validateCityLayout, type CityLayoutPlacement, type CityLayoutView } from "../lib/cityLayout";
 import { newId, nowMs } from "../lib/ids";
 import { signToken, sha256Hex, verifyToken } from "../lib/auth";
 import type { TokenPayload } from "../lib/auth";
@@ -229,6 +230,31 @@ async function getBuildingsMap(env: Env, playerId: string): Promise<Record<strin
   const out: Record<string, number> = {};
   for (const r of rows.results || []) out[r.building_id] = r.level;
   return out;
+}
+
+type CityLayoutRow = {
+  layout_json: string;
+  version: number;
+  updated_at: number;
+};
+
+/** يقرأ التخطيط السلطوي، مع تعافٍ آمن إذا لم تطبق الهجرة بعد في بيئة قديمة. */
+async function getCityLayout(env: Env, playerId: string): Promise<CityLayoutView | null> {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT layout_json, version, updated_at FROM city_layouts WHERE player_id = ?",
+    ).bind(playerId).first<CityLayoutRow>();
+    if (!row) return null;
+    const parsed = JSON.parse(row.layout_json) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return {
+      version: Number.isInteger(row.version) && row.version > 0 ? row.version : 1,
+      updatedAt: row.updated_at,
+      placements: parsed as CityLayoutPlacement[],
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function getTroopsMap(env: Env, playerId: string): Promise<Record<string, number>> {
@@ -761,6 +787,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         troops,
         activeQueues,
         production,
+        layout: await getCityLayout(env, player.id),
         wounded,
         hospital: {
           level: hospitalLevel,
@@ -770,6 +797,40 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         },
         kingdom: playerKingdom,
       });
+    }
+
+    // City layout — الحالة التجميلية مرجعية من الخادم لكنها لا تمنح أي ميزة لعب.
+    if (path === "/v1/city/layout" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ placements?: unknown }>(request);
+      const city = await refreshCity(env, player.id);
+      const buildings = await getBuildingsMap(env, player.id);
+
+      let placements: CityLayoutPlacement[];
+      try {
+        placements = validateCityLayout(body.placements, buildings, city.hall_level);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "layout_invalid";
+        throw new HttpError(400, code);
+      }
+
+      const now = nowMs();
+      try {
+        await env.DB.prepare(
+          `INSERT INTO city_layouts (player_id, layout_json, version, updated_at)
+           VALUES (?, ?, 1, ?)
+           ON CONFLICT(player_id) DO UPDATE SET
+             layout_json = excluded.layout_json,
+             version = city_layouts.version + 1,
+             updated_at = excluded.updated_at`,
+        ).bind(player.id, JSON.stringify(placements), now).run();
+      } catch {
+        throw new HttpError(503, "city_layout_storage_unavailable");
+      }
+
+      const layout = await getCityLayout(env, player.id);
+      if (!layout) throw new HttpError(503, "city_layout_storage_unavailable");
+      return json({ ok: true, layout });
     }
 
     // City upgrade

@@ -457,6 +457,33 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 		}
 	}
 
+	// التخطيط السلطوي للقلعة — يظل فارغاً في الحسابات القديمة التي لم تحفظ نسخة بعد.
+	City.LayoutPlacements.Empty();
+	City.LayoutVersion = 0;
+	City.LayoutUpdatedAt = 0;
+	const TSharedPtr<FJsonObject>* LayoutObj = nullptr;
+	if (Obj->TryGetObjectField(TEXT("layout"), LayoutObj) && LayoutObj && LayoutObj->IsValid())
+	{
+		City.LayoutVersion = (int32)Rok2Json::Num(*LayoutObj, TEXT("version"));
+		City.LayoutUpdatedAt = (int64)Rok2Json::Num(*LayoutObj, TEXT("updatedAt"));
+		const TArray<TSharedPtr<FJsonValue>>* Placements = nullptr;
+		if ((*LayoutObj)->TryGetArrayField(TEXT("placements"), Placements) && Placements)
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *Placements)
+			{
+				const TSharedPtr<FJsonObject> PlacementObj = Value->AsObject();
+				if (!PlacementObj.IsValid()) continue;
+				FRok2CityLayoutPlacement Placement;
+				Placement.BuildingId = Rok2Json::Str(PlacementObj, TEXT("buildingId"));
+				Placement.Q = (int32)Rok2Json::Num(PlacementObj, TEXT("q"));
+				Placement.R = (int32)Rok2Json::Num(PlacementObj, TEXT("r"));
+				Placement.RotationSteps = (int32)Rok2Json::Num(PlacementObj, TEXT("rotationSteps"));
+				Placement.Facade = Rok2Json::Str(PlacementObj, TEXT("facade"));
+				if (!Placement.BuildingId.IsEmpty()) City.LayoutPlacements.Add(Placement);
+			}
+		}
+	}
+
 	// queues
 	City.ActiveQueues.Empty();
 	const TArray<TSharedPtr<FJsonValue>>* QueuesArr;
@@ -990,6 +1017,48 @@ void URok2Api::LoadCity()
 	Get(TEXT("/v1/city"), [this](const TSharedPtr<FJsonObject>& Obj)
 	{
 		ParseCity(Obj);
+	});
+}
+
+void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements)
+{
+	if (!HasPlayer() || !IsLoggedIn())
+	{
+		PushNotification(TEXT("toast"), TEXT("تعذّر حفظ التخطيط"), TEXT("سجّل الدخول أولاً لمزامنة القلعة"), 5.f);
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	TArray<TSharedPtr<FJsonValue>> JsonPlacements;
+	for (const FRok2CityLayoutPlacement& Placement : Placements)
+	{
+		TSharedPtr<FJsonObject> Entry = MakeShared<FJsonObject>();
+		Entry->SetStringField(TEXT("buildingId"), Placement.BuildingId);
+		Entry->SetNumberField(TEXT("q"), Placement.Q);
+		Entry->SetNumberField(TEXT("r"), Placement.R);
+		Entry->SetNumberField(TEXT("rotationSteps"), Placement.RotationSteps);
+		Entry->SetStringField(TEXT("facade"), Placement.Facade.IsEmpty() ? TEXT("standard") : Placement.Facade);
+		JsonPlacements.Add(MakeShared<FJsonValueObject>(Entry));
+	}
+	Body->SetArrayField(TEXT("placements"), JsonPlacements);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/layout"), BodyStr, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->PushNotification(TEXT("toast"), TEXT("تم حفظ تخطيط القلعة"), TEXT("تزامنت المواقع والواجهات مع حسابك"), 5.f);
+		Self->LoadCity();
+	}, [WeakThis](const FString& Error)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->PushNotification(TEXT("toast"), TEXT("تعذّر حفظ التخطيط"), Error.IsEmpty() ? TEXT("رفض الخادم التخطيط؛ أعيدت مزامنة المدينة") : Error, 6.f);
+		Self->LoadCity();
 	});
 }
 
