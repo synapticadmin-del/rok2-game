@@ -103,6 +103,37 @@ adb logcat -s UE:V LogRok2:V
 
 ---
 
+## 6 ب) صلاحيات التخزين — لماذا لا تطلب اللعبة صلاحية التخزين عند الفتح؟
+
+**المشكلة:** UE5 يضيف `WRITE_EXTERNAL_STORAGE` و `READ_EXTERNAL_STORAGE`
+إلى الـ manifest المُولَّد تلقائيًا (للتحقق من ملفات الـ OBB/الملفات الخارجية عند
+أول تشغيل)، فيظهر على الهاتف تنبيه *"Permission Required: Storage"* عند فتح
+اللعبة رغم أن الإعدادات لا تطلب هذه الصلاحيات صراحة (ticket UE-170079).
+
+**الحل المطبق في هذا المشروع (3 طبقات):**
+
+1. **`Build/Android/ManifestRequirementsOverride.txt`** — يستبدل قسم
+   `<uses-permission>` في الـ manifest النهائي بالكامل؛ القائمة أعلاه لا تحتوي
+   أي صلاحية تخزين، فقط `INTERNET` + `ACCESS_NETWORK_STATE` +
+   `ACCESS_WIFI_STATE`. هذا هو التخليص القاطع: حتى لو حاول المحرك أو أي plugin
+   إضافة storage permissions لاحقًا فلن تدخل الـ manifest النهائي.
+2. **`Build/Android/ManifestApplicationAdditions.txt`** — يضيف
+   `android:requestLegacyExternalStorage="false"` لضمان عدم وراثة الوضع
+   القديم من إصدارات Android ≤ 9.
+3. **`bUseExternalFilesDir=True`** في
+   `Config/DefaultEngine.ini` (`[AndroidRuntimeSettings]`) — الحل الرسمي من
+   Epic: ملفات اللعبة المحفوظة (مثل `DeviceId` في
+   `FPaths::ProjectSavedDir()` بـ `Rok2Api.cpp`) تذهب إلى
+   `ExternalFilesDir` الذي **لا يطلب أي runtime permission على API 23+**، بينما
+   تظل بيانات اللعبة نفسها داخل الـ APK (`bPackageDataInsideApk=True`, بلا
+   OBB) — لا تأثير على حجم التثبيت.
+
+التحقق بعد البناء: استخرج الـ manifest من الـ APK (`apktool d`) وتأكد من
+غياب `WRITE_EXTERNAL_STORAGE` و `READ_EXTERNAL_STORAGE`؛ أو ببساطة افتح
+اللعبة على Android 11+ ولا يجب أن تظهر أي شاشة "Permission Required".
+
+---
+
 ## 7) إن فشل البناء
 
 | رسالة الخطأ | الحل |

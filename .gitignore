@@ -3,7 +3,7 @@ Intermediate/
 Saved/
 DerivedDataCache/
 Binaries/
-Build/
+Build/**
 .vs/
 .idea/
 *.sln
@@ -13,7 +13,8 @@ game/client-unreal/Intermediate/
 game/client-unreal/Saved/
 game/client-unreal/DerivedDataCache/
 game/client-unreal/Binaries/
-game/client-unreal/Build/
+game/client-unreal/Build/**
+# Source-level Android manifest overrides for P7-T11 (مصدرية — تُلتزم)
 game/client-unreal/.vs/
 game/client-unreal/*.sln
 
@@ -56,3 +57,10 @@ game/backend/.dev.vars
 # Temporary probe/test binaries (بقايا جلسات تطوير — انظر tmp_binary_test.bin التاريخي)
 tmp_*
 *.tmp
+
+# P7-T11: ملفات manifest المصدرية تُلتزم — باقي محتويات Build/ مولدة ولا تُلتزم
+!Build/
+!game/client-unreal/Build/
+!game/client-unreal/Build/Android/
+!game/client-unreal/Build/Android/ManifestRequirementsOverride.txt
+!game/client-unreal/Build/Android/ManifestApplicationAdditions.txt
