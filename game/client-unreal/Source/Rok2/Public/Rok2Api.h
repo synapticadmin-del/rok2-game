@@ -175,6 +175,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void DisconnectWebSocket();
 
+	/**
+	 * يعيد سحب الحالة السلطوية الخاصة باللاعب بعد عودة WebSocket: المدينة، لقطة
+	 * العالم، التقارير، القادة، وراليات التحالف. آمن للتكرار ولا يغيّر حالة لعب محلية.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Connection")
+	void RestoreAuthoritativeState();
+
 	// Polling pump - called from GameMode Tick
 	void PumpEvents(float DeltaSeconds);
 
@@ -354,6 +361,13 @@ protected:
 	float WorldPollTimer = 0.f;
 	bool bWsConnected = false;
 
+	// ---- P7-T5: استعادة الحالة بعد إعادة الاتصال ----
+	/** لا تُستعاد الحالة في أول اتصال؛ تُطلق حصراً بعد انقطاع حي سابق. */
+	bool bRestoreOnNextWsConnection = false;
+	/** يمنع إشارة قديمة من WS متصل سابقاً من إطلاق استعادة موازية. */
+	bool bStateRestoreInFlight = false;
+	int32 StateRestorePendingRequests = 0;
+
 	// ---- الموارد الحية (P1-T5) ----
 	/** مؤقّت مزامنة المدينة من الخادم — يعمل فقط عند اتصال الـ WS (غير متصل = polling عالم سريع) */
 	float CitySyncTimer = 0.f;
@@ -377,8 +391,12 @@ protected:
 	static constexpr int32 HttpMaxRetries = 2;
 
 	void SetOnline(bool bNewOnline, const FString& Reason);
+	void CompleteAuthoritativeStateRestore();
+	void FetchCommandersInternal(TFunction<void()> OnFinished);
+	void FetchBattleReportsInternal(TFunction<void()> OnFinished);
+	void FetchAllianceRalliesInternal(TFunction<void()> OnFinished);
 
-	void Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk);
+	void Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr = nullptr);
 	void Post(const FString& Path, const FString& JsonBody, bool bAuth, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr = nullptr);
 
 	/** HTTP داخلي مع retry backoff لأخطاء الشبكة (لا يعيد المحاولة على أخطاء 4xx المنطقية) */

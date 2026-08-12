@@ -345,9 +345,9 @@ void URok2Api::RequestWithRetry(const FString& Verb, const FString& Path, const 
 	Rok2SendRequest(this, Ctx);
 }
 
-void URok2Api::Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk)
+void URok2Api::Get(const FString& Path, TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr)
 {
-	RequestWithRetry(TEXT("GET"), Path, FString(), !Token.IsEmpty(), OnOk, nullptr, HttpMaxRetries);
+	RequestWithRetry(TEXT("GET"), Path, FString(), !Token.IsEmpty(), OnOk, OnErr, HttpMaxRetries);
 }
 
 void URok2Api::Post(const FString& Path, const FString& JsonBody, bool bAuth,
@@ -1099,11 +1099,20 @@ void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements
 
 void URok2Api::FetchCommanders()
 {
+	FetchCommandersInternal(nullptr);
+}
+
+void URok2Api::FetchCommandersInternal(TFunction<void()> OnFinished)
+{
 	// /v1/commanders يتطلب لاعباً مؤسساً. هذا الحارس يمنع طلباً 401 أثناء شاشة اختيار الحضارة.
-	if (!HasPlayer() || !IsLoggedIn()) return;
+	if (!HasPlayer() || !IsLoggedIn())
+	{
+		if (OnFinished) OnFinished();
+		return;
+	}
 
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-	Get(TEXT("/v1/commanders"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	Get(TEXT("/v1/commanders"), [WeakThis, OnFinished](const TSharedPtr<FJsonObject>& Obj)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
@@ -1145,6 +1154,10 @@ void URok2Api::FetchCommanders()
 		}
 
 		Self->OnCommandersLoaded.Broadcast();
+		if (OnFinished) OnFinished();
+	}, [WeakThis, OnFinished](const FString&)
+	{
+		if (WeakThis.IsValid() && OnFinished) OnFinished();
 	});
 }
 
@@ -1310,11 +1323,76 @@ void URok2Api::RefreshWorld()
 	});
 }
 
+void URok2Api::RestoreAuthoritativeState()
+{
+	if (bStateRestoreInFlight) return;
+	if (!HasPlayer() || !IsLoggedIn())
+	{
+		EmitToast(TEXT("لا توجد جلسة لاعب صالحة لاستعادة الحالة"));
+		return;
+	}
+
+	bStateRestoreInFlight = true;
+	StateRestorePendingRequests = 5;
+	PushNotification(TEXT("connection"), TEXT("عاد الاتصال"), TEXT("تتم الآن مزامنة المدينة والعالم والتقارير."), 5.f);
+
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	const TFunction<void()> OnPartFinished = [WeakThis]()
+	{
+		if (WeakThis.IsValid()) WeakThis->CompleteAuthoritativeStateRestore();
+	};
+
+	Get(TEXT("/v1/city"), [WeakThis, OnPartFinished](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseCity(Obj);
+		OnPartFinished();
+	}, [WeakThis, OnPartFinished](const FString&)
+	{
+		if (WeakThis.IsValid()) OnPartFinished();
+	});
+
+	Get(TEXT("/v1/world/snapshot"), [WeakThis, OnPartFinished](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseWorld(Obj);
+		OnPartFinished();
+	}, [WeakThis, OnPartFinished](const FString&)
+	{
+		if (WeakThis.IsValid()) OnPartFinished();
+	});
+
+	FetchCommandersInternal(OnPartFinished);
+	FetchBattleReportsInternal(OnPartFinished);
+	FetchAllianceRalliesInternal(OnPartFinished);
+}
+
+void URok2Api::CompleteAuthoritativeStateRestore()
+{
+	if (!bStateRestoreInFlight) return;
+	StateRestorePendingRequests = FMath::Max(0, StateRestorePendingRequests - 1);
+	if (StateRestorePendingRequests > 0) return;
+
+	bStateRestoreInFlight = false;
+	WorldPollTimer = 0.f;
+	CitySyncTimer = 0.f;
+	PushNotification(TEXT("connection"), TEXT("اكتملت المزامنة"), TEXT("تمت استعادة أحدث حالة للمدينة والعالم."), 5.f);
+}
+
 void URok2Api::FetchBattleReports()
 {
-	if (!HasPlayer() || !IsLoggedIn()) return;
+	FetchBattleReportsInternal(nullptr);
+}
+
+void URok2Api::FetchBattleReportsInternal(TFunction<void()> OnFinished)
+{
+	if (!HasPlayer() || !IsLoggedIn())
+	{
+		if (OnFinished) OnFinished();
+		return;
+	}
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-	Get(TEXT("/v1/combat/reports"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	Get(TEXT("/v1/combat/reports"), [WeakThis, OnFinished](const TSharedPtr<FJsonObject>& Obj)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
@@ -1332,6 +1410,10 @@ void URok2Api::FetchBattleReports()
 			}
 		}
 		Self->OnBattleReports.Broadcast(Self->BattleReports);
+		if (OnFinished) OnFinished();
+	}, [WeakThis, OnFinished](const FString&)
+	{
+		if (WeakThis.IsValid() && OnFinished) OnFinished();
 	});
 }
 
@@ -1497,15 +1579,24 @@ void URok2Api::JoinAllianceRally(const FString& RallyId, const TMap<FString, int
 
 void URok2Api::FetchAllianceRallies()
 {
+	FetchAllianceRalliesInternal(nullptr);
+}
+
+void URok2Api::FetchAllianceRalliesInternal(TFunction<void()> OnFinished)
+{
 	if (Player.AllianceId.IsEmpty())
 	{
 		AllianceRallies.Empty();
 		OnAllianceRalliesUpdated.Broadcast(AllianceRallies);
+		if (OnFinished) OnFinished();
 		return;
 	}
-	Get(TEXT("/v1/alliance/rallies"), [this](const TSharedPtr<FJsonObject>& Obj)
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/alliance/rallies"), [WeakThis, OnFinished](const TSharedPtr<FJsonObject>& Obj)
 	{
-		AllianceRallies.Empty();
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->AllianceRallies.Empty();
 		const TArray<TSharedPtr<FJsonValue>>* Rows = nullptr;
 		if (Obj->TryGetArrayField(TEXT("rallies"), Rows) && Rows)
 		{
@@ -1514,11 +1605,15 @@ void URok2Api::FetchAllianceRallies()
 				const TSharedPtr<FJsonObject> RallyObj = Value.IsValid() ? Value->AsObject() : nullptr;
 				if (!RallyObj.IsValid()) continue;
 				FRok2AllianceRally Rally;
-				ParseAllianceRally(RallyObj, Rally);
-				AllianceRallies.Add(MoveTemp(Rally));
+				Self->ParseAllianceRally(RallyObj, Rally);
+				Self->AllianceRallies.Add(MoveTemp(Rally));
 			}
 		}
-		OnAllianceRalliesUpdated.Broadcast(AllianceRallies);
+		Self->OnAllianceRalliesUpdated.Broadcast(Self->AllianceRallies);
+		if (OnFinished) OnFinished();
+	}, [WeakThis, OnFinished](const FString&)
+	{
+		if (WeakThis.IsValid() && OnFinished) OnFinished();
 	});
 }
 
@@ -1619,10 +1714,13 @@ void URok2Api::ConnectWebSocket()
 
 	WebSocket->OnConnected().AddLambda([WeakThis]()
 	{
-		if (!WeakThis.IsValid()) return;
-		URok2Api* Self = WeakThis.Get();
-		Self->bWsConnected = true;
-		Self->WsReconnectDelay = 2.f; // reset backoff on success
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			const bool bShouldRestore = Self->bRestoreOnNextWsConnection && Self->HasPlayer() && Self->IsLoggedIn();
+			Self->bRestoreOnNextWsConnection = false;
+			Self->bWsConnected = true;
+			Self->WsReconnectDelay = 2.f; // reset backoff on success
+
 		Self->WsReconnectTimer = 0.f;
 		Self->SetOnline(true, TEXT("اتصال حي"));
 		Self->EmitToast(TEXT("اتصال حي"));
@@ -1631,10 +1729,14 @@ void URok2Api::ConnectWebSocket()
 		Msg->SetStringField(TEXT("type"), TEXT("hello"));
 		Msg->SetStringField(TEXT("playerId"), Self->Player.Id);
 		FString Str;
-		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
-		FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
-		Self->WebSocket->Send(Str);
-	});
+			const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
+			FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
+			Self->WebSocket->Send(Str);
+			if (bShouldRestore)
+			{
+				Self->RestoreAuthoritativeState();
+			}
+		});
 
 	WebSocket->OnMessage().AddLambda([WeakThis](const FString& Message)
 	{
@@ -1873,17 +1975,21 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 		{
 			Audio->PlaySfx(ERok2AudioType::UiError);
 		}
-		Self->bWsConnected = false;
-		Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
+			const bool bWasLive = Self->bWsConnected;
+			Self->bWsConnected = false;
+			Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
+			Self->SetOnline(false, TEXT("خطأ في الاتصال الحي — إعادة المحاولة تلقائياً..."));
 		// سيُعاد الاتصال من PumpEvents بعد WsReconnectDelay
 	});
 
 	WebSocket->OnClosed().AddLambda([WeakThis](int32 Code, const FString& Reason, bool bWasClean)
 	{
-		if (!WeakThis.IsValid()) return;
-		URok2Api* Self = WeakThis.Get();
-		Self->bWsConnected = false;
-		if (Self->bWsDesired)
+			if (!WeakThis.IsValid()) return;
+			URok2Api* Self = WeakThis.Get();
+			const bool bWasLive = Self->bWsConnected;
+			Self->bWsConnected = false;
+			Self->bRestoreOnNextWsConnection = Self->bRestoreOnNextWsConnection || (bWasLive && Self->bWsDesired && Self->HasPlayer());
+			if (Self->bWsDesired)
 		{
 			Self->SetOnline(false, FString::Printf(TEXT("انقطع الاتصال الحي — إعادة خلال %.0f ث"), Self->WsReconnectDelay));
 		}
@@ -1895,6 +2001,9 @@ if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
 void URok2Api::DisconnectWebSocket()
 {
 	bWsDesired = false; // لا إعادة اتصال بعد الفصل اليدوي
+	bRestoreOnNextWsConnection = false;
+	bStateRestoreInFlight = false;
+	StateRestorePendingRequests = 0;
 	if (WebSocket.IsValid())
 	{
 		WebSocket->Close();
