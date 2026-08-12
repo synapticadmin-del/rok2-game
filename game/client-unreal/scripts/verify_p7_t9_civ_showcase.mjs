@@ -49,7 +49,7 @@ requireText('Source/Rok2/Public/Rok2BootWidget.h', [
 requireText('Source/Rok2/Private/Rok2BootWidget.cpp', [
   'BuildCivShowcase', 'ShowCivVisuals', 'CivBackgrounds', 'CivIcons',
   'icon_%s_runtime', 'Commanders', 'OnPreviousCivClicked', 'OnNextCivClicked',
-  'SetSelectedIndex', 'URok2CivLore::Get()',
+  'SetSelectedIndex', 'URok2CivLoreRegistry::Get()',
 ]);
 requireText('scripts/Import-CivVisuals.ps1', [
   "'-run=ImportAssets'", 'CivBackgrounds', 'CivIcons', 'CivCommanders',
