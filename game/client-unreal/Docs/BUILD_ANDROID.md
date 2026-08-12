@@ -132,6 +132,47 @@ adb logcat -s UE:V LogRok2:V
 غياب `WRITE_EXTERNAL_STORAGE` و `READ_EXTERNAL_STORAGE`؛ أو ببساطة افتح
 اللعبة على Android 11+ ولا يجب أن تظهر أي شاشة "Permission Required".
 
+### 6 ج) اللعبة عالقة على شعار Unreal Engine ولا تفتح (P7-T12)
+
+**المشكلة:** عند فتح APK على الهاتف تظهر شاشة شعار Unreal Engine وتبقى
+معلقة بلا نهاية — لا تتخطاها ولا تدخل اللعبة. الشعار يعرضه نشاط المحرك
+الأصلي (UAndroidThunkJava) **قبل** تحميل المستوى، وأي فشل في إعداد العرض
+(RHI) أو واجهة OBB عند بدء التشغيل يعلق الشاشة صامتًا.
+
+**الحل المطبق في هذا المشروع (4 إعدادات في
+`Config/DefaultEngine.ini` قسم `[AndroidRuntimeSettings]`):**
+
+1. **`rhi.AndroidDefaultGraphicsRHI=DefaultGraphicsRHI_OpenGLES3` +
+   `bSupportsOpenGL3=True`** — OpenGLES3 أساسي لأن أدريفرات Vulkan على أجهزة
+   كثيرة (خاصة GPU قديمة أو Mid-range) تجريبية وتعلق التطبيق على أول إطار؛
+   GLES3 مستقر عالميًا على أي GPU. Vulkan يظل متاحًا إن دعمه الجهاز فعليًا
+   (`bSupportsVulkan=True`).
+2. **`bSplashScreen=False`** — شاشة البداية هي نفسها نقطة التعليق؛ تعطيلها
+   يجعل التطبيق يفتح مباشرة على اللودج.
+3. **`bDisableOBBPakUI=True`** — مع TargetSDK 34 يظهر المحرك واجهة OBB
+   الافتراضية عند بدء التشغيل وتعلق إن فُقدت ملفات الـ APK؛ ولا OBB لدينا
+   أصلًا لأن `bPackageDataInsideApk=True`.
+4. **`bForceVulkan=False`** — لا نُجبر Vulkan على أي جهاز.
+
+**سببان إضافيان عولجا في نفس الدفعة:**
+
+- **`PythonScriptPlugin` و `EditorScriptingUtilities` عطلّيا من
+  `Rok2.uproject`** (`DisableEnginePluginsByDefault` + `DisabledPlugins`) —
+  كلاهما plugin محرر/ويندوز لا يعمل على Android، وحملهما في APK سببٌ معروف
+  لتعليق/فشل صامت عند أول تشغيل. سكربتات الاستيراد تستخدم
+  `ImportAssetsCommandlet` ولا تتأثر.
+
+**المصادر:**
+
+- [Black Screen / Crash — UE 5.4.3 + SDK 34](https://forums.unrealengine.com/t/black-screen-crash-building-android-14-on-5-4-3-sdk-34-target/1946498)
+  (الحل الموثق: OpenGLES بدل Vulkan + تعطيل Splash + `Disable OBB at start up`)
+- [UE5 Android crash in splash screen](https://forums.unrealengine.com/t/ue5-android-crash-in-splash-screen/526634)
+  (الحل الموثق: التحويل إلى OpenGLES فقط)
+
+**التحقق بعد البناء:** افتح APK على الهاتف — يجب أن يتخطى الشعار فورًا
+ويدخل اللودج، ولا تظهر أي شاشة معلقة. إذا علقت بعد ذلك فسببٌ آخر في بدء
+التشغيل: افحص `adb logcat -s UE4` للحصول على أول Fatal error.
+
 ---
 
 ## 7) إن فشل البناء

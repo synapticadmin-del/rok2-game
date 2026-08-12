@@ -28,5 +28,13 @@
 		"Windows",
 		"Android"
 	],
-	"DisableEnginePluginsByDefault": false
+	"DisableEnginePluginsByDefault": true,
+	"DisabledPlugins": [
+		{
+			"Name": "PythonScriptPlugin"
+		},
+		{
+			"Name": "EditorScriptingUtilities"
+		}
+	]
 }
