@@ -821,6 +821,20 @@ void URok2Api::ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEnti
 	E.State = Rok2Json::Str(S, TEXT("state"));
 }
 
+void URok2Api::ParseAllianceRally(const TSharedPtr<FJsonObject>& R, FRok2AllianceRally& E) const
+{
+	E.Id = Rok2Json::Str(R, TEXT("id"));
+	E.LeaderPlayerId = Rok2Json::Str(R, TEXT("leaderPlayerId"));
+	E.TargetType = Rok2Json::Str(R, TEXT("targetType"));
+	E.TargetId = Rok2Json::Str(R, TEXT("targetId"));
+	E.Status = Rok2Json::Str(R, TEXT("status"));
+	E.StartMs = (int64)Rok2Json::Num(R, TEXT("startMs"));
+	E.LaunchMs = (int64)Rok2Json::Num(R, TEXT("launchMs"));
+	E.MarchId = Rok2Json::Str(R, TEXT("marchId"));
+	E.Participants = (int32)Rok2Json::Num(R, TEXT("participants"));
+	E.bIsJoined = R->HasTypedField<EJson::Boolean>(TEXT("isJoined")) && R->GetBoolField(TEXT("isJoined"));
+}
+
 void URok2Api::UpsertMarch(const FRok2MarchEntity& E)
 {
 	for (int32 i = 0; i < World.Marches.Num(); ++i)
@@ -1197,6 +1211,96 @@ void URok2Api::SendScout(double ToX, double ToY)
 		EmitToast(TEXT("انطلقت الكشافة"));
 		ForceTick();
 		RefreshWorld();
+	});
+}
+
+void URok2Api::LaunchAllianceRally(const FString& TargetType, const FString& TargetId, const TMap<FString, int32>& TroopsMap, const FString& PrimaryCommanderId)
+{
+	if ((TargetType != TEXT("pass") && TargetType != TEXT("throne")) || TargetId.IsEmpty())
+	{
+		EmitToast(TEXT("الرالي متاح للممرات والعرش فقط"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("targetType"), TargetType);
+	Body->SetStringField(TEXT("targetId"), TargetId);
+	if (!PrimaryCommanderId.IsEmpty()) Body->SetStringField(TEXT("primaryCommanderId"), PrimaryCommanderId);
+	TSharedPtr<FJsonObject> TroopsObj = MakeShared<FJsonObject>();
+	for (const TPair<FString, int32>& KV : TroopsMap)
+	{
+		if (KV.Value > 0) TroopsObj->SetNumberField(KV.Key, KV.Value);
+	}
+	if (TroopsObj->Values.Num() == 0)
+	{
+		EmitToast(TEXT("اختر قواتاً للرالي أولاً"));
+		return;
+	}
+	Body->SetObjectField(TEXT("troops"), TroopsObj);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+	Post(TEXT("/v1/alliance/rally"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		EmitToast(TEXT("بدأ تجميع رالي التحالف"));
+		FetchAllianceRallies();
+		LoadCity();
+	});
+}
+
+void URok2Api::JoinAllianceRally(const FString& RallyId, const TMap<FString, int32>& TroopsMap)
+{
+	if (RallyId.IsEmpty()) return;
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("rallyId"), RallyId);
+	TSharedPtr<FJsonObject> TroopsObj = MakeShared<FJsonObject>();
+	for (const TPair<FString, int32>& KV : TroopsMap)
+	{
+		if (KV.Value > 0) TroopsObj->SetNumberField(KV.Key, KV.Value);
+	}
+	if (TroopsObj->Values.Num() == 0)
+	{
+		EmitToast(TEXT("اختر قواتاً للانضمام أولاً"));
+		return;
+	}
+	Body->SetObjectField(TEXT("troops"), TroopsObj);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+	Post(TEXT("/v1/alliance/rally/join"), BodyStr, true, [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		EmitToast(TEXT("انضممت إلى الرالي"));
+		FetchAllianceRallies();
+		LoadCity();
+	});
+}
+
+void URok2Api::FetchAllianceRallies()
+{
+	if (Player.AllianceId.IsEmpty())
+	{
+		AllianceRallies.Empty();
+		OnAllianceRalliesUpdated.Broadcast(AllianceRallies);
+		return;
+	}
+	Get(TEXT("/v1/alliance/rallies"), [this](const TSharedPtr<FJsonObject>& Obj)
+	{
+		AllianceRallies.Empty();
+		const TArray<TSharedPtr<FJsonValue>>* Rows = nullptr;
+		if (Obj->TryGetArrayField(TEXT("rallies"), Rows) && Rows)
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *Rows)
+			{
+				const TSharedPtr<FJsonObject> RallyObj = Value.IsValid() ? Value->AsObject() : nullptr;
+				if (!RallyObj.IsValid()) continue;
+				FRok2AllianceRally Rally;
+				ParseAllianceRally(RallyObj, Rally);
+				AllianceRallies.Add(MoveTemp(Rally));
+			}
+		}
+		OnAllianceRalliesUpdated.Broadcast(AllianceRallies);
 	});
 }
 

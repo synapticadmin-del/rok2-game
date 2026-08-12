@@ -67,8 +67,15 @@ protected:
 	UPROPERTY(Transient)
 	UButton* DispatchButton;
 
+	/** يظهر فقط على الممر والعرش في الطبقة التكتيكية للاعب المنتمي لتحالف. */
+	UPROPERTY(Transient)
+	UButton* RallyButton;
+
 	UFUNCTION()
 	void OnDispatchClicked();
+
+	UFUNCTION()
+	void OnRallyClicked();
 
 	/** P5-T5: يرسل كشافة للنقطة المحددة */
 	UFUNCTION()

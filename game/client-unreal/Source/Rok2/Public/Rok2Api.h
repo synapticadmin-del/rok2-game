@@ -46,6 +46,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHudNotification, const FRok2HudNo
 // P6-T6: يُبث عند وصول رسالة دردشة جديدة
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChatMessage, const FRok2ChatMessage&, Message);
 
+/** يُبث عند مزامنة الراليات النشطة للتحالف؛ لا تُشتق من واجهة العميل. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceRalliesUpdated, const TArray<FRok2AllianceRally>&, Rallies);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -127,6 +130,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SendScout(double ToX, double ToY);
 
+	/** ينشئ رالي تحالف على ممر أو عرش؛ الخادم يفرض الرتبة والهدف والقوات. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void LaunchAllianceRally(const FString& TargetType, const FString& TargetId, const TMap<FString, int32>& Troops, const FString& PrimaryCommanderId);
+
+	/** ينضم اللاعب إلى رالي قيد التجميع بقواته المنزلية فقط. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void JoinAllianceRally(const FString& RallyId, const TMap<FString, int32>& Troops);
+
+	/** يسحب الراليات النشطة للتحالف الحالي من المصدر السلطوي. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void FetchAllianceRallies();
+
 	// P6-T6: إرسال رسالة دردشة عبر WebSocket
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SendChat(const FString& Channel, const FString& Text);
@@ -179,6 +194,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	const TArray<FRok2BattleReport>& GetBattleReports() const { return BattleReports; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Alliance")
+	const TArray<FRok2AllianceRally>& GetAllianceRallies() const { return AllianceRallies; }
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	const FRok2GameMeta& GetMeta() const { return Meta; }
@@ -254,6 +272,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnChatMessage OnChatMessage;
 
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceRalliesUpdated OnAllianceRalliesUpdated;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -269,6 +290,7 @@ protected:
 	TMap<FString, int32> Buildings;
 	TArray<FRok2Commander> Commanders;
 	TArray<FRok2BattleReport> BattleReports;
+	TArray<FRok2AllianceRally> AllianceRallies;
 	FRok2GameMeta Meta;
 
 	// ---- HUD الموحد (P2-T6) ----
@@ -347,6 +369,9 @@ protected:
 
 	/** يحوّل كائن scout من JSON إلى FRok2ScoutEntity (P5-T5) */
 	void ParseScoutEntity(const TSharedPtr<FJsonObject>& S, FRok2ScoutEntity& E) const;
+
+	/** يحوّل رالي التحالف من استجابة /v1/alliance/rallies إلى نموذج الواجهة. */
+	void ParseAllianceRally(const TSharedPtr<FJsonObject>& R, FRok2AllianceRally& E) const;
 
 	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
 	void UpsertMarch(const FRok2MarchEntity& E);

@@ -163,10 +163,32 @@ void URok2MarchPanel::NativeConstruct()
 			URok2Typography::ApplyFont(ScoutText, ERok2TextRole::Button);
 			ScoutBox->AddChildToHorizontalBox(ScoutText)->SetVerticalAlignment(VAlign_Center);
 		}
-		ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
-		URok2MotionLibrary::BindPress(ScoutButton);	// P6-T3: ضغطة محسوسة
+			ScoutButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnScoutClicked);
+			URok2MotionLibrary::BindPress(ScoutButton);	// P6-T3: ضغطة محسوسة
 
-		DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
+			const bool bRallyTarget = TargetType == TEXT("pass") || TargetType == TEXT("throne");
+			if (bRallyTarget)
+			{
+				RallyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyButton"));
+				RallyButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.42f, 0.10f));
+				UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyButton);
+				RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 10.f));
+				UHorizontalBox* RallyBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+				RallyButton->AddChild(RallyBox);
+				UImage* RallyIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+				RallyIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("flag"), 18.f, FLinearColor::White));
+				RallyIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+				RallyBox->AddChildToHorizontalBox(RallyIco)->SetVerticalAlignment(VAlign_Center);
+				UTextBlock* RallyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyText"));
+				RallyText->SetText(FText::FromString(TEXT("بدء رالي التحالف")));
+				RallyText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+				URok2Typography::ApplyFont(RallyText, ERok2TextRole::Button);
+				RallyBox->AddChildToHorizontalBox(RallyText)->SetVerticalAlignment(VAlign_Center);
+				RallyButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnRallyClicked);
+				URok2MotionLibrary::BindPress(RallyButton);
+			}
+
+			DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
 		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
 		UVerticalBoxSlot* BtnSlot = VBox->AddChildToVerticalBox(DispatchButton);
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
@@ -192,9 +214,13 @@ void URok2MarchPanel::NativeConstruct()
 
 			ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
 			const bool bCanDispatch = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
-			DispatchButton->SetIsEnabled(bCanDispatch);
-			ScoutButton->SetIsEnabled(bCanDispatch);
-			DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
+				DispatchButton->SetIsEnabled(bCanDispatch);
+				ScoutButton->SetIsEnabled(bCanDispatch);
+				if (RallyButton)
+				{
+					RallyButton->SetIsEnabled(bCanDispatch && Api && !Api->GetPlayer().AllianceId.IsEmpty());
+				}
+				DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
 			URok2MotionLibrary::BindPress(DispatchButton);	// P6-T3: ضغطة محسوسة
 
 		// P6-T3: لوحة المسيرة تفتح من المركز (المعيار الموحد 0.25s)
@@ -233,6 +259,24 @@ void URok2MarchPanel::OnDispatchClicked()
 	}
 
 	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2MarchPanel::OnRallyClicked()
+{
+	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+	if (!Api || !WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(TargetType, true)) return;
+	if (Api->GetPlayer().AllianceId.IsEmpty())
+	{
+		return;
+	}
+
+	TMap<FString, int32> TroopsMap;
+	if (InfantrySpinBox && InfantrySpinBox->GetValue() > 0) TroopsMap.Add(TEXT("infantry_t1"), FMath::FloorToInt(InfantrySpinBox->GetValue()));
+	if (CavalrySpinBox && CavalrySpinBox->GetValue() > 0) TroopsMap.Add(TEXT("cavalry_t1"), FMath::FloorToInt(CavalrySpinBox->GetValue()));
+	if (ArcherSpinBox && ArcherSpinBox->GetValue() > 0) TroopsMap.Add(TEXT("archer_t1"), FMath::FloorToInt(ArcherSpinBox->GetValue()));
+	const FString PrimaryCmd = PrimaryCommanderBox ? PrimaryCommanderBox->GetSelectedOption() : TEXT("");
+	Api->LaunchAllianceRally(TargetType, TargetId, TroopsMap, PrimaryCmd);
 	URok2MotionLibrary::PlayFadeOut(this);
 }
 

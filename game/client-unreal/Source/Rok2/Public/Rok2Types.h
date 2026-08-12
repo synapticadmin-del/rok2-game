@@ -297,6 +297,34 @@ struct FRok2ZoneStatus
 	int32 UnlockDay = 0;
 };
 
+/** رالي تحالف نشط كما يقدمه الخادم السلطوي للعضو الحالي. */
+USTRUCT(BlueprintType)
+struct FRok2AllianceRally
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString LeaderPlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString TargetType;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString TargetId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Status;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 StartMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 LaunchMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString MarchId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Participants = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bIsJoined = false;
+};
+
 USTRUCT(BlueprintType)
 struct FRok2WorldSnapshot
 {

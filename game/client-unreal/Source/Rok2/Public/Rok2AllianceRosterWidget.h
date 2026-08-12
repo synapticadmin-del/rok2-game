@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2Types.h"
 #include "Rok2AllianceRosterWidget.generated.h"
 
 class URok2Api;
@@ -44,6 +45,10 @@ protected:
 	UPROPERTY(Transient)
 	UVerticalBox* RosterVBox;
 
+	/** بطاقات الراليات الحية؛ مصدرها GET /v1/alliance/rallies. */
+	UPROPERTY(Transient)
+	UVerticalBox* RallyVBox;
+
 	UPROPERTY(Transient)
 	UButton* HelpButton;
 
@@ -60,4 +65,8 @@ protected:
 	void OnInviteClicked();
 
 	void PopulateRoster();
+	void PopulateRallies(const TArray<FRok2AllianceRally>& Rallies);
+
+	UFUNCTION()
+	void OnRalliesUpdated(const TArray<FRok2AllianceRally>& Rallies);
 };

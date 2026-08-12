@@ -1541,6 +1541,37 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, allianceId: body.allianceId });
     }
 
+    // قائمة الراليات النشطة للتحالف — قبل المسار العام /v1/alliance/:id.
+    // لا تعتمد الواجهة على أحداث WebSocket وحدها لأن اللاعب قد يفتح اللوحة بعد بدء الرالي.
+    if (path === "/v1/alliance/rallies" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const rows = await env.DB.prepare(
+        `SELECT r.*, COUNT(p.player_id) AS participant_count,
+          MAX(CASE WHEN p.player_id = ? THEN 1 ELSE 0 END) AS is_joined
+         FROM rallies r
+         LEFT JOIN rally_participants p ON p.rally_id = r.id
+         WHERE r.alliance_id = ? AND r.status IN ('forming', 'launched')
+         GROUP BY r.id
+         ORDER BY CASE r.status WHEN 'forming' THEN 0 ELSE 1 END, r.launch_ms ASC
+         LIMIT 25`,
+      ).bind(player.id, player.alliance_id).all<any>();
+      return json({
+        rallies: (rows.results || []).map((r) => ({
+          id: r.id,
+          leaderPlayerId: r.leader_player_id,
+          targetType: r.target_type,
+          targetId: r.target_id,
+          status: r.status,
+          startMs: Number(r.start_ms),
+          launchMs: Number(r.launch_ms),
+          marchId: r.march_id || null,
+          participants: Number(r.participant_count || 0),
+          isJoined: Boolean(r.is_joined),
+        })),
+      });
+    }
+
     // Alliance Rally status (قبل المسار العام /v1/alliance/:id حتى لا يبتلعه)
     if (path.startsWith("/v1/alliance/rally/") && request.method === "GET") {
       const { player } = await requirePlayer(request, env);

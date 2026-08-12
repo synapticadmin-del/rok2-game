@@ -292,6 +292,8 @@ void ARok2GameMode::HandleAllianceAction()
 	{
 		AllianceWidget->AddToViewport(50);
 	}
+	// الراليات حالات مؤقتة؛ لا نعيد فتح واجهة التحالف بلقطة قديمة.
+	Api->FetchAllianceRallies();
 }
 
 void ARok2GameMode::HandleItemsAction()

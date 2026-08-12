@@ -3,6 +3,7 @@
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على كل أزرار الكشف.
 
 #include "Rok2AllianceRosterWidget.h"
+#include "Rok2AllianceRallyWidget.h"
 #include "Rok2Typography.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
@@ -62,10 +63,20 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		TitleSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 10.f));
 		TitleSlot->SetHorizontalAlignment(HAlign_Center);
 
-		RosterVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RosterVBox"));
-		UVerticalBoxSlot* RosterSlot = VBox->AddChildToVerticalBox(RosterVBox);
-		RosterSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
-		RosterSlot->Size.SizeRule = ESlateSizeRule::Fill;
+			UTextBlock* RallyTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyTitle"));
+			RallyTitle->SetText(FText::FromString(TEXT("الراليات النشطة")));
+			RallyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
+			URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Heading);
+			VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
+
+			RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
+			UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyVBox);
+			RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 8.f));
+
+			RosterVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RosterVBox"));
+			UVerticalBoxSlot* RosterSlot = VBox->AddChildToVerticalBox(RosterVBox);
+			RosterSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
+			RosterSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
 		// Help Button
 		HelpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HelpButton"));
@@ -95,7 +106,16 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		HelpButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnHelpClicked);
 		URok2MotionLibrary::BindPress(HelpButton);	// P6-T3: ضغطة محسوسة
 
-		PopulateRoster();
+			PopulateRoster();
+		}
+	}
+
+	if (Api)
+	{
+		Api->OnAllianceRalliesUpdated.RemoveDynamic(this, &URok2AllianceRosterWidget::OnRalliesUpdated);
+		Api->OnAllianceRalliesUpdated.AddDynamic(this, &URok2AllianceRosterWidget::OnRalliesUpdated);
+		PopulateRallies(Api->GetAllianceRallies());
+		Api->FetchAllianceRallies();
 	}
 }
 
@@ -152,6 +172,34 @@ void URok2AllianceRosterWidget::PopulateRoster()
 	URok2MotionLibrary::BindPress(InviteBtn);	// P6-T3: ضغطة محسوسة
 	UVerticalBoxSlot* InviteSlot = RosterVBox->AddChildToVerticalBox(InviteBtn);
 	InviteSlot->SetPadding(FMargin(0, 10, 0, 0));
+}
+
+void URok2AllianceRosterWidget::PopulateRallies(const TArray<FRok2AllianceRally>& Rallies)
+{
+	if (!RallyVBox || !WidgetTree) return;
+	RallyVBox->ClearChildren();
+	if (Rallies.IsEmpty())
+	{
+		UTextBlock* EmptyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EmptyRallies"));
+		EmptyText->SetText(FText::FromString(TEXT("لا توجد راليات قيد التجميع حالياً.")));
+		EmptyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.70f, 0.75f, 0.82f)));
+		URok2Typography::ApplyFont(EmptyText, ERok2TextRole::Body);
+		RallyVBox->AddChildToVerticalBox(EmptyText)->SetPadding(FMargin(2.f, 2.f, 2.f, 8.f));
+		return;
+	}
+
+	for (const FRok2AllianceRally& Rally : Rallies)
+	{
+		URok2AllianceRallyWidget* Card = CreateWidget<URok2AllianceRallyWidget>(GetWorld(), URok2AllianceRallyWidget::StaticClass());
+		if (!Card) continue;
+		Card->Setup(Api, Rally);
+		RallyVBox->AddChildToVerticalBox(Card)->SetPadding(FMargin(0.f, 2.f, 0.f, 4.f));
+	}
+}
+
+void URok2AllianceRosterWidget::OnRalliesUpdated(const TArray<FRok2AllianceRally>& Rallies)
+{
+	PopulateRallies(Rallies);
 }
 
 void URok2AllianceRosterWidget::OnHelpClicked()
