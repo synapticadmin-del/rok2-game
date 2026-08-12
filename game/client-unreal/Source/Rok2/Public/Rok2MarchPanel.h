@@ -71,8 +71,21 @@ protected:
 	UPROPERTY(Transient)
 	UButton* RallyButton;
 
+	/** قائمة المسيرات الشخصية المتحركة فقط؛ لا تعرض مسيرات الرالي المشتركة. */
+	UPROPERTY(Transient)
+	UComboBoxString* RedirectMarchBox;
+
+	UPROPERTY(Transient)
+	UButton* RedirectButton;
+
+	/** يربط التسمية المقروءة بمعرف المسيرة الذي يتعامل معه الخادم. */
+	TMap<FString, FString> RedirectOptionIds;
+
 	UFUNCTION()
 	void OnDispatchClicked();
+
+	UFUNCTION()
+	void OnRedirectClicked();
 
 	UFUNCTION()
 	void OnRallyClicked();

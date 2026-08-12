@@ -804,7 +804,10 @@ void URok2Api::ParseMarchEntity(const TSharedPtr<FJsonObject>& M, FRok2MarchEnti
 	const TSharedPtr<FJsonObject>* PayloadObj;
 	if (M->TryGetObjectField(TEXT("payload"), PayloadObj) && PayloadObj->IsValid())
 	{
-		E.Kind = Rok2Json::Str(*PayloadObj, TEXT("kind"));
+		// الرالي لا يملك kind جمع؛ علامته السلطوية هي rallyId، فتُستبعد من إعادة التوجيه.
+		E.Kind = !Rok2Json::Str(*PayloadObj, TEXT("rallyId")).IsEmpty()
+			? TEXT("rally")
+			: Rok2Json::Str(*PayloadObj, TEXT("kind"));
 	}
 }
 
@@ -1270,6 +1273,35 @@ void URok2Api::DispatchMarch(const FString& TargetType, const FString& TargetId,
 	});
 }
 
+void URok2Api::RedirectMarch(const FString& MarchId, const FString& TargetType, const FString& TargetId, double ToX, double ToY)
+{
+	if (MarchId.IsEmpty() || TargetType.IsEmpty())
+	{
+		EmitToast(TEXT("اختر مسيرة متحركة وهدفاً صالحاً"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
+	Body->SetStringField(TEXT("targetType"), TargetType);
+	Body->SetStringField(TEXT("targetId"), TargetId);
+	Body->SetNumberField(TEXT("toX"), ToX);
+	Body->SetNumberField(TEXT("toY"), ToY);
+	if (TargetType == TEXT("pass")) Body->SetStringField(TEXT("passId"), TargetId);
+	if (TargetType == TEXT("core_objective")) Body->SetStringField(TEXT("coreObjectiveId"), TargetId);
+
+	FString BodyStr;
+	const TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&BodyStr);
+	FJsonSerializer::Serialize(Body.ToSharedRef(), Writer);
+
+	Post(FString::Printf(TEXT("/v1/world/march/%s/redirect"), *FGenericPlatformHttp::UrlEncode(MarchId)), BodyStr, true,
+		[this](const TSharedPtr<FJsonObject>& Obj)
+		{
+			EmitToast(TEXT("تم تغيير وجهة المسيرة"));
+			RefreshWorld();
+			LoadCity();
+		});
+}
+
 void URok2Api::SendScout(double ToX, double ToY)
 {
 	TSharedPtr<FJsonObject> Body = MakeShared<FJsonObject>();
@@ -1506,7 +1538,7 @@ void URok2Api::ConnectWebSocket()
 		{
 			Self->ParseWorld(Obj);
 		}
-		else if (Type == TEXT("march_created") || Type == TEXT("march_returning"))
+		else if (Type == TEXT("march_created") || Type == TEXT("march_returning") || Type == TEXT("march_redirected"))
 		{
 			const TSharedPtr<FJsonObject>* MarchObj;
 			if (Obj->TryGetObjectField(TEXT("march"), MarchObj) && MarchObj->IsValid())
@@ -1514,10 +1546,14 @@ void URok2Api::ConnectWebSocket()
 				FRok2MarchEntity E;
 				Self->ParseMarchEntity(*MarchObj, E);
 				Self->UpsertMarch(E);
-				if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
-				{
-					Self->EmitToast(TEXT("انطلقت المسيرة"));
-				}
+if (Type == TEXT("march_created") && E.OwnerPlayerId == Self->Player.Id)
+					{
+						Self->EmitToast(TEXT("انطلقت المسيرة"));
+					}
+					else if (Type == TEXT("march_redirected") && E.OwnerPlayerId == Self->Player.Id)
+					{
+						Self->EmitToast(TEXT("تم تغيير وجهة المسيرة"));
+					}
 				// P4-T4: عودة مسيرة جمع بموارد — صوت حصاد للاعب صاحب المسيرة
 				if (Type == TEXT("march_returning") && E.OwnerPlayerId == Self->Player.Id &&
 					(E.Kind.Contains(TEXT("gather")) || E.Kind.Contains(TEXT("node"))))

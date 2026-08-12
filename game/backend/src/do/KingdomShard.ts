@@ -2065,6 +2065,16 @@ export class KingdomShard extends DurableObject<Env> {
       }
     }
 
+    if (path.endsWith("/redirect-march") && request.method === "POST") {
+      const body = await request.json<any>();
+      try {
+        const march = await this.redirectMarch(body);
+        return Response.json({ ok: true, march });
+      } catch (e: any) {
+        return Response.json({ error: e.message || "redirect_failed" }, { status: 400 });
+      }
+    }
+
     if (path.endsWith("/pass-attack") && request.method === "POST") {
       const body = await request.json<any>();
       try {
@@ -2396,6 +2406,125 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     this.broadcast({ type: "march_created", march });
+    return march;
+  }
+
+  /**
+   * تغيير وجهة مسيرة حية من موضعها المستنتج في وقت الخادم.
+   * لا تُقبل إحداثيات بداية أو زمن من العميل، ولا تُخصم القوات مرة ثانية.
+   */
+  private async redirectMarch(body: any): Promise<MarchEntity> {
+    const playerId = String(body.playerId || "");
+    const marchId = String(body.marchId || "");
+    const march = this.marches.get(marchId);
+    if (!march) throw new Error("march_not_found");
+    if (march.ownerPlayerId !== playerId) throw new Error("not_your_march");
+    if (march.state !== "moving") throw new Error("march_not_moving");
+    // الرالي الموحد يحمل مساهمات عدة لاعبين؛ لا يحق لقائده تغيير وجهته بعد الإطلاق.
+    if (march.payload?.rallyId || Array.isArray(march.payload?.rallyParticipants)) {
+      throw new Error("rally_march_cannot_redirect");
+    }
+
+    const city = this.cities.get(playerId);
+    if (!city) throw new Error("player_city_not_on_map");
+    const now = nowMs();
+    const elapsedRatio = Math.max(0, Math.min(1, (now - march.startMs) / Math.max(1, march.etaMs - march.startMs)));
+    const fromX = march.fromX + (march.toX - march.fromX) * elapsedRatio;
+    const fromY = march.fromY + (march.toY - march.fromY) * elapsedRatio;
+
+    let toX = Number(body.toX);
+    let toY = Number(body.toY);
+    let targetType = (body.targetType || "point") as MarchEntity["targetType"];
+    let targetId = String(body.targetId || "point");
+    let barbApCost = 0;
+
+    if (targetType === "throne") {
+      targetId = "throne";
+      toX = this.throne.x;
+      toY = this.throne.y;
+    }
+    if (targetType === "core_objective" || body.coreObjectiveId) {
+      targetType = "core_objective";
+      targetId = String(body.coreObjectiveId || body.targetId);
+      const objective = this.coreObjectives.get(targetId);
+      if (!objective) throw new Error("core_objective_not_found");
+      if (!coreContestActive(this.seasonDay)) throw new Error("core_contest_locked");
+      toX = objective.x;
+      toY = objective.y;
+    }
+    if (targetType === "pass" || body.passId) {
+      targetType = "pass";
+      targetId = String(body.passId || body.targetId);
+      const pass = this.passes.get(targetId);
+      if (!pass) throw new Error("pass_not_found");
+      if (pass.unlockDay > this.seasonDay) throw new Error("pass_locked");
+      toX = pass.x;
+      toY = pass.y;
+    } else if (targetType === "resource" || targetType === "barb") {
+      const node = this.nodes.get(targetId);
+      if (!node) throw new Error("node_not_found");
+      if (node.regionId && node.zoneId != null && !isRegionUnlocked(node.regionId, node.zoneId, this.seasonDay)) {
+        throw new Error("zone_locked");
+      }
+      toX = node.x;
+      toY = node.y;
+      if (node.kind === "barb") {
+        targetType = "barb";
+        barbApCost = 40 + node.level * 10;
+        const regeneratedAp = Math.min(1000, city.ap + Math.floor((now - city.lastApMs) / 1000));
+        if (regeneratedAp < barbApCost) throw new Error("not_enough_ap");
+      } else {
+        targetType = "resource";
+      }
+    } else if (targetType === "city") {
+      const targetCity = this.cities.get(targetId);
+      if (!targetCity) throw new Error("target_city_not_found");
+      toX = targetCity.x;
+      toY = targetCity.y;
+    }
+
+    if (!Number.isFinite(toX) || !Number.isFinite(toY)) throw new Error("bad_target_coords");
+    if (targetType === march.targetType && targetId === march.targetId && Math.abs(toX - march.toX) < 0.01 && Math.abs(toY - march.toY) < 0.01) {
+      throw new Error("redirect_same_target");
+    }
+    if (targetType === "point" || targetType === "city" || targetType === "throne") {
+      const targetRegion = this.regionOf(toX, toY);
+      if (targetRegion) {
+        const zone = this.regions.find((region) => region.id === targetRegion)?.zone_id ?? 1;
+        if (!isRegionUnlocked(targetRegion, zone, this.seasonDay)) throw new Error("zone_locked");
+      }
+    }
+
+    const canTraverse = (passId: string) => {
+      if (targetType === "pass" && passId === targetId) return true;
+      const pass = this.passes.get(passId);
+      return !!pass?.ownerAllianceId && !!march.allianceId && pass.ownerAllianceId === march.allianceId;
+    };
+    const sameRegionTarget = (targetType === "resource" || targetType === "barb") && this.regionOf(fromX, fromY) === this.regionOf(toX, toY);
+    let plan = planMarch({ x: fromX, y: fromY }, { x: toX, y: toY }, this.regions, this.passDefs, this.mountainBelt, this.passWidth, canTraverse);
+    if (!plan.ok && sameRegionTarget) plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [] };
+    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective")) {
+      plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [targetId] };
+    }
+    if (!plan.ok) throw new Error(plan.reason || "illegal_path");
+
+    if (barbApCost > 0) {
+      city.ap = Math.max(0, Math.min(1000, city.ap + Math.floor((now - city.lastApMs) / 1000)) - barbApCost);
+      city.lastApMs = now;
+      this.persistCity(city);
+    }
+    const marchSpeedMod = 1 + (await this.fetchMarchSpeedMod(playerId));
+    march.fromX = fromX;
+    march.fromY = fromY;
+    march.toX = toX;
+    march.toY = toY;
+    march.startMs = now;
+    march.etaMs = now + marchDurationMs(plan.distance, 40 * marchSpeedMod);
+    march.targetType = targetType;
+    march.targetId = targetId;
+    this.persistMarch(march);
+    this.ensureAlarm();
+    this.broadcast({ type: "march_redirected", march });
     return march;
   }
 

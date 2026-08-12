@@ -44,7 +44,7 @@ void URok2MarchPanel::NativeConstruct()
 		UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		BorderSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-		BorderSlot->SetSize(FVector2D(400.f, 500.f));
+			BorderSlot->SetSize(FVector2D(400.f, 600.f));
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("VBox"));
 		MainBorder->AddChild(VBox);
@@ -120,24 +120,57 @@ void URok2MarchPanel::NativeConstruct()
 		UVerticalBoxSlot* SecondarySlot = VBox->AddChildToVerticalBox(SecondaryCommanderBox);
 		SecondarySlot->SetPadding(FMargin(20.f, 5.f, 20.f, 5.f));
 
-		if (Api)
-		{
-			for (const FRok2Commander& Cmd : Api->GetCommanders())
+					if (Api)
 			{
-				PrimaryCommanderBox->AddOption(Cmd.Id);
-				SecondaryCommanderBox->AddOption(Cmd.Id);
+				for (const FRok2Commander& Cmd : Api->GetCommanders())
+				{
+					PrimaryCommanderBox->AddOption(Cmd.Id);
+					SecondaryCommanderBox->AddOption(Cmd.Id);
+				}
+				if (PrimaryCommanderBox->GetOptionCount() > 0)
+				{
+					PrimaryCommanderBox->SetSelectedIndex(0);
+				}
+				if (SecondaryCommanderBox->GetOptionCount() > 0)
+				{
+					SecondaryCommanderBox->SetSelectedIndex(FMath::Min(1, SecondaryCommanderBox->GetOptionCount() - 1));
+				}
 			}
-			if (PrimaryCommanderBox->GetOptionCount() > 0)
-			{
-				PrimaryCommanderBox->SetSelectedIndex(0);
-			}
-			if (SecondaryCommanderBox->GetOptionCount() > 0)
-			{
-				SecondaryCommanderBox->SetSelectedIndex(FMath::Min(1, SecondaryCommanderBox->GetOptionCount() - 1));
-			}
-		}
 
-		USpacer* Spacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("Spacer"));
+			// إعادة التوجيه تختار مسيرة شخصية حية فقط؛ الخادم يعيد التحقق عند التنفيذ.
+			UTextBlock* RedirectLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectLabel"));
+			RedirectLabel->SetText(FText::FromString(TEXT("إعادة توجيه جيش متحرك")));
+			RedirectLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.82f, 1.f)));
+			URok2Typography::ApplyFont(RedirectLabel, ERok2TextRole::Label);
+			UVerticalBoxSlot* RedirectLabelSlot = VBox->AddChildToVerticalBox(RedirectLabel);
+			RedirectLabelSlot->SetPadding(FMargin(20.f, 12.f, 20.f, 4.f));
+
+			RedirectMarchBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("RedirectMarchBox"));
+			RedirectOptionIds.Empty();
+			if (Api && Api->HasPlayer())
+			{
+				const FString PlayerId = Api->GetPlayer().Id;
+				for (const FRok2MarchEntity& March : Api->GetWorldSnapshot().Marches)
+				{
+					if (March.OwnerPlayerId != PlayerId || March.State != TEXT("moving") || March.Kind == TEXT("rally")) continue;
+					const FString OptionLabel = FString::Printf(TEXT("%s → %s"), *March.Id.Left(8), *March.TargetType);
+					RedirectOptionIds.Add(OptionLabel, March.Id);
+					RedirectMarchBox->AddOption(OptionLabel);
+				}
+			}
+			if (RedirectMarchBox->GetOptionCount() > 0)
+			{
+				RedirectMarchBox->SetSelectedIndex(0);
+			}
+			else
+			{
+				RedirectMarchBox->AddOption(TEXT("لا توجد مسيرات شخصية قابلة للتحويل"));
+				RedirectMarchBox->SetIsEnabled(false);
+			}
+			UVerticalBoxSlot* RedirectMarchSlot = VBox->AddChildToVerticalBox(RedirectMarchBox);
+			RedirectMarchSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 5.f));
+
+			USpacer* Spacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("Spacer"));
 		UVerticalBoxSlot* SpacerSlot = VBox->AddChildToVerticalBox(Spacer);
 		SpacerSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
@@ -188,7 +221,17 @@ void URok2MarchPanel::NativeConstruct()
 				URok2MotionLibrary::BindPress(RallyButton);
 			}
 
-			DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
+				RedirectButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RedirectButton"));
+				RedirectButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.15f, 0.47f, 0.72f));
+				UVerticalBoxSlot* RedirectButtonSlot = VBox->AddChildToVerticalBox(RedirectButton);
+				RedirectButtonSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 8.f));
+				UTextBlock* RedirectText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectText"));
+				RedirectText->SetText(FText::FromString(TEXT("تحويل المسيرة المحددة إلى هذا الهدف")));
+				RedirectText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+				URok2Typography::ApplyFont(RedirectText, ERok2TextRole::Button);
+				RedirectButton->AddChild(RedirectText);
+
+				DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
 		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
 		UVerticalBoxSlot* BtnSlot = VBox->AddChildToVerticalBox(DispatchButton);
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
@@ -216,11 +259,17 @@ void URok2MarchPanel::NativeConstruct()
 			const bool bCanDispatch = WorldRenderer && WorldRenderer->CanInteractWithWorldTarget(TargetType, true);
 				DispatchButton->SetIsEnabled(bCanDispatch);
 				ScoutButton->SetIsEnabled(bCanDispatch);
-				if (RallyButton)
-				{
-					RallyButton->SetIsEnabled(bCanDispatch && Api && !Api->GetPlayer().AllianceId.IsEmpty());
-				}
-				DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
+					if (RallyButton)
+					{
+						RallyButton->SetIsEnabled(bCanDispatch && Api && !Api->GetPlayer().AllianceId.IsEmpty());
+					}
+					if (RedirectButton)
+					{
+						RedirectButton->SetIsEnabled(bCanDispatch && RedirectOptionIds.Num() > 0);
+						RedirectButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnRedirectClicked);
+						URok2MotionLibrary::BindPress(RedirectButton);
+					}
+					DispatchButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnDispatchClicked);
 			URok2MotionLibrary::BindPress(DispatchButton);	// P6-T3: ضغطة محسوسة
 
 		// P6-T3: لوحة المسيرة تفتح من المركز (المعيار الموحد 0.25s)
@@ -259,6 +308,19 @@ void URok2MarchPanel::OnDispatchClicked()
 	}
 
 	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2MarchPanel::OnRedirectClicked()
+{
+	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+	if (!Api || !RedirectMarchBox || !WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(TargetType, true)) return;
+
+	const FString SelectedOption = RedirectMarchBox->GetSelectedOption();
+	const FString* MarchId = RedirectOptionIds.Find(SelectedOption);
+	if (!MarchId || MarchId->IsEmpty()) return;
+
+	Api->RedirectMarch(*MarchId, TargetType, TargetId, ToX, ToY);
 	URok2MotionLibrary::PlayFadeOut(this);
 }
 

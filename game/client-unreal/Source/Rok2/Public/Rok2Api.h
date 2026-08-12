@@ -126,6 +126,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void DispatchMarch(const FString& TargetType, const FString& TargetId, const TMap<FString, int32>& Troops, const FString& PrimaryCommander, const FString& SecondaryCommander);
 
+	/** يغيّر وجهة مسيرة اللاعب المتحركة؛ الخادم يعيد حساب الموضع ووقت الوصول ولا يغيّر القوات. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|World")
+	void RedirectMarch(const FString& MarchId, const FString& TargetType, const FString& TargetId, double ToX, double ToY);
+
 	/** يرسل كشافة لنقطة على الخريطة (P5-T5) */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SendScout(double ToX, double ToY);

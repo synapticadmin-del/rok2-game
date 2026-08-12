@@ -2082,6 +2082,31 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       }
     }
 
+    // إعادة توجيه مسيرة حية: لا يثق الموجّه بهوية أو قوات مرسلة من العميل.
+    const redirectMatch = path.match(/^\/v1\/world\/march\/([^/]+)\/redirect$/);
+    if (redirectMatch && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<any>(request);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/redirect-march", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          playerId: player.id,
+          marchId: decodeURIComponent(redirectMatch[1]),
+          targetType: body.targetType,
+          targetId: body.targetId,
+          passId: body.passId,
+          coreObjectiveId: body.coreObjectiveId,
+          toX: body.toX,
+          toY: body.toY,
+        }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "redirect_failed", data);
+      return json(data);
+    }
+
     // تقارير القتال والراليات — القائمة مصفاة داخل الشارد وفق اللاعب والتحالف الموثقين.
     if (path === "/v1/combat/reports" && request.method === "GET") {
       const { player } = await requirePlayer(request, env);
