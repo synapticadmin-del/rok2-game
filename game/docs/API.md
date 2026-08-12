@@ -101,7 +101,7 @@ Auth header: `Authorization: Bearer <token>`
 ## World
 - `GET /v1/world/snapshot`
 - `GET /v1/world/ws` (WebSocket upgrade)
-- `POST /v1/world/march` `{ targetType, targetId, troops, toX?, toY?, passId?, primaryCommanderId? }`
+- `POST /v1/world/march` `{ targetType, targetId?, troops, toX?, toY?, passId?, coreObjectiveId?, primaryCommanderId? }` — عند `targetType: "core_objective"` يمرر العميل `coreObjectiveId` من `snapshot.coreObjectives`؛ يظل المعرّف السلطوي مقيداً بالخادم ولا يقبل مالكاً أو نقاطاً من العميل.
 - `POST /v1/world/pass/attack` `{ passId, troops, primaryCommanderId? }` (requires alliance)
 - `POST /v1/world/scout` `{ toX, toY }` (P5-T5) — كشافة بدون قوات من مدينة اللاعب للهدف (أسرع من المسير العادي). snapshot العالم يتضمن `scouts` المتحركة، وعند الوصول يبث WS `{"type":"scout_arrived","scoutId","toX","toY"}` ليكشف العميل ضباب الحرب حول الهدف (وبث `scout_created` عند الإنشاء)
 

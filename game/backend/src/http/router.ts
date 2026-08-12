@@ -2121,6 +2121,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             targetType: body.targetType,
             targetId: body.targetId,
             passId: body.passId,
+            coreObjectiveId: body.coreObjectiveId,
             toX: body.toX,
             toY: body.toY,
             primaryCommanderId: body.primaryCommanderId,
