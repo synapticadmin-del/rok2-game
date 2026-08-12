@@ -80,6 +80,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2|Icons")
 	static bool HasIcon(const FString& IconId);
 
+	// -------------------------------------------------------------------
+	// P6-T8: فهرس أصوات الواجهة (أصول WAV مشتركة + همس حضاري عند الفتح).
+	// يقتصر على المسارات؛ التشغيل يتولاه مالك الواجهة/مدير الصوت عند الربط.
+	// -------------------------------------------------------------------
+
+	/** مسار أصل واجهة مشترك: button_click / panel_open / panel_close / error. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Audio")
+	static FString GetUiSfxAssetPath(const FString& SfxId);
+
+	/** مسار همس الحضارة من P6-T8، أو سلسلة فارغة لمعرّف حضارة غير معروف. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Audio")
+	static FString GetCivilizationWhisperAssetPath(const FString& CivilizationId);
+
+	/** يتحقق من أن المعرّف يطابق أثراً صوتياً معروفاً في فهرس P6-T8. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Audio")
+	static bool HasUiSfx(const FString& SfxId);
+
 protected:
 	UPROPERTY(Transient)
 	TArray<FRok2ArtEntry> Catalog;

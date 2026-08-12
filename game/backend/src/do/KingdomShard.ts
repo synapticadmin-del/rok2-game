@@ -57,6 +57,19 @@ type CityEntity = {
   lastApMs: number;
 };
 
+// P6-T10: سجل سلطوي مختصر للوقائع التي تصنع «حكاية المملكة».
+// لا يحتوي السجل على تقارير قتال خاصة أو موارد؛ فقط معالم الموسم العامة.
+type SeasonStoryEvent = {
+  id: string;
+  kind: "region_unlocked" | "first_pass_capture" | "pass_conquered" | "throne_captured" | "season_champion";
+  seasonDay: number;
+  createdAt: number;
+  subjectId: string;
+  allianceId: string | null;
+  previousAllianceId?: string | null;
+  score?: number;
+};
+
 type AllianceFlag = {
   id: string;
   allianceId: string;
@@ -211,6 +224,8 @@ export class KingdomShard extends DurableObject<Env> {
   private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
   private reports: any[] = [];
+  // P6-T10: آخر معالم الموسم العامة؛ تُحمّل وتُبث ضمن لقطة العالم فقط.
+  private seasonStory: SeasonStoryEvent[] = [];
   // P2-T4: المناطق التي بُثّ فتحها مسبقاً (لا يُعاد بث zone_unlocked لها)
   private zoneUnlockAnnounced = new Set<string>();
   // P4-T5: anti-cheat — rate limiter في الذاكرة لكل لاعب × نوع فعل (حدود من data/anticheat.json)
@@ -504,6 +519,25 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (7)");
     }
+
+    if (ver < 8) {
+      // P6-T10: خط زمني عام للموسم. لا يسجل تفاصيل المعارك الخاصة.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS season_story_events (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          season_day INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          subject_id TEXT NOT NULL,
+          alliance_id TEXT,
+          previous_alliance_id TEXT,
+          score INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_season_story_events_created_at
+          ON season_story_events(created_at DESC);
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (8)");
+    }
   }
 
   private loadMapDefs() {
@@ -685,6 +719,20 @@ export class KingdomShard extends DurableObject<Env> {
       .exec<any>("SELECT payload_json FROM battle_reports ORDER BY created_at DESC LIMIT 50")
       .toArray()
       .map((r) => JSON.parse(r.payload_json));
+
+    this.seasonStory = this.ctx.storage.sql
+      .exec<any>("SELECT * FROM season_story_events ORDER BY created_at ASC LIMIT 120")
+      .toArray()
+      .map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        seasonDay: r.season_day,
+        createdAt: r.created_at,
+        subjectId: r.subject_id,
+        allianceId: r.alliance_id,
+        previousAllianceId: r.previous_alliance_id,
+        score: r.score ?? undefined,
+      }));
   }
 
   private seedWorld() {
@@ -1156,7 +1204,32 @@ export class KingdomShard extends DurableObject<Env> {
       season: seasonUnlockState(this.seasonDay),
       // P3-T3: حالة الأحداث اليومية/الأسبوعية (نشطة/مجدولة + مؤقت) — barbarians/resource_rush/war_fever
       events: eventsStatus(this.seasonDay, this.seasonStartMs > 0 ? Math.floor((nowMs() - this.seasonStartMs) / 1000) % 86_400 : 0),
+      // P6-T10: خط زمني عام فقط، منفصل عن تقارير القتال الخاصة.
+      seasonStory: this.seasonStory,
     };
+  }
+
+  private recordSeasonStory(event: Omit<SeasonStoryEvent, "id" | "createdAt" | "seasonDay">, now = nowMs()) {
+    const id = `season_story:${event.kind}:${event.subjectId}`;
+    if (this.seasonStory.some((existing) => existing.id === id)) return false;
+    const entry: SeasonStoryEvent = { id, createdAt: now, seasonDay: this.seasonDay, ...event };
+    this.seasonStory.push(entry);
+    this.seasonStory = this.seasonStory.slice(-120);
+    this.ctx.storage.sql.exec(
+      `INSERT OR IGNORE INTO season_story_events
+       (id, kind, season_day, created_at, subject_id, alliance_id, previous_alliance_id, score)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      entry.id,
+      entry.kind,
+      entry.seasonDay,
+      entry.createdAt,
+      entry.subjectId,
+      entry.allianceId,
+      entry.previousAllianceId ?? null,
+      entry.score ?? null,
+    );
+    this.broadcast({ type: "season_story_event", event: entry });
+    return true;
   }
 
   private broadcast(data: unknown) {
@@ -1322,13 +1395,19 @@ export class KingdomShard extends DurableObject<Env> {
       if (this.zoneUnlockAnnounced.has(r.id)) continue;
       if (!isRegionUnlocked(r.id, r.zone_id, this.seasonDay)) continue;
       this.zoneUnlockAnnounced.add(r.id);
-      this.broadcast({
-        type: "zone_unlocked",
-        zoneId: r.zone_id,
-        regionId: r.id,
-        seasonDay: this.seasonDay,
-        unlockDay: this.seasonDay,
-      });
+              this.broadcast({
+          type: "zone_unlocked",
+          zoneId: r.zone_id,
+          regionId: r.id,
+          seasonDay: this.seasonDay,
+          unlockDay: this.seasonDay,
+        });
+        this.recordSeasonStory({
+          kind: "region_unlocked",
+          subjectId: r.id,
+          allianceId: null,
+        }, now);
+
       changed = true;
     }
 
@@ -1348,6 +1427,20 @@ export class KingdomShard extends DurableObject<Env> {
         const next = cur + holdScorePerTick(o.kind);
         this.throneScores.set(o.ownerAllianceId, next);
         this.persistThroneScore(o.ownerAllianceId, next);
+        changed = true;
+      }
+    }
+
+    // P6-T10: تتويج واحد، حتمي، بعد انتهاء حساب نقاط اليوم الأخير.
+    if (this.seasonDay >= SEASON_SERVICE.maxDay && this.throneScores.size > 0) {
+      const [winnerAllianceId, winningScore] = [...this.throneScores.entries()]
+        .sort(([leftId, leftScore], [rightId, rightScore]) => rightScore - leftScore || leftId.localeCompare(rightId))[0];
+      if (this.recordSeasonStory({
+        kind: "season_champion",
+        subjectId: `season:${SEASON_SERVICE.maxDay}`,
+        allianceId: winnerAllianceId,
+        score: winningScore,
+      }, now)) {
         changed = true;
       }
     }
@@ -1390,6 +1483,8 @@ export class KingdomShard extends DurableObject<Env> {
         return;
       }
 
+      // تحفظ الملكية السابقة لقصة الموسم فقط؛ لا تؤثر في حساب الحامية أو نتيجة القتال.
+      const previousPassOwnerAllianceId = pass.ownerAllianceId;
       // NPC garrison scales with level
       const garrisonCount = 80 * pass.level;
       const defenderTroops: Troops = pass.ownerAllianceId
@@ -1461,6 +1556,16 @@ export class KingdomShard extends DurableObject<Env> {
         }
         this.persistPass(pass);
         this.broadcast({ type: "pass_owner_changed", pass });
+        if (m.allianceId && pass.ownerAllianceId === m.allianceId && previousPassOwnerAllianceId !== m.allianceId) {
+          this.recordSeasonStory({
+            kind: previousPassOwnerAllianceId ? "pass_conquered" : "first_pass_capture",
+            subjectId: previousPassOwnerAllianceId
+              ? `${pass.id}:${previousPassOwnerAllianceId}:${m.allianceId}`
+              : pass.id,
+            allianceId: m.allianceId,
+            previousAllianceId: previousPassOwnerAllianceId,
+          }, now);
+        }
       }
       this.saveReport(report);
       this.broadcastReport(report);
@@ -1475,6 +1580,8 @@ export class KingdomShard extends DurableObject<Env> {
         this.spawnReturnMarch(m, now);
         return;
       }
+      // لقصة الموسم فقط: تؤخذ الملكية السابقة قبل تسوية القتال السلطوية.
+      const previousThroneOwnerAllianceId = this.throne.ownerAllianceId;
       const garrisonCount = 2000;
       const defenderTroops: Troops = this.throne.ownerAllianceId
         ? { infantry_t1: garrisonCount, archer_t1: Math.floor(garrisonCount / 2) }
@@ -1538,6 +1645,16 @@ export class KingdomShard extends DurableObject<Env> {
           this.throne.state = "open";
         }
         this.persistThrone();
+        if (m.allianceId && this.throne.ownerAllianceId === m.allianceId && previousThroneOwnerAllianceId !== m.allianceId) {
+          this.recordSeasonStory({
+            kind: "throne_captured",
+            subjectId: previousThroneOwnerAllianceId
+              ? `throne:${previousThroneOwnerAllianceId}:${m.allianceId}`
+              : "throne",
+            allianceId: m.allianceId,
+            previousAllianceId: previousThroneOwnerAllianceId,
+          }, now);
+        }
       }
       this.saveReport(report);
       this.broadcastReport(report);

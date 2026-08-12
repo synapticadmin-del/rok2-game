@@ -128,3 +128,33 @@ bool URok2ArtAssets::HasIcon(const FString& IconId)
 {
 	return URok2IconLibrary::Get()->HasIcon(IconId);
 }
+
+// ---------------------------------------------------------------------------
+// P6-T8: مسارات أصول الإحساس الصوتي للواجهة.
+// تحتفظ المكتبة بالمعرّفات فقط؛ فلا تملك الموسيقى ولا تتدخل في دورة حياة الصوت.
+// ---------------------------------------------------------------------------
+
+FString URok2ArtAssets::GetUiSfxAssetPath(const FString& SfxId)
+{
+	if (SfxId == TEXT("button_click")) return TEXT("Audio/sfx/ui_button_click");
+	if (SfxId == TEXT("panel_open")) return TEXT("Audio/sfx/ui_panel_open");
+	if (SfxId == TEXT("panel_close")) return TEXT("Audio/sfx/ui_panel_close");
+	if (SfxId == TEXT("error")) return TEXT("Audio/sfx/ui_error");
+	return FString();
+}
+
+FString URok2ArtAssets::GetCivilizationWhisperAssetPath(const FString& CivilizationId)
+{
+	if (CivilizationId == TEXT("china")) return TEXT("Audio/sfx/ui_civ_whisper_china");
+	if (CivilizationId == TEXT("rome")) return TEXT("Audio/sfx/ui_civ_whisper_rome");
+	if (CivilizationId == TEXT("arabia")) return TEXT("Audio/sfx/ui_civ_whisper_arabia");
+	if (CivilizationId == TEXT("egypt")) return TEXT("Audio/sfx/ui_civ_whisper_egypt");
+	if (CivilizationId == TEXT("vikings")) return TEXT("Audio/sfx/ui_civ_whisper_vikings");
+	if (CivilizationId == TEXT("japan")) return TEXT("Audio/sfx/ui_civ_whisper_japan");
+	return FString();
+}
+
+bool URok2ArtAssets::HasUiSfx(const FString& SfxId)
+{
+	return !GetUiSfxAssetPath(SfxId).IsEmpty();
+}
