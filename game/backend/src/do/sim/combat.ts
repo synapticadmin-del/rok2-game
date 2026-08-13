@@ -1,6 +1,7 @@
 import type { Troops } from "../../env";
 import { commanderAttackMod, commanderDefenseMod, type CommanderInstance } from "./commanders";
 import { talentAttackMod, talentCounterMod } from "./talents";
+import { equipmentAttackMod } from "./equipment";
 
 export type CombatSide = {
   name: string;
@@ -68,7 +69,7 @@ export function totalTroops(troops: Troops): number {
   return Object.values(troops).reduce((s, n) => s + Math.max(0, n || 0), 0);
 }
 
-export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub, attackerResearchMod: number = 0, defenderResearchMod: number = 0, attackerTalentAttackMod: number = 0, defenderTalentAttackMod: number = 0): CombatResult {
+export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub, attackerResearchMod: number = 0, defenderResearchMod: number = 0, attackerTalentAttackMod: number = 0, defenderTalentAttackMod: number = 0, attackerEquipmentMod: number = 0, defenderEquipmentMod: number = 0): CombatResult {
   const aPower = Math.max(1, troopPower(attacker.troops));
   const dPower = Math.max(1, troopPower(defender.troops));
 
@@ -88,8 +89,8 @@ export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId
   // P2-T1: مهارة attack للطرفين + مهارة defense تخفض فعالية المهاجم ضد المدافع
   // P2-T3: باف أبحاث العسكر (troop_attack) يضاف للطرفين
   // P8-T1: باف troop_attack من شجرتي المواهب (troop_type + role) للطرفين
-  const aCommMod = 1 + commanderAttackMod(attackerCommander) + attackerResearchMod + attackerTalentAttackMod;
-  const dCommMod = 1 + commanderAttackMod(defenderCommander) + defenderResearchMod + defenderTalentAttackMod;
+  const aCommMod = 1 + commanderAttackMod(attackerCommander) + attackerResearchMod + attackerTalentAttackMod + attackerEquipmentMod;
+  const dCommMod = 1 + commanderAttackMod(defenderCommander) + defenderResearchMod + defenderTalentAttackMod + defenderEquipmentMod;
   const dDefMod = 1 - Math.min(0.5, commanderDefenseMod(defenderCommander));
 
   const aEff = aPower * aMult * aCommMod * dDefMod;
@@ -150,6 +151,14 @@ export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId
     defenderRemaining,
     powerBefore: { attacker: aPower, defender: dPower },
   };
+}
+
+/**
+ * P8-T2: باف معدات القادة (قطع مجهزة × جودة × set bonus 2/4/6) —
+ * تُحسب في caller عبر equipmentAttackMod() وتُمرر attackerEquipmentMod/defenderEquipmentMod.
+ */
+export function equipmentCombatMods(state: { equipped?: Record<string, { stats: { stat: string; value: number }[] } | null> } | null | undefined): number {
+  return equipmentAttackMod(state as any);
 }
 
 export function barbApCost(level: number): number {

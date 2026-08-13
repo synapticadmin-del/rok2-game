@@ -22,6 +22,7 @@ import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { talentAttackMod } from "./sim/talents";
+import { equipmentAttackMod, type EquipmentState } from "./sim/equipment";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
 
 /** سقف صلب لأي عملية تسريع واحدة (30 يوماً). حاجز أخير ضد قيمة شاذة
@@ -1509,6 +1510,8 @@ export class KingdomShard extends DurableObject<Env> {
       const attackerResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
       // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
       const attackerTalentAttackMod = talentAttackMod(attackerCommander?.talentAllocations);
+      // P8-T2: باف troop_attack من معدات القائد (قطع مجهزة × جودة × set bonus 2/4/6)
+      const attackerEquipmentMod = equipmentAttackMod(attackerCommander?.equipmentState);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -1608,6 +1611,8 @@ export class KingdomShard extends DurableObject<Env> {
       const throneResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
       // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
       const throneTalentAttackMod = talentAttackMod(throneAttackerCommander?.talentAllocations);
+      // P8-T2: باف troop_attack من معدات القائد
+      const throneEquipmentMod = equipmentAttackMod(throneAttackerCommander?.equipmentState);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -1618,6 +1623,8 @@ export class KingdomShard extends DurableObject<Env> {
         throneResearchMod,
         0,
         throneTalentAttackMod,
+        0,
+        throneEquipmentMod,
         0,
       );
 
@@ -1712,6 +1719,8 @@ export class KingdomShard extends DurableObject<Env> {
       const coResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
       // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
       const coTalentAttackMod = talentAttackMod(coCommander?.talentAllocations);
+      // P8-T2: باف troop_attack من معدات القائد
+      const coEquipmentMod = equipmentAttackMod(coCommander?.equipmentState);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
         { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
@@ -1721,6 +1730,8 @@ export class KingdomShard extends DurableObject<Env> {
         coResearchMod,
         0,
         coTalentAttackMod,
+        0,
+        coEquipmentMod,
         0,
       );
 
@@ -1795,7 +1806,9 @@ export class KingdomShard extends DurableObject<Env> {
           const barbResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
           // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
           const barbTalentAttackMod = talentAttackMod(barbCommander?.talentAllocations);
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0);
+          // P8-T2: باف troop_attack من معدات القائد
+          const barbEquipmentMod = equipmentAttackMod(barbCommander?.equipmentState);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0);
           const report: {
             id: string;
             createdAt: number;
@@ -2796,7 +2809,7 @@ export class KingdomShard extends DurableObject<Env> {
     return march;
   }
 
-  /** P2-T1 (+P8-T1): جلب القائد المرافق لمسيرة من D1 مع مستواه ومهاراته ومواهبه */
+  /** P2-T1 (+P8-T1+P8-T2): جلب القائد المرافق لمسيرة من D1 مع مستواه ومهاراته ومواهبه */
   private async fetchMarchCommander(marchId: string): Promise<CommanderInstance | undefined> {
     try {
       const mc = await this.env.DB.prepare(
@@ -2804,20 +2817,26 @@ export class KingdomShard extends DurableObject<Env> {
       ).bind(marchId).first<{ commander_id: string; player_id: string }>();
       if (!mc) return undefined;
       const pc = await this.env.DB.prepare(
-        "SELECT level, skills_json, talents_json FROM player_commanders WHERE player_id = ? AND commander_id = ?",
-      ).bind(mc.player_id, mc.commander_id).first<{ level: number; skills_json: string; talents_json: string }>();
+        "SELECT level, skills_json, talents_json, equipment_json FROM player_commanders WHERE player_id = ? AND commander_id = ?",
+      ).bind(mc.player_id, mc.commander_id).first<{ level: number; skills_json: string; talents_json: string; equipment_json: string }>();
       if (!pc) return undefined;
       return {
         commanderId: mc.commander_id,
         level: pc.level,
         skills: JSON.parse(pc.skills_json || "[1,1,1]"),
         talentAllocations: JSON.parse(pc.talents_json || "{}"),
+        equipmentState: (() => { try { return pc.equipment_json ? JSON.parse(pc.equipment_json) as EquipmentState : undefined; } catch { return undefined; } })(),
       };
     } catch {
       return undefined; // الجدول قد لا يكون مُرحّلاً بعد
     }
   }
 
+  // P8-T2: المعدات تُجلب مع القائد في fetchMarchCommander (equipmentState) —
+  // لا حاجة لدالة منفصلة تمنع الوصول المزدوج للـ D1 لكل موضع قتال.
+  private fetchMarchEquipment(_marchId: string): never {
+    throw new Error("Removed: use commander instance equipmentState from fetchMarchCommander");
+  }
   /** P2-T1: منح خبرة للقائد بعد قتال + رفع مستواه تلقائياً */
   private async grantCommanderXp(marchId: string, kills: number) {
     if (kills <= 0) return;

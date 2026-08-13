@@ -76,6 +76,22 @@ import {
   TALENT_CONSTANTS,
 } from "../do/sim/talents";
 import {
+  EQUIPMENT_CONSTANTS,
+  EQUIPMENT_SLOTS,
+  EQUIPMENT_QUALITIES,
+  EQUIPMENT_BLUEPRINTS,
+  EQUIPMENT_MATERIAL_COSTS,
+  EQUIPMENT_STAT_RANGES,
+  EQUIPMENT_SET_BONUSES,
+  craftEquipment,
+  craftCost,
+  mergeEquipment,
+  computeEquipmentMods,
+  setBonusMod,
+  equippedCount,
+  type EquipmentState,
+} from "../do/sim/equipment";
+import {
   isKingdomOpen,
   kingdomCapacity,
   openKingdoms,
@@ -306,6 +322,7 @@ type OwnedCommanderRow = {
   tomes: number;
   skills_json: string;
   talents_json?: string; // P8-T1: عمود المواهب — جديد، قد يكون undefined قبل الترحيل
+  equipment_json?: string; // P8-T2: عمود المعدات — جديد، قد يكون undefined قبل الترحيل
   created_at: number;
 };
 
@@ -328,6 +345,25 @@ async function getOwnedCommander(env: Env, playerId: string, commanderId: string
   } catch {
     return null;
   }
+}
+
+/** P8-T2: استخراج معدات القائد من equipment_json وحساب إحصاءاتها */
+function equipmentJsonFor(row: OwnedCommanderRow): { equipped: Record<string, { item: any; stats: any } | null>; equippedCount: number; setBonusMod: number; totalMods: any } {
+  let state: EquipmentState | null = null;
+  try { state = row.equipment_json ? (JSON.parse(row.equipment_json) as EquipmentState) : null; } catch { state = null; }
+  const equipped: Record<string, { item: any; stats: any } | null> = {};
+  if (state?.equipped) {
+    for (const slot of EQUIPMENT_SLOTS) {
+      const it = state.equipped[slot.id] ?? null;
+      equipped[slot.id] = it ? { item: it, stats: it.stats } : null;
+    }
+  }
+  return {
+    equipped,
+    equippedCount: equippedCount(state?.equipped),
+    setBonusMod: setBonusMod(state?.equipped),
+    totalMods: computeEquipmentMods(state),
+  };
 }
 
 function commanderJson(row: OwnedCommanderRow) {
@@ -362,6 +398,8 @@ function commanderJson(row: OwnedCommanderRow) {
     talentPointsAvailable: availableTalentPoints(row.level, rarity, allocations),
     talentPointsCap: TALENT_CONSTANTS.points_cap_rarity[rarity] ?? Object.values(TALENT_CONSTANTS.points_cap_rarity)[0] ?? 60,
     talentMods,
+    // P8-T2: معدات القائد المجهزة — 6 خانات مع بافاتها ومكافأة المجموعة
+    equipment: equipmentJsonFor(row),
   };
 }
 
@@ -484,6 +522,19 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/meta/talents" && request.method === "GET") {
       return json({ version: 1, constants: TALENT_CONSTANTS, trees: getTalentTrees() });
     }
+    // P8-T2: مواصفات الحدادة — الخانات والجودات وblueprints وتكاليف المواد ومكافآت المجموعات
+    if (path === "/v1/meta/equipment" && request.method === "GET") {
+      return json({
+        version: 1,
+        constants: EQUIPMENT_CONSTANTS,
+        slots: EQUIPMENT_SLOTS,
+        qualities: EQUIPMENT_QUALITIES,
+        blueprints: EQUIPMENT_BLUEPRINTS,
+        material_costs: EQUIPMENT_MATERIAL_COSTS,
+        stat_ranges: EQUIPMENT_STAT_RANGES,
+        set_bonuses: EQUIPMENT_SET_BONUSES,
+      });
+    }
     // P2-T4: مواصفة المناطق (فتح زمني + نطاقات موارد) من data/zones.json
     if (path === "/v1/meta/zones" && request.method === "GET") {
       return json(getZones());
@@ -500,6 +551,17 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         zones: getZones(),
         // P8-T1: شجرتا مواهب القادة
         talents: { version: 1, constants: TALENT_CONSTANTS, trees: getTalentTrees() },
+        // P8-T2: الحدادة
+        equipment: {
+          version: 1,
+          constants: EQUIPMENT_CONSTANTS,
+          slots: EQUIPMENT_SLOTS,
+          qualities: EQUIPMENT_QUALITIES,
+          blueprints: EQUIPMENT_BLUEPRINTS,
+          material_costs: EQUIPMENT_MATERIAL_COSTS,
+          stat_ranges: EQUIPMENT_STAT_RANGES,
+          set_bonuses: EQUIPMENT_SET_BONUSES,
+        },
         constants: {
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
@@ -1579,6 +1641,134 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, commander: updated ? commanderJson(updated) : null });
     }
 
+    // P8-T2: حالة معدات القائد (inventory + equipped) — تُقرأ مع استجابة القادة أيضًا
+    if (path === "/v1/commander/equipment" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const url = new URL(request.url);
+      const commanderId = url.searchParams.get("commanderId") || "";
+      if (commanderId) {
+        const row = await getOwnedCommander(env, player.id, commanderId);
+        if (!row) throw new HttpError(404, "Commander not owned");
+        return json({ ok: true, commander: commanderJson(row) });
+      }
+      const rows = await getOwnedCommanders(env, player.id);
+      return json({ ok: true, commanders: rows.map(commanderJson) });
+    }
+
+    // P8-T2: تصنيع قطعة معدات من blueprint — تخصم الذهب والموارد من المدينة
+    // وتشترط مستوى City Hall مساويًا على الأقل لـ blacksmith_unlock_city_hall_level
+    if (path === "/v1/commander/equipment/craft" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string; slot: string; quality: string }>(request);
+      if (!body.commanderId || !body.slot) throw new HttpError(400, "commanderId and slot required");
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      const slotDef = EQUIPMENT_SLOTS.find((s) => s.id === body.slot);
+      if (!slotDef) throw new HttpError(400, "Unknown equipment slot");
+      const quality = body.quality || "common";
+      if (!(quality in EQUIPMENT_QUALITIES)) throw new HttpError(400, "Unknown quality");
+      let city = await refreshCity(env, player.id);
+      const buildings = await getBuildingsMap(env, player.id);
+      const hall = buildings.city_hall || 1;
+      if (hall < EQUIPMENT_CONSTANTS.blacksmith_unlock_city_hall_level) throw new HttpError(400, "City Hall too low for blacksmith");
+      const cost = craftCost(quality);
+      if (!cost) throw new HttpError(400, "Unknown quality cost");
+      const totalCost = { food: 0, wood: 0, stone: 0, gold: cost.gold, ...(cost.resource_cost || {}) };
+      if (!canAfford(city, totalCost)) throw new HttpError(400, "Not enough resources", { cost: totalCost, city });
+      const spent = spend(city, totalCost);
+      await env.DB.prepare(
+        `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
+      ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
+      const { item, error } = craftEquipment(slotDef.id, quality, nowMs());
+      if (error) {
+        // تعويض كامل: الذهب + موارد resource_cost نفسها التي خُصمت أعلاه
+        await env.DB.prepare("UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+?, updated_at=? WHERE player_id=?")
+          .bind(cost.resource_cost?.food || 0, cost.resource_cost?.wood || 0, cost.resource_cost?.stone || 0, cost.gold, nowMs(), player.id).run();
+        throw new HttpError(400, error);
+      }
+      let state: EquipmentState = { inventory: [], equipped: {} };
+      try { state = row.equipment_json ? (JSON.parse(row.equipment_json) as EquipmentState) : { inventory: [], equipped: {} }; } catch { state = { inventory: [], equipped: {} }; }
+      state.inventory = state.inventory || [];
+      state.inventory.push(item);
+      await env.DB.prepare(
+        `UPDATE player_commanders SET equipment_json=? WHERE id=?`,
+      ).bind(JSON.stringify(state), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, item, commander: updated ? commanderJson(updated) : null, city: await refreshCity(env, player.id) });
+    }
+
+    // P8-T2: دمج 4 معدات متطابقة للترقية إلى جودة أعلى (upgrade_merge_count من equipment.json)
+    if (path === "/v1/commander/equipment/merge" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string; itemIds: string[] }>(request);
+      if (!body.commanderId || !Array.isArray(body.itemIds)) throw new HttpError(400, "commanderId and itemIds required");
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      let state: EquipmentState = { inventory: [], equipped: {} };
+      try { state = row.equipment_json ? (JSON.parse(row.equipment_json) as EquipmentState) : { inventory: [], equipped: {} }; } catch { state = { inventory: [], equipped: {} }; }
+      const ids = body.itemIds.slice(0, EQUIPMENT_CONSTANTS.upgrade_merge_count);
+      const picked: any[] = [];
+      for (const id of ids) {
+        const idx = (state.inventory || []).findIndex((i) => i.id === id);
+        if (idx < 0) throw new HttpError(400, "Item not in inventory: " + id);
+        picked.push(state.inventory[idx]);
+      }
+      const { item, error } = mergeEquipment(picked);
+      if (error) throw new HttpError(400, error);
+      const remaining = (state.inventory || []).filter((i) => !ids.includes(i.id));
+      state.inventory = [...remaining, item as any];
+      await env.DB.prepare(
+        `UPDATE player_commanders SET equipment_json=? WHERE id=?`,
+      ).bind(JSON.stringify(state), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, item, commander: updated ? commanderJson(updated) : null });
+    }
+
+    // P8-T2: تجهيز قطعة من المخزون في الخانة (تُستبدل أي قطعة مجهزة سابقًا)
+    if (path === "/v1/commander/equipment/equip" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string; itemId: string }>(request);
+      if (!body.commanderId || !body.itemId) throw new HttpError(400, "commanderId and itemId required");
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      let state: EquipmentState = { inventory: [], equipped: {} };
+      try { state = row.equipment_json ? (JSON.parse(row.equipment_json) as EquipmentState) : { inventory: [], equipped: {} }; } catch { state = { inventory: [], equipped: {} }; }
+      const idx = (state.inventory || []).findIndex((i) => i.id === body.itemId);
+      if (idx < 0) throw new HttpError(400, "Item not in inventory");
+      const item = state.inventory[idx];
+      if (!EQUIPMENT_SLOTS.some((s) => s.id === item.slot)) throw new HttpError(400, "Invalid item slot");
+      state.inventory = (state.inventory || []).filter((_, i) => i !== idx);
+      const prev = state.equipped?.[item.slot] ?? null;
+      if (prev) state.inventory.push(prev);
+      state.equipped = { ...(state.equipped || {}), [item.slot]: item };
+      await env.DB.prepare(
+        `UPDATE player_commanders SET equipment_json=? WHERE id=?`,
+      ).bind(JSON.stringify(state), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, item, commander: updated ? commanderJson(updated) : null });
+    }
+
+    // P8-T2: خلع قطعة مجهزة — تعود إلى المخزون
+    if (path === "/v1/commander/equipment/unequip" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string; slot: string }>(request);
+      if (!body.commanderId || !body.slot) throw new HttpError(400, "commanderId and slot required");
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      let state: EquipmentState = { inventory: [], equipped: {} };
+      try { state = row.equipment_json ? (JSON.parse(row.equipment_json) as EquipmentState) : { inventory: [], equipped: {} }; } catch { state = { inventory: [], equipped: {} }; }
+      const item = state.equipped?.[body.slot] ?? null;
+      if (!item) throw new HttpError(400, "No item equipped in this slot");
+      state.equipped = { ...(state.equipped || {}) };
+      state.equipped[body.slot] = null;
+      state.inventory = [...(state.inventory || []), item];
+      await env.DB.prepare(
+        `UPDATE player_commanders SET equipment_json=? WHERE id=?`,
+      ).bind(JSON.stringify(state), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, item, commander: updated ? commanderJson(updated) : null });
+    }
+
     // P2-T1: تعيين قائد على مسيرة نشطة مملوكة للاعب
     if (path === "/v1/commander/assign" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
@@ -1597,7 +1787,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       await env.DB.prepare(
         `INSERT OR REPLACE INTO march_commanders (march_id, player_id, commander_id, skills_json, talents_json, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
-      ).bind(body.marchId, player.id, body.commanderId, row.skills_json, row.talents_json || "{}", nowMs()).run();
+      ).bind(body.marchId, player.id, body.commanderId, row.skills_json, row.talents_json || "{}", row.equipment_json || "{}", nowMs()).run();
 
       return json({ ok: true, marchId: body.marchId, commander: commanderJson(row) });
     }

@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "description": "P8-T2: معدات القادة (Blacksmith) — 6 خانات، 4 مواد × 5 جودات، blueprints تصنيع، دمج 4 متطابقات للترقية، مكافآت مجموعات 2/4/6. كل القيم من هذا الملف — لا hard-code في الكود.",
+  "constants": {
+    "blacksmith_unlock_city_hall_level": 16,
+    "materials": ["iron", "leather", "wood", "silk"],
+    "quality_order": ["common", "advanced", "superior", "epic", "legendary"],
+    "upgrade_merge_count": 4,
+    "max_quality_index": 4,
+    "max_blueprint_level": 5,
+    "set_bonus_cap": 0.25
+  },
+  "slots": [
+    { "id": "weapon", "name": "Weapon", "name_ar": "سلاح", "material": "iron" },
+    { "id": "helmet", "name": "Helmet", "name_ar": "خوذة", "material": "iron" },
+    { "id": "chest", "name": "Chest", "name_ar": "درع صدر", "material": "iron" },
+    { "id": "gloves", "name": "Gloves", "name_ar": "قفازات", "material": "leather" },
+    { "id": "legs", "name": "Legs", "name_ar": "ساق", "material": "leather" },
+    { "id": "boots", "name": "Boots", "name_ar": "حذاء", "material": "leather" }
+  ],
+  "qualities": {
+    "common": { "index": 0, "quality_mult": 1.0 },
+    "advanced": { "index": 1, "quality_mult": 1.5 },
+    "superior": { "index": 2, "quality_mult": 2.2 },
+    "epic": { "index": 3, "quality_mult": 3.2 },
+    "legendary": { "index": 4, "quality_mult": 4.5 }
+  },
+  "stat_pool": ["troop_attack", "troop_defense", "troop_health", "march_speed", "training_speed", "siege_damage"],
+  "blueprints": {
+    "weapon": {
+      "stats": ["troop_attack", "siege_damage"],
+      "craft_gold_base": 50,
+      "craft_gold_quality_mult": 1.8
+    },
+    "helmet": {
+      "stats": ["troop_defense", "troop_health"],
+      "craft_gold_base": 40,
+      "craft_gold_quality_mult": 1.8
+    },
+    "chest": {
+      "stats": ["troop_defense", "troop_health"],
+      "craft_gold_base": 60,
+      "craft_gold_quality_mult": 1.8
+    },
+    "gloves": {
+      "stats": ["troop_attack", "march_speed"],
+      "craft_gold_base": 35,
+      "craft_gold_quality_mult": 1.8
+    },
+    "legs": {
+      "stats": ["troop_defense", "march_speed"],
+      "craft_gold_base": 35,
+      "craft_gold_quality_mult": 1.8
+    },
+    "boots": {
+      "stats": ["march_speed", "troop_health"],
+      "craft_gold_base": 30,
+      "craft_gold_quality_mult": 1.8
+    }
+  },
+  "material_costs": {
+    "description": "تكلفة المواد لكل جودة لكل خانة (من مادة الخانة الأساسية) + مورد game (food/wood/stone/gold) — قيم الموارد من buildings.json conventions",
+    "common": { "material_qty": 10, "gold": 50, "resource_cost": { "wood": 200 } },
+    "advanced": { "material_qty": 30, "gold": 150, "resource_cost": { "wood": 600, "stone": 200 } },
+    "superior": { "material_qty": 80, "gold": 400, "resource_cost": { "wood": 1500, "stone": 800 } },
+    "epic": { "material_qty": 200, "gold": 1000, "resource_cost": { "wood": 4000, "stone": 2500 } },
+    "legendary": { "material_qty": 500, "gold": 2500, "resource_cost": { "wood": 10000, "stone": 7000, "food": 5000 } }
+  },
+  "stat_ranges": {
+    "description": "نطاق base stat value لكل جودة — base × quality_mult يعطي القيمة النهائية النسبية",
+    "common": { "min": 10, "max": 15 },
+    "advanced": { "min": 15, "max": 25 },
+    "superior": { "min": 25, "max": 40 },
+    "epic": { "min": 40, "max": 65 },
+    "legendary": { "min": 65, "max": 100 }
+  },
+  "set_bonuses": {
+    "description": "مكافآت المجموعات: عدد القطع المجهزة من أي خانات → باف troop_attack. القيم من JSON بلا hard-code.",
+    "2_piece": 0.05,
+    "4_piece": 0.12,
+    "6_piece": 0.25
+  }
+}

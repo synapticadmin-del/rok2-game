@@ -18,7 +18,8 @@ const testScripts = [
   "retention_offline_test.mjs",
   "battlepass_offline_test.mjs",
   "matchmaking_offline_test.mjs",
-  "talents_offline_test.mjs"
+  "talents_offline_test.mjs",
+  "equipment_offline_test.mjs"
 ];
 
 for (const script of testScripts) {

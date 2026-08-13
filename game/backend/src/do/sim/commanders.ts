@@ -34,6 +34,7 @@ export type CommanderInstance = {
   skills: number[]; // مستويات المهارات الثلاث [attack, defense, passive]
   xp?: number; // خبرة تراكمية نحو المستوى التالي (تُستخدم في addXp)
   talentAllocations?: Record<string, number>; // P8-T1: نقاط المواهب الموزعة (nodeId -> points)
+  equipmentState?: any; // P8-T2: معدات القائد المجهزة (EquipmentState) على المسيرة
 };
 
 const DEFS: Record<string, CommanderDef> = {};
