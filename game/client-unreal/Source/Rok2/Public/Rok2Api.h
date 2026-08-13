@@ -52,6 +52,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSeasonStoryEvent, const FRok2Seas
 /** يُبث عند مزامنة الراليات النشطة للتحالف؛ لا تُشتق من واجهة العميل. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceRalliesUpdated, const TArray<FRok2AllianceRally>&, Rallies);
 
+// P8-T7: أنظمة القادة العميقة + حماية المدينة + المهام اليومية + الملك.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommanderTalents, const FRok2CommanderTalents&, Talents);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEquipmentUpdated, const TArray<FRok2EquipmentSlot>&, Slots);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShieldOptions, const TArray<FRok2ShieldOption>&, Options);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnApStateChanged, const FRok2ActionPointState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestsUpdated, const FRok2QuestState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKingUpdated);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -182,6 +190,86 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Connection")
 	void RestoreAuthoritativeState();
 
+	// ---------------------------------------------------------------------------
+	// P8-T7: مواهب القادة — شجرة قابلة للتمرير بنقاط تُخصص من الشاشة.
+	// ---------------------------------------------------------------------------
+	/** يسحب قادة اللاعب (مع مواهبهم ومعداتهم) من GET /v1/commanders ويبث موهبة القائد على OnCommanderTalents */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Talents")
+	void FetchTalents(const FString& CommanderId);
+
+	/** يخصص نقاط موهبة لعقدة — POST /v1/commander/talent/allocate {commanderId, nodeId, points} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Talents")
+	void AllocateTalent(const FString& CommanderId, const FString& NodeId, int32 Points = 1);
+
+	/** يعيد توزيع كل نقاط مواهب القائد — POST /v1/commander/talent/reset (استرجاع reset_refund_ratio) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Talents")
+	void RespecTalents(const FString& CommanderId);
+
+	// ---------------------------------------------------------------------------
+	// P8-T7: معدات القائد (Blacksmith) — 6 خانات + تصنيع + دمج للترقية.
+	// ---------------------------------------------------------------------------
+	/** يسحب معدات القائد (الخانات الست المجهزة) من GET /v1/commander/equipment ويبثها على OnEquipmentUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Equipment")
+	void FetchEquipment(const FString& CommanderId);
+
+	/** يصنع قطعة في خانة بجودة — POST /v1/commander/equipment/craft {commanderId, slot, quality} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Equipment")
+	void CraftEquipment(const FString& CommanderId, const FString& Slot, const FString& Quality);
+
+	/** يجهّز قطعة من المخزون في خانتها — POST /v1/commander/equipment/equip {commanderId, itemId} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Equipment")
+	void EquipItem(const FString& CommanderId, const FString& ItemId);
+
+	/** يخلع قطعة مجهزة لتعود للمخزون — POST /v1/commander/equipment/unequip {commanderId, slot} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Equipment")
+	void UnequipItem(const FString& CommanderId, const FString& Slot);
+
+	/** يدمج 4 قطع متطابقة للترقية إلى الجودة التالية — POST /v1/commander/equipment/merge {commanderId, itemIds} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Equipment")
+	void MergeItems(const FString& CommanderId, const TArray<FString>& ItemIds);
+
+	// ---------------------------------------------------------------------------
+	// P8-T7: حماية المدينة (دروع AP) والتهجير.
+	// ---------------------------------------------------------------------------
+	/** يسحب خيارات الدروع وحالة AP للمدينة — /v1/ap/state ويبثها على OnShieldOptions + OnApStateChanged */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Shield")
+	void FetchShieldOptions();
+
+	/** يفعّل درع حماية على المدينة — POST /v1/shield/activate {duration_minutes} (خصم gems وفق المدة) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Shield")
+	void ActivateShield(int32 DurationMinutes);
+
+	/** يهجّر المدينة: Mode = "random" (spawn عشوائي في Zone 1) أو "targeted" (إلى ToX/ToY) — POST /v1/city/relocate */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Shield")
+	void RelocateCity(const FString& Mode, double ToX = 0, double ToY = 0);
+
+	// ---------------------------------------------------------------------------
+	// P8-T7: المهام اليومية والجوائز + ملك المملكة.
+	// ---------------------------------------------------------------------------
+	/** يسحب المهام اليومية والأسبوعية ونقاطها — /v1/quests ويبثها على OnQuestsUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Quests")
+	void FetchQuests();
+
+	/** يطالب بجائزة مهمة مكتملة — /v1/quests/claim */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Quests")
+	void ClaimQuest(const FString& QuestId);
+
+	/** يبدّل المفتاح الذهبي اليومي (100 نقطة يومية → 200 جوهرة) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Quests")
+	void RedeemGoldenKey();
+
+	/** يبدّل الصندوق الأسبوعي (300 نقطة أسبوعية → 500 جوهرة + 2 مسرّع ساعة) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Quests")
+	void RedeemWeeklyChest();
+
+	/** يسحب الملك الحالي عبر تحديث لقطة العالم (snapshot يحوي king + throne) ويبث OnKingUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|World")
+	void FetchKing();
+
+	/** ينشئ مسيرة نحو موقع مقدس (P8-T4/P8-T5: targetType=holy_site مع فحص unlock) */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|HolySites")
+	void MarchToHolySite(const FString& SiteId, const FString& PrimaryCommander, const FString& SecondaryCommander);
+
 	// Polling pump - called from GameMode Tick
 	void PumpEvents(float DeltaSeconds);
 
@@ -221,6 +309,25 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Rok2")
 	const FRok2GameMeta& GetMeta() const { return Meta; }
+
+	// P8-T7: وصول الكاشات للواجهات الجديدة.
+	UFUNCTION(BlueprintPure, Category = "Rok2|Talents")
+	const FRok2CommanderTalents& GetCommanderTalents() const { return CommanderTalents; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Equipment")
+	const TArray<FRok2EquipmentSlot>& GetEquipmentSlots() const { return EquipmentSlots; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Equipment")
+	const TArray<FRok2EquipmentItem>& GetEquipmentInventory() const { return EquipmentInventory; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|Quests")
+	const FRok2QuestState& GetQuestState() const { return QuestState; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|World")
+	const FRok2ActionPointState& GetApState() const { return World.ApState; }
+
+	UFUNCTION(BlueprintPure, Category = "Rok2|World")
+	const FRok2KingMarker& GetKing() const { return World.King; }
 
 	/** إشعارات الـ HUD المخزنة (الأحدث أولاً، حد أقصى 20) — P2-T6 */
 	UFUNCTION(BlueprintPure, Category = "Rok2")
@@ -304,6 +411,25 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
 	FOnAllianceRalliesUpdated OnAllianceRalliesUpdated;
 
+	// P8-T7: أحداث أنظمة القادة العميقة والحماية والمهام والملك.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Talents")
+	FOnCommanderTalents OnCommanderTalents;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Equipment")
+	FOnEquipmentUpdated OnEquipmentUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Shield")
+	FOnShieldOptions OnShieldOptions;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Shield")
+	FOnApStateChanged OnApStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Quests")
+	FOnQuestsUpdated OnQuestsUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|World")
+	FOnKingUpdated OnKingUpdated;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -321,6 +447,13 @@ protected:
 	TArray<FRok2BattleReport> BattleReports;
 	TArray<FRok2AllianceRally> AllianceRallies;
 	FRok2GameMeta Meta;
+
+	// P8-T7: كاشات أنظمة القادة العميقة والحماية والمهام — تُحدّث من Fetch* وتُبث للواجهات.
+	FRok2CommanderTalents CommanderTalents;
+	TArray<FRok2EquipmentSlot> EquipmentSlots;
+	TArray<FRok2EquipmentItem> EquipmentInventory;
+	FRok2QuestState QuestState;
+	bool bKingKnown = false;
 
 	// ---- HUD الموحد (P2-T6) ----
 	/** سجل الإشعارات (الأحدث أولاً) */
@@ -415,6 +548,27 @@ protected:
 
 	/** يحوّل رالي التحالف من استجابة /v1/alliance/rallies إلى نموذج الواجهة. */
 	void ParseAllianceRally(const TSharedPtr<FJsonObject>& R, FRok2AllianceRally& E) const;
+
+	/** يحوّل عقدة موهبة من JSON إلى FRok2TalentNode (P8-T7) */
+	void ParseTalentNode(const TSharedPtr<FJsonObject>& Obj, FRok2TalentNode& Out) const;
+
+	/** يحوّل قطعة معدات من JSON إلى FRok2EquipmentItem (P8-T7) */
+	void ParseEquipmentItem(const TSharedPtr<FJsonObject>& Obj, FRok2EquipmentItem& Out) const;
+
+	/** يحوّل مهمة يومية/أسبوعية من JSON إلى FRok2DailyQuest (P8-T7) */
+	void ParseQuest(const TSharedPtr<FJsonObject>& Obj, FRok2DailyQuest& Out) const;
+
+	/** يحدّث World.King ويبث OnKingUpdated (P8-T7) */
+	void UpsertKing(const FRok2KingMarker& K);
+
+	/** يستخرج خيارات الدروع من GET /v1/ap/state ويبثها (P8-T7) */
+	void ParseShieldState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج المهام اليومية والأسبوعية من GET /v1/quests ويبثها (P8-T7) */
+	void ParseQuestState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج حالة الملك من GET /v1/meta/all ويبثها (P8-T7) */
+	void ParseKingState(const TSharedPtr<FJsonObject>& Obj);
 
 	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
 	void UpsertMarch(const FRok2MarchEntity& E);

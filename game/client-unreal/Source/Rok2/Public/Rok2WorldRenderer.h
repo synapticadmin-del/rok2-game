@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void RefreshFromApi();
 
+	/** P8-T7: يرسم عرش الملك في موقع التتويج عند توفر FRok2KingMarker في اللقطة. */
+	void DrawKingMarker();
+
 	/** يحدّث طبقة العالم وفق مسافة الكاميرا؛ يعيد true فقط عند تغير الطبقة. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Zoom Layers")
 	bool UpdateZoomLayer(float TargetZoomDistance);
@@ -170,6 +173,8 @@ protected:
 
 	UPROPERTY(Transient)
 	TMap<FString, AActor*> SpawnedMarches;
+	/** عرش الملك (P8-T7) — أُعيد تعيينه عند كل لقطة عالم. */
+	AActor* SpawnedThrone = nullptr;
 
 	TArray<FRok2MarchEntity> CurrentMarches;
 

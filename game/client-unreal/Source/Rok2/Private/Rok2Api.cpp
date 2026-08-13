@@ -197,6 +197,89 @@ void URok2Api::FetchMeta()
 			}
 		}
 
+		// P8-T7: سحب مواصفات المواهب من /v1/meta/talents (خزينة العميل)
+		Self->Get(TEXT("/v1/meta/talents"), [WeakThis](const TSharedPtr<FJsonObject>& TalentsObj)
+		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* T = WeakThis.Get();
+			const TSharedPtr<FJsonObject>* C;
+			if (TalentsObj->TryGetObjectField(TEXT("constants"), C) && C->IsValid())
+			{
+				T->Meta.TalentPointsPerLevel = (int32)Rok2Json::Num(*C, TEXT("talent_points_per_level"));
+				T->Meta.PointsCapCommon = (int32)Rok2Json::Num(*C, TEXT("points_cap_rarity"), 40.0);
+				T->Meta.MaxPointsPerNode = (int32)Rok2Json::Num(*C, TEXT("max_points_per_node"));
+				T->Meta.ResetRefundRatio = Rok2Json::Num(*C, TEXT("reset_refund_ratio"));
+			}
+			const TArray<TSharedPtr<FJsonValue>>* Trees;
+			if (TalentsObj->TryGetArrayField(TEXT("trees"), Trees))
+			{
+				T->Meta.TalentTrees.Empty();
+				for (const auto& V : *Trees)
+				{
+					const TSharedPtr<FJsonObject> Tree = V->AsObject();
+					if (!Tree.IsValid()) continue;
+					FRok2TalentTree TreeE;
+					TreeE.Id = Rok2Json::Str(Tree, TEXT("id"));
+					TreeE.Name = Rok2Json::Str(Tree, TEXT("name"));
+					const TArray<TSharedPtr<FJsonValue>>* Nodes;
+					if (Tree->TryGetArrayField(TEXT("nodes"), Nodes))
+					{
+						for (const auto& N : *Nodes)
+						{
+							const TSharedPtr<FJsonObject> Nd = N->AsObject();
+							if (!Nd.IsValid()) continue;
+							FRok2TalentNode NodeE;
+							NodeE.Id = Rok2Json::Str(Nd, TEXT("id"));
+							NodeE.Name = Rok2Json::Str(Nd, TEXT("name"));
+							NodeE.Tree = TreeE.Id;
+							NodeE.MaxLevel = (int32)Rok2Json::Num(Nd, TEXT("max_points"));
+						// عقدة المواهب في البيانات: {id, branch, stat, per_point, max_points} —
+						// البافات نفسها تأتي من stat + per_point، والمواهب تُخصص بنقطة لكل مستوى.
+						NodeE.StatMods.Empty();
+						NodeE.StatMods.Add(Rok2Json::Str(Nd, TEXT("stat")), Rok2Json::Num(Nd, TEXT("per_point")));
+						TreeE.Nodes.Add(NodeE);
+						}
+					}
+					T->Meta.TalentTrees.Add(TreeE);
+				}
+			}
+		}, nullptr);
+
+		// P8-T7: سحب مواصفات الحدادة من /v1/meta/equipment (الخانات والجودات وblueprints)
+		Self->Get(TEXT("/v1/meta/equipment"), [WeakThis](const TSharedPtr<FJsonObject>& EqObj)
+		{
+			if (!WeakThis.IsValid()) return;
+			URok2Api* E = WeakThis.Get();
+			const TArray<TSharedPtr<FJsonValue>>* Slots;
+			if (EqObj->TryGetArrayField(TEXT("slots"), Slots))
+			{
+				E->Meta.EquipmentSlots.Empty();
+				for (const auto& V : *Slots) E->Meta.EquipmentSlots.Add(Rok2Json::Str(V->AsObject(), TEXT("id")));
+			}
+			// blueprints في البيانات object-by-slot: {weapon:{stats,craft_gold_base,craft_gold_quality_mult}, ...}
+			const TSharedPtr<FJsonObject>* BpsObj;
+			if (EqObj->TryGetObjectField(TEXT("blueprints"), BpsObj) && BpsObj->IsValid())
+			{
+				E->Meta.EquipmentBlueprints.Empty();
+				for (const auto& KV : (*BpsObj)->Values)
+				{
+					const TSharedPtr<FJsonObject> B = KV.Value->AsObject();
+					if (!B.IsValid()) continue;
+					FRok2EquipmentBlueprint Bp;
+					Bp.Id = FString(KV.Key);
+					Bp.Slot = FString(KV.Key);
+					Bp.CraftGoldBase = (int32)Rok2Json::Num(B, TEXT("craft_gold_base"));
+					Bp.CraftGoldQualityMult = Rok2Json::Num(B, TEXT("craft_gold_quality_mult"));
+					const TArray<TSharedPtr<FJsonValue>>* Stats;
+					if (B->TryGetArrayField(TEXT("stats"), Stats))
+					{
+						for (const auto& S : *Stats) Bp.StatPool.Add(Rok2Json::Str(S->AsObject(), TEXT("")));
+					}
+					E->Meta.EquipmentBlueprints.Add(Bp);
+				}
+			}
+		}, nullptr);
+
 		Self->Meta.bLoaded = true;
 		// أعد حساب المعدلات من بيانات الخادم لو المباني محمّلة
 		Self->RecomputeResourceRates();
@@ -829,6 +912,49 @@ void URok2Api::ParseWorld(const TSharedPtr<FJsonObject>& Obj)
 			Msg.Text = Rok2Json::Str(M, TEXT("text"));
 			Msg.TimestampMs = (int64)Rok2Json::Num(M, TEXT("timestampMs"));
 			ChatHistory.Add(Msg);
+		}
+	}
+
+	// ---------------------------------------------------------------------------
+	// P8-T7: الملك والعرش والمواقع المقدسة — اللقطة السلطوية هي مصدر الحقيقة.
+	// الملك في بيانات الخادم يتوّج لتحالف: snapshot.king = {allianceId,
+	// crownedAtMs, expiresAtMs} | null، والعرش موقعه الثابت snapshot.throne
+	// = {x, y, ownerAllianceId, ...}. المواقع المقدسة snapshot.holySites تحمل
+	// ownerAllianceId عندما تكون محتلة.
+	// ---------------------------------------------------------------------------
+	FRok2KingMarker NewKing;
+	NewKing.PlayerId = FString();
+	NewKing.PlayerName = FString();
+	NewKing.X = 0;
+	NewKing.Y = 0;
+	const TSharedPtr<FJsonObject>* KingObj;
+	if (Obj->TryGetObjectField(TEXT("king"), KingObj) && KingObj->IsValid())
+	{
+		NewKing.AllianceId = Rok2Json::Str(*KingObj, TEXT("allianceId"));
+		NewKing.CrownedAtMs = (int64)Rok2Json::Num(*KingObj, TEXT("crownedAtMs"));
+		NewKing.ExpiresAtMs = (int64)Rok2Json::Num(*KingObj, TEXT("expiresAtMs"));
+	}
+	const TSharedPtr<FJsonObject>* ThroneObj;
+	if (Obj->TryGetObjectField(TEXT("throne"), ThroneObj) && ThroneObj->IsValid())
+	{
+		NewKing.X = Rok2Json::Num(*ThroneObj, TEXT("x"));
+		NewKing.Y = Rok2Json::Num(*ThroneObj, TEXT("y"));
+	}
+	if (!NewKing.AllianceId.IsEmpty() && NewKing.X != 0)
+	{
+		UpsertKing(NewKing);
+	}
+
+	World.CapturedSiteIds.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* SitesArr;
+	if (Obj->TryGetArrayField(TEXT("holySites"), SitesArr))
+	{
+		for (const auto& V : *SitesArr)
+		{
+			const TSharedPtr<FJsonObject> S = V->AsObject();
+			if (!S.IsValid()) continue;
+			const FString Owner = Rok2Json::Str(S, TEXT("ownerAllianceId"));
+			if (!Owner.IsEmpty()) World.CapturedSiteIds.Add(Rok2Json::Str(S, TEXT("id")));
 		}
 	}
 
@@ -2152,4 +2278,504 @@ void URok2Api::PumpEvents(float DeltaSeconds)
 			LoadCity();
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// P8-T7: مواهب القادة، معدات الحدادة، حماية المدينة والتهجير، المهام اليومية،
+// وملك المملكة. كلها تعمل على endpoints الخادم النهائية دون افتراضات.
+// ---------------------------------------------------------------------------
+
+// ---------- المواهب (GET /v1/commanders, POST /v1/commander/talent/*) -------
+void URok2Api::FetchTalents(const FString& CommanderId)
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/commanders"), [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		const TArray<TSharedPtr<FJsonValue>>* CmdArr;
+		if (!Obj->TryGetArrayField(TEXT("commanders"), CmdArr)) return;
+		for (const auto& V : *CmdArr)
+		{
+			const TSharedPtr<FJsonObject> C = V->AsObject();
+			if (!C.IsValid()) continue;
+			if (Rok2Json::Str(C, TEXT("commanderId")) != CommanderId) continue;
+
+			FRok2CommanderTalents Talents;
+			Talents.CommanderId = CommanderId;
+			Talents.PointsAvailable = (int32)Rok2Json::Num(C, TEXT("talentPointsAvailable"));
+			Talents.PointsSpent = (int32)(Rok2Json::Num(C, TEXT("talentPointsEarned")) - Rok2Json::Num(C, TEXT("talentPointsAvailable")));
+
+			// allocations من الخادم: {nodeId: points}
+			const TSharedPtr<FJsonObject>* Allocs;
+			TMap<FString, int32> AllocsMap;
+			if (C->TryGetObjectField(TEXT("talentAllocations"), Allocs) && Allocs->IsValid())
+			{
+				for (const auto& KV : (*Allocs)->Values)
+					AllocsMap.Add(FString(KV.Key), (int32)KV.Value->AsNumber());
+			}
+
+			// خزينة المواهب من Meta (مواصفات الخادم) مع مستويات مخصصة
+			for (const FRok2TalentTree& Tree : Self->Meta.TalentTrees)
+			{
+				for (const FRok2TalentNode& Def : Tree.Nodes)
+				{
+					FRok2TalentNode Node = Def;
+					Node.Level = AllocsMap.Contains(Node.Id) ? AllocsMap[Node.Id] : 0;
+					Node.bUnlocked = Node.Level > 0;
+					Talents.Nodes.Add(MoveTemp(Node));
+				}
+			}
+			Self->OnCommanderTalents.Broadcast(Talents);
+			break;
+		}
+	});
+}
+
+void URok2Api::AllocateTalent(const FString& CommanderId, const FString& NodeId, int32 Points)
+{
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"nodeId\":\"%s\",\"points\":%d}"),
+		*CommanderId, *NodeId, FMath::Max(1, Points));
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/talent/allocate"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchTalents(CommanderId);
+		WeakThis->EmitToast(TEXT("تم تخصيص نقاط الموهبة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::RespecTalents(const FString& CommanderId)
+{
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\"}"), *CommanderId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/talent/reset"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchTalents(CommanderId);
+		WeakThis->EmitToast(TEXT("أُعيد توزيع نقاط المواهب"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+// ---------- المعدات (GET/POST /v1/commander/equipment/*) ---------------------
+void URok2Api::FetchEquipment(const FString& CommanderId)
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/commander/equipment?commanderId=") + CommanderId, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		const TSharedPtr<FJsonObject>* Cmd;
+		if (!Obj->TryGetObjectField(TEXT("commander"), Cmd) || !Cmd->IsValid()) return;
+		TArray<FRok2EquipmentSlot> Slots;
+		const TSharedPtr<FJsonObject>* Eq;
+		if ((*Cmd)->TryGetObjectField(TEXT("equipment"), Eq) && Eq->IsValid())
+		{
+			const TSharedPtr<FJsonObject>* Equipped;
+			if ((*Eq)->TryGetObjectField(TEXT("equipped"), Equipped) && Equipped->IsValid())
+			{
+				for (const auto& KV : (*Equipped)->Values)
+				{
+					FRok2EquipmentSlot Slot;
+					Slot.Slot = FString(KV.Key);
+					if (KV.Value->IsNull()) { Slot.bFilled = false; Slots.Add(Slot); continue; }
+					const TSharedPtr<FJsonObject>* ItObj = KV.Value->AsObject();
+					if (!ItObj.IsValid() || !ItObj->IsValid()) continue;
+					// الخانة المجهزة: {item: {id, slot, blueprint, quality, material, stats:[{stat,amount}], craftedAtMs}, stats}
+					const TSharedPtr<FJsonObject>* Item;
+					if ((*ItObj)->TryGetObjectField(TEXT("item"), Item) && Item->IsValid())
+					{
+						Self->ParseEquipmentItem(*Item, Slot.Item);
+						Slot.bFilled = true;
+					}
+					Slots.Add(MoveTemp(Slot));
+				}
+			}
+		}
+		Self->OnEquipmentUpdated.Broadcast(Slots);
+	});
+}
+
+void URok2Api::CraftEquipment(const FString& CommanderId, const FString& Slot, const FString& Quality)
+{
+	FString JsonMaterials;
+	{
+		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&JsonMaterials);
+		W->WriteObjectStart(); W->WriteObjectEnd();
+	}
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"slot\":\"%s\",\"quality\":\"%s\"}"),
+		*CommanderId, *Slot, *Quality);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/equipment/craft"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchEquipment(CommanderId);
+		WeakThis->EmitToast(TEXT("صُنعت قطعة المعدات"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::EquipItem(const FString& CommanderId, const FString& ItemId)
+{
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"itemId\":\"%s\"}"),
+		*CommanderId, *ItemId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/equipment/equip"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchEquipment(CommanderId);
+		WeakThis->EmitToast(TEXT("وُجّهت القطعة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::UnequipItem(const FString& CommanderId, const FString& Slot)
+{
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"slot\":\"%s\"}"),
+		*CommanderId, *Slot);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/equipment/unequip"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchEquipment(CommanderId);
+		WeakThis->EmitToast(TEXT("خُلعت القطعة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::MergeItems(const FString& CommanderId, const TArray<FString>& ItemIds)
+{
+	FString IdsJson;
+	{
+		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&IdsJson);
+		W->WriteArrayStart();
+		for (const FString& Id : ItemIds) W->WriteValue(Id);
+		W->WriteArrayEnd();
+	}
+	FString Body = FString::Printf(TEXT("{\"commanderId\":\"%s\",\"itemIds\":%s}"), *CommanderId, *IdsJson);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/commander/equipment/merge"), Body, true, [WeakThis, CommanderId](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchEquipment(CommanderId);
+		WeakThis->EmitToast(TEXT("دُمجت القطع وترقيت"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+// ---------- حماية المدينة والتهجير ------------------------------------------
+void URok2Api::FetchShieldOptions()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/ap/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseShieldState(Obj);
+	});
+}
+
+void URok2Api::ActivateShield(int32 DurationMinutes)
+{
+	FString Body = FString::Printf(TEXT("{\"duration_minutes\":%d}"), DurationMinutes);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/shield/activate"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->FetchShieldOptions();
+		WeakThis->EmitToast(TEXT("فعّل درع الحماية"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::RelocateCity(const FString& Mode, double ToX, double ToY)
+{
+	FString Body;
+	if (Mode == TEXT("targeted"))
+		Body = FString::Printf(TEXT("{\"mode\":\"%s\",\"x\":%.0f,\"y\":%.0f}"), *Mode, ToX, ToY);
+	else
+		Body = FString::Printf(TEXT("{\"mode\":\"%s\"}"), *Mode);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/relocate"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("تغيّر موقع المدينة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+// ---------- المهام اليومية والجوائز ------------------------------------------
+void URok2Api::FetchQuests()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/quests"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseQuestState(Obj);
+	});
+}
+
+void URok2Api::ClaimQuest(const FString& QuestId)
+{
+	FString Body = FString::Printf(TEXT("{\"id\":\"%s\"}"), *QuestId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/quests/claim"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchQuests();
+		WeakThis->EmitToast(TEXT("استُلمت جائزة المهمة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::RedeemGoldenKey()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/quests/redeem-golden-key"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->FetchQuests();
+		WeakThis->EmitToast(TEXT("فُتح المفتاح الذهبي"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::RedeemWeeklyChest()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/quests/redeem-weekly-chest"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->FetchQuests();
+		WeakThis->EmitToast(TEXT("فُتح الصندوق الأسبوعي"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+// ---------- ملك المملكة -------------------------------------------------------
+void URok2Api::FetchKing()
+{
+	// مصدر الحقيقة السلطوية للملك هو لقطة العالم (snapshot.king + throne).
+	// تحديث اللقطة يحرك ParseWorld → UpsertKing → OnKingUpdated تلقائيًا.
+	RefreshWorld();
+}
+
+// ---------- Parsers -------------------------------------------------------------
+void URok2Api::ParseTalentNode(const TSharedPtr<FJsonObject>& Obj, FRok2TalentNode& Out) const
+{
+	if (!Obj.IsValid()) return;
+	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Out.Name = Rok2Json::Str(Obj, TEXT("name"));
+	Out.Tree = Rok2Json::Str(Obj, TEXT("tree"));
+	Out.Level = (int32)Rok2Json::Num(Obj, TEXT("level"));
+	Out.MaxLevel = (int32)Rok2Json::Num(Obj, TEXT("maxLevel"));
+	Out.PowerCost = (int32)Rok2Json::Num(Obj, TEXT("powerCost"));
+	Out.bUnlocked = Rok2Json::Bool(Obj, TEXT("bUnlocked"));
+	Out.StatMods.Empty();
+	const TSharedPtr<FJsonObject>* Mods;
+	if (Obj->TryGetObjectField(TEXT("statMods"), Mods) && Mods->IsValid())
+	{
+		for (const auto& KV : (*Mods)->Values) Out.StatMods.Add(FString(KV.Key), KV.Value->AsNumber());
+	}
+	Out.Prerequisites.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* Prereq;
+	if (Obj->TryGetArrayField(TEXT("prerequisites"), Prereq))
+	{
+		for (const auto& V : *Prereq) Out.Prerequisites.Add(Rok2Json::Str(V->AsObject(), TEXT("")));
+	}
+}
+
+void URok2Api::ParseEquipmentItem(const TSharedPtr<FJsonObject>& Obj, FRok2EquipmentItem& Out) const
+{
+	if (!Obj.IsValid()) return;
+	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Out.Slot = Rok2Json::Str(Obj, TEXT("slot"));
+	Out.Name = Rok2Json::Str(Obj, TEXT("blueprint"));
+	Out.Rarity = Rok2Json::Str(Obj, TEXT("quality"));
+	Out.Material = Rok2Json::Str(Obj, TEXT("material"));
+	Out.Level = 1;
+	Out.StatMods.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* Stats;
+	if (Obj->TryGetArrayField(TEXT("stats"), Stats))
+	{
+		for (const auto& V : *Stats)
+		{
+			const TSharedPtr<FJsonObject> S = V->AsObject();
+			if (!S.IsValid()) continue;
+			Out.StatMods.Add(Rok2Json::Str(S, TEXT("stat")), Rok2Json::Num(S, TEXT("amount")));
+		}
+	}
+}
+
+void URok2Api::ParseQuest(const TSharedPtr<FJsonObject>& Obj, FRok2DailyQuest& Out) const
+{
+	if (!Obj.IsValid()) return;
+	Out.Id = Rok2Json::Str(Obj, TEXT("id"));
+	Out.Kind = Rok2Json::Str(Obj, TEXT("typeId")).StartsWith(TEXT("weekly")) ? TEXT("weekly") : TEXT("daily");
+	Out.Goal = (int32)Rok2Json::Num(Obj, TEXT("goal"));
+	Out.Progress = (int32)Rok2Json::Num(Obj, TEXT("progress"));
+	Out.PointsReward = (int32)Rok2Json::Num(Obj, TEXT("points"));
+	Out.Description = Rok2Json::Str(Obj, TEXT("description"));
+	Out.bCompleted = Rok2Json::Num(Obj, TEXT("progress")) >= Rok2Json::Num(Obj, TEXT("goal"));
+	Out.bClaimed = Rok2Json::Bool(Obj, TEXT("claimed"));
+	// typeId مثل daily_gather_100 → المفتاح هو النص بعد الشرطة الأولى
+	Out.SourceKey = Rok2Json::Str(Obj, TEXT("typeId")).Replace(TEXT("daily_"), TEXT("")).Replace(TEXT("weekly_"), TEXT(""));
+	Out.Title = Out.Description;
+}
+
+void URok2Api::UpsertKing(const FRok2KingMarker& K)
+{
+	World.King = K;
+	OnKingUpdated.Broadcast();
+}
+
+void URok2Api::ParseShieldState(const TSharedPtr<FJsonObject>& Obj)
+{
+	if (!Obj.IsValid()) return;
+	World.ApState.Ap = (int32)Rok2Json::Num(Obj, TEXT("ap"));
+	World.ApState.ApCap = (int32)Rok2Json::Num(Obj, TEXT("apCap"));
+	World.ApState.ShieldUntilMs = (int64)Rok2Json::Num(Obj, TEXT("shieldUntilMs"));
+	World.ApState.WarFrenzyUntilMs = (int64)Rok2Json::Num(Obj, TEXT("warFrenzyUntilMs"));
+	World.ApState.LastRelocationMs = (int64)Rok2Json::Num(Obj, TEXT("lastRelocationMs"));
+	World.ApState.NowMs = (int64)Rok2Json::Num(Obj, TEXT("nowMs"));
+
+	World.ApState.ShieldOptions.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* Opts;
+	if (Obj->TryGetArrayField(TEXT("shield_options"), Opts))
+	{
+		for (const auto& V : *Opts)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject();
+			if (!O.IsValid()) continue;
+			FRok2ShieldOption Opt;
+			Opt.Id = FString::Printf(TEXT("%dm"), (int32)Rok2Json::Num(O, TEXT("duration_minutes")));
+			Opt.DurationMinutes = (int32)Rok2Json::Num(O, TEXT("duration_minutes"));
+			Opt.Gems = (int32)Rok2Json::Num(O, TEXT("cost_gems"));
+			Opt.Ap = 0;
+			Opt.bAvailable = Opt.Gems > 0 && World.ApState.NowMs > 0;
+			World.ApState.ShieldOptions.Add(MoveTemp(Opt));
+		}
+	}
+	OnShieldOptions.Broadcast(World.ApState.ShieldOptions);
+	OnApStateChanged.Broadcast(World.ApState);
+}
+
+void URok2Api::ParseQuestState(const TSharedPtr<FJsonObject>& Obj)
+{
+	if (!Obj.IsValid()) return;
+	FRok2QuestState State;
+	State.DailyPoints = (int32)Rok2Json::Num(Obj, TEXT("dailyPoints"));
+	State.WeeklyPoints = (int32)Rok2Json::Num(Obj, TEXT("weeklyPoints"));
+	State.DailyPointsCap = 100;
+	State.WeeklyPointsCap = 300;
+	State.bGoldenKeyAvailable = Rok2Json::Bool(Obj, TEXT("goldenKeyEligible")) && !Rok2Json::Bool(Obj, TEXT("goldenKeyGranted"));
+	State.bWeeklyChestAvailable = Rok2Json::Bool(Obj, TEXT("weeklyChestEligible")) && !Rok2Json::Bool(Obj, TEXT("weeklyChestGranted"));
+
+	State.DailyQuests.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* Daily;
+	if (Obj->TryGetArrayField(TEXT("daily"), Daily))
+	{
+		for (const auto& V : *Daily)
+		{
+			const TSharedPtr<FJsonObject> Q = V->AsObject();
+			if (!Q.IsValid()) continue;
+			FRok2DailyQuest Quest;
+			ParseQuest(Q, Quest);
+			State.DailyQuests.Add(MoveTemp(Quest));
+		}
+	}
+	State.WeeklyQuests.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* Weekly;
+	if (Obj->TryGetArrayField(TEXT("weekly"), Weekly))
+	{
+		for (const auto& V : *Weekly)
+		{
+			const TSharedPtr<FJsonObject> Q = V->AsObject();
+			if (!Q.IsValid()) continue;
+			FRok2DailyQuest Quest;
+			ParseQuest(Q, Quest);
+			State.WeeklyQuests.Add(MoveTemp(Quest));
+		}
+	}
+	OnQuestsUpdated.Broadcast(State);
+}
+
+void URok2Api::ParseKingState(const TSharedPtr<FJsonObject>& Obj)
+{
+	if (!Obj.IsValid()) return;
+	FRok2KingMarker K;
+	K.PlayerId = FString();
+	K.PlayerName = FString();
+	const TSharedPtr<FJsonObject>* KingObj;
+	if (Obj->TryGetObjectField(TEXT("king"), KingObj) && KingObj->IsValid())
+	{
+		K.AllianceId = Rok2Json::Str(*KingObj, TEXT("allianceId"));
+		K.CrownedAtMs = (int64)Rok2Json::Num(*KingObj, TEXT("crownedAtMs"));
+		K.ExpiresAtMs = (int64)Rok2Json::Num(*KingObj, TEXT("expiresAtMs"));
+	}
+	const TSharedPtr<FJsonObject>* ThroneObj;
+	if (Obj->TryGetObjectField(TEXT("throne"), ThroneObj) && ThroneObj->IsValid())
+	{
+		K.X = Rok2Json::Num(*ThroneObj, TEXT("x"));
+		K.Y = Rok2Json::Num(*ThroneObj, TEXT("y"));
+	}
+	UpsertKing(K);
+}
+
+void URok2Api::MarchToHolySite(const FString& SiteId, const FString& PrimaryCommander, const FString& SecondaryCommander)
+{
+	// P8-T4/P8-T5: إنشاء مسيرة نحو موقع مقدس — POST /v1/world/march. الخادم
+	// يفرض unlock (التقويم) وtargetType=holy_site مع holySiteId ويضع إحداثيات
+	// الموقع تلقائيًا؛ يُرفض الموقع غير المكتشف أو المعبد المقفل بالوقت.
+	FString JsonTroops;
+	{
+		// المسيرة الاستطلاعية للبحث عن الموقع: فرقة استكشاف واحدة.
+		const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&JsonTroops);
+		W->WriteObjectStart();
+		W->WriteValue(TEXT("scout"), 10);
+		W->WriteObjectEnd();
+	}
+	FString Body = FString::Printf(TEXT("{\"troops\":%s,\"targetType\":\"holy_site\",\"targetId\":\"%s\",\"holySiteId\":\"%s\"%s}"),
+		*JsonTroops, *SiteId, *SiteId,
+		PrimaryCommander.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(",\"primaryCommanderId\":\"%s\""), *PrimaryCommander));
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/world/march"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->EmitToast(TEXT("انطلقت المسيرة نحو الموقع المقدس"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
 }

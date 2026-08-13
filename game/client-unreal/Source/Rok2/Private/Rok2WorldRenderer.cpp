@@ -380,8 +380,9 @@ AActor* ARok2WorldRenderer::SpawnSpriteActor(UTexture2D* Icon, const FVector& Lo
 void ARok2WorldRenderer::RefreshFromApi()
 {
 	if (!Api) return;
-
 	ClearActors();
+	// P8-T7: عرش الملك يُعاد بناؤه من اللقطة الجديدة (لا يعاد تعيين SpawnedMarches هنا — دورة منفصلة).
+	SpawnedThrone = nullptr;
 
 	const FRok2WorldSnapshot& W = Api->GetWorldSnapshot();
 
@@ -729,4 +730,34 @@ void ARok2WorldRenderer::RefreshFromApi()
 		}
 	}
 	for (const FString& K : ToRemove) SpawnedMarches.Remove(K);
+
+	// P8-T7: رسم عرش الملك في موقعه إن كان هنالك ملك تتويج.
+	DrawKingMarker();
+}
+
+void ARok2WorldRenderer::DrawKingMarker()
+{
+	if (!Api) return;
+	const FRok2KingMarker& K = Api->GetKing();
+	if (K.PlayerId.IsEmpty()) return;
+
+	const FString MyAlliance = Api->HasPlayer() ? Api->GetPlayer().AllianceId : TEXT("");
+	const bool bMineOrAlly = K.PlayerId == Api->GetPlayer().Id ||
+		(!MyAlliance.IsEmpty() && K.AllianceId == MyAlliance);
+	const FLinearColor ThroneColor = bMineOrAlly ? FLinearColor(1.0f, 0.85f, 0.15f)
+		: FLinearColor(0.9f, 0.15f, 0.85f);
+
+	// نستخدم mesh العرش/المبني التحالف كتمثيل بصري للتاج، أو المخروط الافتراضي.
+	UStaticMesh* ThroneMesh = AllianceStructureMesh ? AllianceStructureMesh : CityMesh;
+	const FVector Loc(K.X * WorldToUnrealScale, K.Y * WorldToUnrealScale, CityZ + 40.f);
+	AActor* Throne = SpawnMarkerActor(
+		ThroneMesh,
+		Loc,
+		FString::Printf(TEXT("Throne_%s"), *K.PlayerId),
+		ThroneColor);
+	if (Throne)
+	{
+		Throne->SetActorScale3D(FVector(1.4f));
+		SpawnedThrone = Throne;
+	}
 }
