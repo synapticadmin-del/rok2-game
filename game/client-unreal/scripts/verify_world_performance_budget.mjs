@@ -24,6 +24,7 @@ const requireText = (content, token, label, failures) => {
 
 const failures = [];
 const perfHeader = read("client-unreal/Source/Rok2/Public/Rok2Perf.h");
+const budgetDoc = read("docs/P7_T6_WORLD_PERFORMANCE_BUDGET.md");
 const perfSource = read("client-unreal/Source/Rok2/Private/Rok2Perf.cpp");
 const rendererHeader = read("client-unreal/Source/Rok2/Public/Rok2WorldRenderer.h");
 const rendererSource = read("client-unreal/Source/Rok2/Private/Rok2WorldRenderer.cpp");
@@ -49,6 +50,14 @@ for (const [content, token, label] of [
   [engineConfig, "r.Nanite.ProjectEnabled=False", "DefaultEngine.ini"],
   [engineConfig, "r.MobileContentScaleFactor=1.0", "DefaultEngine.ini"],
   [packageJson, '"test:world-performance-budget"', "backend/package.json"],
+  [budgetDoc, 'Rok2Main', "المشهد القياسي لا يحدد خريطة Rok2Main"],
+  [budgetDoc, 'Tactical', "المشهد القياسي لا يحدد طبقة Tactical"],
+  [budgetDoc, 'Regional', "المشهد القياسي لا يحدد طبقة Regional"],
+  [budgetDoc, 'Kingdom', "المشهد القياسي لا يحدد طبقة Kingdom"],
+  [budgetDoc, 'GetPerformanceSnapshot', "القياس لا يشير إلى لقطة GetPerformanceSnapshot"],
+  [budgetDoc, 'stat unit', "إجراءات القياس لا تشمل stat unit"],
+  [budgetDoc, 'stat memory', "إجراءات القياس لا تشمل stat memory"],
+  [budgetDoc, '30 FPS', "الميزانية لا تحدد هدف 30 FPS على الجهاز المستهدف"],
 ]) requireText(content, token, label, failures);
 
 if (failures.length) {
@@ -57,4 +66,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("P7-T6 world performance budget verification passed (18 contracts).");
+console.log("P7-T6 world performance budget verification passed (26 contracts: telemetry + snapshot + engine settings + benchmark-scene doc + budget targets).");
