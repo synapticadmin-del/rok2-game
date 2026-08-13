@@ -19,6 +19,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "HAL/UnrealString.h"
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -687,14 +688,32 @@ void ARok2WorldRenderer::RefreshFromApi()
 				Audio->PlaySfx(ERok2AudioType::MarchStart);
 			}
 
-			// P7-T10: أيقونة الفرع الأبرز للمسيرات (infantry/cavalry/archer/siege)
-			// عند توفر الحزمة، وإلا المخروط الهندسي الافتراضي بلون التحالف.
+			// P8-T8: موديل وحدة بشرية 3D وفق الفرع الأبرز ومرحلته (من Troops map)،
+			// وإلا أيقونة P7-T10، وإلا المخروط الهندسي الافتراضي بلون التحالف.
 			AActor* NewMarch = nullptr;
-			if (UTexture2D* MarchIcon = URok2ArtAssets::LoadWorldMapIcon(TEXT("march_") + M.Branch))
+			const int32 MarchTier = DeriveMarchTier(M.Troops);
+			if (MarchTier > 0)
 			{
-				NewMarch = SpawnSpriteActor(MarchIcon,
-					FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
-					FString::Printf(TEXT("March_%s_%s"), *M.Branch, *M.Id), 0.75f);
+				const FString UnitId = URok2ArtAssets::GetHumanUnitId(M.Branch, MarchTier, M.Civ);
+				if (!UnitId.IsEmpty())
+				{
+					if (UStaticMesh* UnitMesh = URok2ArtAssets::LoadHumanUnitMesh(UnitId))
+					{
+						NewMarch = SpawnMarkerActor(
+							UnitMesh,
+							FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
+							FString::Printf(TEXT("March_%s"), *M.Id), Col);
+					}
+				}
+			}
+			if (!NewMarch)
+			{
+				if (UTexture2D* MarchIcon = URok2ArtAssets::LoadWorldMapIcon(TEXT("march_") + M.Branch))
+				{
+					NewMarch = SpawnSpriteActor(MarchIcon,
+						FVector(M.FromX * WorldToUnrealScale, M.FromY * WorldToUnrealScale, MarchZ),
+						FString::Printf(TEXT("March_%s_%s"), *M.Branch, *M.Id), 0.75f);
+				}
 			}
 			if (!NewMarch)
 			{
@@ -760,4 +779,33 @@ void ARok2WorldRenderer::DrawKingMarker()
 		Throne->SetActorScale3D(FVector(1.4f));
 		SpawnedThrone = Throne;
 	}
+}
+
+int32 ARok2WorldRenderer::DeriveMarchTier(const TMap<FString, int32>& Troops)
+{
+	// P8-T8: نقرأ أقصى مرحلة tier من أسماء المفاتيح unit_id بنمط branch_tN.
+	// لا نطلب بيانات الخادم الجديدة: الخريطة موجودة أصلًا في snapshot
+	// (مثل infantry_t3=4000). المفاتيح غير المرتبة tier تُتجاهل.
+	int32 BestTier = 0;
+	int64 BestCount = 0;
+	for (const auto& KV : Troops)
+	{
+		int32 Underscore = KV.Key.Find(TEXT("_t"), ESearchCase::CaseSensitive);
+		if (Underscore <= 0)
+		{
+			continue;
+		}
+		const FString Suffix = KV.Key.RightChop(Underscore + 2);
+		const int32 Tier = FCString::Atoi(*Suffix);
+		if (Tier < 1 || Tier > 5)
+		{
+			continue;
+		}
+		if (KV.Value > BestCount || (KV.Value == BestCount && Tier > BestTier))
+		{
+			BestCount = KV.Value;
+			BestTier = Tier;
+		}
+	}
+	return BestTier;
 }

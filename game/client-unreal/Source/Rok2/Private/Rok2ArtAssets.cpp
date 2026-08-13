@@ -235,3 +235,111 @@ bool URok2ArtAssets::HasUiSfx(const FString& SfxId)
 {
 	return !GetUiSfxAssetPath(SfxId).IsEmpty();
 }
+
+// ---------------------------------------------------------------------------
+// P8-T8: الوحدات البشرية 3D — شبكات T1–T5 × 4 فروع + 6 وحدات خاصة حضارية.
+// المصادر: توليد إجرائي (HumanUnits/) + Kenney Castle Kit (siege T3–T5، CC0).
+// ---------------------------------------------------------------------------
+
+void URok2ArtAssets::BuildHumanUnitCatalog()
+{
+	if (bHumanCatalogBuilt) return;
+	bHumanCatalogBuilt = true;
+
+	auto AddUnit = [this](const TCHAR* Id, const TCHAR* File, const TCHAR* Folder, float Scale)
+	{
+		FRok2ArtEntry E;
+		E.Id = Id;
+		E.GlbFile = File;
+		E.Folder = Folder;
+		E.Scale = Scale;
+		HumanUnitCatalog.Add(E);
+	};
+
+	// مشاة/رماة/فرسان T1–T5 (توليد إجرائي low-poly متسق مع KayKit)
+	for (const TCHAR* Branch : { TEXT("infantry"), TEXT("archer"), TEXT("cavalry") })
+	{
+		for (int32 Tier = 1; Tier <= 5; ++Tier)
+		{
+				FString Id = FString::Printf(TEXT("%s_t%d"), Branch, Tier);
+				AddUnit(*Id, *Id, TEXT("HumanUnits"), (FString(TEXT("cavalry")) == FString(Branch)) ? 1.9f : 1.75f);
+		}
+	}
+
+	// حصار: T1–T2 إجرائي + T3–T5 من Kenney Castle Kit (CC0)
+	AddUnit(TEXT("siege_t1"), TEXT("siege_arcuballista"), TEXT("HumanUnits"), 1.0f);
+	AddUnit(TEXT("siege_t2"), TEXT("siege_mangonel"), TEXT("HumanUnits"), 1.0f);
+	AddUnit(TEXT("siege_t3"), TEXT("siege-ballista"), TEXT("KenneyCastleKit"), 1.0f);
+	AddUnit(TEXT("siege_t4"), TEXT("siege-trebuchet"), TEXT("KenneyCastleKit"), 1.0f);
+	AddUnit(TEXT("siege_t5"), TEXT("siege-catapult"), TEXT("KenneyCastleKit"), 1.0f);
+
+	// الوحدات الخاصة الحضارية — ترث شبكة فرعها عند unlock_tier=4 حتى توفر جلود
+	// مخصصة (legionary/chu_ko_nu/desert_rider/khopesh_guard/huskarl/samurai).
+	AddUnit(TEXT("legionary"), TEXT("infantry_t4"), TEXT("HumanUnits"), 1.75f);
+	AddUnit(TEXT("khopesh_guard"), TEXT("infantry_t4"), TEXT("HumanUnits"), 1.75f);
+	AddUnit(TEXT("huskarl"), TEXT("infantry_t4"), TEXT("HumanUnits"), 1.75f);
+	AddUnit(TEXT("samurai"), TEXT("infantry_t4"), TEXT("HumanUnits"), 1.75f);
+	AddUnit(TEXT("chu_ko_nu"), TEXT("archer_t4"), TEXT("HumanUnits"), 1.75f);
+	AddUnit(TEXT("desert_rider"), TEXT("cavalry_t4"), TEXT("HumanUnits"), 1.9f);
+}
+
+FString URok2ArtAssets::GetHumanUnitId(const FString& Branch, int32 Tier, const FString& CivId)
+{
+	if (Branch.IsEmpty() || Tier < 1 || Tier > 5)
+	{
+		return FString();
+	}
+	// P8-T3: الوحدات الخاصة الحضارية تحل محل فرعها عند unlock_tier=4.
+	if (Tier >= 4 && !CivId.IsEmpty())
+	{
+		if (CivId == TEXT("rome") && Branch == TEXT("infantry")) return TEXT("legionary");
+		if (CivId == TEXT("egypt") && Branch == TEXT("infantry")) return TEXT("khopesh_guard");
+		if (CivId == TEXT("vikings") && Branch == TEXT("infantry")) return TEXT("huskarl");
+		if (CivId == TEXT("japan") && Branch == TEXT("infantry")) return TEXT("samurai");
+		if (CivId == TEXT("china") && Branch == TEXT("archer")) return TEXT("chu_ko_nu");
+		if (CivId == TEXT("arabia") && Branch == TEXT("cavalry")) return TEXT("desert_rider");
+	}
+	return FString::Printf(TEXT("%s_t%d"), *Branch, Tier);
+}
+
+FString URok2ArtAssets::GetHumanUnitAssetPath(const FString& UnitId)
+{
+	BuildHumanUnitCatalog();
+	for (const FRok2ArtEntry& E : HumanUnitCatalog)
+	{
+		if (E.Id == UnitId)
+		{
+			return FString::Printf(TEXT("/Game/Art/%s/%s.%s"), *E.Folder, *E.GlbFile, *E.GlbFile);
+		}
+	}
+	return FString();
+}
+
+UStaticMesh* URok2ArtAssets::LoadHumanUnitMesh(const FString& UnitId)
+{
+	BuildHumanUnitCatalog();
+	static TMap<FString, UStaticMesh*> Cached;
+	UStaticMesh** Found = Cached.Find(UnitId);
+	if (Found)
+	{
+		return *Found;
+	}
+	const FString Path = GetHumanUnitAssetPath(UnitId);
+	UStaticMesh* Mesh = Path.IsEmpty() ? nullptr : LoadObject<UStaticMesh>(nullptr, *Path);
+	if (!Mesh)
+	{
+		UE_LOG(LogRok2Art, Verbose, TEXT("Human unit mesh '%s' not imported yet — geometric fallback stays active"), *UnitId);
+	}
+	Cached.Add(UnitId, Mesh);
+	return Mesh;
+}
+
+bool URok2ArtAssets::HasHumanUnit(const FString& UnitId)
+{
+	BuildHumanUnitCatalog();
+	for (const FRok2ArtEntry& E : HumanUnitCatalog)
+	{
+		if (E.Id == UnitId) return true;
+	}
+	return false;
+}

@@ -205,6 +205,13 @@ protected:
 	 */
 	AActor* SpawnSpriteActor(UTexture2D* Icon, const FVector& Loc, const FString& Label, float Scale = 1.f);
 
+	/**
+	 * P8-T8: مرحلة الوحدة الأبرز في خريطة Troops المسيرة — من أسماء المفاتيح
+	 * unit_id بنمط branch_tN (infantry_t3...). يعيد 0 لو لا مفاتيح مرتبة tier.
+	 * يُستخدم لاختيار شبكة الوحدة البشرية من URok2ArtAssets::GetHumanUnitId.
+	 */
+	static int32 DeriveMarchTier(const TMap<FString, int32>& Troops);
+
 	UFUNCTION()
 	void OnWorldSnapshotHandler(const FRok2WorldSnapshot& Snapshot);
 };

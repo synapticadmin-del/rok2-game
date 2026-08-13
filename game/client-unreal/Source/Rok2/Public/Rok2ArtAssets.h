@@ -31,6 +31,10 @@ struct FRok2ArtEntry
 	/** مقياس التصحيح عند الرسم (موديلات KayKit بمقياس سنتيمتر تقريباً) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
 	float Scale = 1.f;
+
+	/** مجلد GLB داخل Content/Art (kaykit/HumanUnits/KenneyCastleKit) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
+	FString Folder;
 };
 
 UCLASS(BlueprintType)
@@ -129,6 +133,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2|Audio")
 	static bool HasUiSfx(const FString& SfxId);
 
+	// -------------------------------------------------------------------
+	// P8-T8: الوحدات البشرية 3D — شبكات T1–T5 × 4 فروع + 6 وحدات خاصة.
+	// HumanUnits: infantry/archer/cavalry_t{1..5} + siege_arcuballista +
+	// siege_mangonel (توليد إجرائي low-poly)؛ siege T3–T5 من Kenney Castle Kit.
+	// الوحدات الخاصة الحضارية (legionary/chu_ko_nu/desert_rider/khopesh_guard/
+	// huskarl/samurai) ترث شبكة فرعها عند unlock_tier=4 حتى توفر جلود مخصصة.
+	// -------------------------------------------------------------------
+
+	/**
+	 * معرّف شبكة وحدة بشرية من الفرع والمرحلة، أو سلسلة فارغة لوحدات خاصة
+	 * مغلقة (unlock_tier غير محقق) — على الراسم fallback الهندسي عندها.
+	 * Branches: infantry/archer/cavalry/siege؛ Tier: 1–5.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
+	static FString GetHumanUnitId(const FString& Branch, int32 Tier, const FString& CivId = FString());
+
+	/** مسار أصل المحرر لشبكة وحدة بشرية إن استُوردت (/Game/Art/HumanUnits/{id}.{id}). */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
+	static FString GetHumanUnitAssetPath(const FString& UnitId);
+
+	/** يحمّل UStaticMesh لشبكة وحدة بشرية إن استُوردت، وإلا nullptr (fallback هندسي). */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Units")
+	static UStaticMesh* LoadHumanUnitMesh(const FString& UnitId);
+
+	/** يتحقق من أن المعرّف يطابق وحدة بشرية معروفة في الحزمة. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
+	static bool HasHumanUnit(const FString& UnitId);
+
 protected:
 	UPROPERTY(Transient)
 	TArray<FRok2ArtEntry> Catalog;
@@ -138,4 +170,9 @@ protected:
 
 	bool bCatalogBuilt = false;
 	void BuildCatalog();
+
+	/** كتالوج الوحدات البشرية (UnitId → GlbFile → Scale) يُبنى مرة واحدة. */
+	TArray<FRok2ArtEntry> HumanUnitCatalog;
+	bool bHumanCatalogBuilt = false;
+	void BuildHumanUnitCatalog();
 };
