@@ -24,10 +24,10 @@ const iniPath = join(client, 'Config', 'DefaultEngine.ini');
 const ini = readFileSync(iniPath, 'utf8');
 const iniSection = ini.split('[/Script/AndroidRuntimeSettings.AndroidRuntimeSettings]')[1]?.split('[')[0] ?? '';
 
-check('gles3-default-rhi', /rhi\.AndroidDefaultGraphicsRHI\s*=\s*DefaultGraphicsRHI_OpenGLES3/i.test(iniSection),
-  'يجب أن يكون RHI الافتراضي على Android هو OpenGLES3');
-check('supports-opengl3-true', /bSupportsOpenGL3=True/i.test(iniSection), 'GLES3 يجب أن يكون مدعومًا');
-check('supports-vulkan-true', /bSupportsVulkan=True/i.test(iniSection), 'Vulkan متاح اختياريًا');
+check('vulkan-default-rhi', /rhi\.AndroidDefaultGraphicsRHI\s*=\s*DefaultGraphicsRHI_Vulkan/i.test(iniSection),
+  'يجب أن يكون RHI الافتراضي على Android هو Vulkan (ES3.2 غير متاح على جميع الأجهزة)');
+check('supports-opengl3-true', /bSupportsOpenGL3=True/i.test(iniSection), 'GLES يجب أن يكون متاحًا كاحتياطي');
+check('supports-vulkan-true', /bSupportsVulkan=True/i.test(iniSection), 'Vulkan متاح');
 check('force-vulkan-false', /bForceVulkan=False/i.test(iniSection), 'لا إجبار Vulkan');
 check('splash-screen-off', /bSplashScreen=False/i.test(iniSection), 'شاشة البداية معطلة');
 check('disable-obb-pak-ui', /bDisableOBBPakUI=True/i.test(iniSection), 'واجهة OBB الافتراضية معطلة (SDK 34)');

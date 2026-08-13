@@ -179,12 +179,33 @@ if ($Package) {
         '-noP4',
         $UatPlatformArgument,
         "-clientconfig=$Target",
-        '-build', '-cook', '-stage', '-pak', '-iostore', '-archive',
+        '-cookflavor=ASTC',
+        '-build', '-cook', '-cookall', '-stage', '-pak', '-iostore', '-archive',
         "-archivedirectory=$ResolvedOutputDirectory"
     )
     Invoke-UnrealBatchFile -FilePath $RunUatBat -Arguments $UatArguments -LogPath $PackageLog
     Write-Host "[ROK2] Package completed: $ResolvedOutputDirectory" -ForegroundColor Green
     Write-Host "[ROK2] Package log: $PackageLog" -ForegroundColor Green
+
+    # P7-T12 build fix: UE 5.4's Android automation does not copy the cooked
+    # pak/ucas/utoc into the gradle assets/ directory on its own. We do it
+    # here so gradle packages them into the APK and the game can find assets
+    # at runtime (otherwise PreInit fails with "Engine Preinit Failed").
+    if ($Platform -eq 'Android') {
+        $StagedPaks = Join-Path $ProjectRoot 'Saved\StagedBuilds\Android_ASTC\Rok2\Content\Paks'
+        $AndroidAssets = Join-Path $ProjectRoot 'Intermediate\Android\arm64\assets'
+        if ((Test-Path $StagedPaks) -and (Test-Path $AndroidAssets)) {
+            Get-ChildItem -Path $StagedPaks -Filter 'Rok2-Android_ASTC*' -ErrorAction SilentlyContinue | ForEach-Object {
+                $TargetPath = Join-Path $AndroidAssets $_.Name
+                Copy-Item -Path $_.FullName -Destination $TargetPath -Force
+            }
+            Get-ChildItem -Path $StagedPaks -Filter 'global*' -ErrorAction SilentlyContinue | ForEach-Object {
+                $TargetPath = Join-Path $AndroidAssets $_.Name
+                Copy-Item -Path $_.FullName -Destination $TargetPath -Force
+            }
+            Write-Host "[ROK2] Copied staged paks to Android assets" -ForegroundColor DarkGray
+        }
+    }
 }
 
 Write-Host "[ROK2] Build completed successfully." -ForegroundColor Green
