@@ -1,37 +1,508 @@
 {
-  "pass_rules": {
-    "must_own_to_traverse": true,
-    "teleport_block_radius": 10,
-    "ownership_type": "alliance_or_coalition",
-    "announce_first_capture": true
+ "pass_rules": {
+  "must_own_to_traverse": true,
+  "teleport_block_radius": 10,
+  "ownership_type": "alliance_or_coalition",
+  "announce_first_capture": true,
+  "lost_kingdom_max_level": 7,
+  "ziggurat_pass_requires_alliance": true
+ },
+ "passes": [
+  {
+   "id": "P_R1_R2",
+   "level": 2,
+   "from": "R1",
+   "to": "R2",
+   "zone_link": [
+    1,
+    1
+   ]
   },
-  "passes": [
-    {"id": "P_R1_R2", "level": 2, "from": "R1", "to": "R2", "zone_link": [1, 1]},
-    {"id": "P_R2_R3", "level": 2, "from": "R2", "to": "R3", "zone_link": [1, 1]},
-    {"id": "P_R3_R4", "level": 2, "from": "R3", "to": "R4", "zone_link": [1, 1]},
-    {"id": "P_R4_R5", "level": 2, "from": "R4", "to": "R5", "zone_link": [1, 1]},
-    {"id": "P_R5_R6", "level": 2, "from": "R5", "to": "R6", "zone_link": [1, 1]},
-    {"id": "P_R6_R7", "level": 2, "from": "R6", "to": "R7", "zone_link": [1, 1]},
-    {"id": "P_R7_R8", "level": 2, "from": "R7", "to": "R8", "zone_link": [1, 1]},
-    {"id": "P_R8_R1", "level": 2, "from": "R8", "to": "R1", "zone_link": [1, 1]},
-
-    {"id": "P_R1_Z2", "level": 3, "from": "R1", "to": "Z2W", "zone_link": [1, 2], "unlock_day": 10},
-    {"id": "P_R2_Z2", "level": 3, "from": "R2", "to": "Z2N", "zone_link": [1, 2], "unlock_day": 10},
-    {"id": "P_R3_Z2", "level": 3, "from": "R3", "to": "Z2N", "zone_link": [1, 2], "unlock_day": 14},
-    {"id": "P_R4_Z2", "level": 3, "from": "R4", "to": "Z2E", "zone_link": [1, 2], "unlock_day": 10},
-    {"id": "P_R5_Z2", "level": 3, "from": "R5", "to": "Z2E", "zone_link": [1, 2], "unlock_day": 14},
-    {"id": "P_R6_Z2", "level": 3, "from": "R6", "to": "Z2S", "zone_link": [1, 2], "unlock_day": 10},
-    {"id": "P_R7_Z2", "level": 3, "from": "R7", "to": "Z2S", "zone_link": [1, 2], "unlock_day": 14},
-    {"id": "P_R8_Z2", "level": 3, "from": "R8", "to": "Z2W", "zone_link": [1, 2], "unlock_day": 14},
-
-    {"id": "P_Z2N_Z2E", "level": 4, "from": "Z2N", "to": "Z2E", "zone_link": [2, 2]},
-    {"id": "P_Z2E_Z2S", "level": 4, "from": "Z2E", "to": "Z2S", "zone_link": [2, 2]},
-    {"id": "P_Z2S_Z2W", "level": 4, "from": "Z2S", "to": "Z2W", "zone_link": [2, 2]},
-    {"id": "P_Z2W_Z2N", "level": 4, "from": "Z2W", "to": "Z2N", "zone_link": [2, 2]},
-
-    {"id": "FG_N", "level": 6, "from": "Z2N", "to": "CORE", "zone_link": [2, 3], "unlock_day": 35, "type": "final_gate"},
-    {"id": "FG_E", "level": 6, "from": "Z2E", "to": "CORE", "zone_link": [2, 3], "unlock_day": 35, "type": "final_gate"},
-    {"id": "FG_S", "level": 6, "from": "Z2S", "to": "CORE", "zone_link": [2, 3], "unlock_day": 35, "type": "final_gate"},
-    {"id": "FG_W", "level": 6, "from": "Z2W", "to": "CORE", "zone_link": [2, 3], "unlock_day": 35, "type": "final_gate"}
-  ]
+  {
+   "id": "P_R2_R3",
+   "level": 2,
+   "from": "R2",
+   "to": "R3",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R3_R4",
+   "level": 2,
+   "from": "R3",
+   "to": "R4",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R4_R5",
+   "level": 2,
+   "from": "R4",
+   "to": "R5",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R5_R6",
+   "level": 2,
+   "from": "R5",
+   "to": "R6",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R6_R7",
+   "level": 2,
+   "from": "R6",
+   "to": "R7",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R7_R8",
+   "level": 2,
+   "from": "R7",
+   "to": "R8",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R8_R1",
+   "level": 2,
+   "from": "R8",
+   "to": "R1",
+   "zone_link": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "P_R1_Z2",
+   "level": 3,
+   "from": "R1",
+   "to": "Z2W",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 10
+  },
+  {
+   "id": "P_R2_Z2",
+   "level": 3,
+   "from": "R2",
+   "to": "Z2N",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 10
+  },
+  {
+   "id": "P_R3_Z2",
+   "level": 3,
+   "from": "R3",
+   "to": "Z2N",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 14
+  },
+  {
+   "id": "P_R4_Z2",
+   "level": 3,
+   "from": "R4",
+   "to": "Z2E",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 10
+  },
+  {
+   "id": "P_R5_Z2",
+   "level": 3,
+   "from": "R5",
+   "to": "Z2E",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 14
+  },
+  {
+   "id": "P_R6_Z2",
+   "level": 3,
+   "from": "R6",
+   "to": "Z2S",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 10
+  },
+  {
+   "id": "P_R7_Z2",
+   "level": 3,
+   "from": "R7",
+   "to": "Z2S",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 14
+  },
+  {
+   "id": "P_R8_Z2",
+   "level": 3,
+   "from": "R8",
+   "to": "Z2W",
+   "zone_link": [
+    1,
+    2
+   ],
+   "unlock_day": 14
+  },
+  {
+   "id": "P_Z2N_Z2E",
+   "level": 4,
+   "from": "Z2N",
+   "to": "Z2E",
+   "zone_link": [
+    2,
+    2
+   ]
+  },
+  {
+   "id": "P_Z2E_Z2S",
+   "level": 4,
+   "from": "Z2E",
+   "to": "Z2S",
+   "zone_link": [
+    2,
+    2
+   ]
+  },
+  {
+   "id": "P_Z2S_Z2W",
+   "level": 4,
+   "from": "Z2S",
+   "to": "Z2W",
+   "zone_link": [
+    2,
+    2
+   ]
+  },
+  {
+   "id": "P_Z2W_Z2N",
+   "level": 4,
+   "from": "Z2W",
+   "to": "Z2N",
+   "zone_link": [
+    2,
+    2
+   ]
+  },
+  {
+   "id": "FG_N",
+   "level": 6,
+   "from": "Z2N",
+   "to": "CORE",
+   "zone_link": [
+    2,
+    3
+   ],
+   "unlock_day": 35,
+   "type": "final_gate"
+  },
+  {
+   "id": "FG_E",
+   "level": 6,
+   "from": "Z2E",
+   "to": "CORE",
+   "zone_link": [
+    2,
+    3
+   ],
+   "unlock_day": 35,
+   "type": "final_gate"
+  },
+  {
+   "id": "FG_S",
+   "level": 6,
+   "from": "Z2S",
+   "to": "CORE",
+   "zone_link": [
+    2,
+    3
+   ],
+   "unlock_day": 35,
+   "type": "final_gate"
+  },
+  {
+   "id": "FG_W",
+   "level": 6,
+   "from": "Z2W",
+   "to": "CORE",
+   "zone_link": [
+    2,
+    3
+   ],
+   "unlock_day": 35,
+   "type": "final_gate"
+  },
+  {
+   "id": "LK_GATE_N",
+   "level": 5,
+   "from": "R1",
+   "to": "LK_N1",
+   "zone_link": [
+    1,
+    4
+   ]
+  },
+  {
+   "id": "LK_GATE_E",
+   "level": 5,
+   "from": "R3",
+   "to": "LK_E1",
+   "zone_link": [
+    1,
+    4
+   ]
+  },
+  {
+   "id": "LK_GATE_S",
+   "level": 5,
+   "from": "R6",
+   "to": "LK_S1",
+   "zone_link": [
+    1,
+    4
+   ]
+  },
+  {
+   "id": "LK_GATE_W",
+   "level": 5,
+   "from": "R7",
+   "to": "LK_W1",
+   "zone_link": [
+    1,
+    4
+   ]
+  },
+  {
+   "id": "LK_P_N1_W1",
+   "level": 5,
+   "from": "LK_N1",
+   "to": "LK_W1",
+   "zone_link": [
+    4,
+    4
+   ]
+  },
+  {
+   "id": "LK_P_N1_S1",
+   "level": 5,
+   "from": "LK_N1",
+   "to": "LK_S1",
+   "zone_link": [
+    4,
+    4
+   ]
+  },
+  {
+   "id": "LK_P_E1_S1",
+   "level": 5,
+   "from": "LK_E1",
+   "to": "LK_S1",
+   "zone_link": [
+    4,
+    4
+   ]
+  },
+  {
+   "id": "LK_P_W1_S1",
+   "level": 5,
+   "from": "LK_W1",
+   "to": "LK_S1",
+   "zone_link": [
+    4,
+    4
+   ]
+  },
+  {
+   "id": "LK_P_S1_S2",
+   "level": 5,
+   "from": "LK_S1",
+   "to": "LK_S2",
+   "zone_link": [
+    4,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_N1_N2",
+   "level": 5,
+   "from": "LK_N1",
+   "to": "LK_N2",
+   "zone_link": [
+    4,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_W1_W2",
+   "level": 5,
+   "from": "LK_W1",
+   "to": "LK_W2",
+   "zone_link": [
+    4,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_E1_E2",
+   "level": 5,
+   "from": "LK_E1",
+   "to": "LK_E2",
+   "zone_link": [
+    4,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_W2_N2",
+   "level": 5,
+   "from": "LK_W2",
+   "to": "LK_N2",
+   "zone_link": [
+    5,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_N2_S2",
+   "level": 5,
+   "from": "LK_N2",
+   "to": "LK_S2",
+   "zone_link": [
+    5,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_E2_S2",
+   "level": 5,
+   "from": "LK_E2",
+   "to": "LK_S2",
+   "zone_link": [
+    5,
+    5
+   ]
+  },
+  {
+   "id": "LK_P_W2_A4",
+   "level": 6,
+   "from": "LK_W2",
+   "to": "LK_A4",
+   "zone_link": [
+    5,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_S2_A3",
+   "level": 6,
+   "from": "LK_S2",
+   "to": "LK_A3",
+   "zone_link": [
+    5,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_S2_A2",
+   "level": 6,
+   "from": "LK_S2",
+   "to": "LK_A2",
+   "zone_link": [
+    5,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_E2_A1",
+   "level": 6,
+   "from": "LK_E2",
+   "to": "LK_A1",
+   "zone_link": [
+    5,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_A4_A3",
+   "level": 6,
+   "from": "LK_A4",
+   "to": "LK_A3",
+   "zone_link": [
+    6,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_A3_A2",
+   "level": 6,
+   "from": "LK_A3",
+   "to": "LK_A2",
+   "zone_link": [
+    6,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_A2_A1",
+   "level": 6,
+   "from": "LK_A2",
+   "to": "LK_A1",
+   "zone_link": [
+    6,
+    6
+   ]
+  },
+  {
+   "id": "LK_P_A3_CORE",
+   "level": 7,
+   "from": "LK_A3",
+   "to": "LK_CORE",
+   "zone_link": [
+    6,
+    7
+   ]
+  },
+  {
+   "id": "LK_P_A2_CORE",
+   "level": 7,
+   "from": "LK_A2",
+   "to": "LK_CORE",
+   "zone_link": [
+    6,
+    7
+   ]
+  }
+ ]
 }

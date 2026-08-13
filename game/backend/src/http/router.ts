@@ -3675,6 +3675,52 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const res = await stub.fetch("https://do/wheel-spin", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id }) });
       return json(await res.json(), res.status);
     }
+    if (path === "/v1/lk/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_state_read");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-state", { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/lk/migrate" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_migrate");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-migrate", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/lk/hieron" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_hieron_capture");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-hieron", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, hieronId: String(body.hieronId || ""), kingdomId: String(body.kingdomId || player.id) }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/lk/citadel" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_citadel_attack");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-citadel", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, citadelId: String(body.citadelId || ""), kingdomId: String(body.kingdomId || player.id), damage: Number(body.damage) || 0 }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/lk/ziggurat" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_ziggurat_attack");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-ziggurat", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, kingdomId: String(body.kingdomId || player.id), damage: Number(body.damage) || 0 }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/lk/season-buy" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "lk_season_buy");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/lk-season-buy", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, itemId: String(body.itemId || "") }) });
+      return json(await res.json(), res.status);
+    }
     return json({ error: "Not found", path }, 404);
   } catch (err: any) {
     if (err instanceof HttpError) {

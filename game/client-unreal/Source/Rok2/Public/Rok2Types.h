@@ -1270,3 +1270,68 @@ struct FRok2EventsState
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
 	int32 MGTotalScore = 0;
 };
+
+// P11-T6: Lost Kingdom / KvK — حالة الحرب بين الممالك.
+USTRUCT(BlueprintType)
+struct FRok2LKStructure
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) FString id;
+    UPROPERTY(BlueprintReadOnly) FString owner;
+    UPROPERTY(BlueprintReadOnly) int32 hp = 0;
+    UPROPERTY(BlueprintReadOnly) bool captured = false;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2LKCitadel
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) FString id;
+    UPROPERTY(BlueprintReadOnly) int32 hp = 0;
+    UPROPERTY(BlueprintReadOnly) bool destroyed = false;
+    UPROPERTY(BlueprintReadOnly) FString destroyed_by;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2LKZiggurat
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) int32 hp = 0;
+    UPROPERTY(BlueprintReadOnly) bool open = false;
+    UPROPERTY(BlueprintReadOnly) int64 final_battle_started_ms = 0;
+    UPROPERTY(BlueprintReadOnly) bool destroyed = false;
+    UPROPERTY(BlueprintReadOnly) FString destroyed_by;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2LKMigration
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) bool migrated = false;
+    UPROPERTY(BlueprintReadOnly) int64 migrated_ms = 0;
+    UPROPERTY(BlueprintReadOnly) int64 last_migrated_ms = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2LKSeasonStoreItem
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) FString id;
+    UPROPERTY(BlueprintReadOnly) FString name;
+    UPROPERTY(BlueprintReadOnly) int32 cost = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2LostKingdomState
+{
+    GENERATED_BODY()
+    UPROPERTY(BlueprintReadOnly) TArray<FRok2LKStructure> structures;
+    UPROPERTY(BlueprintReadOnly) TArray<FRok2LKCitadel> citadels;
+    UPROPERTY(BlueprintReadOnly) FRok2LKZiggurat ziggurat;
+    UPROPERTY(BlueprintReadOnly) FRok2LKMigration migration;
+    UPROPERTY(BlueprintReadOnly) int32 kvk_coins = 0;
+    UPROPERTY(BlueprintReadOnly) int32 crown_points = 0;
+    UPROPERTY(BlueprintReadOnly) int32 kingdom_points = 0;
+    UPROPERTY(BlueprintReadOnly) FString season_id;
+};
+

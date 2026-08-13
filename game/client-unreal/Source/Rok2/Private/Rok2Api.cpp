@@ -3421,3 +3421,120 @@ void URok2Api::ParseEventsState(const TSharedPtr<FJsonObject>& Obj)
 	EventsState.MGTotalScore = (int32)Rok2Json::Num(*Obj, TEXT("mgTotalScore"));
 	OnEventsUpdated.Broadcast(EventsState);
 }
+
+// P11-T6: Lost Kingdom / KvK
+void URok2Api::FetchLostKingdomState()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    Get(TEXT("v1/lk/state"), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::MigrateToLostKingdom()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    Post(TEXT("v1/lk/migrate"), MakeShared<FJsonObject>(), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::CaptureHieron(const FString& HieronId)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    auto B = MakeShared<FJsonObject>();
+    B->SetStringField("hieronId", HieronId);
+    Post(TEXT("v1/lk/hieron"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::AttackCitadel(const FString& CitadelId, int32 Damage)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    auto B = MakeShared<FJsonObject>();
+    B->SetStringField("citadelId", CitadelId);
+    B->SetNumberField("damage", Damage);
+    Post(TEXT("v1/lk/citadel"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::AttackZiggurat(int32 Damage)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    auto B = MakeShared<FJsonObject>();
+    B->SetNumberField("damage", Damage);
+    Post(TEXT("v1/lk/ziggurat"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::BuySeasonItem(const FString& ItemId)
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    auto B = MakeShared<FJsonObject>();
+    B->SetStringField("itemId", ItemId);
+    Post(TEXT("v1/lk/season-buy"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseLostKingdomState(J);
+        OnLostKingdomUpdated.Broadcast(LostKingdomState);
+    });
+}
+void URok2Api::ParseLostKingdomState(const TSharedPtr<FJsonObject>& Json)
+{
+    if (!Json) return;
+    const auto* State = Json->GetObjectField("state");
+    if (!State) return;
+    LostKingdomState.kvk_coins = State->GetIntegerField("kvk_coins");
+    LostKingdomState.crown_points = State->GetIntegerField("crown_points");
+    LostKingdomState.kingdom_points = State->GetIntegerField("kingdom_points");
+    LostKingdomState.season_id = State->GetStringField("season_id");
+    LostKingdomState.structures.Empty();
+    for (const auto& X : State->GetArrayField("structures"))
+    {
+        const auto* O = X->AsObject();
+        FRok2LKStructure S;
+        S.id = O->GetStringField("id");
+        S.owner = O->GetStringField("owner");
+        S.hp = O->GetIntegerField("hp");
+        LostKingdomState.structures.Add(S);
+    }
+    LostKingdomState.citadels.Empty();
+    for (const auto& X : State->GetArrayField("citadels"))
+    {
+        const auto* O = X->AsObject();
+        FRok2LKCitadel C;
+        C.id = O->GetStringField("id");
+        C.hp = O->GetIntegerField("hp");
+        C.destroyed = O->GetBoolField("destroyed");
+        C.destroyed_by = O->GetStringField("destroyed_by");
+        LostKingdomState.citadels.Add(C);
+    }
+    if (const auto* Z = State->GetObjectField("ziggurat"))
+    {
+        LostKingdomState.ziggurat.hp = Z->GetIntegerField("hp");
+        LostKingdomState.ziggurat.open = Z->GetBoolField("open");
+        LostKingdomState.ziggurat.final_battle_started_ms = Z->GetIntegerField("final_battle_started_ms");
+        LostKingdomState.ziggurat.destroyed = Z->GetBoolField("destroyed");
+        LostKingdomState.ziggurat.destroyed_by = Z->GetStringField("destroyed_by");
+    }
+}
+

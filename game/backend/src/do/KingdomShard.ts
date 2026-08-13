@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, getTavernJson, getExpeditionJson, getCanyonJson, getOsirisJson, getEventsJson, unitPower, type MapPass, type MapRegion } from "../lib/gameData";
+import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, getTavernJson, getExpeditionJson, getCanyonJson, getOsirisJson, getEventsJson, getLostKingdomJson, unitPower, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist, dayString } from "../lib/ids";
 import opsData from "../data/ops.json";
 
@@ -19,6 +19,7 @@ const expeditionJson = getExpeditionJson();
 const canyonJson = getCanyonJson();
 const osirisJson = getOsirisJson();
 const eventsJson = getEventsJson();
+const lkJson = getLostKingdomJson();
 
 // P9-T1: نافذة تبرع واحدة بالملّي ثانية (من alliance_tech.json)
 const ALLIANCE_TECH_WINDOW_MS = ALLIANCE_TECH_CFG.window_seconds * 1000;
@@ -191,6 +192,7 @@ import {
   type WheelSpec,
   type WheelState,
 } from "./sim/major_events";
+import { type LostKingdomSpec, type LostKingdomState, defaultLostKingdomState, canMigrate, migratePlayer, captureHieron, destroyCitadel, attackZiggurat, buySeasonItem } from "./sim/lost_kingdom";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -498,6 +500,7 @@ export class KingdomShard extends DurableObject<Env> {
   // P10-T4: Ark of Osiris — دوري تحالف ضد تحالف (يُدار مركزيًا على الشارد)
   private osirisSides: OsirisSide[] = [];
   private osirisLeagueActive = false;
+  private lkState: LostKingdomState | null = null;
   private osirisSeasonStartMs = 0;
   // P10-T5: الأحداث الكبرى — نقاط الحاكم الأقوى لكل لاعب + حالة عجلة الحظ
   private mgScores = new Map<string, MGScoreState>();
@@ -926,6 +929,35 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (17)");
     }
+    if (ver < 18) {
+      // P11-T3/T4: Lost Kingdom — حالة KvK على مستوى المملكة (هجرة + منشآت + قلاع + زيقورة)
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS lk_state (
+          key TEXT NOT NULL DEFAULT 'singleton',
+          structures_json TEXT NOT NULL DEFAULT '[]',
+          citadels_json TEXT NOT NULL DEFAULT '[]',
+          ziggurat_json TEXT NOT NULL DEFAULT '{}',
+          migration_json TEXT NOT NULL DEFAULT '{}',
+          kvk_coins INTEGER NOT NULL DEFAULT 0,
+          crown_points INTEGER NOT NULL DEFAULT 0,
+          kingdom_points INTEGER NOT NULL DEFAULT 0,
+          season_id TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (key)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (18)");
+    }
+    if (ver < 19) {
+      // ضمان أن جدول map_cities يحتوي كل أعمدة CityEntity — قواعد DO قديمة
+      // قد تكون أُنشئت قبل إضافة civ/أعمدة P8-T5 (ap، shield، frenzy، relocation).
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN civ TEXT NOT NULL DEFAULT ''"); } catch {}
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN ap INTEGER NOT NULL DEFAULT 1000"); } catch {}
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN last_ap_ms INTEGER NOT NULL DEFAULT 0"); } catch {}
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN shield_until_ms INTEGER"); } catch {}
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN war_frenzy_until_ms INTEGER"); } catch {}
+      try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN last_relocation_ms INTEGER"); } catch {}
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (19)");
+    }
     if (ver < 15) {
       // P9-T5: Trading Post — عروض السوق المفتوحة + أسعار ديناميكية حسب العرض والطلب.
       this.ctx.storage.sql.exec(`
@@ -1099,6 +1131,7 @@ export class KingdomShard extends DurableObject<Env> {
     this.loadAllianceGifts();
     // P10: أوضاع اللعب المتكررة — حالات محلية لكل لاعب + الدوري النشط
     this.loadP10State();
+    this.loadLKState();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -1550,6 +1583,7 @@ export class KingdomShard extends DurableObject<Env> {
   private expeditionSpec(): ExpeditionSpec { return (expeditionJson as unknown) as ExpeditionSpec; }
   private canyonSpec(): CanyonSpec { return (canyonJson as unknown) as CanyonSpec; }
   private osirisSpec(): OsirisSpec { return (osirisJson as unknown) as OsirisSpec; }
+  private lkSpec(): LostKingdomSpec { return (lkJson as unknown) as LostKingdomSpec; }
   private mgSpec(): MGSpec { return ((eventsJson as unknown) as { mightiestGovernor: MGSpec }).mightiestGovernor; }
   private wheelSpec(): WheelSpec { return ((eventsJson as unknown) as { wheelOfFortune: WheelSpec }).wheelOfFortune; }
 
@@ -1759,6 +1793,46 @@ export class KingdomShard extends DurableObject<Env> {
     return titleBuffsForPlayer(state, playerId);
   }
   // P9-T1: تحميل تقدم تقنيات التحالف ونوافذ تبرع الأعضاء من الحفظ السلطوي
+
+  private loadLKState() {
+    const rows = this.ctx.storage.sql.exec<any>("SELECT * FROM lk_state").toArray();
+    if (rows.length > 0) {
+      const r = rows[0];
+      this.lkState = {
+        structures: this.safeJsonParse<any[]>(r.structures_json, []),
+        citadels: this.safeJsonParse<any[]>(r.citadels_json, []),
+        ziggurat: this.safeJsonParse<any>(r.ziggurat_json, {}),
+        migration: this.safeJsonParse<any>(r.migration_json, {}),
+        kvk_coins: Number(r.kvk_coins) || 0,
+        crown_points: Number(r.crown_points) || 0,
+        kingdom_points: Number(r.kingdom_points) || 0,
+        season_id: r.season_id || "",
+      };
+    } else {
+      const seasonId = `lk_${dayString(Math.floor(nowMs() / MS_PER_DAY))}`;
+      this.lkState = defaultLostKingdomState(this.lkSpec(), seasonId);
+      this.persistLK();
+    }
+  }
+  private persistLK() {
+    if (!this.lkState) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO lk_state (key, structures_json, citadels_json, ziggurat_json, migration_json, kvk_coins, crown_points, kingdom_points, season_id) ` +
+      `VALUES ('singleton', ?, ?, ?, ?, ?, ?, ?, ?) ` +
+      `ON CONFLICT(key) DO UPDATE SET structures_json=excluded.structures_json, citadels_json=excluded.citadels_json, ` +
+      `ziggurat_json=excluded.ziggurat_json, migration_json=excluded.migration_json, kvk_coins=excluded.kvk_coins, ` +
+      `crown_points=excluded.crown_points, kingdom_points=excluded.kingdom_points, season_id=excluded.season_id`,
+      JSON.stringify(this.lkState.structures),
+      JSON.stringify(this.lkState.citadels),
+      JSON.stringify(this.lkState.ziggurat),
+      JSON.stringify(this.lkState.migration),
+      this.lkState.kvk_coins,
+      this.lkState.crown_points,
+      this.lkState.kingdom_points,
+      this.lkState.season_id,
+    );
+  }
+
   private loadAllianceTech() {
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_tech").toArray()) {
       const allianceId = row.alliance_id;
@@ -4983,6 +5057,110 @@ export class KingdomShard extends DurableObject<Env> {
       this.persistWheel(playerId);
       return Response.json({ ok: true, result: result.result, spinsRemaining: Math.max(0, (this.wheelSpec().spins.maxPerDay || 0) - state.spinsToday) });
     }
+
+    // P11-T3: الهجرة إلى Lost Kingdom — POST lk-migrate
+    if (path.endsWith("/lk-migrate") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const cityHallLevel = Number(city.hallLevel || 0);
+      const hasActiveMarches = [...this.marches.values()].filter((m) => (m.payload?.playerId || "") === playerId && (m.state === "moving" || m.state === "returning")).length > 0;
+      if (!this.lkState) this.loadLKState();
+      if (!this.lkState) return Response.json({ error: "lk_state_unavailable" }, { status: 503 });
+      const check = canMigrate(this.lkSpec(), this.lkState, cityHallLevel, hasActiveMarches, nowMs());
+      if (!check.allowed) return Response.json({ error: check.reason || "migration_denied" }, { status: 400 });
+      const gemsResult = await this.env.DB.prepare("SELECT gems FROM cities WHERE player_id = ?").bind(playerId).first<{ gems: number }>();
+      const gems = Number(gemsResult?.gems) || 0;
+      const mig = migratePlayer(this.lkSpec(), this.lkState, gems, nowMs());
+      if (mig.error) return Response.json({ error: mig.error }, { status: 400 });
+      try {
+        await this.env.DB.prepare(`UPDATE cities SET gems=gems-? WHERE player_id=? AND gems>=?`).bind(this.lkSpec().migration.cost.gems, playerId, this.lkSpec().migration.cost.gems).run();
+      } catch { /* جدول غير مرحّل — يُنفذ الخصم لاحقًا */ }
+      this.lkState = mig.newState;
+      this.persistLK();
+      this.broadcast({ type: "player_migrated_lk", playerId });
+      return Response.json({ ok: true, migrated: true, vaultProtectedUntilMs: mig.newState.migration.migrated_ms + this.lkSpec().migration.vault_protection_hours * MS_PER_HOUR });
+    }
+    // P11-T4: الاستيلاء على هيرون — POST lk-hieron
+    if (path.endsWith("/lk-hieron") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      if (!this.lkState) this.loadLKState();
+      if (!this.lkState) return Response.json({ error: "lk_state_unavailable" }, { status: 503 });
+      const result = captureHieron(this.lkSpec(), this.lkState, String(body.hieronId || ""), String(body.kingdomId || playerId), nowMs());
+      if (result.error) return Response.json({ error: result.error }, { status: 400 });
+      this.lkState = result.newState;
+      this.persistLK();
+      return Response.json({ ok: true, reward_coins: result.reward_coins, structures: result.newState.structures });
+    }
+    // P11-T4: الهجوم على قلعة (تقصف Great Ziggurat) — POST lk-citadel
+    if (path.endsWith("/lk-citadel") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      if (!this.lkState) this.loadLKState();
+      if (!this.lkState) return Response.json({ error: "lk_state_unavailable" }, { status: 503 });
+      const damage = Math.max(0, Math.min(50000, Number(body.damage) || 0));
+      const result = destroyCitadel(this.lkSpec(), this.lkState, String(body.citadelId || ""), String(body.kingdomId || playerId), damage, nowMs());
+      if (result.error) return Response.json({ error: result.error }, { status: 400 });
+      this.lkState = result.newState;
+      this.persistLK();
+      return Response.json({ ok: true, ziggurat_hp: result.zigguratHp, citadel_destroyed: !!result.citadelDestroyed, reward_coins: result.reward_coins, ziggurat_open: this.lkState.ziggurat.open });
+    }
+    // P11-T4: المعركة النهائية على Great Ziggurat — POST lk-ziggurat
+    if (path.endsWith("/lk-ziggurat") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      if (!this.lkState) this.loadLKState();
+      if (!this.lkState) return Response.json({ error: "lk_state_unavailable" }, { status: 503 });
+      const damage = Math.max(0, Math.min(100000, Number(body.damage) || 0));
+      const result = attackZiggurat(this.lkSpec(), this.lkState, String(body.kingdomId || playerId), damage, nowMs());
+      if (result.error) return Response.json({ error: result.error }, { status: 400 });
+      this.lkState = result.newState;
+      this.persistLK();
+      if (result.crowned) this.broadcast({ type: "kingdom_crowned", kingdomId: result.crowned, crown_points: result.crown_points });
+      return Response.json({ ok: true, ziggurat_hp: result.newState.ziggurat.hp, crowned: result.crowned, crown_points: result.crown_points });
+    }
+    // P11-T4: متجر عملات KvK — POST lk-season-buy
+    if (path.endsWith("/lk-season-buy") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      if (!this.lkState) this.loadLKState();
+      if (!this.lkState) return Response.json({ error: "lk_state_unavailable" }, { status: 503 });
+      const result = buySeasonItem(this.lkSpec(), this.lkState, String(body.itemId || ""));
+      if (result.error) return Response.json({ error: result.error }, { status: 400 });
+      this.lkState = result.newState;
+      this.persistLK();
+      const now = nowMs();
+      try {
+        if (result.item) {
+          for (const [key, amount] of Object.entries(result.item.reward)) {
+            if (key === "gems") {
+              await this.env.DB.prepare(`UPDATE cities SET gems=gems+? WHERE player_id=?`).bind(Number(amount), playerId).run().catch(() => undefined);
+            } else {
+              await this.env.DB.prepare(
+                `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
+              ).bind(playerId, dayString(now), `lk_${String(key)}`, Number(amount)).run().catch(() => undefined);
+            }
+          }
+        }
+      } catch { /* inventory table not migrated yet */ }
+      return Response.json({ ok: true, item: result.item, kvk_coins_remaining: result.newState.kvk_coins });
+    }
+    // GET: حالة Lost Kingdom — GET lk-state
+    if (path.endsWith("/lk-state") && request.method === "GET") {
+      if (!this.lkState) this.loadLKState();
+      return Response.json({ ok: true, state: this.lkState, spec: { structures: this.lkSpec().structures, constants: this.lkSpec().constants, migration: this.lkSpec().migration } });
+    }
+
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
 

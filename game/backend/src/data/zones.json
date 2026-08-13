@@ -1,13 +1,14 @@
 {
   "map_id": "rok2_season_template_v1",
-  "description": "Zone1: 8 regions separated by mountains. Zone2: 4 expansion regions. Zone3: single finals core.",
+  "description": "Zone1: 8 regions separated by mountains. Zone2: 4 expansion regions. Zone3: single finals core. Zone4-7: Lost Kingdom (KvK) — Hierons/Sanctuaries/Ancient Ruins/Circles/Altars of Darkness/Citadels/Great Ziggurat.",
   "constants": {
     "resource_amount_per_level": 2000,
     "resource_base_amount": 5000,
     "zone2_richness_mult": 1.5,
     "barb_hp_per_level": 100,
     "season_day_ms": 86400000,
-    "season_max_day": 60
+    "season_max_day": 60,
+    "kvk_season_day_start": 50
   },
   "alliance": {
     "max_members": 50,
@@ -332,6 +333,219 @@
         "first_capture_bonus": 25,
         "season_point_decimals": 2
       }
+    },
+    {
+      "zone_id": 4,
+      "key": "lost_outer",
+      "name": "Z4 - حدود Lost Kingdom",
+      "role": "kvk_frontier",
+      "regions": [
+        {
+          "id": "LK_N1",
+          "name": "Lost Marches",
+          "dir": "N",
+          "resource_bias": {
+            "food": 1,
+            "wood": 1,
+            "stone": 1.1,
+            "gold": 0.9
+          }
+        },
+        {
+          "id": "LK_E1",
+          "name": "Sunk East",
+          "dir": "E",
+          "resource_bias": {
+            "food": 0.9,
+            "wood": 0.9,
+            "stone": 0.9,
+            "gold": 1.3
+          }
+        },
+        {
+          "id": "LK_S1",
+          "name": "Dust South",
+          "dir": "S",
+          "resource_bias": {
+            "food": 0.8,
+            "wood": 0.7,
+            "stone": 1.2,
+            "gold": 1.3
+          }
+        },
+        {
+          "id": "LK_W1",
+          "name": "Hollow West",
+          "dir": "W",
+          "resource_bias": {
+            "food": 1.3,
+            "wood": 1.4,
+            "stone": 0.9,
+            "gold": 0.8
+          }
+        }
+      ],
+      "pass_level_range": [
+        5,
+        7
+      ],
+      "resource_level_range": [
+        7,
+        8
+      ],
+      "unlock_day": 50,
+      "holy_sites_per_region": 0
+    },
+    {
+      "zone_id": 5,
+      "key": "lost_inner",
+      "name": "Z5 - الوادي الداخلي",
+      "role": "kvk_mid",
+      "regions": [
+        {
+          "id": "LK_N2",
+          "name": "Inner Rise",
+          "dir": "N",
+          "resource_bias": {
+            "food": 1.1,
+            "wood": 1.1,
+            "stone": 1,
+            "gold": 0.8
+          }
+        },
+        {
+          "id": "LK_E2",
+          "name": "Deep East",
+          "dir": "E",
+          "resource_bias": {
+            "food": 0.8,
+            "wood": 0.8,
+            "stone": 1.1,
+            "gold": 1.3
+          }
+        },
+        {
+          "id": "LK_S2",
+          "name": "Deep South",
+          "dir": "S",
+          "resource_bias": {
+            "food": 0.7,
+            "wood": 0.7,
+            "stone": 1.3,
+            "gold": 1.3
+          }
+        },
+        {
+          "id": "LK_W2",
+          "name": "Deep West",
+          "dir": "W",
+          "resource_bias": {
+            "food": 1.4,
+            "wood": 1.5,
+            "stone": 0.8,
+            "gold": 0.7
+          }
+        }
+      ],
+      "pass_level_range": [
+        5,
+        7
+      ],
+      "resource_level_range": [
+        8,
+        9
+      ],
+      "unlock_day": 52,
+      "holy_sites_per_region": 0
+    },
+    {
+      "zone_id": 6,
+      "key": "lost_ruins",
+      "name": "Z6 - الأنقاض القديمة",
+      "role": "kvk_ruins",
+      "regions": [
+        {
+          "id": "LK_A1",
+          "name": "Ruins NE",
+          "dir": "NE",
+          "resource_bias": {
+            "food": 1,
+            "wood": 1,
+            "stone": 1.2,
+            "gold": 0.8
+          }
+        },
+        {
+          "id": "LK_A2",
+          "name": "Ruins SE",
+          "dir": "SE",
+          "resource_bias": {
+            "food": 0.9,
+            "wood": 0.8,
+            "stone": 1,
+            "gold": 1.3
+          }
+        },
+        {
+          "id": "LK_A3",
+          "name": "Ruins SW",
+          "dir": "SW",
+          "resource_bias": {
+            "food": 0.8,
+            "wood": 1.2,
+            "stone": 1.1,
+            "gold": 0.9
+          }
+        },
+        {
+          "id": "LK_A4",
+          "name": "Ruins NW",
+          "dir": "NW",
+          "resource_bias": {
+            "food": 1.2,
+            "wood": 1.3,
+            "stone": 0.9,
+            "gold": 0.6
+          }
+        }
+      ],
+      "pass_level_range": [
+        6,
+        7
+      ],
+      "resource_level_range": [
+        9,
+        10
+      ],
+      "unlock_day": 54,
+      "holy_sites_per_region": 0
+    },
+    {
+      "zone_id": 7,
+      "key": "lost_core",
+      "name": "Z7 - قلب Lost Kingdom",
+      "role": "kvk_ziggurat",
+      "regions": [
+        {
+          "id": "LK_CORE",
+          "name": "Ziggurat Basin",
+          "objectives": [
+            "hierons",
+            "citadels",
+            "great_ziggurat"
+          ]
+        }
+      ],
+      "pass_level_range": [
+        7,
+        7
+      ],
+      "resource_level_range": [
+        10,
+        10
+      ],
+      "unlock_day": 56,
+      "holy_sites_per_region": 0
     }
   ],
   "mountains": {

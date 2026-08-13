@@ -1,172 +1,202 @@
 {
-  "version": 1,
-  "notes": "ROK2 anti-cheat config (P4-T5). Per-player rate limits for write actions, enforced server-side. Window/cooldown in milliseconds, max_actions per window per player. Cooldown = minimum gap between two consecutive actions of the same kind. Anomaly thresholds flag suspicious single-request payloads (reject). All values read by sim/anticheat.ts — no hardcoded limits in code.",
-  "constants": {
-    "enabled": true,
-    "violation_log_limit": 50
+ "version": 1,
+ "notes": "ROK2 anti-cheat config (P4-T5). Per-player rate limits for write actions, enforced server-side. Window/cooldown in milliseconds, max_actions per window per player. Cooldown = minimum gap between two consecutive actions of the same kind. Anomaly thresholds flag suspicious single-request payloads (reject). All values read by sim/anticheat.ts — no hardcoded limits in code. P11: حدود Lost Kingdom/KvK (lk_*).",
+ "constants": {
+  "enabled": true,
+  "violation_log_limit": 50
+ },
+ "rate_limits": {
+  "march": {
+   "window_ms": 60000,
+   "max_actions": 10,
+   "cooldown_ms": 1000
   },
-  "rate_limits": {
-    "march": {
-      "window_ms": 60000,
-      "max_actions": 10,
-      "cooldown_ms": 1000
-    },
-    "pass_attack": {
-      "window_ms": 60000,
-      "max_actions": 5,
-      "cooldown_ms": 2000
-    },
-    "help": {
-      "window_ms": 60000,
-      "max_actions": 15,
-      "cooldown_ms": 500
-    },
-    "shop_buy": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 0
-    },
-    "use_speedup": {
-      "window_ms": 60000,
-      "max_actions": 30,
-      "cooldown_ms": 0
-    },
-    "rally": {
-      "window_ms": 60000,
-      "max_actions": 3,
-      "cooldown_ms": 5000
-    },
-    "shield_activate": {
-      "window_ms": 60000,
-      "max_actions": 10,
-      "cooldown_ms": 0
-    },
-    "city_relocate": {
-      "window_ms": 60000,
-      "max_actions": 5,
-      "cooldown_ms": 0
-    },
-    "alliance_tech_donate": {
-      "window_ms": 60000,
-      "max_actions": 24,
-      "cooldown_ms": 1200
-    },
-    "alliance_tech_start": {
-      "window_ms": 3600000,
-      "max_actions": 6,
-      "cooldown_ms": 60000
-    },
-    "alliance_outpost": {
-      "window_ms": 3600000,
-      "max_actions": 6,
-      "cooldown_ms": 60000
-    },
-    "alliance_shop_purchase": {
-      "window_ms": 3600000,
-      "max_actions": 30,
-      "cooldown_ms": 0
-    },
-    "trade_offer": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 0
-    },
-    "trade_claim": {
-      "window_ms": 60000,
-      "max_actions": 30,
-      "cooldown_ms": 0
-    },
-    "gift_claim": {
-      "window_ms": 60000,
-      "max_actions": 30,
-      "cooldown_ms": 500
-    },
-    "gift_create": {
-      "window_ms": 60000,
-      "max_actions": 10,
-      "cooldown_ms": 2000
-    },
-    "tavern_state": {
-      "window_ms": 60000,
-      "max_actions": 60,
-      "cooldown_ms": 500
-    },
-    "tavern_open": {
-      "window_ms": 60000,
-      "max_actions": 30,
-      "cooldown_ms": 1000
-    },
-    "tavern_keys": {
-      "window_ms": 60000,
-      "max_actions": 10,
-      "cooldown_ms": 2000
-    },
-    "expedition_state": {
-      "window_ms": 60000,
-      "max_actions": 60,
-      "cooldown_ms": 500
-    },
-    "expedition_attempt": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 1000
-    },
-    "expedition_buy": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 1000
-    },
-    "canyon_state": {
-      "window_ms": 60000,
-      "max_actions": 60,
-      "cooldown_ms": 500
-    },
-    "canyon_challenge": {
-      "window_ms": 60000,
-      "max_actions": 10,
-      "cooldown_ms": 1000
-    },
-    "canyon_buff": {
-      "window_ms": 60000,
-      "max_actions": 5,
-      "cooldown_ms": 3000
-    },
-    "canyon_token_buy": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 1000
-    },
-    "osiris_register": {
-      "window_ms": 60000,
-      "max_actions": 5,
-      "cooldown_ms": 3000
-    },
-    "osiris_attack": {
-      "window_ms": 60000,
-      "max_actions": 30,
-      "cooldown_ms": 1000
-    },
-    "osiris_move": {
-      "window_ms": 60000,
-      "max_actions": 5,
-      "cooldown_ms": 3000
-    },
-    "mg_score": {
-      "window_ms": 60000,
-      "max_actions": 60,
-      "cooldown_ms": 500
-    },
-    "wheel_spin": {
-      "window_ms": 60000,
-      "max_actions": 20,
-      "cooldown_ms": 2000
-    }
+  "pass_attack": {
+   "window_ms": 60000,
+   "max_actions": 5,
+   "cooldown_ms": 2000
   },
-  "anomaly": {
-    "max_troops_per_march": 200000,
-    "max_single_unit_per_march": 100000,
-    "max_shop_buy_count": 99,
-    "min_march_distance_tiles": 1,
-    "max_active_marches_per_player": 5
+  "help": {
+   "window_ms": 60000,
+   "max_actions": 15,
+   "cooldown_ms": 500
+  },
+  "shop_buy": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 0
+  },
+  "use_speedup": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 0
+  },
+  "rally": {
+   "window_ms": 60000,
+   "max_actions": 3,
+   "cooldown_ms": 5000
+  },
+  "shield_activate": {
+   "window_ms": 60000,
+   "max_actions": 10,
+   "cooldown_ms": 0
+  },
+  "city_relocate": {
+   "window_ms": 60000,
+   "max_actions": 5,
+   "cooldown_ms": 0
+  },
+  "alliance_tech_donate": {
+   "window_ms": 60000,
+   "max_actions": 24,
+   "cooldown_ms": 1200
+  },
+  "alliance_tech_start": {
+   "window_ms": 3600000,
+   "max_actions": 6,
+   "cooldown_ms": 60000
+  },
+  "alliance_outpost": {
+   "window_ms": 3600000,
+   "max_actions": 6,
+   "cooldown_ms": 60000
+  },
+  "alliance_shop_purchase": {
+   "window_ms": 3600000,
+   "max_actions": 30,
+   "cooldown_ms": 0
+  },
+  "trade_offer": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 0
+  },
+  "trade_claim": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 0
+  },
+  "gift_claim": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 500
+  },
+  "gift_create": {
+   "window_ms": 60000,
+   "max_actions": 10,
+   "cooldown_ms": 2000
+  },
+  "tavern_state": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
+  },
+  "tavern_open": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 1000
+  },
+  "tavern_keys": {
+   "window_ms": 60000,
+   "max_actions": 10,
+   "cooldown_ms": 2000
+  },
+  "expedition_state": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
+  },
+  "expedition_attempt": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 1000
+  },
+  "expedition_buy": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 1000
+  },
+  "canyon_state": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
+  },
+  "canyon_challenge": {
+   "window_ms": 60000,
+   "max_actions": 10,
+   "cooldown_ms": 1000
+  },
+  "canyon_buff": {
+   "window_ms": 60000,
+   "max_actions": 5,
+   "cooldown_ms": 3000
+  },
+  "canyon_token_buy": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 1000
+  },
+  "osiris_register": {
+   "window_ms": 60000,
+   "max_actions": 5,
+   "cooldown_ms": 3000
+  },
+  "osiris_attack": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 1000
+  },
+  "osiris_move": {
+   "window_ms": 60000,
+   "max_actions": 5,
+   "cooldown_ms": 3000
+  },
+  "mg_score": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
+  },
+  "wheel_spin": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 2000
+  },
+  "lk_migrate": {
+   "window_ms": 3600000,
+   "max_actions": 5,
+   "cooldown_ms": 10000
+  },
+  "lk_hieron_capture": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 500
+  },
+  "lk_citadel_attack": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 1000
+  },
+  "lk_ziggurat_attack": {
+   "window_ms": 60000,
+   "max_actions": 30,
+   "cooldown_ms": 1000
+  },
+  "lk_season_buy": {
+   "window_ms": 60000,
+   "max_actions": 20,
+   "cooldown_ms": 1000
+  },
+  "lk_state_read": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
   }
+ },
+ "anomaly": {
+  "max_troops_per_march": 200000,
+  "max_single_unit_per_march": 100000,
+  "max_shop_buy_count": 99,
+  "min_march_distance_tiles": 1,
+  "max_active_marches_per_player": 5
+ }
 }

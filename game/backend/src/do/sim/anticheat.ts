@@ -48,7 +48,13 @@ export type RateLimitAction =
   | "osiris_attack"
   | "osiris_move"
   | "mg_score"
-  | "wheel_spin";
+  | "wheel_spin"
+  | "lk_migrate"
+  | "lk_hieron_capture"
+  | "lk_citadel_attack"
+  | "lk_ziggurat_attack"
+  | "lk_season_buy"
+  | "lk_state_read";
 
 const CFG = anticheatData as any;
 
@@ -78,6 +84,14 @@ export const RATE_LIMITS: Record<RateLimitAction, RateLimitRule> = {
   osiris_move: (CFG.rate_limits?.osiris_move as RateLimitRule) || { window_ms: 60_000, max_actions: 5, cooldown_ms: 3_000 },
   mg_score: (CFG.rate_limits?.mg_score as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
   wheel_spin: (CFG.rate_limits?.wheel_spin as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 2_000 },
+
+  // P11-T3/T4: أفعال Lost Kingdom/KvK — قراءة من JSON مع fallback افتراضي.
+  lk_migrate: (CFG.rate_limits?.lk_migrate as RateLimitRule) || { window_ms: 3_600_000, max_actions: 5, cooldown_ms: 10_000 },
+  lk_hieron_capture: (CFG.rate_limits?.lk_hieron_capture as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 500 },
+  lk_citadel_attack: (CFG.rate_limits?.lk_citadel_attack as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 1_000 },
+  lk_ziggurat_attack: (CFG.rate_limits?.lk_ziggurat_attack as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 1_000 },
+  lk_season_buy: (CFG.rate_limits?.lk_season_buy as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 1_000 },
+  lk_state_read: (CFG.rate_limits?.lk_state_read as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
 } as Record<RateLimitAction, RateLimitRule>;
 
 export const ANOMALY_LIMITS = CFG.anomaly as {

@@ -776,4 +776,28 @@ protected:
 	FString BuildUrl(const FString& Path) const;
 	void EmitToast(const FString& Msg) { OnToast.Broadcast(Msg); }
 	void EmitError(const FString& Msg) { OnApiError.Broadcast(Msg); }
+	// P11-T6: Lost Kingdom / KvK
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void FetchLostKingdomState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void MigrateToLostKingdom();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void CaptureHieron(const FString& HieronId);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void AttackCitadel(const FString& CitadelId, int32 Damage);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void AttackZiggurat(int32 Damage);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
+	void BuySeasonItem(const FString& ItemId);
+
+	// P11-T6
+	UPROPERTY(BlueprintReadOnly)
+	FRok2LostKingdomState LostKingdomState;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|KvK")
+	FOnLostKingdomUpdated OnLostKingdomUpdated;
+
+	// P11-T6
+	void ParseLostKingdomState(const TSharedPtr<FJsonObject>& Json);
 };
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLostKingdomUpdated, FRok2LostKingdomState, State);

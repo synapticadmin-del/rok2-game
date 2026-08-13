@@ -1,0 +1,232 @@
+{
+ "version": 1,
+ "description": "P11-T1: Lost Kingdom — خريطة KvK الثانية. مناطق Z4-7 + منشآت معارك (Hierons ×16, Sanctuaries ×4, Ancient Ruins ×8, Circles ×12, Altars of Darkness ×4, Citadels ×4) تقصف Great Ziggurat — عملة الموسم kvk_coins تُصرف في متجر KvK.",
+ "constants": {
+  "season_duration_days": 28,
+  "migration_min_city_hall_level": 16,
+  "migration_cooldown_days": 30,
+  "migration_vault_protection_hours": 48,
+  "ziggurat_total_hp": 1000000,
+  "ziggurat_open_after_citadels": 4,
+  "ziggurat_final_battle_duration_hours": 72,
+  "kvk_coin_name": "عملات KvK",
+  "kvk_coin_symbol": "KC",
+  "final_crown_points": 5000,
+  "ziggurat_destroy_reward_coins": 2000,
+  "citadel_destroy_reward_coins": 500,
+  "hieron_capture_reward_coins": 50,
+  "season_store": {
+   "items": [
+    {
+     "id": "ks_sculpture",
+     "name": "شظايا منحوتة",
+     "cost": 100,
+     "reward": {
+      "sculpture_shards": 500
+     }
+    },
+    {
+     "id": "ks_speedup_8h",
+     "name": "تسريع 8 ساعات",
+     "cost": 60,
+     "reward": {
+      "speedups_8h": 3
+     }
+    },
+    {
+     "id": "ks_gem_bag",
+     "name": "كيس جواهر",
+     "cost": 200,
+     "reward": {
+      "gems": 3000
+     }
+    },
+    {
+     "id": "ks_title_warlord_kvk",
+     "name": "لقب محارب KvK",
+     "cost": 500,
+     "reward": {
+      "title": "محارب KvK"
+     }
+    }
+   ]
+  }
+ },
+ "zones": [
+  {
+   "zone_id": 4,
+   "key": "lost_outer",
+   "name": "Z4 - outskirts المفقودة",
+   "role": "kvk_frontier",
+   "regions": [
+    "LK_N1",
+    "LK_E1",
+    "LK_S1",
+    "LK_W1"
+   ],
+   "pass_level_range": [
+    5,
+    7
+   ],
+   "resource_level_range": [
+    7,
+    8
+   ],
+   "unlock_day": 50
+  },
+  {
+   "zone_id": 5,
+   "key": "lost_inner",
+   "name": "Z5 - الوادي الداخلي",
+   "role": "kvk_mid",
+   "regions": [
+    "LK_N2",
+    "LK_E2",
+    "LK_S2",
+    "LK_W2"
+   ],
+   "pass_level_range": [
+    5,
+    7
+   ],
+   "resource_level_range": [
+    8,
+    9
+   ],
+   "unlock_day": 52
+  },
+  {
+   "zone_id": 6,
+   "key": "lost_ruins",
+   "name": "Z6 - أنقاض قديمة",
+   "role": "kvk_ruins",
+   "regions": [
+    "LK_A1",
+    "LK_A2",
+    "LK_A3",
+    "LK_A4"
+   ],
+   "pass_level_range": [
+    6,
+    7
+   ],
+   "resource_level_range": [
+    9,
+    10
+   ],
+   "unlock_day": 54
+  },
+  {
+   "zone_id": 7,
+   "key": "lost_core",
+   "name": "Z7 - قلب Lost Kingdom",
+   "role": "kvk_ziggurat",
+   "regions": [
+    "LK_CORE"
+   ],
+   "pass_level_range": [
+    7,
+    7
+   ],
+   "resource_level_range": [
+    10,
+    10
+   ],
+   "unlock_day": 56
+  }
+ ],
+ "structures": {
+  "hierons": {
+   "count": 16,
+   "description": "مراكز موارد متنازع عليها — الاستيلاء يمنح عملات KvK ونقاط للمملكة",
+   "capture_points": 1000,
+   "hold_score_per_hour": 5,
+   "reward_coins": 50,
+   "spawn_day": 50
+  },
+  "sanctuaries": {
+   "count": 4,
+   "description": "ملاجئ آمنة تعيد تنشيط وحدات الجرحى الشديدين",
+   "severe_heal_ratio": 0.9,
+   "cooldown_hours": 12,
+   "spawn_day": 51
+  },
+  "ancient_ruins": {
+   "count": 8,
+   "description": "أنقاض تمنح نقاط خبرة قادة عند استكشافها",
+   "exploration_minutes": 30,
+   "xp_reward": 2000,
+   "spawn_day": 52
+  },
+  "circles": {
+   "count": 12,
+   "description": "دوائر طاقة تمنح باف قتال مؤقت لأقرب تحالف مستولي",
+   "buff_atk_def": 0.15,
+   "duration_hours": 24,
+   "spawn_day": 53
+  },
+  "altars_of_darkness": {
+   "count": 4,
+   "description": "مذابح تطلق باربريان هوردات عملاقة ضد المتنازعين",
+   "horde_level": 12,
+   "horde_count": 3,
+   "spawn_day": 54
+  },
+  "citadels": {
+   "count": 4,
+   "description": "4 قلاع تقصف Great Ziggurat — كل تدمير يقلل HP الزيقورات 25%",
+   "hp": 500000,
+   "ziggurat_damage_pct": 25,
+   "reward_coins": 500,
+   "spawn_day": 56
+  },
+  "great_ziggurat": {
+   "id": "great_ziggurat",
+   "name": "الزيقورة العظيمة",
+   "hp": 1000000,
+   "opens_after_citadels": 4,
+   "final_battle_duration_hours": 72,
+   "destroy_reward_coins": 2000,
+   "crown_points": 5000,
+   "pos": [
+    1200,
+    600
+   ]
+  }
+ },
+ "migration": {
+  "min_city_hall_level": 16,
+  "cooldown_days": 30,
+  "requirements": [
+   "no_active_marches",
+   "no_rally_as_leader",
+   "vault_storage_safe"
+  ],
+  "vault_protection_hours": 48,
+  "cost": {
+   "gems": 5000
+  }
+ },
+ "season_schedule": [
+  {
+   "day": 50,
+   "feature": "lost_kingdom_frontier_open"
+  },
+  {
+   "day": 54,
+   "feature": "migration_window_open"
+  },
+  {
+   "day": 56,
+   "feature": "citadels_and_ziggurat_open"
+  },
+  {
+   "day": 62,
+   "feature": "ziggurat_final_battle"
+  },
+  {
+   "day": 78,
+   "feature": "crowning_and_season_end"
+  }
+ ]
+}
