@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, getTavernJson, getExpeditionJson, getCanyonJson, getOsirisJson, getEventsJson, getLostKingdomJson, unitPower, type MapPass, type MapRegion } from "../lib/gameData";
+import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, getTavernJson, getExpeditionJson, getCanyonJson, getOsirisJson, getEventsJson, getLostKingdomJson, getShop, getZones, unitPower, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist, dayString } from "../lib/ids";
 import opsData from "../data/ops.json";
 
@@ -192,7 +192,13 @@ import {
   type WheelSpec,
   type WheelState,
 } from "./sim/major_events";
-import { type LostKingdomSpec, type LostKingdomState, defaultLostKingdomState, canMigrate, migratePlayer, captureHieron, destroyCitadel, attackZiggurat, buySeasonItem } from "./sim/lost_kingdom";
+import { type LostKingdomSpec, type LostKingdomState, type LKZiggurat, type LKMigrationState, defaultLostKingdomState, canMigrate, migratePlayer, captureHieron, destroyCitadel, attackZiggurat, buySeasonItem } from "./sim/lost_kingdom";
+// P12-T6: نهاية الموسم وإعادة الضبط الموسمي — منطق نقي (تقرير + Legacy + reset ops)
+import {
+  computeSeasonReport,
+  resetWorldForSeason,
+  type SeasonReport,
+} from "./sim/season_reset";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -502,6 +508,12 @@ export class KingdomShard extends DurableObject<Env> {
   private osirisLeagueActive = false;
   private lkState: LostKingdomState | null = null;
   private osirisSeasonStartMs = 0;
+  // P12-T6: نهاية الموسم وإعادة الضبط — تقرير آخر موسم + حالة الموسم (ended/reset)
+  private seasonReport: SeasonReport | null = null;
+  private seasonEnded = false;
+  private seasonEndedAtMs = 0;
+  private seasonResetCount = 0;
+  private lastSeasonResetAtMs = 0;
   // P10-T5: الأحداث الكبرى — نقاط الحاكم الأقوى لكل لاعب + حالة عجلة الحظ
   private mgScores = new Map<string, MGScoreState>();
   private wheelStates = new Map<string, WheelState>();
@@ -957,6 +969,38 @@ export class KingdomShard extends DurableObject<Env> {
       try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN war_frenzy_until_ms INTEGER"); } catch {}
       try { this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN last_relocation_ms INTEGER"); } catch {}
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (19)");
+    }
+    if (ver < 20) {
+      // P12-T6: نهاية الموسم وإعادة الضبط الموسمي — تقارير نهاية الموسم + Legacy + حالة الموسم
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS season_reports (
+          id TEXT NOT NULL,
+          report_json TEXT NOT NULL DEFAULT '{}',
+          created_at INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS season_meta (
+          id TEXT NOT NULL DEFAULT 'singleton',
+          ended BOOLEAN NOT NULL DEFAULT 0,
+          ended_at_ms INTEGER NOT NULL DEFAULT 0,
+          reset_count INTEGER NOT NULL DEFAULT 0,
+          last_reset_at_ms INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS legacy_points (
+          player_id TEXT NOT NULL DEFAULT '',
+          alliance_id TEXT NOT NULL DEFAULT '',
+          season_id TEXT NOT NULL DEFAULT '',
+          points INTEGER NOT NULL DEFAULT 0,
+          granted_at_ms INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (player_id, season_id)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (20)");
     }
     if (ver < 15) {
       // P9-T5: Trading Post — عروض السوق المفتوحة + أسعار ديناميكية حسب العرض والطلب.
@@ -1642,6 +1686,256 @@ export class KingdomShard extends DurableObject<Env> {
         resetDayKey: row.reset_day_key || "",
       });
     }
+    // P12-T6: تقرير آخر موسم + حالة الموسم (ended/reset_count)
+    this.loadSeasonReports();
+  }
+  // P12-T6: تحميل تقرير آخر موسم وحالته من season_reports + season_meta
+  private loadSeasonReports() {
+    const row = this.ctx.storage.sql
+      .exec<any>("SELECT report_json FROM season_reports ORDER BY created_at DESC LIMIT 1")
+      .toArray()[0];
+    if (row) this.seasonReport = this.safeJsonParse<any>(row.report_json, null) as SeasonReport;
+    const meta = this.ctx.storage.sql.exec<any>("SELECT * FROM season_meta WHERE id = 'singleton'").toArray()[0];
+    if (meta) {
+      this.seasonEnded = meta.ended === 1;
+      this.seasonEndedAtMs = Number(meta.ended_at_ms) || 0;
+      this.seasonResetCount = Number(meta.reset_count) || 0;
+      this.lastSeasonResetAtMs = Number(meta.last_reset_at_ms) || 0;
+    }
+  }
+
+  // P12-T6: بناء تقرير نهاية موسم من حالة الشارد الحالية (نقي على مدخلاته)
+  private async seasonReportInput(): Promise<{
+    seasonId: string;
+    shop: any;
+    championAllianceId: string | null;
+    championScore: number;
+    throneScores: Array<{ allianceId: string; score: number }>;
+    allianceScores: Array<{ allianceId: string; score: number }>;
+    playerScores: Array<{ playerId: string; score: number }>;
+    passesConquered: number;
+    zonesUnlocked: number;
+    citiesCount: number;
+    lkCitadelsDestroyed: number;
+    lkMigrants: number;
+    storyEvents: number;
+  }> {
+    const throneScores = [...this.throneScores.entries()].map(([allianceId, score]) => ({ allianceId, score }));
+    const champion = throneScores.sort((a, b) => b.score - a.score || a.allianceId.localeCompare(b.allianceId))[0];
+    const championId: string | null = champion ? champion.allianceId : null;
+    const championScore = champion ? champion.score : 0;
+    // نقاط اللاعبين من D1 (power في جدول players يُحدّث باستمرار من الخادم)
+    let playerScores: Array<{ playerId: string; score: number }> = [];
+    try {
+      const rows = await this.env.DB.prepare("SELECT id, power FROM players ORDER BY power DESC LIMIT 200").all<{ id: string; power: number }>();
+      playerScores = rows.results.map((r: { id: string; power: number }) => ({ playerId: r.id, score: Number(r.power) || 0 })).filter((r: { score: number }) => r.score > 0);
+    } catch {
+      playerScores = [];
+    }
+    const lkCitadels = (this.lkState?.citadels || []) as any[];
+    const lkMigrants = (this.lkState?.migration && typeof this.lkState.migration === "object") ? 0 : 0;
+    const passesConquered = [...this.passes.values()].filter((p) => p.ownerAllianceId !== null).length;
+    const zonesUnlocked = this.regions.filter((r) => isRegionUnlocked(this.zonesSpec(), this.seasonDay, r.zone_id)).length;
+    return {
+      seasonId: `s${this.seasonResetCount + 1}`,
+      shop: getShop(),
+      championAllianceId: championId,
+      championScore: championScore ?? 0,
+      throneScores,
+      allianceScores: throneScores,
+      playerScores,
+      passesConquered,
+      zonesUnlocked,
+      citiesCount: this.cities.size,
+      lkCitadelsDestroyed: lkCitadels.filter((c) => (c.state === "destroyed" || c.destroyed) === true).length,
+      lkMigrants,
+      storyEvents: this.seasonStory.length,
+    };
+  }
+
+  private zonesSpec(): any {
+    const z = getZones();
+    return z;
+  }
+
+  // P12-T6: حفظ تقرير نهاية الموسم + تحديث season_meta
+  private persistSeasonReport(report: SeasonReport) {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO season_reports (id, report_json, created_at) VALUES (?, ?, ?) ` +
+      `ON CONFLICT(id) DO UPDATE SET report_json=excluded.report_json, created_at=excluded.created_at`,
+      `season_${this.seasonResetCount}`,
+      JSON.stringify(report),
+      nowMs(),
+    );
+    this.ctx.storage.sql.exec(
+      `INSERT INTO season_meta (id, ended, ended_at_ms, reset_count, last_reset_at_ms) ` +
+      `VALUES ('singleton', ?, ?, ?, ?) ` +
+      `ON CONFLICT(id) DO UPDATE SET ended=excluded.ended, ended_at_ms=excluded.ended_at_ms, ` +
+      `reset_count=excluded.reset_count, last_reset_at_ms=excluded.last_reset_at_ms`,
+      1,
+      nowMs(),
+      this.seasonResetCount,
+      nowMs(),
+    );
+    // Legacy: حفظ نقاط Legacy للاعبين والتحاليف في legacy_points
+    for (const lp of report.legacy.players) {
+      try {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO legacy_points (player_id, alliance_id, season_id, points, granted_at_ms) ` +
+          `VALUES (?, '', ?, ?, ?) ` +
+          `ON CONFLICT(player_id, season_id) DO UPDATE SET points=excluded.points, granted_at_ms=excluded.granted_at_ms`,
+          lp.playerId,
+          report.seasonId,
+          lp.legacyPoints,
+          nowMs(),
+        );
+      } catch { /* تجاهل أخطاء الصفوف المتكررة */ }
+    }
+    for (const la of report.legacy.alliances) {
+      try {
+        this.ctx.storage.sql.exec(
+          `INSERT INTO legacy_points (player_id, alliance_id, season_id, points, granted_at_ms) ` +
+          `VALUES ('', ?, ?, ?, ?) ` +
+          `ON CONFLICT(player_id, season_id) DO UPDATE SET points=excluded.points, granted_at_ms=excluded.granted_at_ms`,
+          la.allianceId,
+          report.seasonId,
+          la.legacyPoints,
+          nowMs(),
+        );
+      } catch { /* تجاهل أخطاء الصفوف المتكررة */ }
+    }
+    this.seasonReport = report;
+    this.seasonEnded = true;
+    this.seasonEndedAtMs = nowMs();
+    this.recordSeasonStory({ kind: "season_champion", subjectId: `season_end:${report.seasonId}`, allianceId: report.championAllianceId, score: report.championScore });
+  }
+
+  // P12-T6: تنفيذ إعادة الضبط الموسمي — تطبيق ops من المنطق النقي على حالة العالم
+  private async executeSeasonReset() {
+    const passIds = [...this.passes.keys()];
+    const holySiteIds = [...this.holySites.keys()];
+    const coreObjectiveIds = [...this.coreObjectives.keys()];
+    const allianceIds = [...this.throneScores.keys()];
+    let playerIds: string[] = [];
+    try {
+      const pRows = await this.env.DB.prepare("SELECT id FROM players LIMIT 5000").all<{ id: string }>();
+      playerIds = pRows.results.map((r: { id: string }) => r.id);
+    } catch { playerIds = []; }
+    const ops = resetWorldForSeason({
+      throneUnlockDay: throneUnlockDay(),
+      passIds,
+      holySiteIds,
+      coreObjectiveIds,
+      allianceIds,
+      playerIds,
+    });
+    void this.env;
+    for (const op of ops) {
+      switch (op.kind) {
+        case "throne":
+          this.throne.ownerAllianceId = null;
+          this.throne.captureProgress = 0;
+          this.throne.state = "open";
+          this.throne.unlockDay = op.unlockDay;
+          this.ctx.storage.sql.exec("UPDATE throne SET owner_alliance_id=NULL, capture_progress=0, state='open' WHERE id=1");
+          break;
+        case "passOwner": {
+          const p = this.passes.get(op.passId);
+          if (p) {
+            p.ownerAllianceId = null;
+            p.captureProgress = 0;
+            p.state = "open";
+            this.ctx.storage.sql.exec(
+              "UPDATE passes SET owner_alliance_id=NULL, capture_progress=0 WHERE pass_id=?",
+              op.passId,
+            );
+          }
+          break;
+        }
+        case "holySite": {
+          const h = this.holySites.get(op.ownerId);
+          if (h) {
+            h.ownerAllianceId = null;
+            h.captureProgress = 0;
+            h.state = "open";
+            h.heldSinceMs = null;
+            this.ctx.storage.sql.exec(
+              "UPDATE holy_sites SET owner_alliance_id=NULL, capture_progress=0 WHERE id=?",
+              op.ownerId,
+            );
+          }
+          break;
+        }
+        case "coreObjective": {
+          const c = this.coreObjectives.get(op.ownerId);
+          if (c) {
+            c.ownerAllianceId = null;
+            c.captureProgress = 0;
+            c.state = "open";
+            c.firstCapturedBy = null;
+            this.ctx.storage.sql.exec(
+              "UPDATE core_objectives SET owner_alliance_id=NULL, capture_progress=0, first_captured_by=NULL WHERE id=?",
+              op.ownerId,
+            );
+          }
+          break;
+        }
+        case "scores":
+          if (op.allianceId) {
+            this.throneScores.delete(op.allianceId);
+            this.ctx.storage.sql.exec("DELETE FROM throne_scores WHERE alliance_id=?", op.allianceId);
+          } else if (op.playerId) {
+            try {
+              this.env.DB.prepare("UPDATE players SET power=0 WHERE id=?").bind(op.playerId).run();
+            } catch { /* تجاهل */ }
+          }
+          break;
+        case "king":
+          this.king = null;
+          break;
+        case "flags": {
+          // علم واحد لكل تحالف — أزيل علمه من الذاكرة وكل السجلات المطابقة
+          for (const [id, f] of this.flags.entries()) {
+            if (f.allianceId === op.allianceId) {
+              this.flags.delete(id);
+              try { this.ctx.storage.sql.exec("DELETE FROM flags WHERE id=?", id); } catch {}
+            }
+          }
+          break;
+        }
+      }
+    }
+    // موسم جديد: يوم 0 + بداية جديدة
+    this.seasonDay = 0;
+    this.seasonStartMs = nowMs();
+    this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO world_meta (id, season_day, last_tick_ms, season_start_ms) VALUES (1, 0, ?, ?)",
+      this.seasonStartMs,
+      this.seasonStartMs,
+    );
+    // Lost Kingdom: موسم جديد — منشآت وممرات تُستأصل
+    if (this.lkState) {
+      this.lkState.structures = [];
+      this.lkState.citadels = [];
+      const freshZiggurat: LKZiggurat = { hp: Number(this.lkSpec().constants.ziggurat_total_hp) || 5000, open: true, finalBattleStartedMs: 0, destroyed: false, destroyed_by: "" };
+      const freshMigration: LKMigrationState = { migrated: false, migrated_ms: 0, last_migrated_ms: 0 };
+      this.lkState.ziggurat = freshZiggurat;
+      this.lkState.migration = freshMigration;
+      this.lkState.crown_points = 0;
+      this.lkState.kingdom_points = 0;
+      this.lkState.season_id = `lk_${dayString(Math.floor(this.seasonStartMs / MS_PER_DAY))}`;
+      this.persistLK();
+    }
+    this.seasonResetCount += 1;
+    this.lastSeasonResetAtMs = nowMs();
+    this.seasonEnded = false;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO season_meta (id, ended, ended_at_ms, reset_count, last_reset_at_ms) ` +
+      `VALUES ('singleton', 0, 0, ?, ?) ` +
+      `ON CONFLICT(id) DO UPDATE SET ended=0, ended_at_ms=0, reset_count=excluded.reset_count, last_reset_at_ms=excluded.last_reset_at_ms`,
+      this.seasonResetCount,
+      nowMs(),
+    );
   }
 
   private persistTavern(playerId: string) {
@@ -5155,12 +5449,47 @@ export class KingdomShard extends DurableObject<Env> {
       } catch { /* inventory table not migrated yet */ }
       return Response.json({ ok: true, item: result.item, kvk_coins_remaining: result.newState.kvk_coins });
     }
-    // GET: حالة Lost Kingdom — GET lk-state
+        // GET: حالة Lost Kingdom — GET lk-state
     if (path.endsWith("/lk-state") && request.method === "GET") {
       if (!this.lkState) this.loadLKState();
       return Response.json({ ok: true, state: this.lkState, spec: { structures: this.lkSpec().structures, constants: this.lkSpec().constants, migration: this.lkSpec().migration } });
     }
-
+    // P12-T6: تقرير نهاية الموسم — GET season-report (مقروء للجميع، مقيّد rate)
+    if (path.endsWith("/season-report") && request.method === "GET") {
+      if (!this.seasonReport) this.loadSeasonReports();
+      return Response.json({
+        ok: true,
+        ended: this.seasonEnded,
+        endedAtMs: this.seasonEndedAtMs,
+        resetCount: this.seasonResetCount,
+        lastResetAtMs: this.lastSeasonResetAtMs,
+        report: this.seasonReport,
+      });
+    }
+    // P12-T6: نهاية الموسم — POST season-end (إداري فقط)
+    if (path.endsWith("/season-end") && request.method === "POST") {
+      try {
+        assertAdminKey(request, this.env);
+      } catch {
+        return Response.json({ error: "admin_unauthorized" }, { status: 403 });
+      }
+      if (this.seasonEnded) return Response.json({ ok: true, already: true, report: this.seasonReport });
+      const input = await this.seasonReportInput();
+      const report = computeSeasonReport(input, nowMs());
+      this.persistSeasonReport(report);
+      return Response.json({ ok: true, report });
+    }
+    // P12-T6: إعادة الضبط الموسمي — POST season-reset (إداري فقط)
+    if (path.endsWith("/season-reset") && request.method === "POST") {
+      try {
+        assertAdminKey(request, this.env);
+      } catch {
+        return Response.json({ error: "admin_unauthorized" }, { status: 403 });
+      }
+      if (!this.seasonEnded) return Response.json({ ok: true, skipped: true, reason: "season_not_ended" });
+      await this.executeSeasonReset();
+      return Response.json({ ok: true, resetCount: this.seasonResetCount, lastResetAtMs: this.lastSeasonResetAtMs });
+    }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
 

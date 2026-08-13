@@ -1335,3 +1335,67 @@ struct FRok2LostKingdomState
     UPROPERTY(BlueprintReadOnly) FString season_id;
 };
 
+// P12-T6: حالة الموسم (من تقرير نهاية الموسم)
+USTRUCT(BlueprintType)
+struct FRok2SeasonState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	bool bEnded = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	int64 EndedAtMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	int32 ResetCount = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	int64 LastResetAtMs = 0;
+};
+
+// P12-T6: صف leaderboard الموسم (تحالف أو لاعب)
+USTRUCT(BlueprintType)
+struct FRok2SeasonLeaderboardEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	FString Id; // allianceId أو playerId
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	double Score = 0.0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	int32 Rank = 0;
+};
+
+// P12-T6: نقاط Legacy الموروثة من موسم سابق
+USTRUCT(BlueprintType)
+struct FRok2LegacyPoints
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	TArray<FRok2SeasonLeaderboardEntry> Alliances;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	TArray<FRok2SeasonLeaderboardEntry> Players;
+};
+
+// P12-T6: تقرير نهاية الموسم الكامل
+USTRUCT(BlueprintType)
+struct FRok2SeasonReport
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	FString SeasonId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	int64 GeneratedAt = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	FString ChampionAllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	double ChampionScore = 0.0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	TArray<FRok2SeasonLeaderboardEntry> TopAlliances;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	TArray<FRok2SeasonLeaderboardEntry> TopPlayers;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|Season")
+	FRok2LegacyPoints Legacy;
+};
+

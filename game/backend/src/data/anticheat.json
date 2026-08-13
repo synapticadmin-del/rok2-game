@@ -1,6 +1,6 @@
 {
  "version": 1,
- "notes": "ROK2 anti-cheat config (P4-T5). Per-player rate limits for write actions, enforced server-side. Window/cooldown in milliseconds, max_actions per window per player. Cooldown = minimum gap between two consecutive actions of the same kind. Anomaly thresholds flag suspicious single-request payloads (reject). All values read by sim/anticheat.ts — no hardcoded limits in code. P11: حدود Lost Kingdom/KvK (lk_*).",
+ "notes": "ROK2 anti-cheat config (P4-T5). Per-player rate limits for write actions, enforced server-side. Window/cooldown in milliseconds, max_actions per window per player. Cooldown = minimum gap between two consecutive actions of the same kind. Anomaly thresholds flag suspicious single-request payloads (reject). All values read by sim/anticheat.ts — no hardcoded limits in code. P11: حدود Lost Kingdom/KvK (lk_*). P12-T6: حدود نهاية الموسم وإعادة الضبط (season_*).",
  "constants": {
   "enabled": true,
   "violation_log_limit": 50
@@ -187,6 +187,21 @@
    "cooldown_ms": 1000
   },
   "lk_state_read": {
+   "window_ms": 60000,
+   "max_actions": 60,
+   "cooldown_ms": 500
+  },
+  "season_end": {
+   "window_ms": 3600000,
+   "max_actions": 3,
+   "cooldown_ms": 10000
+  },
+  "season_reset": {
+   "window_ms": 3600000,
+   "max_actions": 3,
+   "cooldown_ms": 10000
+  },
+  "season_report_read": {
    "window_ms": 60000,
    "max_actions": 60,
    "cooldown_ms": 500

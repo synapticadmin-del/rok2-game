@@ -2851,6 +2851,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const data = await res.json();
       return json(data);
     }
+    // P12-T6: تقرير نهاية الموسم + حالة الموسم (مقروء للجميع بعد requireAuth)
+    if (path === "/v1/season/report" && request.method === "GET") {
+      await requireAuth(request, env);
+      enforceRateLimit("season", "season_report_read");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/season-report");
+      const data = await res.json();
+      return json(data);
+    }
 
     // P3-T3: الأحداث النشطة والمجدولة اليوم (barbarians / resource_rush / war_fever)
     if (path === "/v1/events/active" && request.method === "GET") {
@@ -3129,6 +3138,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         method: "POST",
         headers: { "content-type": "application/json", "x-admin-key": request.headers.get("x-admin-key") || "" },
         body: JSON.stringify({ action: "set_day", day: body.day }),
+      });
+      return json(await res.json());
+    }
+    // P12-T6: نهاية الموسم — إداري فقط
+    if (path === "/v1/admin/season-end" && request.method === "POST") {
+      requireAdmin(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/season-end", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-admin-key": request.headers.get("x-admin-key") || "" },
+      });
+      return json(await res.json());
+    }
+    // P12-T6: إعادة الضبط الموسمي — إداري فقط (بعد season-end)
+    if (path === "/v1/admin/season-reset" && request.method === "POST") {
+      requireAdmin(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/season-reset", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-admin-key": request.headers.get("x-admin-key") || "" },
       });
       return json(await res.json());
     }

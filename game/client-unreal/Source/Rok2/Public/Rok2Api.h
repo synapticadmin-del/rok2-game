@@ -798,6 +798,24 @@ protected:
 
 	// P11-T6
 	void ParseLostKingdomState(const TSharedPtr<FJsonObject>& Json);
+
+	// P12-T6: نهاية الموسم وإعادة الضبط
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Season")
+	void FetchSeasonReport();
+	UFUNCTION(BlueprintPure, Category = "Rok2|Season")
+	FRok2SeasonState GetSeasonState() const;
+	// P12-T6
+	UPROPERTY(BlueprintReadOnly)
+	FRok2SeasonReport SeasonReport;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season")
+	FOnSeasonReportUpdated OnSeasonReportUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season")
+	FOnSeasonEnded OnSeasonEnded;
+	// P12-T6
+	void ParseSeasonReport(const TSharedPtr<FJsonObject>& Json);
 };
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLostKingdomUpdated, FRok2LostKingdomState, State);
+	// P12-T6: نهاية الموسم
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSeasonReportUpdated, FRok2SeasonReport, Report);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSeasonEnded);

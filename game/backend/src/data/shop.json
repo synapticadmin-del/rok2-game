@@ -4,6 +4,9 @@
   "constants": {
     "sandbox_starting_gems": 1000,
     "sandbox_daily_gems": 200,
+    "season": {
+      "legacy_per_1000": 10
+    },
     "vip_points_per_gem": 1,
     "vip_daily": {
       "base_per_day": 40,

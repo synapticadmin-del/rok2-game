@@ -3538,3 +3538,91 @@ void URok2Api::ParseLostKingdomState(const TSharedPtr<FJsonObject>& Json)
     }
 }
 
+
+// P12-T6: نهاية الموسم وإعادة الضبط
+void URok2Api::FetchSeasonReport()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+    Get(TEXT("v1/season/report"), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	{
+	if (!WeakThis.IsValid()) return;
+	URok2Api* Self = WeakThis.Get();
+        ParseSeasonReport(J);
+        OnSeasonReportUpdated.Broadcast(SeasonReport);
+    });
+}
+
+FRok2SeasonState URok2Api::GetSeasonState() const
+{
+	FRok2SeasonState S;
+	if (SeasonReport.GeneratedAt > 0)
+	{
+		S.bEnded = true;
+	}
+	return S;
+}
+
+void URok2Api::ParseSeasonReport(const TSharedPtr<FJsonObject>& Json)
+{
+    if (!Json) return;
+    SeasonReport.SeasonId = Rok2Json::Str(Json, TEXT("seasonId"));
+    SeasonReport.GeneratedAt = (int64)Rok2Json::Num(Json, TEXT("generatedAt"));
+    SeasonReport.ChampionAllianceId = Rok2Json::Str(Json, TEXT("championAllianceId"));
+    SeasonReport.ChampionScore = Rok2Json::Num(Json, TEXT("championScore"));
+    SeasonReport.TopAlliances.Empty();
+    if (const TArray<TSharedPtr<FJsonValue>>* Arr = Json->TryGetArrayField(TEXT("topAlliances")))
+    {
+        for (const auto& X : *Arr)
+        {
+            const auto* O = X->AsObject();
+            if (!O) continue;
+            FRok2SeasonLeaderboardEntry E;
+            E.Id = O->GetStringField(TEXT("allianceId"));
+            E.Score = O->GetNumberField(TEXT("score"));
+            E.Rank = O->GetIntegerField(TEXT("rank"));
+            SeasonReport.TopAlliances.Add(E);
+        }
+    }
+    SeasonReport.TopPlayers.Empty();
+    if (const TArray<TSharedPtr<FJsonValue>>* Arr = Json->TryGetArrayField(TEXT("topPlayers")))
+    {
+        for (const auto& X : *Arr)
+        {
+            const auto* O = X->AsObject();
+            if (!O) continue;
+            FRok2SeasonLeaderboardEntry E;
+            E.Id = O->GetStringField(TEXT("playerId"));
+            E.Score = O->GetNumberField(TEXT("score"));
+            E.Rank = O->GetIntegerField(TEXT("rank"));
+            SeasonReport.TopPlayers.Add(E);
+        }
+    }
+    SeasonReport.Legacy.Alliances.Empty();
+    SeasonReport.Legacy.Players.Empty();
+    if (const auto* Legacy = Json->GetObjectField(TEXT("legacy")))
+    {
+        const auto ParseList = [](const TSharedPtr<FJsonObject>* Legacy, const FString& Field, TArray<FRok2SeasonLeaderboardEntry>& Out)
+        {
+            Out.Empty();
+            if (const TArray<TSharedPtr<FJsonValue>>* Arr = (*Legacy)->TryGetArrayField(Field))
+            {
+                for (const auto& X : *Arr)
+                {
+                    const auto* O = X->AsObject();
+                    if (!O) continue;
+                    FRok2SeasonLeaderboardEntry E;
+                    const bool bIsAlliance = O->HasField(TEXT("allianceId"));
+                    E.Id = bIsAlliance ? O->GetStringField(TEXT("allianceId")) : O->GetStringField(TEXT("playerId"));
+                    E.Score = O->HasField(TEXT("legacyPoints")) ? O->GetNumberField(TEXT("legacyPoints")) : O->GetNumberField(TEXT("score"));
+                    Out.Add(E);
+                }
+            }
+        };
+        ParseList(&Legacy, TEXT("alliances"), SeasonReport.Legacy.Alliances);
+        ParseList(&Legacy, TEXT("players"), SeasonReport.Legacy.Players);
+    }
+    if (SeasonReport.GeneratedAt > 0)
+    {
+        OnSeasonEnded.Broadcast();
+    }
+}

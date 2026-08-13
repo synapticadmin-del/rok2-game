@@ -54,7 +54,11 @@ export type RateLimitAction =
   | "lk_citadel_attack"
   | "lk_ziggurat_attack"
   | "lk_season_buy"
-  | "lk_state_read";
+  | "lk_state_read"
+  // P12-T6: نهاية الموسم وإعادة الضبط الموسمي — حماية إدارية ضد الاستدعاء المتكرر.
+  | "season_end"
+  | "season_reset"
+  | "season_report_read";
 
 const CFG = anticheatData as any;
 
@@ -92,6 +96,11 @@ export const RATE_LIMITS: Record<RateLimitAction, RateLimitRule> = {
   lk_ziggurat_attack: (CFG.rate_limits?.lk_ziggurat_attack as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 1_000 },
   lk_season_buy: (CFG.rate_limits?.lk_season_buy as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 1_000 },
   lk_state_read: (CFG.rate_limits?.lk_state_read as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
+
+  // P12-T6: أفعال نهاية الموسم — قراءة من JSON مع fallback افتراضي.
+  season_end: (CFG.rate_limits?.season_end as RateLimitRule) || { window_ms: 3_600_000, max_actions: 3, cooldown_ms: 10_000 },
+  season_reset: (CFG.rate_limits?.season_reset as RateLimitRule) || { window_ms: 3_600_000, max_actions: 3, cooldown_ms: 10_000 },
+  season_report_read: (CFG.rate_limits?.season_report_read as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
 } as Record<RateLimitAction, RateLimitRule>;
 
 export const ANOMALY_LIMITS = CFG.anomaly as {
