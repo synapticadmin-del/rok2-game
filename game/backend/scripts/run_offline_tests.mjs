@@ -20,7 +20,8 @@ const testScripts = [
   "matchmaking_offline_test.mjs",
   "talents_offline_test.mjs",
   "equipment_offline_test.mjs",
-  "troops_offline_test.mjs"
+  "troops_offline_test.mjs",
+  "holy_sites_offline_test.mjs"
 ];
 
 for (const script of testScripts) {

@@ -24,6 +24,7 @@ import {
   unitPower,
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
+import { HOLY_SITES } from "../do/sim/holy_sites";
 import {
   shopConstants,
   shopCatalog,
@@ -548,6 +549,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/meta/zones" && request.method === "GET") {
       return json(getZones());
     }
+    // P8-T4: المواقع المقدسة + باف أفضل موقع مملوك لتحالف اللاعب (من لقطة العالم)
+    if (path === "/v1/meta/holy-sites" && request.method === "GET") {
+      return json(HOLY_SITES);
+    }
     // P1-T6: endpoint موحد لكل بيانات التوازن — يقرأها العميل مرة واحدة عند البدء
     if (path === "/v1/meta/all" && request.method === "GET") {
       return json({
@@ -571,6 +576,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           stat_ranges: EQUIPMENT_STAT_RANGES,
           set_bonuses: EQUIPMENT_SET_BONUSES,
         },
+        // P8-T4: المواقع المقدسة ودورة المعبد المفقود
+        holySites: HOLY_SITES,
         constants: {
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
@@ -2408,6 +2415,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             targetId: body.targetId,
             passId: body.passId,
             coreObjectiveId: body.coreObjectiveId,
+            holySiteId: body.holySiteId,
             toX: body.toX,
             toY: body.toY,
             primaryCommanderId: body.primaryCommanderId,
@@ -2450,6 +2458,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           targetId: body.targetId,
           passId: body.passId,
           coreObjectiveId: body.coreObjectiveId,
+          holySiteId: body.holySiteId,
           toX: body.toX,
           toY: body.toY,
         }),

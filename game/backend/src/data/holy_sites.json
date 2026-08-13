@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "constants": {
+    "hold_duration_ms": 14400000,
+    "contest_cycle_days": 3,
+    "capture_gain_base": 35,
+    "capture_gain_power_div": 20
+  },
+  "buffs": {
+    "sanctum": { "troop_health": 0.05 },
+    "altar": { "troop_attack": 0.07, "troop_health": 0.05 },
+    "shrine": { "troop_attack": 0.10, "troop_defense": 0.07, "troop_health": 0.07, "march_speed": 0.03 },
+    "temple": { "troop_attack": 0.15, "troop_defense": 0.12, "troop_health": 0.12, "march_speed": 0.05, "training_speed": 0.10 }
+  },
+  "kinds": {
+    "sanctum": { "guard_tier": 1, "guard_count": 10000, "hold_duration_ms": 14400000, "buff": "sanctum" },
+    "altar": { "guard_tier": 2, "guard_count": 15000, "hold_duration_ms": 14400000, "buff": "altar" },
+    "shrine": { "guard_tier": 3, "guard_count": 30000, "hold_duration_ms": 14400000, "buff": "shrine" }
+  },
+  "temple": {
+    "id": "lost_temple",
+    "pos": [1200, 1200],
+    "guard_tiers": [
+      { "tier": 1, "share": 0.15 },
+      { "tier": 2, "share": 0.20 },
+      { "tier": 3, "share": 0.25 },
+      { "tier": 4, "share": 0.25 },
+      { "tier": 5, "share": 0.15 }
+    ],
+    "guard_total": 60000,
+    "hold_for_king_ms": 28800000,
+    "wounded_dead_share": 0.5,
+    "buff": "temple",
+    "unlock_day": 40
+  },
+  "sites": [
+    { "id": "SAN_S_1", "kind": "sanctum", "pos": [450, 900] },
+    { "id": "SAN_S_2", "kind": "sanctum", "pos": [1500, 900] },
+    { "id": "SAN_S_3", "kind": "sanctum", "pos": [900, 2100] },
+    { "id": "SAN_S_4", "kind": "sanctum", "pos": [2100, 1500] },
+    { "id": "SAN_S_5", "kind": "sanctum", "pos": [900, 350] },
+    { "id": "SAN_S_6", "kind": "sanctum", "pos": [350, 2100] },
+    { "id": "ALT_1", "kind": "altar", "pos": [700, 1500] },
+    { "id": "ALT_2", "kind": "altar", "pos": [1700, 1500] },
+    { "id": "ALT_3", "kind": "altar", "pos": [1500, 700] },
+    { "id": "ALT_4", "kind": "altar", "pos": [700, 700] },
+    { "id": "SHR_1", "kind": "shrine", "pos": [1100, 1800] },
+    { "id": "SHR_2", "kind": "shrine", "pos": [1900, 1100] }
+  ]
+}

@@ -24,6 +24,16 @@ import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/c
 import { talentAttackMod } from "./sim/talents";
 import { equipmentAttackMod, type EquipmentState } from "./sim/equipment";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
+import {
+  HOLY_SITES,
+  holdDurationMs,
+  holdForKingMs,
+  siteCaptureGain,
+  siteGuardTroops,
+  templeGuardTroops,
+  templeUnlocked,
+  templeWoundedDeadShare,
+} from "./sim/holy_sites";
 
 /** سقف صلب لأي عملية تسريع واحدة (30 يوماً). حاجز أخير ضد قيمة شاذة
  *  تتسرّب من مسار أعلى — لا يغيّر السلوك الشرعي لأن أطول عنصر تسريع
@@ -80,7 +90,7 @@ type CityEntity = {
 // لا يحتوي السجل على تقارير قتال خاصة أو موارد؛ فقط معالم الموسم العامة.
 type SeasonStoryEvent = {
   id: string;
-  kind: "region_unlocked" | "first_pass_capture" | "pass_conquered" | "throne_captured" | "season_champion";
+  kind: "region_unlocked" | "first_pass_capture" | "pass_conquered" | "throne_captured" | "season_champion" | "holy_site_captured" | "temple_captured" | "king_crowned";
   seasonDay: number;
   createdAt: number;
   subjectId: string;
@@ -95,6 +105,25 @@ type AllianceFlag = {
   x: number;
   y: number;
   radius: number;
+};
+
+// P8-T4: الموقع المقدس (Sanctum/Altar/Shrine) ودورة Lost Temple.
+// النوع الواحد لا يتراكب في الباف — أعلى باف مملوك فقط يسري.
+type HolySiteEntity = {
+  id: string;
+  kind: string; // sanctum | altar | shrine | temple
+  ownerAllianceId: string | null;
+  captureProgress: number;
+  state: "open" | "contested" | "captured";
+  x: number;
+  y: number;
+  heldSinceMs: number | null; // متى أصبح مملوكاً -- انقضاؤه (4h) يحرر الموقع
+};
+// P8-T4: حالة التتويج — من يحتفظ المعبد 8 ساعات متواصلة يصبح ملك المملكة.
+type KingEntity = {
+  allianceId: string;
+  crownedAtMs: number;
+  expiresAtMs: number | null; // يفقد اللقب عند فقدان المعبد
 };
 
 /** منشأة تحالف ثابتة على الخريطة. القيم التشغيلية تأتي من alliance_structures.json
@@ -138,7 +167,7 @@ type MarchEntity = {
   etaMs: number;
   troops: Troops;
   state: "moving" | "arrived" | "returned" | "cancelled" | "gathering" | "returning";
-  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne" | "core_objective";
+  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne" | "core_objective" | "holy_site";
   targetId: string;
   payload?: any;
 };
@@ -238,6 +267,9 @@ export class KingdomShard extends DurableObject<Env> {
   private throneScores = new Map<string, number>();
   // P3-T2: أهداف قلب Zone 3 (4 حصون خارجية + 4 مذابح جانبية) — تسجيل نقاط الموسم
   private coreObjectives = new Map<string, CoreObjective>();
+  // P8-T4: المواقع المقدسة (12 موقعًا + المعبد) — بافات لا تتراكب + دورة الملك
+  private holySites = new Map<string, HolySiteEntity>();
+  private king: KingEntity | null = null;
   // P3-T3: الأحداث التي أُعلن بدؤها في هذا اليوم (لا يُعاد بث event_started لها)
   private eventsAnnouncedStarted = new Set<string>();
   private passes = new Map<string, PassEntity>();
@@ -494,10 +526,25 @@ export class KingdomShard extends DurableObject<Env> {
     if (ver < 9) {
       // قناة التحالف لا تُستنتج من المرسل عند القراءة؛ تحفظ هوية التحالف وقت النشر.
       this.ctx.storage.sql.exec("ALTER TABLE chat_messages ADD COLUMN alliance_id TEXT");
-      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (9)");
+            this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (9)");
+    }
+    if (ver < 10) {
+      // P8-T4: المواقع المقدسة (Sanctum/Altar/Shrine + Lost Temple) ودورة الملك.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS holy_sites (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          owner_alliance_id TEXT,
+          capture_progress REAL NOT NULL DEFAULT 0,
+          state TEXT NOT NULL DEFAULT 'open',
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          held_since_ms INTEGER
+        );
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (10)");
     }
   }
-
   private loadMapDefs() {
     const map = getMap();
     this.regions = map.regions;
@@ -600,6 +647,8 @@ export class KingdomShard extends DurableObject<Env> {
         firstCapturedBy: row.first_captured_by,
       });
     }
+    // P8-T4: المواقع المقدسة ودورة الملك — تُحمّل من الحفظ السلطوي
+    this.loadHolySites();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -713,6 +762,8 @@ export class KingdomShard extends DurableObject<Env> {
 
     // P3-T2: بذر أهداف قلب Zone 3 (4 حصون خارجية + 4 مذابح جانبية) من map_spec
     this.seedCoreObjectives();
+    // P8-T4: بذر المواقع المقدسة (12 موقعًا + المعبد المفقود) من holy_sites.json
+    this.seedHolySites();
 
     for (const p of this.passDefs) {
       const unlock = p.unlock_day ?? 0;
@@ -809,6 +860,69 @@ export class KingdomShard extends DurableObject<Env> {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       o.id, o.kind, o.ownerAllianceId, o.captureProgress, o.state, o.x, o.y, o.firstCapturedBy,
     );
+  }
+  // P8-T4: المواقع المقدسة — حفظ/بذر/تحميل
+  private seedHolySites() {
+    for (const site of HOLY_SITES.sites ?? []) {
+      const id = site.id;
+      if (this.holySites.has(id)) continue;
+      const ent: HolySiteEntity = {
+        id,
+        kind: site.kind,
+        ownerAllianceId: null,
+        captureProgress: 0,
+        state: "open",
+        x: site.pos[0],
+        y: site.pos[1],
+        heldSinceMs: null,
+      };
+      this.holySites.set(id, ent);
+      this.persistHolySite(ent);
+    }
+    // المعبد المفقود في قلب Zone 3
+    const temple = HOLY_SITES.temple;
+    if (temple && !this.holySites.has(temple.id)) {
+      const ent: HolySiteEntity = {
+        id: temple.id,
+        kind: "temple",
+        ownerAllianceId: null,
+        captureProgress: 0,
+        state: "open",
+        x: temple.pos[0],
+        y: temple.pos[1],
+        heldSinceMs: null,
+      };
+      this.holySites.set(temple.id, ent);
+      this.persistHolySite(ent);
+    }
+  }
+  private persistHolySite(s: HolySiteEntity) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO holy_sites
+       (id, kind, owner_alliance_id, capture_progress, state, x, y, held_since_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      s.id, s.kind, s.ownerAllianceId, s.captureProgress, s.state, s.x, s.y, s.heldSinceMs,
+    );
+  }
+  private loadHolySites() {
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM holy_sites").toArray()) {
+      this.holySites.set(row.id, {
+        id: row.id,
+        kind: row.kind,
+        ownerAllianceId: row.owner_alliance_id,
+        captureProgress: row.capture_progress,
+        state: row.state,
+        x: row.x,
+        y: row.y,
+        heldSinceMs: row.held_since_ms ?? null,
+      });
+    }
+    // إعادة اشتقاق الملك من حالة المعبد: مملوك منذ 8 ساعات متواصلة = ملك المملكة
+    this.king = null;
+    const temple = this.holySites.get(HOLY_SITES.temple.id);
+    if (temple?.ownerAllianceId && temple.heldSinceMs != null && nowMs() - temple.heldSinceMs >= holdForKingMs()) {
+      this.king = { allianceId: temple.ownerAllianceId, crownedAtMs: temple.heldSinceMs, expiresAtMs: null };
+    }
   }
 
   // P5-T5: إنشاء كشافة من مدينة اللاعب إلى الهدف — أسرع من المسير العادي (ضعفا السرعة)
@@ -1100,6 +1214,15 @@ export class KingdomShard extends DurableObject<Env> {
     ]);
     return { hospital };
   }
+  /** P8-T4: جرحى المعبد الخطيرون — 50% منهم يموتون مباشرة (فوق قاعدة المستشفى) */
+  private applyTempleSevereDeath(result: CombatResult) {
+    const share = templeWoundedDeadShare();
+    for (const [u, c] of Object.entries(result.attackerSplit.severely)) {
+      const dead = Math.floor(Number(c) * share);
+      result.attackerSplit.severely[u] = Number(c) - dead;
+      result.attackerSplit.dead[u] = Math.max(0, Number(result.attackerSplit.dead[u] || 0) + dead);
+    }
+  }
 
   private saveReport(report: any) {
     this.reports.unshift(report);
@@ -1140,6 +1263,9 @@ export class KingdomShard extends DurableObject<Env> {
       throneScores: [...this.throneScores.entries()],
       // P3-T2: أهداف قلب Zone 3 (حصون + مذابح) مع مالكيها — لتسجيل نقاط الموسم
       coreObjectives: [...this.coreObjectives.values()],
+      // P8-T4: المواقع المقدسة (مع بافات النوع الواحد التي لا تتراكب) + الملك الحالي
+      holySites: [...this.holySites.values()],
+      king: this.king,
       passes: [...this.passes.values()],
       marches: [...this.marches.values()].filter((m) => m.state === "moving"),
       nodes: [...this.nodes.values()],
@@ -1187,6 +1313,9 @@ export class KingdomShard extends DurableObject<Env> {
       allianceStructures: [...this.allianceStructures.values()],
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       queues: [...this.queues.values()].filter((q) => q.state === "running"),
+      // P8-T4: المواقع المقدسة (حالة المالك/الحيازة + الملك) — deltas للعالم الحي
+      holySites: [...this.holySites.values()],
+      king: this.king,
       zones: zonesStatus(this.seasonDay, this.regions),
       seasonStory: this.seasonStory,
     };
@@ -1305,6 +1434,44 @@ export class KingdomShard extends DurableObject<Env> {
         this.ctx.storage.sql.exec("DELETE FROM scouts WHERE id = ?", s.id);
         changed = true;
       }
+    }
+
+    // P8-T4: المواقع المقدسة — انتهاء الحيازة (4h) يحرر الموقع + دورة المعبد/الملك (8h)
+    const hold = holdDurationMs();
+    const kingHold = holdForKingMs();
+    for (const site of [...this.holySites.values()]) {
+      if (site.heldSinceMs == null || site.ownerAllianceId == null) continue;
+      // انتهاء الحيازة يحرر الموقع (لا ينطبق على المعبد — مملوكيته دائمة ما دام مضمونًا)
+      if (site.kind !== "temple" && now - site.heldSinceMs >= hold) {
+        site.ownerAllianceId = null;
+        site.captureProgress = 0;
+        site.state = "open";
+        site.heldSinceMs = null;
+        this.persistHolySite(site);
+        this.broadcast({ type: "holy_site_changed", site });
+        changed = true;
+      }
+    }
+    // P8-T4: من يحتفظ المعبد 8 ساعات متواصلة يتوَّج ملك المملكة
+    const temple = this.holySites.get(HOLY_SITES.temple.id);
+    if (temple?.ownerAllianceId && temple.heldSinceMs != null) {
+      if (!this.king && now - temple.heldSinceMs >= kingHold) {
+        this.king = { allianceId: temple.ownerAllianceId, crownedAtMs: temple.heldSinceMs, expiresAtMs: null };
+        this.recordSeasonStory({
+          kind: "king_crowned",
+          subjectId: temple.ownerAllianceId,
+          allianceId: temple.ownerAllianceId,
+        }, now);
+        changed = true;
+      } else if (this.king && this.king.allianceId !== temple.ownerAllianceId) {
+        // المعبد انتقل لتحالف آخر — يفقد الملك السابق لقبه
+        this.king = null;
+        changed = true;
+      }
+    } else if (this.king) {
+      // المعبد بلا مالك — يُزال اللقب
+      this.king = null;
+      changed = true;
     }
 
     // Process Queues
@@ -1801,6 +1968,96 @@ export class KingdomShard extends DurableObject<Env> {
       this.saveReport(report);
       this.broadcastReport(report);
 
+      m.troops = result.attackerRemaining;
+      this.spawnReturnMarch(m, now);
+      return;
+    }
+
+    // P8-T4: احتلال موقع مقدس (Sanctum/Altar/Shrine + المعبد المفقود)
+    if (m.targetType === "holy_site") {
+      const site = this.holySites.get(m.targetId);
+      if (!site) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+      if (site.kind === "temple" && !templeUnlocked(this.seasonDay)) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+      const previousOwner = site.ownerAllianceId;
+      const guard = site.kind === "temple" ? templeGuardTroops() : siteGuardTroops(site.kind).troops;
+      const defenderTroops: Troops = guard;
+      // تحالف يعزّز موقعه: اكتمال فوري
+      if (site.ownerAllianceId && m.allianceId && site.ownerAllianceId === m.allianceId) {
+        site.captureProgress = 100;
+        site.state = "open";
+        this.persistHolySite(site);
+        this.spawnReturnMarch(m, now);
+        this.broadcast({ type: "holy_site_changed", site });
+        return;
+      }
+      const hsCommander = await this.fetchMarchCommander(m.id);
+      const hsResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+      const hsTalentAttackMod = talentAttackMod(hsCommander?.talentAllocations);
+      const hsEquipmentMod = equipmentAttackMod(hsCommander?.equipmentState);
+      const result = resolveCombat(
+        { name: m.ownerPlayerId, troops: m.troops },
+        { name: site.ownerAllianceId || "holy_guard", troops: defenderTroops },
+        site.kind === "temple" ? 3 : 2,
+        hsCommander,
+        undefined,
+        hsResearchMod,
+        0,
+        hsTalentAttackMod,
+        0,
+        hsEquipmentMod,
+        0,
+        this.cities.get(m.ownerPlayerId)?.civ || undefined,
+      );
+      const hsReport: any = {
+        id: newId("br"),
+        createdAt: now,
+        kind: `holy_${site.kind}`,
+        siteId: site.id,
+        attackerPlayerId: m.ownerPlayerId,
+        attackerAllianceId: m.allianceId,
+        defenderAllianceId: previousOwner,
+        result,
+      };
+      await this.grantCommanderXp(m.id, totalTroops(result.defenderLosses));
+      // P8-T4: جرحى المعبد الخطيرون — 50% منهم يموتون فوق قاعدة المستشفى
+      if (site.kind === "temple") {
+        this.applyTempleSevereDeath(result);
+      }
+      const settlement = await this.settleAttackerCombat(m, result);
+      if ("rally" in settlement) hsReport.rally = settlement.rally;
+      else hsReport.hospital = settlement.hospital;
+      if (result.winner === "attacker") {
+        const gain = siteCaptureGain(troopPower(result.attackerRemaining));
+        if (site.ownerAllianceId && site.ownerAllianceId !== m.allianceId) {
+          site.captureProgress = gain; // احتلال عدو: يبدأ من جديد
+        } else {
+          site.captureProgress = Math.min(100, site.captureProgress + gain);
+        }
+        site.state = "contested";
+        if (site.captureProgress >= 100) {
+          site.ownerAllianceId = m.allianceId;
+          site.captureProgress = 100;
+          site.state = "captured";
+          site.heldSinceMs = now;
+          const storyKind = site.kind === "temple" ? "temple_captured" : "holy_site_captured";
+          this.recordSeasonStory({
+            kind: storyKind,
+            subjectId: `${site.id}:${previousOwner || "neutral"}:${m.allianceId || "unclaimed"}`,
+            allianceId: m.allianceId,
+            previousAllianceId: previousOwner,
+          }, now);
+        }
+        this.persistHolySite(site);
+        this.broadcast({ type: "holy_site_changed", site });
+      }
+      this.saveReport(hsReport);
+      this.broadcastReport(hsReport);
       m.troops = result.attackerRemaining;
       this.spawnReturnMarch(m, now);
       return;
@@ -2571,6 +2828,15 @@ export class KingdomShard extends DurableObject<Env> {
       if (pass.unlockDay > this.seasonDay) throw new Error("pass_locked");
       toX = pass.x;
       toY = pass.y;
+    } else if (targetType === "holy_site" || body.holySiteId) {
+      // P8-T4: استهداف موقع مقدس (Sanctum/Altar/Shrine/المعبد المفقود)
+      targetType = "holy_site";
+      targetId = String(body.holySiteId || body.targetId);
+      const site = this.holySites.get(targetId);
+      if (!site) throw new Error("holy_site_not_found");
+      if (site.kind === "temple" && !templeUnlocked(this.seasonDay)) throw new Error("temple_locked");
+      toX = site.x;
+      toY = site.y;
     } else if (targetType === "resource" || targetType === "barb") {
       const node = this.nodes.get(targetId);
       if (!node) throw new Error("node_not_found");
@@ -2600,6 +2866,15 @@ export class KingdomShard extends DurableObject<Env> {
       toY = enemy.y;
     }
 
+    // P8-T4: المعبد والمواقع المقدسة داخل منطقة مقفلة زمنياً تُرفض
+    if (targetType === "holy_site") {
+      const tRegion = this.regionOf(toX, toY);
+      if (tRegion) {
+        const tZone = this.regions.find((r) => r.id === tRegion)?.zone_id ?? 1;
+        if (!isRegionUnlocked(tRegion, tZone, this.seasonDay)) throw new Error("zone_locked");
+      }
+      if (targetId === HOLY_SITES.temple.id && !coreContestActive(this.seasonDay)) throw new Error("temple_locked");
+    }
     // P2-T4: أي هدف (نقطة/مدينة/عرش) داخل منطقة مقفلة زمنياً يُرفض
     if (targetType === "point" || targetType === "city" || targetType === "throne") {
       const tRegion = this.regionOf(toX, toY);
@@ -2641,7 +2916,7 @@ export class KingdomShard extends DurableObject<Env> {
     }
 
     // attacking a pass, throne, or core objective: allow even if path flagged, use euclidean distance
-    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective")) {
+    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective" || targetType === "holy_site")) {
       plan = { ok: true, distance: dist(city.x, city.y, toX, toY), crossedPasses: [targetId] };
     }
 
@@ -2751,6 +3026,15 @@ export class KingdomShard extends DurableObject<Env> {
       if (pass.unlockDay > this.seasonDay) throw new Error("pass_locked");
       toX = pass.x;
       toY = pass.y;
+    } else if (targetType === "holy_site" || body.holySiteId) {
+      // P8-T4: إعادة توجيه مسيرة نحو موقع مقدس
+      targetType = "holy_site";
+      targetId = String(body.holySiteId || body.targetId);
+      const site = this.holySites.get(targetId);
+      if (!site) throw new Error("holy_site_not_found");
+      if (site.kind === "temple" && !templeUnlocked(this.seasonDay)) throw new Error("temple_locked");
+      toX = site.x;
+      toY = site.y;
     } else if (targetType === "resource" || targetType === "barb") {
       const node = this.nodes.get(targetId);
       if (!node) throw new Error("node_not_found");
@@ -2794,7 +3078,7 @@ export class KingdomShard extends DurableObject<Env> {
     const sameRegionTarget = (targetType === "resource" || targetType === "barb") && this.regionOf(fromX, fromY) === this.regionOf(toX, toY);
     let plan = planMarch({ x: fromX, y: fromY }, { x: toX, y: toY }, this.regions, this.passDefs, this.mountainBelt, this.passWidth, canTraverse);
     if (!plan.ok && sameRegionTarget) plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [] };
-    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective")) {
+    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective" || targetType === "holy_site")) {
       plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [targetId] };
     }
     if (!plan.ok) throw new Error(plan.reason || "illegal_path");
