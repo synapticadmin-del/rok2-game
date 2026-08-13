@@ -67,3 +67,6 @@ tmp_*
 # P7-T12 fix: GoogleVR PermissionHelper stub (template imports unconditionally)
 !game/client-unreal/Build/Android/JavaLibs/vrpermissionstub/AndroidManifest.xml
 !game/client-unreal/Build/Android/JavaLibs/vrpermissionstub/src/main/java/com/google/vr/sdk/samples/permission/PermissionHelper.java
+
+# E2E sandbox persistence dirs (molten — wrangler --persist-to)
+game/backend/d1-sandbox-*
