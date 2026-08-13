@@ -55,6 +55,11 @@
       "window_ms": 3600000,
       "max_actions": 6,
       "cooldown_ms": 60000
+    },
+    "alliance_outpost": {
+      "window_ms": 3600000,
+      "max_actions": 6,
+      "cooldown_ms": 60000
     }
   },
   "anomaly": {

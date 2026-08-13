@@ -72,6 +72,8 @@ async function req(reqPath, { method = "GET", token, body, admin = false } = {})
     } catch (err) { lastErr = err; }
     await sleep(1500);
   }
+  if (lastErr) fs.appendFileSync(DEVLOG, `REQ_UNREACHABLE ${method} ${reqPath}: ${lastErr?.message || lastErr}
+`);
   console.error("FAIL:", `${method} ${reqPath} unreachable: ${lastErr?.message || lastErr}`);
   failed += 1;
   return { status: 0, data: {} };
@@ -91,6 +93,7 @@ function cleanup() {
 process.on("exit", cleanup);
 process.on("SIGINT", () => { cleanup(); process.exit(1); });
 
+const DEVLOG = path.join(BACKEND, ".wrangler-e2e-dev.log");
 async function withSandboxedServer(body) {
   if (process.env.E2E_LIVE === "1") return body();
   const sandboxDb = path.join(BACKEND, `d1-sandbox-p7t3-${Date.now()}`);
@@ -124,9 +127,9 @@ async function withSandboxedServer(body) {
       } catch { /* ignore restore errors */ }
     });
   }
-  const dev = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0"], {
+  const dev = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0", "--persist-to", sandboxDb], {
     cwd: BACKEND,
-    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb, WRANGLER_DO_STATE_PATH: sandboxDb },
+    env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   teardowns.push(() => { dev.kill(); });
@@ -137,12 +140,12 @@ async function withSandboxedServer(body) {
   for (let i = 0; i < 40; i += 1) {
     await sleep(1000);
     if (devOutput.includes("Ready on")) { started = true; break; }
-    if (dev.exitCode !== null) throw new Error(`wrangler dev exited early: ${devOutput.slice(-800)}`);
+    if (dev.exitCode !== null) { fs.writeFileSync(DEVLOG, devOutput); throw new Error(`wrangler dev exited early: ${devOutput.slice(-800)}`); }
   }
-  if (!started) throw new Error(`wrangler dev did not start: ${devOutput.slice(-1200)}`);
-  const apply = spawn("npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local"], {
+  if (!started) { fs.writeFileSync(DEVLOG, devOutput); throw new Error(`wrangler dev did not start: ${devOutput.slice(-1200)}`); }
+  const apply = spawn("npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local", "--persist-to", sandboxDb], {
     cwd: BACKEND,
-    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb },
+    env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   await new Promise((resolve, reject) => {
@@ -154,6 +157,7 @@ async function withSandboxedServer(body) {
   try {
     return await body();
   } finally {
+    try { fs.writeFileSync(DEVLOG, devOutput); } catch { /* ignore */ }
     cleanup();
   }
 }
@@ -184,6 +188,11 @@ async function createPlayer(run, suffix, name, civ) {
   });
   const token = must(guest.status === 200 && guest.data?.token, `${name}: guest authentication succeeds`);
   const founded = await req("/v1/city/init", { method: "POST", token, body: { civ, name } });
+  if (founded.status !== 200) {
+    try { fs.appendFileSync(DEVLOG, `CITY_INIT_RESPONSE ${name}: status=${founded.status} body=${JSON.stringify(founded.data)}
+`); } catch { /* ignore */ }
+    console.error(`CITY_INIT_DEBUG ${name}: status=${founded.status} body=${JSON.stringify(founded.data)}`);
+  }
   must(founded.status === 200 && founded.data?.player?.id && founded.data?.token, `${name}: FTUE city foundation succeeds`);
   return { id: founded.data.player.id, token: founded.data.token, name };
 }

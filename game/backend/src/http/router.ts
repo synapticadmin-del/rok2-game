@@ -2107,13 +2107,12 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         throw new HttpError(409, "Tag already exists");
       }
 
-      const stub = kingdomStub(env);
+            const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
         headers: shardPlayerHeaders(player.id),
-        body: JSON.stringify({ playerId: player.id, allianceId: id }),
+        body: JSON.stringify({ playerId: player.id, allianceId: id, allianceName: name, rank: "R5" }),
       });
-
       return json({ ok: true, alliance: { id, name, tag, leaderPlayerId: player.id } });
     }
 
@@ -2141,11 +2140,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         // الجدول قد لا يكون مُرحّلاً بعد
       }
 
+      const rank = await getMemberRank(env, player.id, body.allianceId);
+      const aName = await env.DB.prepare("SELECT name FROM alliances WHERE id = ?").bind(body.allianceId).first<{ name: string | null }>();
       const stub = kingdomStub(env);
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
         headers: shardPlayerHeaders(player.id),
-        body: JSON.stringify({ playerId: player.id, allianceId: body.allianceId }),
+        body: JSON.stringify({ playerId: player.id, allianceId: body.allianceId, allianceName: aName?.name ?? null, rank }),
       });
       return json({ ok: true, allianceId: body.allianceId });
     }
@@ -2625,6 +2626,38 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
       const data = await res.json<any>();
       if (!res.ok) throw new HttpError(res.status, data.error || "build_failed", data);
+      return json(data);
+    }
+
+    // P9-T2: بناء قلعة outpost للتحالف — تنشر نطاق أرض التحالف (باف جمع + تخفيف أضرار البرابرة)
+    if (path === "/v1/alliance/outpost/build" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ x: number; y: number }>(request);
+      const mapForOutpost = getMap();
+      const x = Number(body.x);
+      const y = Number(body.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > mapForOutpost.width || y < 0 || y > mapForOutpost.height) {
+        throw new HttpError(400, "bad_outpost_coords");
+      }
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rankHas(rank, "territory")) throw new HttpError(403, "insufficient_rank");
+      enforceRateLimit(player.id, "alliance_outpost");
+      const res = await kingdomStub(env).fetch("https://do/build-outpost", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, rank, x, y }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "outpost_build_failed", data);
+      return json(data);
+    }
+
+    // P9-T2: حالة الأراضي — القلاع + مراكز الموارد + إعدادات النطاقات
+    if (path === "/v1/territory/state" && request.method === "GET") {
+      const res = await kingdomStub(env).fetch("https://do/territory-state");
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "territory_state_failed", data);
       return json(data);
     }
 

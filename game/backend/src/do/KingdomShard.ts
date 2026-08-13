@@ -43,6 +43,26 @@ import {
   type TechProgress,
   type DonationWindow,
 } from "./sim/alliance_tech";
+import { rankHas } from "./sim/alliance";
+import {
+  flagRadius,
+  outpostRadius,
+  gatherBonus,
+  gatherMultiplier,
+  patrolReduction,
+  patrolMod,
+  insideTerritory,
+  marchCrossesTerritory,
+  canBuildOutpost,
+  validPosition,
+  seedCenters,
+  respawnDueCenters,
+  lockCenter,
+  centerGatherAmount,
+  centerResource,
+  TERRITORY_CFG,
+  type CenterEntity,
+} from "./sim/territory";
 import {
   buildDailyQuests,
   buildWeeklyQuests,
@@ -106,6 +126,9 @@ type CityEntity = {
   playerId: string;
   name: string;
   allianceId: string | null;
+  // P9-T2: اسم التحالف ورتبة اللاعب فيه (يمررها الراوتر مع set-alliance) — لصلاحيات بناء قلاع outpost
+  allianceName?: string;
+  rank?: string;
   civ: string;
   x: number;
   y: number;
@@ -199,7 +222,7 @@ type MarchEntity = {
   etaMs: number;
   troops: Troops;
   state: "moving" | "arrived" | "returned" | "cancelled" | "gathering" | "returning";
-  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne" | "core_objective" | "holy_site";
+  targetType: "pass" | "resource" | "barb" | "city" | "point" | "throne" | "core_objective" | "holy_site" | "center";
   targetId: string;
   payload?: any;
 };
@@ -246,6 +269,18 @@ type AllianceTechState = {
   allianceTech: Map<string, Record<string, TechProgress>>;
   /** سجل تبرعات كل لاعب: playerId → DonationWindow[] (نافذة 30 دقيقة بسقف 20) */
   donationWindows: Map<string, DonationWindow[]>;
+};
+
+// P9-T2: قلعة outpost للتحالف — تنشر نطاقًا إقليمياً (outpostRadius) حولها:
+// باف جمع داخل النطاق + تخفيض أضرار البرابرة للممرات العابرة.
+type AllianceOutpostEntity = {
+  id: string;
+  allianceId: string;
+  x: number;
+  y: number;
+  radius: number;
+  createdBy: string;
+  createdAt: number;
 };
 
 // P6-T6: رسالة دردشة حية (قناة المملكة أو التحالف)
@@ -318,6 +353,9 @@ export class KingdomShard extends DurableObject<Env> {
   private flags = new Map<string, AllianceFlag>();
   // منشآت التحالف المرئية: حصون ومنجنيقات وأبراج مراقبة.
   private allianceStructures = new Map<string, AllianceStructure>();
+  // P9-T2: أراضي التحالف — قلاع outpost المنشأة + مراكز الموارد على الخريطة
+  private allianceOutposts = new Map<string, AllianceOutpostEntity>();
+  private resourceCenters = new Map<string, CenterEntity>();
   // P9-T1: تكنولوجيا التحالف — تقدم تقنيات كل تحالف + نوافذ تبرع كل عضو
   private allianceTech: AllianceTechState = {
     allianceTech: new Map(),
@@ -436,6 +474,25 @@ export class KingdomShard extends DurableObject<Env> {
           start_ms INTEGER NOT NULL,
           eta_ms INTEGER NOT NULL,
           state TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS alliance_outposts (
+          id TEXT PRIMARY KEY,
+          alliance_id TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS alliance_centers (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          x REAL NOT NULL,
+          y REAL NOT NULL,
+          radius REAL NOT NULL,
+          locked_alliance_id TEXT,
+          locked_until_ms INTEGER,
+          reserve REAL NOT NULL,
+          spawned_season_day INTEGER NOT NULL DEFAULT 1
         );
 
     `);
@@ -624,6 +681,11 @@ export class KingdomShard extends DurableObject<Env> {
       );
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (12)");
     }
+    if (ver < 13) {
+      // P9-T2: أراضي التحالف ومراكز الموارد — قلاع outpost المنشأة + مراكز موارد غير قابلة للهجوم.
+      this.ensureCoreWorldTables();
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (13)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -687,6 +749,33 @@ export class KingdomShard extends DurableObject<Env> {
         createdAt: row.created_at,
       });
     }
+
+    // P9-T2: قلاع outpost المنشأة + مراكز الموارد — تُحمّل مع بقية حالات العالم
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_outposts").toArray()) {
+      this.allianceOutposts.set(row.id, {
+        id: row.id,
+        allianceId: row.alliance_id,
+        x: row.x,
+        y: row.y,
+        radius: Number(row.radius) || outpostRadius(),
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+      });
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_centers").toArray()) {
+      this.resourceCenters.set(row.id, {
+        id: row.id,
+        kind: row.kind,
+        x: row.x,
+        y: row.y,
+        radius: row.radius,
+        lockedAllianceId: row.locked_alliance_id || null,
+        lockedUntilMs: typeof row.locked_until_ms === "number" ? row.locked_until_ms : null,
+        reserve: row.reserve,
+        spawnedSeasonDay: row.spawned_season_day ?? 1,
+      });
+    }
+    if (this.resourceCenters.size === 0) this.seedAllianceCenters();
 
     // P5-T5: الكشافة التي لم تصل بعد فقط — الواصلة حُذفت عند بث scout_arrived
     for (const row of this.ctx.storage.sql
@@ -848,6 +937,8 @@ export class KingdomShard extends DurableObject<Env> {
     this.seedCoreObjectives();
     // P8-T4: بذر المواقع المقدسة (12 موقعًا + المعبد المفقود) من holy_sites.json
     this.seedHolySites();
+    // P9-T2: بذر مراكز الموارد الحتمية (14 مركزًا لكل موسم) من alliance_territory.json
+    this.seedAllianceCenters();
 
     for (const p of this.passDefs) {
       const unlock = p.unlock_day ?? 0;
@@ -1620,6 +1711,53 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  /** كل القلاع التي تنشر نطاقًا إقليمياً: الأعلام + قلاع outpost. */
+  private castleList(): Array<{ id: string; allianceId: string | null; x: number; y: number; radius?: number; kind: "flag" | "outpost" }> {
+    return [
+      ...[...this.flags.values()].map((f) => ({ id: f.id, allianceId: f.allianceId, x: f.x, y: f.y, radius: f.radius, kind: "flag" as const })),
+      ...[...this.allianceOutposts.values()].map((o) => ({ id: o.id, allianceId: o.allianceId, x: o.x, y: o.y, radius: o.radius, kind: "outpost" as const })),
+    ];
+  }
+
+  private seedAllianceCenters() {
+    // P9-T2: بذر حتمي لكل موسم — نفس المواضع لكل المواسم (بذر موثوق من JSON).
+    for (const c of seedCenters(this.seasonDay || 1)) {
+      this.resourceCenters.set(c.id, c);
+      this.persistCenter(c);
+    }
+  }
+
+  private persistAllianceOutpost(outpost: AllianceOutpostEntity) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO alliance_outposts (id, alliance_id, x, y, radius, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      outpost.id,
+      outpost.allianceId,
+      outpost.x,
+      outpost.y,
+      outpost.radius,
+      outpost.createdBy,
+      outpost.createdAt,
+    );
+  }
+
+  private persistCenter(center: CenterEntity) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO alliance_centers
+       (id, kind, x, y, radius, locked_alliance_id, locked_until_ms, reserve, spawned_season_day)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      center.id,
+      center.kind,
+      center.x,
+      center.y,
+      center.radius,
+      center.lockedAllianceId,
+      center.lockedUntilMs,
+      center.reserve,
+      center.spawnedSeasonDay,
+    );
+  }
+
   private persistAllianceStructure(structure: AllianceStructure) {
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO alliance_structures
@@ -1658,6 +1796,16 @@ export class KingdomShard extends DurableObject<Env> {
       // الكتالوج ومثيلاته يُبثان مع اللقطة ليعرض العميل العلامة ودائرة النطاق من البيانات السلطوية.
       allianceStructures: [...this.allianceStructures.values()],
       allianceStructureCatalog: getAllianceStructures(),
+      // P9-T2: أراضي التحالف — القلاع + مراكز الموارد + إعدادات النطاقات للعميل.
+      allianceOutposts: [...this.allianceOutposts.values()],
+      resourceCenters: [...this.resourceCenters.values()],
+      territoryCfg: {
+        flagRadius: flagRadius(),
+        outpostRadius: outpostRadius(),
+        gatherBonus: gatherBonus(),
+        gatherMultiplier: gatherMultiplier(),
+        patrolReduction: patrolReduction(),
+      },
       // P9-T1: حالة تكنولوجيا التحالف — التقدم والمستويات للتحالف المعني فقط إن حُدّدت لاعب، وإلا لكل التحالفات
       allianceTechState: this.allianceTechStateFor(playerAllianceId),
       // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
@@ -1700,6 +1848,9 @@ export class KingdomShard extends DurableObject<Env> {
       allianceStructures: [...this.allianceStructures.values()],
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       queues: [...this.queues.values()].filter((q) => q.state === "running"),
+      // P9-T2: أراضي التحالف — deltas للعالم الحي
+      allianceOutposts: [...this.allianceOutposts.values()],
+      resourceCenters: [...this.resourceCenters.values()],
       // P8-T4: المواقع المقدسة (حالة المالك/الحيازة + الملك) — deltas للعالم الحي
       holySites: [...this.holySites.values()],
       king: this.king,
@@ -1925,23 +2076,47 @@ export class KingdomShard extends DurableObject<Env> {
         }
       } else if (m.state === "gathering") {
         if (now >= m.etaMs) {
-          const node = this.nodes.get(m.targetId);
-          if (node) {
-            // P3-T3: باف اندفاع الموارد — عقد أغنى أثناء الحدث
-            const richMult = eventBuff(this.seasonDay, tickInDay, "resource_richness_mult");
-            const gathered = Math.floor(node.remaining * richMult);
-            node.remaining = 0;
-            this.persistNode(node);
-            m.payload = { kind: node.kind, amount: gathered };
-            // P8-T6: تقدم مهمة الجمع اليومي/الأسبوعي
+          // P9-T2: جمع من مركز مورد — داخل النطاق يحصل على باف +25% ويُقفل المركز عليه
+          const center = m.targetType === "center" ? this.resourceCenters.get(m.targetId) : undefined;
+          if (center) {
+            const troopsCount = totalTroops(m.troops);
+            let gathered = centerGatherAmount(center, troopsCount).amount;
+            if (insideTerritory(center.x, center.y, this.castleList(), m.allianceId || null)) {
+              gathered = Math.floor(gathered * gatherMultiplier());
+            }
+            center.reserve = Math.max(0, center.reserve - gathered);
+            if (m.allianceId && !center.lockedAllianceId) {
+              const locked = lockCenter(center, m.allianceId, now);
+              this.resourceCenters.set(locked.id, locked);
+              this.persistCenter(locked);
+            }
+            this.resourceCenters.set(center.id, center);
+            this.persistCenter(center);
+            m.payload = { kind: centerResource(center.kind), amount: gathered, centerId: center.id };
             try { void this.recordQuestProgress(m.ownerPlayerId, "gather", gathered); } catch {}
-            // نقاط الجمع أثناء اندفاع الموارد
-            const gatherScore = eventBuff(this.seasonDay, tickInDay, "gather_score", true);
-            if (gatherScore > 0 && m.allianceId) {
-              const pts = gatherScore * node.level;
-              const cur = this.throneScores.get(m.allianceId) || 0;
-              this.throneScores.set(m.allianceId, cur + pts);
-              this.persistThroneScore(m.allianceId, cur + pts);
+          } else {
+            const node = this.nodes.get(m.targetId);
+            if (node) {
+              // P3-T3: باف اندفاع الموارد — عقد أغنى أثناء الحدث
+              const richMult = eventBuff(this.seasonDay, tickInDay, "resource_richness_mult");
+              let gathered = Math.floor(node.remaining * richMult);
+              // P9-T2: باف جمع +25% داخل الأرض الإقليمية للتحالف
+              if (m.allianceId && insideTerritory(node.x, node.y, this.castleList(), m.allianceId)) {
+                gathered = Math.floor(gathered * gatherMultiplier());
+              }
+              node.remaining = 0;
+              this.persistNode(node);
+              m.payload = { kind: node.kind, amount: gathered };
+              // P8-T6: تقدم مهمة الجمع اليومي/الأسبوعي
+              try { void this.recordQuestProgress(m.ownerPlayerId, "gather", gathered); } catch {}
+              // نقاط الجمع أثناء اندفاع الموارد
+              const gatherScore = eventBuff(this.seasonDay, tickInDay, "gather_score", true);
+              if (gatherScore > 0 && m.allianceId) {
+                const pts = gatherScore * node.level;
+                const cur = this.throneScores.get(m.allianceId) || 0;
+                this.throneScores.set(m.allianceId, cur + pts);
+                this.persistThroneScore(m.allianceId, cur + pts);
+              }
             }
           }
           this.spawnReturnMarch(m, now);
@@ -2000,6 +2175,14 @@ export class KingdomShard extends DurableObject<Env> {
 
       changed = true;
     }
+
+    // P9-T2: إعادة تعبئة مراكز الموارد المستنفدة بعد انتهاء فترة respawn
+    const refilled = respawnDueCenters([...this.resourceCenters.values()], this.seasonDay, now);
+    for (const c of refilled) {
+      this.resourceCenters.set(c.id, c);
+      this.persistCenter(c);
+    }
+    if (refilled.length > 0) changed = true;
 
     if (this.throne.ownerAllianceId && this.seasonDay >= this.throne.unlockDay) {
       const current = this.throneScores.get(this.throne.ownerAllianceId) || 0;
@@ -2110,7 +2293,12 @@ export class KingdomShard extends DurableObject<Env> {
       // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
       const allianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
       // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
-      const passAugmentedTroops = scaleTroops(m.troops, 1 + allianceTechMod);
+      // P9-T2: الممر داخل أرض التحالف المدافع عنها يخفَّف على قوات المهاجم (دورية حامية)
+      const passPatrolMod = patrolMod(
+        !!m.allianceId && !!pass.ownerAllianceId && pass.ownerAllianceId !== m.allianceId
+          && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), pass.ownerAllianceId),
+      );
+      const passAugmentedTroops = scaleTroops(m.troops, (1 + allianceTechMod) * passPatrolMod);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: passAugmentedTroops },
@@ -2218,7 +2406,12 @@ export class KingdomShard extends DurableObject<Env> {
       // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
       const throneAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
       // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
-      const throneAugmentedTroops = scaleTroops(m.troops, 1 + throneAllianceTechMod);
+      // P9-T2: العرش داخل أرض التحالف المدافع يخفَّف على قوات المهاجم (دورية حامية)
+      const thronePatrolMod = patrolMod(
+        !!m.allianceId && !!this.throne.ownerAllianceId && this.throne.ownerAllianceId !== m.allianceId
+          && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), this.throne.ownerAllianceId),
+      );
+      const throneAugmentedTroops = scaleTroops(m.troops, (1 + throneAllianceTechMod) * thronePatrolMod);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: throneAugmentedTroops },
@@ -2331,7 +2524,12 @@ export class KingdomShard extends DurableObject<Env> {
       // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
       const coAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
       // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
-      const coAugmentedTroops = scaleTroops(m.troops, 1 + coAllianceTechMod);
+      // P9-T2: الهدف داخل أرض التحالف المدافع يخفَّف على قوات المهاجم (دورية حامية)
+      const coPatrolMod = patrolMod(
+        !!m.allianceId && !!obj.ownerAllianceId && obj.ownerAllianceId !== m.allianceId
+          && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), obj.ownerAllianceId),
+      );
+      const coAugmentedTroops = scaleTroops(m.troops, (1 + coAllianceTechMod) * coPatrolMod);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: coAugmentedTroops },
         { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
@@ -2439,7 +2637,12 @@ export class KingdomShard extends DurableObject<Env> {
       // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
       const hsAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
       // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
-      const hsAugmentedTroops = scaleTroops(m.troops, 1 + hsAllianceTechMod);
+      // P9-T2: الموقع المقدس داخل أرض التحالف المدافع يخفَّف على قوات المهاجم (دورية حامية)
+      const hsPatrolMod = patrolMod(
+        !!m.allianceId && !!site.ownerAllianceId && site.ownerAllianceId !== m.allianceId
+          && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), site.ownerAllianceId),
+      );
+      const hsAugmentedTroops = scaleTroops(m.troops, (1 + hsAllianceTechMod) * hsPatrolMod);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: hsAugmentedTroops },
         { name: site.ownerAllianceId || "holy_guard", troops: defenderTroops },
@@ -2516,7 +2719,9 @@ export class KingdomShard extends DurableObject<Env> {
           const barbEquipmentMod = equipmentAttackMod(barbCommander?.equipmentState);
           // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP) — بحث جماعي نشط
           const barbAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId);
-          const barbAugmentedTroops = scaleTroops(m.troops, 1 + barbAllianceTechMod);
+          // P9-T2: مستعمرات البرابرة داخل أرض التحالف تخفَّف على قوات المهاجم (دورية حامية)
+          const barbPatrolMod = patrolMod(marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), m.allianceId));
+          const barbAugmentedTroops = scaleTroops(m.troops, (1 + barbAllianceTechMod) * barbPatrolMod);
           const result = resolveCombat({ name: m.ownerPlayerId, troops: barbAugmentedTroops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0, this.cities.get(m.ownerPlayerId)?.civ || undefined);
           const report: {
             id: string;
@@ -2565,7 +2770,9 @@ export class KingdomShard extends DurableObject<Env> {
           m.state = "gathering";
           // P3-T3: باف اندفاع الموارد — جمع أسرع أثناء الحدث
           const gatherMult = eventBuff(this.seasonDay, tickInDay, "gather_rate_mult");
-          const rate = 0.5 * totalTroops(m.troops) * gatherMult; // units/sec
+          // P9-T2: باف جمع +25% داخل الأرض الإقليمية للتحالف
+          const territoryMult = m.allianceId && insideTerritory(node.x, node.y, this.castleList(), m.allianceId) ? gatherMultiplier() : 1;
+          const rate = 0.5 * totalTroops(m.troops) * gatherMult * territoryMult; // units/sec
           const durationSec = node.remaining / rate;
           m.etaMs = now + durationSec * 1000;
           this.persistMarch(m);
@@ -2573,6 +2780,29 @@ export class KingdomShard extends DurableObject<Env> {
       } else {
         this.spawnReturnMarch(m, now);
       }
+      return;
+    }
+
+    // P9-T2: مراكز الموارد — حصينة لا تُهاجَم؛ تحالف عضويته صحيح فقط يجمع منها.
+    if (m.targetType === "center") {
+      const center = this.resourceCenters.get(m.targetId);
+      if (!center) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+      // المركز المقفول لتحالف آخر لا يجمع منه المهاجم: يعاد فورًا.
+      if (center.lockedAllianceId && center.lockedAllianceId !== m.allianceId) {
+        this.spawnReturnMarch(m, now);
+        return;
+      }
+      m.state = "gathering";
+      const troopsCount = totalTroops(m.troops);
+      const perTick = Math.max(1, Math.floor(troopsCount / 100));
+      const ratePerSec = perTick * gatherMultiplier(); // باف +25% دائم داخل النطاق (المركز داخل نطاق أرض التحالف)
+      const durationSec = Math.max(60, Math.min(center.reserve, troopsCount * 6) / ratePerSec);
+      m.etaMs = now + durationSec * 1000;
+      this.persistMarch(m);
+      this.broadcast({ type: "march_moving", march: m });
       return;
     }
 
@@ -2619,13 +2849,14 @@ export class KingdomShard extends DurableObject<Env> {
       }
     }
 
-    // Add gathered resources
+    // Add gathered resources (يشمل موارد المراكز — payload من جمع المراكز يحمل {kind, amount, centerId})
     if (m.payload?.amount) {
       const kind = m.payload.kind;
       if (kind === "food" || kind === "wood" || kind === "stone" || kind === "gold") {
         await this.env.DB.prepare(
           `UPDATE cities SET ${kind}=${kind}+? WHERE player_id=?`
         ).bind(m.payload.amount, m.ownerPlayerId).run();
+        this.broadcast({ type: "resources_gathered", playerId: m.ownerPlayerId, kind, amount: m.payload.amount });
       }
     }
 
@@ -2923,6 +3154,13 @@ export class KingdomShard extends DurableObject<Env> {
       const c = this.cities.get(body.playerId);
       if (!c) { this.recordCommandError("city_not_found"); return Response.json({ error: "city_not_found" }, { status: 404 }); }
       c.allianceId = body.allianceId;
+      // P9-T2: اسم التحالف ورتبة اللاعب فيه — يحددهما الراوتر بعد التحقق من SQL
+      if (body.allianceName != null) c.allianceName = String(body.allianceName);
+      if (body.rank != null) c.rank = String(body.rank);
+      if (body.allianceId == null) {
+        c.allianceName = undefined;
+        c.rank = undefined;
+      }
       this.persistCity(c);
       this.broadcast({ type: "city_upsert", city: c });
       return Response.json({ ok: true, city: c });
@@ -3253,6 +3491,90 @@ export class KingdomShard extends DurableObject<Env> {
         donationQuota: playerAllianceId ? undefined : undefined,
       });
     }
+
+    // P9-T2: حالة الأراضي — القلاع (أعلام + قلاع outpost) + مراكز الموارد + إعدادات النطاقات
+    if (path.endsWith("/territory-state") && request.method === "GET") {
+      return Response.json({
+        ok: true,
+        castles: this.castleList(),
+        outposts: [...this.allianceOutposts.values()],
+        resourceCenters: [...this.resourceCenters.values()],
+        territoryCfg: {
+          flagRadius: flagRadius(),
+          outpostRadius: outpostRadius(),
+          gatherBonus: gatherBonus(),
+          gatherMultiplier: gatherMultiplier(),
+          patrolReduction: patrolReduction(),
+        },
+      });
+    }
+
+    // P9-T2: قائد (R4+) يبني قلعة outpost — تنشر نطاق أرض التحالف حولها
+    if (path.endsWith("/build-outpost") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      const allianceId = city?.allianceId || String(body.allianceId || "");
+      if (!city || !allianceId || city.allianceId !== allianceId) {
+        this.recordCommandError("not_your_alliance"); return Response.json({ error: "not_your_alliance" }, { status: 403 });
+      }
+      const rank = String(body.rank || city.rank || "R1");
+      if (!rankHas(rank, "territory")) {
+        this.recordCommandError("territory_permission_required"); return Response.json({ error: "territory_permission_required" }, { status: 403 });
+      }
+      const rl = this.antiCheat.check(`alliance:${allianceId}`, "alliance_outpost", nowMs());
+      if (!rl.allowed) {
+        this.logAntiCheatViolation(playerId, "alliance_outpost", rl.reason);
+                return Response.json({ error: `rate_limited_${rl.reason}` }, { status: 429 });
+      }
+      const x = Number(body.x);
+      const y = Number(body.y);
+      const outpostMap = getMap();
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > outpostMap.width || y < 0 || y > outpostMap.height) {
+        this.recordCommandError("bad_outpost_coords"); return Response.json({ error: "bad_outpost_coords" }, { status: 400 });
+      }
+      // شروط التحالف: عدد القلاع + عدد الأعضاء + قوة إجمالية + مستوى قاعة المدينة (كلها من JSON + D1)
+      const allianceOutposts = [...this.allianceOutposts.values()].filter((o) => o.allianceId === allianceId).length;
+      let playerCount = 0;
+      let hallLevels = 0;
+      let totalPower = 0;
+      if (this.env?.DB) {
+        try {
+          const nRow = await this.env.DB.prepare("SELECT COUNT(*) AS n FROM players WHERE alliance_id = ?").bind(allianceId).first<{ n: number }>();
+          playerCount = Number(nRow?.n || 0);
+        } catch {}
+        try {
+          const hlRow = await this.env.DB.prepare("SELECT MAX(b.level) AS hl FROM buildings b JOIN players p ON p.player_id = b.player_id WHERE p.alliance_id = ? AND b.building_id = 'hall'").bind(allianceId).first<{ hl: number | null }>();
+          hallLevels = Number(hlRow?.hl || 0);
+        } catch {}
+        try {
+          const pRow = await this.env.DB.prepare("SELECT SUM(power) AS p FROM players WHERE alliance_id = ?").bind(allianceId).first<{ p: number | null }>();
+          totalPower = Number(pRow?.p || 0);
+        } catch {}
+      }
+      if (!canBuildOutpost(allianceOutposts, playerCount, totalPower, hallLevels)) {
+        this.recordCommandError("outpost_requirements_not_met");
+        return Response.json({ error: "outpost_requirements_not_met", reason: "alliance needs more members/power/higher hall level or fewer outposts" }, { status: 400 });
+      }
+      if (!validPosition(x, y, this.castleList(), [...this.resourceCenters.values()])) {
+        this.recordCommandError("outpost_bad_position"); return Response.json({ error: "outpost_bad_position" }, { status: 400 });
+      }
+      const outpost: AllianceOutpostEntity = {
+        id: newId("out"),
+        allianceId,
+        x,
+        y,
+        radius: outpostRadius(),
+        createdBy: playerId,
+        createdAt: nowMs(),
+      };
+      this.allianceOutposts.set(outpost.id, outpost);
+      this.persistAllianceOutpost(outpost);
+      this.broadcast({ type: "alliance_outpost_built", outpost });
+      return Response.json({ ok: true, outpost });
+    }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
 
@@ -3437,14 +3759,28 @@ export class KingdomShard extends DurableObject<Env> {
         city.ap -= apCost;
         this.persistCity(city);
       }
-      else targetType = "resource";
+            else targetType = "resource";
     } else if (targetType === "city") {
       const enemy = this.cities.get(targetId);
       if (!enemy) throw new Error("target_city_not_found");
       toX = enemy.x;
       toY = enemy.y;
     }
-
+    // P9-T2: استهداف مركز مورد — لا AP، داخل الأرض الإقليمية للتحالف فقط
+    if (targetType === "center" || body.centerId) {
+      targetType = "center";
+      targetId = String(body.centerId || body.targetId);
+      const center = this.resourceCenters.get(targetId);
+      if (!center) throw new Error("center_not_found");
+      if (!insideTerritory(center.x, center.y, this.castleList(), city.allianceId)) {
+        throw new Error("center_outside_territory");
+      }
+      if (center.lockedAllianceId && center.lockedAllianceId !== city.allianceId) {
+        throw new Error("center_locked");
+      }
+      toX = center.x;
+      toY = center.y;
+    }
     // P8-T4: المعبد والمواقع المقدسة داخل منطقة مقفلة زمنياً تُرفض
     if (targetType === "holy_site") {
       const tRegion = this.regionOf(toX, toY);
@@ -3624,6 +3960,20 @@ export class KingdomShard extends DurableObject<Env> {
         targetType = "barb";
       }
       else targetType = "resource";
+    } else if (targetType === "center" || body.centerId) {
+      // P9-T2: إعادة توجيه مسيرة نحو مركز مورد — داخل أرض التحالف فقط
+      targetType = "center";
+      targetId = String(body.centerId || body.targetId);
+      const center = this.resourceCenters.get(targetId);
+      if (!center) throw new Error("center_not_found");
+      if (!insideTerritory(center.x, center.y, this.castleList(), march.allianceId)) {
+        throw new Error("center_outside_territory");
+      }
+      if (center.lockedAllianceId && center.lockedAllianceId !== march.allianceId) {
+        throw new Error("center_locked");
+      }
+      toX = center.x;
+      toY = center.y;
     } else if (targetType === "city") {
       const targetCity = this.cities.get(targetId);
       if (!targetCity) throw new Error("target_city_not_found");
@@ -3657,10 +4007,10 @@ export class KingdomShard extends DurableObject<Env> {
       const pass = this.passes.get(passId);
       return !!pass?.ownerAllianceId && !!march.allianceId && pass.ownerAllianceId === march.allianceId;
     };
-    const sameRegionTarget = (targetType === "resource" || targetType === "barb") && this.regionOf(fromX, fromY) === this.regionOf(toX, toY);
+    const sameRegionTarget = (targetType === "resource" || targetType === "barb" || targetType === "center") && this.regionOf(fromX, fromY) === this.regionOf(toX, toY);
     let plan = planMarch({ x: fromX, y: fromY }, { x: toX, y: toY }, this.regions, this.passDefs, this.mountainBelt, this.passWidth, canTraverse);
     if (!plan.ok && sameRegionTarget) plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [] };
-    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective" || targetType === "holy_site")) {
+    if (!plan.ok && (targetType === "pass" || targetType === "throne" || targetType === "core_objective" || targetType === "holy_site" || targetType === "center")) {
       plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [targetId] };
     }
     if (!plan.ok) throw new Error(plan.reason || "illegal_path");
