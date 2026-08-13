@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "comment": "نقاط العمل (AP) والدروع (Peace Shield) والتهجير (Relocation) — P8-T5",
+  "constants": {
+    "ap_cap": 1000,
+    "ap_regen_interval_ms": 45000,
+    "ap_regen_amount": 1,
+    "sandbox_starting_ap": 1000
+  },
+  "costs": {
+    "barb_battle": 5,
+    "rally_attack": 10,
+    "holy_site_battle": 15,
+    "city_attack": 5
+  },
+  "shields": [
+    { "duration_minutes": 480, "cost_gems": 100 },
+    { "duration_minutes": 1440, "cost_gems": 250 },
+    { "duration_minutes": 4320, "cost_gems": 500 }
+  ],
+  "war_frenzy": {
+    "comment": "بعد العدوان الناجح على المدينة لا يُفعَّل الدرع حتى انقضاء هذه المدة",
+    "duration_ms": 3600000
+  },
+  "relocation": {
+    "cooldown_ms": 2592000000,
+    "random_cost_gems": 50,
+    "targeted_cost_gems": 200,
+    "random_cost_ap": 50,
+    "targeted_cost_ap": 200
+  }
+}

@@ -34,6 +34,18 @@ import {
   templeUnlocked,
   templeWoundedDeadShare,
 } from "./sim/holy_sites";
+import {
+  regenAp,
+  apCap,
+  AP_INTERVAL_MS,
+  apCost,
+  warFrenzyDurationMs,
+  shieldOptions,
+  canActivateShield,
+  relocationCooldownMs,
+  relocationCosts,
+  startingAp,
+} from "./sim/action_points";
 
 /** سقف صلب لأي عملية تسريع واحدة (30 يوماً). حاجز أخير ضد قيمة شاذة
  *  تتسرّب من مسار أعلى — لا يغيّر السلوك الشرعي لأن أطول عنصر تسريع
@@ -84,6 +96,9 @@ type CityEntity = {
   regionId: string;
   ap: number;
   lastApMs: number;
+  shieldUntilMs: number | null;
+  warFrenzyUntilMs: number | null;
+  lastRelocationMs: number | null;
 };
 
 // P6-T10: سجل سلطوي مختصر للوقائع التي تصنع «حكاية المملكة».
@@ -544,6 +559,19 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (10)");
     }
+    if (ver < 11) {
+      // P8-T5: نقاط العمل (AP) والدروع (Peace Shield) والتهجير (Relocation) — أعمدة مدينية.
+      this.ctx.storage.sql.exec(
+        "ALTER TABLE map_cities ADD COLUMN ap INTEGER NOT NULL DEFAULT 1000",
+      );
+      this.ctx.storage.sql.exec(
+        "ALTER TABLE map_cities ADD COLUMN last_ap_ms INTEGER NOT NULL DEFAULT 0",
+      );
+      this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN shield_until_ms INTEGER");
+      this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN war_frenzy_until_ms INTEGER");
+      this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN last_relocation_ms INTEGER");
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (11)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -575,11 +603,13 @@ export class KingdomShard extends DurableObject<Env> {
         y: row.y,
         hallLevel: row.hall_level,
         regionId: row.region_id,
-        ap: 1000, // Migration stub
-        lastApMs: Date.now(),
+                ap: typeof row.ap === "number" ? row.ap : 1000,
+        lastApMs: typeof row.last_ap_ms === "number" && row.last_ap_ms > 0 ? row.last_ap_ms : Date.now(),
+        shieldUntilMs: typeof row.shield_until_ms === "number" ? row.shield_until_ms : null,
+        warFrenzyUntilMs: typeof row.war_frenzy_until_ms === "number" ? row.war_frenzy_until_ms : null,
+        lastRelocationMs: typeof row.last_relocation_ms === "number" ? row.last_relocation_ms : null,
       });
     }
-
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM flags").toArray()) {
       this.flags.set(row.id, {
         id: row.id,
@@ -1004,8 +1034,10 @@ export class KingdomShard extends DurableObject<Env> {
 
   private persistCity(c: CityEntity) {
     this.ctx.storage.sql.exec(
-      `INSERT OR REPLACE INTO map_cities (player_id, name, alliance_id, civ, x, y, hall_level, region_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO map_cities
+         (player_id, name, alliance_id, civ, x, y, hall_level, region_id,
+          ap, last_ap_ms, shield_until_ms, war_frenzy_until_ms, last_relocation_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       c.playerId,
       c.name,
       c.allianceId,
@@ -1014,6 +1046,11 @@ export class KingdomShard extends DurableObject<Env> {
       c.y,
       c.hallLevel,
       c.regionId,
+      c.ap,
+      c.lastApMs,
+      c.shieldUntilMs ?? null,
+      c.warFrenzyUntilMs ?? null,
+      c.lastRelocationMs ?? null,
     );
   }
 
@@ -1212,7 +1249,27 @@ export class KingdomShard extends DurableObject<Env> {
       this.admitToHospital(march.ownerPlayerId, result.attackerSplit.severely),
       this.deductMarchLosses(march.ownerPlayerId, result.attackerLosses),
     ]);
+    // P8-T5: حمى الحرب — المدينة المدافعة التي تعرضت لهجوم تصبح محمية 1h من هجمات أخرى
+    if (march.targetType === "city" && march.targetId) {
+      const defender = this.cities.get(march.targetId);
+      if (defender && march.ownerPlayerId !== march.targetId) {
+        defender.warFrenzyUntilMs = nowMs() + warFrenzyDurationMs();
+        this.persistCity(defender);
+      }
+    }
     return { hospital };
+  }
+
+  /** P8-T5: خصم نقاط عمل من مدينة قبل إطلاق مسيرة — يجرّد التجديد الحالي ثم يرفض إن لم تكفِ. */
+  private deductApFromCity(city: CityEntity, action: "barb_battle" | "holy_site_battle" | "city_attack") {
+    const cost = apCost(action);
+    if (cost <= 0) return;
+    const { ap, lastRegenMs } = regenAp(city.ap, city.lastApMs, nowMs());
+    city.ap = ap;
+    city.lastApMs = lastRegenMs;
+    if (city.ap < cost) throw new Error("not_enough_ap");
+    city.ap -= cost;
+    this.persistCity(city);
   }
   /** P8-T4: جرحى المعبد الخطيرون — 50% منهم يموتون مباشرة (فوق قاعدة المستشفى) */
   private applyTempleSevereDeath(result: CombatResult) {
@@ -1551,6 +1608,29 @@ export class KingdomShard extends DurableObject<Env> {
           await this.resolveMarchReturn(m);
           changed = true;
         }
+      }
+    }
+
+    // P8-T5: تجديد نقاط العمل (AP) لكل مدينة كل 45s + انتهاء الدرع وحمى الحرب
+    for (const city of this.cities.values()) {
+      const { ap, lastRegenMs } = regenAp(city.ap, city.lastApMs, now);
+      if (ap !== city.ap) {
+        city.ap = ap;
+        city.lastApMs = lastRegenMs;
+        this.persistCity(city);
+        this.broadcast({ type: "city_upsert", city });
+        changed = true;
+      }
+      if (city.shieldUntilMs != null && now >= city.shieldUntilMs) {
+        city.shieldUntilMs = null;
+        this.persistCity(city);
+        this.broadcast({ type: "city_upsert", city });
+        changed = true;
+      }
+      if (city.warFrenzyUntilMs != null && now >= city.warFrenzyUntilMs) {
+        city.warFrenzyUntilMs = null;
+        this.persistCity(city);
+        changed = true;
       }
     }
 
@@ -2207,6 +2287,26 @@ export class KingdomShard extends DurableObject<Env> {
       return this.handleWs(request);
     }
 
+    // P8-T5: قراءة حالة AP/الدرع/حمى الحرب/آخر تهجير لمدينة واحدة (سريعة، لا تُدخل في اللقطات)
+    if (path.endsWith("/ap-state") && request.method === "GET") {
+      const q = new URL(request.url).searchParams;
+      const pid = q.get("playerId") || "";
+      const c = this.cities.get(pid);
+      if (!c) return Response.json({ ok: false, error: "city_not_on_map" }, { status: 404 });
+      // P8-T5: تجديد لحظي قبل القراءة حتى لا يُعرض رصيد قديم
+      const { ap, lastRegenMs } = regenAp(c.ap, c.lastApMs, nowMs());
+      return Response.json({
+        ok: true,
+        ap,
+        lastApMs: lastRegenMs,
+        apCap: apCap(),
+        regenIntervalMs: AP_INTERVAL_MS,
+        shieldUntilMs: c.shieldUntilMs ?? null,
+        warFrenzyUntilMs: c.warFrenzyUntilMs ?? null,
+        lastRelocationMs: c.lastRelocationMs ?? null,
+      });
+    }
+
     if (path.endsWith("/snapshot") && request.method === "GET") {
       const playerId = request.headers.get("x-rok2-player") || "";
       return Response.json(this.snapshot(playerId));
@@ -2381,12 +2481,52 @@ export class KingdomShard extends DurableObject<Env> {
         regionId: body.regionId,
         ap: body.ap ?? 1000,
         lastApMs: body.lastApMs ?? Date.now(),
+        shieldUntilMs: body.shieldUntilMs ?? null,
+        warFrenzyUntilMs: body.warFrenzyUntilMs ?? null,
+        lastRelocationMs: body.lastRelocationMs ?? null,
       };
       this.cities.set(c.playerId, c);
       this.persistCity(c);
       this.broadcast({ type: "city_upsert", city: c });
       this.ensureAlarm();
       return Response.json({ ok: true, city: c });
+    }
+
+    // P8-T5: نقل مدينة داخل الشارد — تحديث الإحداثيات والمنطقة وآخر تهجير
+    if (path.endsWith("/relocate") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const c = this.cities.get(body.playerId);
+      if (!c) return Response.json({ ok: false, error: "city_not_on_map" }, { status: 404 });
+      const nowRel = nowMs();
+      // حماية حمى الحرب: لا يمكن التهجير الموجه خلال ساعة من آخر هجوم متلقَّى
+      const relocationKind = body.kind || "random";
+      if (relocationKind === "targeted" && c.warFrenzyUntilMs != null && c.warFrenzyUntilMs > nowRel) {
+        return Response.json({ ok: false, error: "relocation_war_frenzy" }, { status: 400 });
+      }
+      c.x = Number(body.x);
+      c.y = Number(body.y);
+      c.regionId = body.regionId ?? this.regionOf(c.x, c.y);
+      c.lastRelocationMs = body.lastRelocationMs ?? nowRel;
+      this.persistCity(c);
+      this.broadcast({ type: "city_upsert", city: c });
+      return Response.json({ ok: true, city: c });
+    }
+
+    // P8-T5: تنشيط درع الحماية من داخل الشارد (تُستدعى من الـ router بعد خصم الجواهر في D1)
+    if (path.endsWith("/activate-shield") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const c = this.cities.get(body.playerId);
+      if (!c) return Response.json({ ok: false, error: "city_not_on_map" }, { status: 404 });
+      const check = canActivateShield(c.warFrenzyUntilMs ?? null, c.shieldUntilMs ?? null, nowMs());
+      if (!check.ok) return Response.json({ ok: false, error: `shield_${check.reason ?? "not_allowed"}` }, { status: 400 });
+      c.shieldUntilMs = (c.shieldUntilMs ?? nowMs()) + body.durationMs;
+      this.persistCity(c);
+      this.broadcast({ type: "city_upsert", city: c });
+      return Response.json({ ok: true, shieldUntilMs: c.shieldUntilMs });
     }
 
     if (path.endsWith("/set-alliance") && request.method === "POST") {
@@ -3002,7 +3142,6 @@ export class KingdomShard extends DurableObject<Env> {
     let toY = Number(body.toY);
     let targetType = (body.targetType || "point") as MarchEntity["targetType"];
     let targetId = String(body.targetId || "point");
-    let barbApCost = 0;
 
     if (targetType === "throne") {
       targetId = "throne";
@@ -3041,22 +3180,26 @@ export class KingdomShard extends DurableObject<Env> {
       if (node.regionId && node.zoneId != null && !isRegionUnlocked(node.regionId, node.zoneId, this.seasonDay)) {
         throw new Error("zone_locked");
       }
-      toX = node.x;
-      toY = node.y;
+
       if (node.kind === "barb") {
         targetType = "barb";
-        barbApCost = 40 + node.level * 10;
-        const regeneratedAp = Math.min(1000, city.ap + Math.floor((now - city.lastApMs) / 1000));
-        if (regeneratedAp < barbApCost) throw new Error("not_enough_ap");
-      } else {
-        targetType = "resource";
       }
+      else targetType = "resource";
     } else if (targetType === "city") {
       const targetCity = this.cities.get(targetId);
       if (!targetCity) throw new Error("target_city_not_found");
+      // P8-T5: مدينة محمية بدرع لا يمكن إعادة التوجيه نحوها
+      if (targetCity.shieldUntilMs != null && targetCity.shieldUntilMs > now) {
+        throw new Error("target_city_shielded");
+      }
       toX = targetCity.x;
       toY = targetCity.y;
     }
+    // P8-T5: خصم AP لإعادة التوجيه نحو هدف يكلف نقاط عمل
+    const targetCityForRedirect = this.cities.get(playerId);
+    if (targetType === "barb" && targetCityForRedirect) this.deductApFromCity(targetCityForRedirect, "barb_battle");
+    if (targetType === "holy_site" && targetCityForRedirect) this.deductApFromCity(targetCityForRedirect, "holy_site_battle");
+    if (targetType === "city" && targetCityForRedirect) this.deductApFromCity(targetCityForRedirect, "city_attack");
 
     if (!Number.isFinite(toX) || !Number.isFinite(toY)) throw new Error("bad_target_coords");
     if (targetType === march.targetType && targetId === march.targetId && Math.abs(toX - march.toX) < 0.01 && Math.abs(toY - march.toY) < 0.01) {
@@ -3082,12 +3225,6 @@ export class KingdomShard extends DurableObject<Env> {
       plan = { ok: true, distance: dist(fromX, fromY, toX, toY), crossedPasses: [targetId] };
     }
     if (!plan.ok) throw new Error(plan.reason || "illegal_path");
-
-    if (barbApCost > 0) {
-      city.ap = Math.max(0, Math.min(1000, city.ap + Math.floor((now - city.lastApMs) / 1000)) - barbApCost);
-      city.lastApMs = now;
-      this.persistCity(city);
-    }
     const marchSpeedMod = 1 + (await this.fetchMarchSpeedMod(playerId));
     march.fromX = fromX;
     march.fromY = fromY;

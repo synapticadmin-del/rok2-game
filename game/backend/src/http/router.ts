@@ -134,6 +134,11 @@ import {
   hallUnlocksTier,
   isSpecialUnit,
 } from "../do/sim/troops";
+import {
+  shieldOptions,
+  relocationCosts,
+  relocationCooldownMs,
+} from "../do/sim/action_points";
 
 // P4-T5: anti-cheat — rate limiter مشترك على مستوى الـ isolate (worker) للأفعال الكتابية الحساسة.
 // الـ DO يملك limiter خاصاً به للمسيرات/الهجمات؛ هذا يغطي endpoints الـ router (helps, shop, rally, speedup).
@@ -867,6 +872,137 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           ? { strategy: matchChoice.strategy, fillRatio: matchChoice.fillRatio, reason: matchChoice.reason }
           : undefined,
       });
+    }
+
+    // P8-T5: حالة نقاط العمل والدرع وحمى الحرب والتجير (تُقرأ من snapshot الشارد)
+    if (path === "/v1/ap/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/ap-state?playerId=" + encodeURIComponent(player.id));
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "ap_state_failed");
+      return json({ ok: true, ...data });
+    }
+
+    // P8-T5: تنشيط درع الحماية — خصم gems في D1 أولاً ثم تنسيق الشارد (استرجاع gems عند فشل الشارد)
+    if (path === "/v1/shield/activate" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ duration_minutes: number }>(request);
+      const minutes = Math.max(1, Math.min(720, Math.floor(Number(body.duration_minutes) || 60)));
+      enforceRateLimit(player.id, "shield_activate");
+      const opts = shieldOptions();
+      const option = opts.find((o) => o.duration_minutes === minutes);
+      if (!option) throw new HttpError(400, "unknown_shield_duration", { options: opts.map((o) => o.duration_minutes) });
+      const city = await refreshCity(env, player.id);
+      if (city.gems < option.cost_gems) {
+        throw new HttpError(400, "not_enough_gems", { cost: option.cost_gems, gems: city.gems });
+      }
+      const now = nowMs();
+      await env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+        .bind(city.gems - option.cost_gems, now, player.id).run();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/activate-shield", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, durationMs: minutes * 60 * 1000 }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) {
+        // استرجاع الجواهر إن رفض الشارد التنشيط (حمى الحرب / درع نشط)
+        await env.DB.prepare("UPDATE cities SET gems=gems+?, updated_at=? WHERE player_id=?")
+          .bind(option.cost_gems, nowMs(), player.id).run();
+        throw new HttpError(res.status, data.error || "shield_failed");
+      }
+      return json({
+        ok: true,
+        shieldUntilMs: data.shieldUntilMs,
+        spentGems: option.cost_gems,
+        gems: city.gems - option.cost_gems,
+        durationMinutes: minutes,
+      });
+    }
+
+    // P8-T5: تهجير المدينة — عشوائي (AP+gems) أو موجه (gems فقط، محظور أثناء حمى الحرب)
+    if (path === "/v1/city/relocate" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ mode?: "random" | "targeted"; x?: number; y?: number }>(request);
+      const mode = body.mode === "targeted" ? "targeted" : "random";
+      enforceRateLimit(player.id, "city_relocate");
+      const costs = relocationCosts(mode);
+      const cooldown = relocationCooldownMs();
+      const city = await refreshCity(env, player.id);
+      const stub = kingdomStub(env);
+      // جلب آخر تهجير من snapshot الشارد (متوافق مع قواعد لم تُرحّل بعد)
+      let lastRelocationMs: number | null = null;
+      try {
+        const st = await stub.fetch("https://do/ap-state?playerId=" + encodeURIComponent(player.id));
+        const stData = await st.json<any>();
+        if (st.ok && stData.lastRelocationMs) lastRelocationMs = stData.lastRelocationMs;
+      } catch {
+        // لا نفشل العملية إن تعذّر قراءة الشارد
+      }
+      const now = nowMs();
+      if (lastRelocationMs != null && now - lastRelocationMs < cooldown) {
+        const remainingMs = cooldown - (now - lastRelocationMs);
+        throw new HttpError(400, "relocation_cooldown", { remainingMs });
+      }
+      if (city.gems < costs.gems) {
+        throw new HttpError(400, "not_enough_gems", { cost: costs.gems, gems: city.gems });
+      }
+      const cityOnMap = await env.DB.prepare("SELECT x, y, region_id FROM players WHERE id = ?").bind(player.id).first<{ x: number; y: number; region_id: string | null }>();
+      if (!cityOnMap) throw new HttpError(404, "city_not_found");
+      let toX = cityOnMap.x;
+      let toY = cityOnMap.y;
+      let toRegion: string | null = cityOnMap.region_id;
+      if (mode === "random") {
+        // تهجير عشوائي: موضع جديد في منطقة 1 (مثل نقطة البداية)
+        const spawn = pickSpawn();
+        toX = spawn.x;
+        toY = spawn.y;
+        toRegion = spawn.regionId;
+      } else {
+        const x = Number(body.x);
+        const y = Number(body.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) throw new HttpError(400, "bad_target_coords");
+        const m = getMap();
+        if (x < 0 || x > m.width || y < 0 || y > m.height) throw new HttpError(400, "out_of_map");
+        toX = x;
+        toY = y;
+        const reg = m.regions.find((r) => r.zone_id === 1 && r.aabb[0] <= x && x <= r.aabb[2] && r.aabb[1] <= y && y <= r.aabb[3]);
+        toRegion = reg?.id || null;
+        if (!toRegion) throw new HttpError(400, "invalid_spawn_region");
+      }
+      if (costs.ap > 0) {
+        // خصم AP: يقرأ آخر قيمة من snapshot ثم يخصم
+        let ap = 0;
+        try {
+          const st = await stub.fetch("https://do/ap-state?playerId=" + encodeURIComponent(player.id));
+          const stData = await st.json<any>();
+          if (st.ok && typeof stData.ap === "number") ap = stData.ap;
+        } catch {
+          // لا نفشل العملية
+        }
+        if (ap < costs.ap) throw new HttpError(400, "not_enough_ap", { cost: costs.ap, ap });
+      }
+      // خصم gems في D1 أولاً (استرجاع عند فشل الشارد)
+      await env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?")
+        .bind(city.gems - costs.gems, now, player.id).run();
+      await env.DB.prepare("UPDATE players SET x=?, y=?, region_id=?, updated_at=? WHERE id=?")
+        .bind(toX, toY, toRegion, now, player.id).run();
+      const res = await stub.fetch("https://do/relocate", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, x: toX, y: toY, regionId: toRegion, kind: mode, lastRelocationMs: now }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) {
+        await env.DB.batch([
+          env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?").bind(city.gems, nowMs(), player.id),
+          env.DB.prepare("UPDATE players SET x=?, y=?, region_id=? WHERE id=?").bind(cityOnMap.x, cityOnMap.y, cityOnMap.region_id, player.id),
+        ]);
+        throw new HttpError(res.status, data.error || "relocation_failed");
+      }
+      return json({ ok: true, x: toX, y: toY, regionId: toRegion, spentGems: costs.gems, spentAp: costs.ap, gems: city.gems - costs.gems });
     }
 
     // City get

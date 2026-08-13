@@ -20,7 +20,9 @@ export type RateLimitAction =
   | "help"
   | "shop_buy"
   | "use_speedup"
-  | "rally";
+  | "rally"
+  | "shield_activate"
+  | "city_relocate";
 
 const CFG = anticheatData as any;
 
