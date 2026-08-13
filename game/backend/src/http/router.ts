@@ -35,6 +35,15 @@ import {
   vipTierForPoints,
   vipPointsForPurchase,
   utcDay,
+  vipDailyPoints,
+  vipConnectedBonus,
+  vipDailyCap,
+  vipDailyFullGrant,
+  applyVipDailyPoints,
+  markVipConnected,
+  vipStorePrice,
+  vipStoreHallRequired,
+  vipStoreDiscountForLevel,
 } from "../do/sim/shop";
 import {
   academyReq,
@@ -186,6 +195,23 @@ async function grantBpXp(env: Env, playerId: string, action: string): Promise<vo
   }
 }
 
+// P9-T4: منح نقاط VIP اليومية (40/يوم + 20 لمن كان نشطًا اليوم) مع سقف يومي — idempotent
+async function claimVipDailyPoints(env: Env, playerId: string, vip: VipRow, day: number): Promise<number> {
+  try {
+    if (vip.last_daily_points_day >= day) return 0;
+    const grant = vipDailyFullGrant();
+    const newPoints = vip.points + grant;
+    const newLevel = vipTierForPoints(newPoints).level;
+    await env.DB.prepare(
+      "UPDATE player_vip SET points=?, level=?, last_daily_points_day=?, last_login_day=?, updated_at=? WHERE player_id=?",
+    ).bind(newPoints, newLevel, day, day, nowMs(), playerId).run();
+    return grant;
+  } catch {
+    // جدول غير مرحّل أو فشل ذريعة — لا يكسر قراءة الحالة
+    return 0;
+  }
+}
+
 // P3-T4: صف VIP للاعب (يُنشأ عند أول وصول) — متوافق مع قواعد لم تُرحّل بعد
 async function getOrCreateVip(env: Env, playerId: string): Promise<VipRow> {
   try {
@@ -195,13 +221,13 @@ async function getOrCreateVip(env: Env, playerId: string): Promise<VipRow> {
     if (row) return row;
     const now = nowMs();
     await env.DB.prepare(
-      `INSERT INTO player_vip (player_id, points, level, last_daily_gems_day, last_free_speedup_day, updated_at)
-       VALUES (?, 0, 0, -1, -1, ?)`,
+      `INSERT INTO player_vip (player_id, points, level, last_daily_gems_day, last_free_speedup_day, last_daily_points_day, last_login_day, updated_at)
+       VALUES (?, 0, 0, -1, -1, -1, -1, ?)`,
     ).bind(playerId, now).run();
-    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, updated_at: now };
+    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, last_daily_points_day: -1, last_login_day: -1, updated_at: now };
   } catch {
     // الجدول غير موجود بعد (migration لم تُطبّق) — مستوى افتراضي 0 بدون مزايا
-    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, updated_at: 0 };
+    return { player_id: playerId, points: 0, level: 0, last_daily_gems_day: -1, last_free_speedup_day: -1, last_daily_points_day: -1, last_login_day: -1, updated_at: 0 };
   }
 }
 
@@ -218,6 +244,11 @@ function kingdomStub(env: Env) {
 /** رأس موقّع ضمنياً داخل مسار Worker→Durable Object بعد نجاح `requirePlayer`. */
 function shardPlayerHeaders(playerId: string): HeadersInit {
   return { "content-type": "application/json", "x-rok2-player": playerId };
+}
+
+/** P9-T4: رؤوس Worker→DO مع مستوى VIP سلطوي (من D1 في الـ Worker — قناة موثوقة داخليًا). */
+function shardPlayerHeadersWithVip(playerId: string, vipLevel: number): HeadersInit {
+  return { "content-type": "application/json", "x-rok2-player": playerId, "x-rok2-vip-level": String(vipLevel) };
 }
 
 type ActiveQueueView = {
@@ -1096,7 +1127,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       let city = await refreshCity(env, player.id);
       const buildings = await getBuildingsMap(env, player.id);
       const activeQueues = await getActiveQueues(env, player.id);
-      if (activeQueues.some((queue) => queue.type === "build")) {
+      // P9-T4: VIP 6+ يمتلك طابور بناء ثانٍ دائم
+      const vipCheck = await getOrCreateVip(env, player.id);
+      if (activeQueues.some((queue) => queue.type === "build") && !vipTierForPoints(vipCheck.points).extra_build_queue) {
         throw new HttpError(409, "Another building upgrade is already running", { queueId: activeQueues.find((queue) => queue.type === "build")?.id });
       }
       const cur = buildings[body.buildingId] || 0;
@@ -1125,9 +1158,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const duration = buildingUpgradeDurationSec(nextLevel, vipTierForPoints(vip.points).build_speed_mult);
       const queueId = newId("q");
       const stub = kingdomStub(env);
+      // P9-T4: تمرير مستوى VIP للـ DO — يتحقق من طابور البناء الثاني (VIP 6+)
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: shardPlayerHeaders(player.id),
+        headers: shardPlayerHeadersWithVip(player.id, vipTierForPoints(vip.points).level),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1198,15 +1232,16 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
       ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
 
-      // P3-T4: مضاعف سرعة التدريب من مستوى VIP (تراكمي مع أبحاث training_speed)
+      // P3-T4 / P9-T4: مضاعف سرعة التدريب من مستوى VIP (تراكمي مع أبحاث training_speed)
       const vipT = vipTierForPoints((await getOrCreateVip(env, player.id)).points);
       const researchMult = 1 + researchBuff(await getResearchLevels(env, player.id), "training_speed");
       const duration = trainDurationSec(unit, count, researchMult * vipT.train_speed_mult);
       const queueId = newId("q");
       const stub = kingdomStub(env);
+      // P9-T4: تمرير مستوى VIP للـ DO (حارس هوية + بافات مستقبلية على مستوى الـ shard)
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: shardPlayerHeaders(player.id),
+        headers: shardPlayerHeadersWithVip(player.id, vipT.level),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1286,18 +1321,41 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     // حالة VIP: المستوى الحالي + المزايا + التقدم نحو المستوى التالي
     if (path === "/v1/vip/status" && request.method === "GET") {
       const { player } = await requirePlayer(request, env);
+      // P9-T4: منح نقاط VIP اليومية (40 + 20 اتصال يومي، سقف 200) وتحديث يوم الاتصال
       const vip = await getOrCreateVip(env, player.id);
-      const tier = vipTierForPoints(vip.points);
-      const nextTier = vipTiers().find((t) => t.points_required > vip.points) || null;
       const day = utcDay(nowMs());
+      // P9-T4: تسجيل يوم الاتصال (last_login_day) إذا لم يُسجَّل اليوم
+      const connected = markVipConnected(vip as unknown as { lastLoginDay: number }, nowMs());
+      if (connected.lastLoginDay !== (vip.last_login_day ?? -1)) {
+        await env.DB.prepare("UPDATE player_vip SET last_login_day=?, updated_at=? WHERE player_id=?")
+          .bind(day, nowMs(), player.id).run();
+        vip.last_login_day = day;
+      }
+      const granted = await claimVipDailyPoints(env, player.id, vip, day);
+      const reloaded = granted > 0 ? await getOrCreateVip(env, player.id) : vip;
+      const tier = vipTierForPoints(reloaded.points);
+      const nextTier = vipTiers().find((t) => t.points_required > reloaded.points) || null;
+      const city = await env.DB.prepare("SELECT hall_level FROM cities WHERE player_id = ?").bind(player.id).first<{ hall_level: number } | null>();
+      const hallLevel = city?.hall_level || 0;
+      const storeOpen = hallLevel >= vipStoreHallRequired();
       return json({
         ok: true,
-        points: vip.points,
+        points: reloaded.points,
         level: tier.level,
         perks: tier,
-        next: nextTier ? { level: nextTier.level, points_required: nextTier.points_required, points_to_go: nextTier.points_required - vip.points } : null,
+        next: nextTier ? { level: nextTier.level, points_required: nextTier.points_required, points_to_go: nextTier.points_required - reloaded.points } : null,
         daily_gems_available: vip.last_daily_gems_day < day,
         free_speedup_available: tier.free_speedup_sec_per_day > 0 && vip.last_free_speedup_day < day,
+        // P9-T4: نقاط VIP اليومية
+        daily_points_available: reloaded.last_daily_points_day < day,
+        daily_points_base: vipDailyPoints(),
+        daily_points_connected_bonus: vipConnectedBonus(),
+        daily_points_cap: vipDailyCap(),
+        daily_points_granted_now: granted,
+        // P9-T4: متجر VIP
+        vip_store_open: storeOpen,
+        vip_store_hall_required: vipStoreHallRequired(),
+        vip_store_discount: vipStoreDiscountForLevel(tier.level),
       });
     }
 
@@ -1330,8 +1388,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const buyAnomaly = checkShopBuyPayload(count);
       if (buyAnomaly) throw new HttpError(400, `anticheat_${buyAnomaly}`);
       enforceRateLimit(player.id, "shop_buy");
-      const totalCost = item.cost_gems * count;
-
+            // P9-T4: متجر VIP — سعر مخفّض حسب المستوى (يفتح عند CH5؛ بدون خصم للمستوى 0)
+      const hallLevels = await getBuildingsMap(env, player.id);
+      const hallLevel = Number(hallLevels.city_hall) || 1;
+      const rawTotal = item.cost_gems * count;
+      const totalCost = vipStorePrice(rawTotal, vipTierForPoints((await getOrCreateVip(env, player.id)).points).level, hallLevel);
+      if (hallLevel < vipStoreHallRequired()) {
+        throw new HttpError(403, "vip_store_not_unlocked", { required_hall_level: vipStoreHallRequired(), hall_level: hallLevel });
+      }
       const city = await refreshCity(env, player.id);
       if (city.gems < totalCost) throw new HttpError(400, "Not enough gems", { cost: totalCost, gems: city.gems });
 
@@ -1667,12 +1731,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         ).bind(Number(c), player.id, u).run();
       }
 
-      const duration = healDurationSec(count);
+      // P9-T4: باف شفاء VIP 8+ يقلّص مدة الشفاء (تراكمي مع أبحاث healing_speed إن وجدت)
+      const healVip = vipTierForPoints((await getOrCreateVip(env, player.id)).points);
+      const duration = Math.max(1, Math.floor(healDurationSec(count) / healVip.heal_speed_mult));
       const queueId = newId("q");
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: shardPlayerHeaders(player.id),
+        headers: shardPlayerHeadersWithVip(player.id, healVip.level),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,
@@ -1760,12 +1826,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         `UPDATE cities SET food=?, wood=?, stone=?, gold=?, updated_at=? WHERE player_id=?`,
       ).bind(spent.food, spent.wood, spent.stone, spent.gold, nowMs(), player.id).run();
 
-      const duration = researchDurationSec(body.techId, nextLevel);
+      // P9-T4: باف بحث VIP 3+ يقلّص مدة البحث (تراكمي مع أبحاث research_speed)
+      const researchVip = vipTierForPoints((await getOrCreateVip(env, player.id)).points);
+      const researchBuffMult = 1 + researchBuff(levels, "research_speed");
+      const duration = Math.max(1, Math.floor(researchDurationSec(body.techId, nextLevel) / (researchBuffMult * researchVip.research_speed_mult)));
       const queueId = newId("q");
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {
         method: "POST",
-        headers: shardPlayerHeaders(player.id),
+        headers: shardPlayerHeadersWithVip(player.id, researchVip.level),
         body: JSON.stringify({
           id: queueId,
           playerId: player.id,

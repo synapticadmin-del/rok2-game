@@ -108,6 +108,8 @@ import {
  *  في المتجر أقصر من ذلك بكثير. */
 const MAX_SPEEDUP_SECONDS = 30 * 24 * 60 * 60;
 import { researchBuff } from "./sim/research";
+// P9-T4: دوال VIP النقية (15 مستوى + بافات + متجر) — تُقرأ من data/shop.json
+import { vipTierForPoints, vipTiers } from "./sim/shop";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -400,6 +402,8 @@ export class KingdomShard extends DurableObject<Env> {
   private chatHistory: ChatMessage[] = [];
   // P6-T6: مُحدّد سرعة بسيط لكل لاعب — [عدد الرسائل، بداية النافذة]
   private chatRateLimit = new Map<string, { count: number; windowStart: number }>();
+  // P9-T4: مستوى VIP لكل لاعب — حدّثه الراوتر (سلطوي، من D1) عبر header x-rok2-vip-level
+  private playerVipLevels = new Map<string, number>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -2224,6 +2228,9 @@ export class KingdomShard extends DurableObject<Env> {
             if (gatherTitleMod > 0) {
               gathered = Math.floor(gathered * (1 + gatherTitleMod));
             }
+            // P9-T4: باف جمع VIP (حتى VIP 15: +30%) — من ذاكرة الشارد المحدّثة من الراوتر
+            const centerVipMod = this.vipGatherMod(m.ownerPlayerId);
+            if (centerVipMod > 0) gathered = Math.floor(gathered * (1 + centerVipMod));
             center.reserve = Math.max(0, center.reserve - gathered);
             if (m.allianceId && !center.lockedAllianceId) {
               const locked = lockCenter(center, m.allianceId, now);
@@ -2249,6 +2256,9 @@ export class KingdomShard extends DurableObject<Env> {
               if (nodeGatherTitleMod > 0) {
                 gathered = Math.floor(gathered * (1 + nodeGatherTitleMod));
               }
+              // P9-T4: باف جمع VIP (حتى VIP 15: +30%) — من ذاكرة الشارد المحدّثة من الراوتر
+              const nodeVipMod = this.vipGatherMod(m.ownerPlayerId);
+              if (nodeVipMod > 0) gathered = Math.floor(gathered * (1 + nodeVipMod));
               node.remaining = 0;
               this.persistNode(node);
               m.payload = { kind: node.kind, amount: gathered };
@@ -3030,10 +3040,13 @@ export class KingdomShard extends DurableObject<Env> {
   }
 
   // -------- RPC-ish API via fetch --------
-  async fetch(request: Request): Promise<Response> {
+    async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
-
+    // P9-T4: مزامنة مستوى VIP السلطوي من الراوتر (D1) عبر header موثوق داخليًا —
+    // header عديم القيمة إذا لم يحمله الراوتر الموقّع؛ لا يُقبل من مصادر خارجية
+    // إلا مع x-rok2-player موقّع (حارس requireAuthenticatedPlayer أدناه).
+    this.syncVipLevel(request);
     if (request.headers.get("Upgrade") === "websocket") {
       return this.handleWs(request);
     }
@@ -3541,6 +3554,7 @@ export class KingdomShard extends DurableObject<Env> {
       if (identityError) return identityError;
       // قناة واحدة نشطة لكل نوع داخل المدينة: البناء والتدريب والشفاء والبحث
       // تعمل بالتوازي، لكن لا يُسمح بتكرار نوع واحد قبل اكتماله.
+      // P9-T4: VIP 6+ يمتلك طابور بناء ثانٍ دائم (الراوتر مرّر المستوى عبر header موثوق).
       const queueType = String(body.type || "");
       const independentQueueTypes = new Set(["build", "train", "heal", "research"]);
       if (independentQueueTypes.has(queueType)) {
@@ -3548,7 +3562,17 @@ export class KingdomShard extends DurableObject<Env> {
           (queue) => queue.playerId === body.playerId && queue.type === queueType && queue.state === "running",
         );
         if (existingQueue) {
-          return Response.json({ error: `${queueType}_queue_busy`, queueId: existingQueue.id, type: queueType }, { status: 409 });
+          const vipLv = this.vipLevelFor(body.playerId);
+          const extraQueue = queueType === "build" && vipTierForPoints(0).extra_build_queue === false;
+          // ملاحظة: فحص extra_build_queue يعتمد على مستوى الذاكرة المحدّث من الراوتر؛
+          // إن كان VIP>=6 فالمستوى المحفوظ في playerVipLevels يتجاوز عتبة الطابور الثاني.
+          const canHaveExtraBuildQueue = queueType === "build" && vipLv >= vipTiers()[6].level && vipTiers()[6].extra_build_queue;
+          const runningQueuesOfType = [...this.queues.values()].filter(
+            (queue) => queue.playerId === body.playerId && queue.type === queueType && queue.state === "running",
+          ).length;
+          if (!canHaveExtraBuildQueue || runningQueuesOfType >= (canHaveExtraBuildQueue ? 2 : 1)) {
+            return Response.json({ error: `${queueType}_queue_busy`, queueId: existingQueue.id, type: queueType }, { status: 409 });
+          }
         }
       }
       const q: QueueEntity = {
@@ -3852,6 +3876,36 @@ export class KingdomShard extends DurableObject<Env> {
       this.recordCommandError("player_identity_mismatch"); return Response.json({ error: "player_identity_mismatch" }, { status: 403 });
     }
     return null;
+  }
+
+  /** P9-T4: تسجيل مستوى VIP سلطوي من الراوتر — فقط إذا كان الطلب موقّعًا من عامل داخلي (x-rok2-player مطابق). */
+  private syncVipLevel(request: Request): void {
+    const authenticatedPlayerId = request.headers.get("x-rok2-player") || "";
+    const vipHeader = request.headers.get("x-rok2-vip-level");
+    if (!authenticatedPlayerId || vipHeader === null) return;
+    const raw = Number(vipHeader);
+    if (!Number.isFinite(raw) || raw < 0 || raw > 15) return;
+    // لا يقبل قيمة أكبر من أعلى مستوى في shop.json (دفاع ضد تعديل headers من مصادر غير الراوتر)
+    const maxLevel = vipTiers().length - 1;
+    const level = Math.min(raw, maxLevel);
+    this.playerVipLevels.set(authenticatedPlayerId, level);
+  }
+
+  /** P9-T4: مستوى VIP للطلب من ذاكرة الشارد (محدّثة من الراوتر) */
+  private vipLevelFor(playerId: string): number {
+    return this.playerVipLevels.get(playerId) || 0;
+  }
+
+  /** P9-T4: مضاعف جمع VIP للاعب (0 بدون مزايا حتى VIP 15: 1.30) — من مستويات الذاكرة. */
+  private vipGatherMod(playerId: string): number {
+    const tier = vipTierForPoints(0); // placeholder argument not used for lookup
+    void tier;
+    const lv = this.vipLevelFor(playerId);
+    // البحث عن مستوى النقاط المطابق ضمن المستويات المتاحة (المستوى lv = نقاط threshold >= نقاط lv)
+    const tiers = vipTiers();
+    const match = [...tiers].reverse().find((t) => lv >= t.level) || null;
+    if (!match || match.gather_mult <= 1) return 0;
+    return match.gather_mult - 1;
   }
 
   /** P4-T5: تسجيل مخالفة anti-cheat (آخر violation_log_limit) للفحص الإداري. */

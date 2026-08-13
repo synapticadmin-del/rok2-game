@@ -33,7 +33,12 @@ assert(JSON.stringify(DATA) === JSON.stringify(ROOT_DATA), "src/data/shop.json m
 assert(C.sandbox_starting_gems > 0 && C.sandbox_daily_gems > 0, `gems constants: start=${C.sandbox_starting_gems}, daily=${C.sandbox_daily_gems}`);
 assert(C.vip_points_per_gem === 1, "1 VIP point per gem spent");
 assert(DATA.speedups.length === 7, `7 speedup items (got ${DATA.speedups.length})`);
-assert(tiers.length === 7, `7 VIP tiers (got ${tiers.length})`);
+// P9-T4: توسيع نظام VIP إلى 15 مستوى (0–15)
+assert(tiers.length === 16, `16 VIP tiers incl. level 0 (got ${tiers.length})`);
+assert(tiers[15].level === 15 && tiers[15].points_required === 99000, "max tier: level 15 at 99000 points");
+assert("research_speed_mult" in tiers[15] && "heal_speed_mult" in tiers[15] && "gather_mult" in tiers[15] && "extra_build_queue" in tiers[15], "P9-T4 new perk fields present");
+assert(C.vip_daily.base_per_day === 40 && C.vip_daily.connected_bonus === 20 && C.vip_daily.daily_cap === 200, `vip_daily: 40 + 20 = 60/day, cap ${C.vip_daily.daily_cap}`);
+assert(C.vip_store && C.vip_store.hall_level_required === 5, "vip_store: opens at CH5");
 
 // speedups: ids unique, costs/seconds positive and monotonic-ish
 const ids = new Set(DATA.speedups.map((s) => s.id));
@@ -59,8 +64,10 @@ assert(vipTierForPoints(0).level === 0, "0 points → level 0");
 assert(vipTierForPoints(99).level === 0, "99 points → still level 0");
 assert(vipTierForPoints(100).level === 1, "100 points → level 1");
 assert(vipTierForPoints(299).level === 1 && vipTierForPoints(300).level === 2, "300 points → level 2");
-assert(vipTierForPoints(6000).level === 6, "6000 points → max level 6");
-assert(vipTierForPoints(999999).level === 6, "huge points → capped at level 6");
+assert(vipTierForPoints(6000).level === 6, "6000 points → level 6");
+assert(vipTierForPoints(15000).level === 8, "15000 points → level 8");
+assert(vipTierForPoints(99000).level === 15, "99000 points → level 15");
+assert(vipTierForPoints(999999).level === 15, "huge points → capped at level 15");
 
 // purchase → points flow: buying one speedup_1h (150 gems) → 150 pts → level 1
 const buy = vipPointsForPurchase(getSpeedup("speedup_1h").cost_gems);
@@ -72,6 +79,9 @@ assert(pts3 === 1200 && vipTierForPoints(pts3).level === 3, `3× speedup_3h → 
 // perk values sane
 assert(vipTierForPoints(6000).production_mult === 1.15, "VIP 6 → +15% production");
 assert(vipTierForPoints(6000).free_speedup_sec_per_day === 1800, "VIP 6 → 1800s free daily speedup");
+assert(vipTierForPoints(15000).extra_build_queue === true, "VIP 8 → extra build queue");
+assert(vipTierForPoints(6000).extra_build_queue === true && vipTierForPoints(5999).extra_build_queue === false, "VIP 6+ → extra build queue, VIP 5 no");
+assert(vipTierForPoints(99000).build_speed_mult === 1.2 && vipTierForPoints(99000).heal_speed_mult === 1.5 && vipTierForPoints(99000).gather_mult === 1.3, "VIP 15 → +20% build/research/train, +50% heal, +30% gather");
 assert(tiers.every((t) => t.build_speed_mult >= 1 && t.train_speed_mult >= 1), "speed multipliers never below 1.0");
 
 // affordability maths (sandbox economy): starting gems afford exactly 6× speedup_1h (6×150=900 ≤ 1000)
@@ -92,6 +102,11 @@ assert(ROUTER.includes("shopConstants().sandbox_starting_gems"), "city init gran
 assert(ROUTER.includes("vipTierForPoints"), "VIP tier logic used in router");
 assert(ROUTER.includes("ON CONFLICT(player_id, item_id)"), "inventory upsert on buy");
 assert(!/gems\s*<\s*totalCost/.test(ROUTER) || ROUTER.includes("Not enough gems"), "buy checks gem balance");
+// P9-T4: VIP endpoints + daily points + store
+assert(ROUTER.includes("applyVipDailyPoints") || ROUTER.includes("claimVipDailyPoints"), "router grants daily VIP points");
+assert(ROUTER.includes("vipStorePrice") || ROUTER.includes("vipStoreDiscount"), "router applies VIP store discounts");
+assert(ROUTER.includes("x-rok2-vip-level") || ROUTER.includes("shardPlayerHeadersWithVip"), "router syncs VIP level to shard");
+assert(ROUTER.includes("vip_daily") || ROUTER.includes("vipDailyFullGrant"), "router references vip_daily config");
 
 // migration covers both tables + gems column
 const MIG = readFileSync(join(here, "../migrations/0005_shop.sql"), "utf8");

@@ -45,12 +45,16 @@ export type CityRow = {
   updated_at: number;
 };
 
-// P3-T4: صف VIP للاعب (جدول player_vip)
+// P3-T4 / P9-T4: صف VIP للاعب (جدول player_vip)
 export type VipRow = {
   player_id: string;
   points: number;
   level: number;
   last_daily_gems_day: number;
   last_free_speedup_day: number;
+  // P9-T4: آخر يوم (UTC) مُنحت فيه نقاط VIP اليومية
+  last_daily_points_day: number;
+  // P9-T4: آخر يوم (UTC) نشط فيه اللاعب (لـ +20 اتصال يومي)
+  last_login_day: number;
   updated_at: number;
 };
