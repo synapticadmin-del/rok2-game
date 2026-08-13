@@ -110,7 +110,7 @@ adb logcat -s UE:V LogRok2:V
 أول تشغيل)، فيظهر على الهاتف تنبيه *"Permission Required: Storage"* عند فتح
 اللعبة رغم أن الإعدادات لا تطلب هذه الصلاحيات صراحة (ticket UE-170079).
 
-**الحل المطبق في هذا المشروع (3 طبقات):**
+**الحل المطبق في هذا المشروع (4 طبقات):**
 
 1. **`Build/Android/ManifestRequirementsOverride.txt`** — يستبدل قسم
    `<uses-permission>` في الـ manifest النهائي بالكامل؛ القائمة أعلاه لا تحتوي
@@ -127,6 +127,15 @@ adb logcat -s UE:V LogRok2:V
    `ExternalFilesDir` الذي **لا يطلب أي runtime permission على API 23+**، بينما
    تظل بيانات اللعبة نفسها داخل الـ APK (`bPackageDataInsideApk=True`, بلا
    OBB) — لا تأثير على حجم التثبيت.
+4. **`bEnableManifestRequirements=True`** في `[AndroidRuntimeSettings]`
+   بالملفين `DefaultEngine.ini` و`Config/Android/AndroidEngine.ini` — مفتاح
+   الإلزام الذي يضمن أن يلتزم UE بقائمة `ManifestRequirementsOverride.txt`
+   حرفيًا (BF-007): في UE 5.4 قد يتجاهل المحرك ملف Override بصمت في بعض
+   مسارات التوليد (UE forums 386108)، فيضيف صلاحيات التخزين تلقائيًا عند
+   فحص OBB وتظهر شاشة "Permission Required — Storage" المعلقة التي لا يجد
+   المستخدم لها بندًا في إعدادات الجهاز؛ هذا المفتاح يقطع الطريق على ذلك.
+   **مهم**: بعد إضافة هذا المفتاح يجب حذف `Intermediate/Android` وإعادة البناء
+   نظيفًا وإلا تبقى صلاحيات manifest القديمة في APK سابقة البناء.
 
 التحقق بعد البناء: استخرج الـ manifest من الـ APK (`apktool d`) وتأكد من
 غياب `WRITE_EXTERNAL_STORAGE` و `READ_EXTERNAL_STORAGE`؛ أو ببساطة افتح

@@ -57,6 +57,19 @@ check('allow-patch-obb-false', /bAllowPatchOBBFile=False/i.test(ini));
 check('targetsdk-34', /TargetSDKVersion=34/i.test(ini));
 check('minsdk-26', /MinSDKVersion=26/i.test(ini));
 
+// 4 ب) P7-T11 إصلاح 2026-08-13 (BF-007): إلزام UE بتفعيل ManifestRequirementsOverride.txt
+// بدونه قد يتجاهل UE الملف ويضيف READ/WRITE_EXTERNAL_STORAGE تلقائيًا عند فحص OBB،
+// فتظهر شاشة "Permission Required — Storage" المعلقة التي لا تجد لها بندًا في الإعدادات.
+// المصادر: UE forums 386108 ("Override doesn't get registered") وr/vrdev Solved 2025.
+check('enable-manifest-requirements-true', /bEnableManifestRequirements=True/i.test(ini) && !/bEnableManifestRequirements=False/i.test(ini));
+const androidIniPath = join(client, 'Config', 'Android', 'AndroidEngine.ini');
+check('android-engine-ini-exists', existsSync(androidIniPath));
+if (existsSync(androidIniPath)) {
+  const androidIni = readFileSync(androidIniPath, 'utf8');
+  check('android-ini-no-storage-permissions', !/WRITE_EXTERNAL_STORAGE|READ_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE/i.test(androidIni));
+  check('android-ini-enable-manifest-requirements', /bEnableManifestRequirements=True/i.test(androidIni));
+} else { fail++; }
+
 // 5) لا يوجد أي storage permission في ملفات الإعدادات والملفات البنيوية
 const iniFiles = ['Config/DefaultEngine.ini', 'Config/Android/AndroidEngine.ini']
   .map(p => join(client, p)).filter(p => existsSync(p));

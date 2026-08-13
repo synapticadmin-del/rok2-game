@@ -14,6 +14,7 @@
 | BF-004 | 2026-08-13 | Android / JavaLibs | فشل Android build بسبب غياب صنف `com.google.vr.sdk.base.PermissionHelper` المطلوب من UPL | UE Android UPL يستدعي PermissionHelper ولا تُبنى GoogleVR أوتوماتيكيًا | Stub محلي `Build\Android\JavaLibs\vrpermissionstub` يُنسخ إلى `Intermediate\Android\arm64\JavaLibs` قبل أي بناء Android | `f731dc9` (ضمن نفس الدفعة) |
 | BF-005 | 2026-08-12 | المحرك / الإصدار | سكربتات البناء قد تستهلك UE بنسخة مختلفة فيعطب التحزيم بصمت | افتراض مسار افتراضي واحد وغياب تحقق نسخة | كل سكربت (Build / Import / Smoke / Prepare-Android) يقرأ `Engine\Build\Build.version` ويرفض أي نسخة غير `5.4.4` | `f731dc9` (P7-T2 gate) |
 | BF-006 | 2026-08-12 | المحرك / الشاشة السوداء | شاشة سوداء أو تشويش عند فتح المحرر بعد تغيير إعدادات العرض | تهيئة RHI/Shader Cache بعد تغيير Renderer أو إعدادات Graphics | `RunEditor_SafeMode.bat` + `Docs/TROUBLESHOOT_BLACK_SCREEN.md`؛ لا تعتمد `-Clean` كعلاج أول | `ad2490a` |
+| BF-007 | 2026-08-13 | Android / Manifest | شاشة "Permission Required — Storage" معلقة بعد البناء ولا يظهر بند الصلاحية في الإعدادات أصلًا | UE 5.4 يتجاهل `ManifestRequirementsOverride.txt` بصمت في بعض مسارات التوليد، فيضيف `READ/WRITE_EXTERNAL_STORAGE` تلقائيًا عند فحص OBB؛ `bUseExternalFilesDir=True` وحده لا يكفي | `bEnableManifestRequirements=True` في `[AndroidRuntimeSettings]` بالملفين `DefaultEngine.ini` و`Config/Android/AndroidEngine.ini` يُلزم UE بقائمة Override حرفيًا (مصدر: UE forums 386108 + r/vrdev Solved 2025)؛ ترقية حارس P7-T11 إلى 23 فحصًا | قيد الإغلاق مع commit |
 
 ## قواعد التعامل مع عطل جديد
 
