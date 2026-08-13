@@ -1,50 +1,161 @@
 #!/usr/bin/env node
 /**
- * ROK2 — P7-T3: رحلة لاعبين E2E من المدينة إلى الممر.
+ * ROK2 — P7-T3: رحلة لاعبين E2E من البداية إلى الممر.
  *
- * الوضع الافتراضي يثبت تأسيس المدينتين، التحالف، الرالي، ملكية المشاركين،
- * واسترجاع حالة الرالي بعد إعادة تحميل الجلسة. أضف WAIT_FOR_RALLY=1
- * لانتظار مهلة التجمع الرسمية والتحقق من إطلاق الرالي والتقرير وقصة الموسم.
+ * يثبت أن لاعبين جديدين يمران بالمدينة وFTUE والتحالف والرالي/الممر وتقرير
+ * القتال وقصة الموسم، مع إثبات الملكية والخصوصية وإعادة الاتصال:
+ * تسجيل ضيفين → تأسيس مدينتين (روما/الصين) → نفس لقطة العالم المشتركة →
+ * تحالف مشترك → منحة موارد إدارية → رالي على ممر مفتوح → انضمام بمساهمة
+ * منفصلة → رؤية الرالي قبل وبعد الانضمام → إعادة تحميل الجلسة دون تكرار عضوية →
+ * وضع WAIT_FOR_RALLY=1: إطلاق خادمي للمسير + وصول + تقرير قتال للاعبي الفريق
+ * (خسائر الهجوم والدفاع) + معلم قصة الموسم → عودة المسير وتسوية بلا خطأ FK.
  *
- * التشغيل: ADMIN_KEY=... node scripts/e2e_p7_t3_player_journey.mjs
- * الكامل: WAIT_FOR_RALLY=1 ADMIN_KEY=... node scripts/e2e_p7_t3_player_journey.mjs
+ * الإدارة:
+ *   - مع E2E_LIVE=1 يستهدف BASE_URL مباشرة (خادم تشغّله يدويًا):
+ *     1. تأكد من وجود `.dev.vars` بـ AUTH_SECRET/ADMIN_KEY وأعد تشغيل `wrangler dev`.
+ *     2. طبّق الهجرات على قاعدة الحالة الافتراضية:
+ *        `wrangler d1 migrations apply rok2-db --local`
+ *        أو على حالة معزولة عبر WRANGLER_D1_STATE_PATH=/مسار/جديد.
+ *   - بدونها ينشئ بيئة معزولة مؤقتة: قواعد بيانات D1/DO جديدة، تطبيق الهجرات،
+ *     خادم wrangler dev، ثم يزيل كل شيء عند الانتهاء.
+ *
+ * التشغيل:
+ *   ADMIN_KEY=... E2E_LIVE=1 BASE_URL=http://127.0.0.1:8787 node scripts/e2e_p7_t3_player_journey.mjs
+ *   المسار الكامل (إطلاق + تقارير + قصة موسم): WAIT_FOR_RALLY=1 فوق.
+ *   # أو بيئة معزولة كاملة (المسار الكامل تلقائيًا):
+ *   ADMIN_KEY=... WAIT_FOR_RALLY=1 node scripts/e2e_p7_t3_player_journey.mjs
  */
+import { spawn } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const BASE = process.env.BASE_URL || "http://127.0.0.1:8787";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const BACKEND = path.resolve(__dirname, "..");
+const PORT = 8793;
+const BASE = process.env.E2E_LIVE === "1" && process.env.BASE_URL ? process.env.BASE_URL : `http://127.0.0.1:${PORT}`;
 const ADMIN = process.env.ADMIN_KEY;
-const WAIT_FOR_RALLY = process.env.WAIT_FOR_RALLY === "1";
+const WAIT_FOR_RALLY = process.env.WAIT_FOR_RALLY === "1" || process.env.E2E_FULL === "1";
 
 if (!ADMIN) {
-  console.error("ADMIN_KEY is not set. Run: ADMIN_KEY=your-key node scripts/e2e_p7_t3_player_journey.mjs");
+  console.error("ADMIN_KEY is not set. Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\" and export it as ADMIN_KEY.");
   process.exit(1);
 }
 
 let failed = 0;
+let teardowns = [];
+
 const assert = (condition, message) => {
   if (condition) console.log("OK  :", message);
   else { failed += 1; console.error("FAIL:", message); }
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function req(path, { method = "GET", token, body, admin = false } = {}) {
+async function req(reqPath, { method = "GET", token, body, admin = false } = {}) {
   const headers = { "content-type": "application/json" };
   if (token) headers.authorization = `Bearer ${token}`;
   if (admin) headers["x-admin-key"] = ADMIN;
-  const response = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await response.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  return { status: response.status, data };
+  let lastErr = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      const response = await fetch(`${BASE}${reqPath}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      return { status: response.status, data };
+    } catch (err) { lastErr = err; }
+    await sleep(1500);
+  }
+  console.error("FAIL:", `${method} ${reqPath} unreachable: ${lastErr?.message || lastErr}`);
+  failed += 1;
+  return { status: 0, data: {} };
 }
 
 function must(value, message) {
   assert(Boolean(value), message);
   if (!value) throw new Error(`Cannot continue: ${message}`);
   return value;
+}
+
+function cleanup() {
+  for (const fn of teardowns) {
+    try { fn(); } catch { /* ignore teardown errors */ }
+  }
+}
+process.on("exit", cleanup);
+process.on("SIGINT", () => { cleanup(); process.exit(1); });
+
+async function withSandboxedServer(body) {
+  if (process.env.E2E_LIVE === "1") return body();
+  const sandboxDb = path.join(BACKEND, `d1-sandbox-p7t3-${Date.now()}`);
+  fs.mkdirSync(sandboxDb, { recursive: true });
+  teardowns.push(() => { try { fs.rmSync(sandboxDb, { recursive: true, force: true }); } catch { /* ignore */ } });
+  const devVars = path.join(BACKEND, ".dev.vars");
+  const devVarsBackup = fs.existsSync(devVars) ? fs.readFileSync(devVars) : null;
+  const devVarsBakPath = devVarsBackup ? `${devVars}.e2e-bak-${Date.now()}` : null;
+  if (devVarsBackup) {
+    fs.renameSync(devVars, devVarsBakPath);
+    teardowns.push(() => { try { fs.renameSync(devVarsBakPath, devVars); } catch { /* ignore */ } });
+  }
+  fs.writeFileSync(devVars, `AUTH_SECRET="${crypto.randomBytes(32).toString("hex")}"\nADMIN_KEY="${ADMIN}"\n`);
+  teardowns.push(() => { try { fs.unlinkSync(devVars); } catch { /* ignore */ } });
+  // في مسار الإطلاق الكامل، مدة التجمع الرسمية (rally.prep_seconds في
+  // zones.json) 300 ثانية — طويلة جدًا لاختبار آلي. نختصرها إلى 8 ثوانٍ مؤقتًا
+  // في البيئة المعزولة فقط ونستعيدها عند التنظيف. يجب التعديل قبل إقلاع
+  // wrangler dev لأن zones.json يُجمَّع داخل عامل التشغيل.
+  let zonesBackup = null;
+  if (WAIT_FOR_RALLY) {
+    const zonesPath = path.join(BACKEND, "src", "data", "zones.json");
+    const zones = JSON.parse(fs.readFileSync(zonesPath, "utf8"));
+    zonesBackup = zones.alliance.rally.prep_seconds;
+    zones.alliance.rally.prep_seconds = 8;
+    fs.writeFileSync(zonesPath, JSON.stringify(zones, null, 2) + "\n");
+    teardowns.push(() => {
+      try {
+        const z2 = JSON.parse(fs.readFileSync(zonesPath, "utf8"));
+        z2.alliance.rally.prep_seconds = zonesBackup;
+        fs.writeFileSync(zonesPath, JSON.stringify(z2, null, 2) + "\n");
+      } catch { /* ignore restore errors */ }
+    });
+  }
+  const dev = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0"], {
+    cwd: BACKEND,
+    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb, WRANGLER_DO_STATE_PATH: sandboxDb },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  teardowns.push(() => { dev.kill(); });
+  let devOutput = "";
+  dev.stdout.on("data", (chunk) => { devOutput += chunk.toString(); });
+  dev.stderr.on("data", (chunk) => { devOutput += chunk.toString(); });
+  let started = false;
+  for (let i = 0; i < 40; i += 1) {
+    await sleep(1000);
+    if (devOutput.includes("Ready on")) { started = true; break; }
+    if (dev.exitCode !== null) throw new Error(`wrangler dev exited early: ${devOutput.slice(-800)}`);
+  }
+  if (!started) throw new Error(`wrangler dev did not start: ${devOutput.slice(-1200)}`);
+  const apply = spawn("npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local"], {
+    cwd: BACKEND,
+    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  await new Promise((resolve, reject) => {
+    let out = "";
+    apply.stdout.on("data", (c) => { out += c.toString(); });
+    apply.stderr.on("data", (c) => { out += c.toString(); });
+    apply.on("exit", (code) => { code === 0 ? resolve() : reject(new Error(out.slice(-600))); });
+  });
+  try {
+    return await body();
+  } finally {
+    cleanup();
+  }
 }
 
 async function forceTicks(count = 6) {
@@ -83,9 +194,8 @@ async function main() {
 
   const health = await req("/v1/health");
   must(health.status === 200 && health.data?.ok, "server health endpoint is available");
-
   const anonymousSnapshot = await req("/v1/world/snapshot");
-  assert(anonymousSnapshot.status === 401 || anonymousSnapshot.status === 403, "world snapshot rejects unauthenticated access");
+  assert(anonymousSnapshot.status === 401 || anonymousSnapshot.status === 403, "world snapshot rejects unauthenticated access (privacy)");
 
   const run = Date.now();
   const alpha = await createPlayer(run, "alpha", "Alpha Journey", "rome");
@@ -95,6 +205,9 @@ async function main() {
   must(snapshot.status === 200, "authenticated world snapshot is available after FTUE");
   const cityIds = (snapshot.data?.cities || []).map((city) => city.playerId);
   assert(cityIds.includes(alpha.id) && cityIds.includes(bravo.id), "both newly founded cities share the same world snapshot");
+
+  const passes = snapshot.data?.passes || [];
+  assert(passes.length >= 1, "world snapshot exposes passes for rally targeting");
 
   const tag = `J${String(run).slice(-3)}`;
   const created = await req("/v1/alliance/create", {
@@ -107,7 +220,6 @@ async function main() {
 
   const joined = await req("/v1/alliance/join", { method: "POST", token: bravo.token, body: { allianceId } });
   assert(joined.status === 200 && joined.data?.allianceId === allianceId, "Bravo joins Alpha's alliance");
-
   const allianceState = await req(`/v1/alliance/${allianceId}`, { token: alpha.token });
   const memberIds = (allianceState.data?.members || []).map((member) => member.id);
   assert(allianceState.status === 200 && memberIds.includes(alpha.id) && memberIds.includes(bravo.id), "alliance membership is visible to its members");
@@ -154,25 +266,21 @@ async function main() {
   const resumedRally = (resumed.data?.rallies || []).find((entry) => entry.id === rallyId);
   assert(resumed.status === 200 && resumedRally?.isJoined && resumedRally?.participants === 2, "reloaded session restores joined-rally state without duplicate membership");
 
+  let marchId = null;
   if (WAIT_FOR_RALLY) {
     const launchMs = Number(createdRally.data.rally.launchMs || 0);
     const waitMs = Math.max(0, launchMs - Date.now() + 1500);
     console.log(`   waiting ${(waitMs / 1000).toFixed(1)}s for server-authoritative rally launch...`);
     await sleep(waitMs);
     await forceTicks(8);
-
     const afterLaunch = await req(`/v1/alliance/rally/${rallyId}`, { token: alpha.token });
     assert(afterLaunch.status === 200 && afterLaunch.data?.rally?.status === "launched", "forming rally becomes a server-launched march");
     assert(Boolean(afterLaunch.data?.rally?.march_id || afterLaunch.data?.rally?.marchId), "launched rally records its unified march");
-
-    const marchId = afterLaunch.data?.rally?.march_id || afterLaunch.data?.rally?.marchId;
-    // مدة الحركة سلطة خادمية وتُحدَّد بسقف 8 ثوانٍ في pathfinding. لا نفترض
-    // أن لقطة واحدة ستلتقط الحالة `moving` لأن التنبيه قد يسوي الوصول بينها.
+    marchId = afterLaunch.data?.rally?.march_id || afterLaunch.data?.rally?.marchId;
     const arrivalWaitMs = 9500;
     console.log(`   waiting ${(arrivalWaitMs / 1000).toFixed(1)}s for rally arrival...`);
     await sleep(arrivalWaitMs);
     await forceTicks(4);
-
     const alphaSnapshot = await req("/v1/world/snapshot", { token: alpha.token });
     const bravoSnapshot = await req("/v1/world/snapshot", { token: bravo.token });
     const alphaReport = reportForRally(alphaSnapshot.data, rallyId);
@@ -181,9 +289,6 @@ async function main() {
     assert(Boolean(bravoReport?.result), "rally participant receives the resulting battle report");
     assert(alphaReport?.result?.attackerLosses && alphaReport?.result?.defenderLosses, "rally report contains both combat-loss sides");
     assert((alphaSnapshot.data?.seasonStory || []).some((entry) => entry.kind === "first_pass_capture" || entry.kind === "pass_conquered"), "pass resolution leaves a season-story milestone in the snapshot");
-
-    // عودة المسيرة محددة أيضاً بسقف ثماني ثوان. ننتظرها ونفرض ticks للتأكد من
-    // إعادة القوات إلى مالكيها بلا خطأ مفتاح أجنبي.
     await sleep(9500);
     await forceTicks(3);
     const afterReturn = await req("/v1/world/snapshot", { token: alpha.token });
@@ -201,4 +306,4 @@ async function main() {
   process.exit(1);
 }
 
-main().catch((error) => { console.error(error); process.exit(1); });
+withSandboxedServer(main).catch((error) => { console.error(error); process.exit(1); });
