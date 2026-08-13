@@ -588,6 +588,15 @@ protected:
 	TArray<FRok2BattleReport> BattleReports;
 	TArray<FRok2AllianceRally> AllianceRallies;
 	FRok2GameMeta Meta;
+	// ---- P13-T2: كاش محلي لبيانات التوازن — أول فتح بلا انتظار كامل ----
+	FString MetaCacheFileName = TEXT("rok2_meta_cache.json");
+	bool bMetaCacheLoaded = false;
+	/** يحوّل اسم ملف الكاش إلى مسار كامل في GameDir/Saved. */
+	FString MetaCachePath() const;
+	/** يحفظ بيانات التوازن الحالية إلى ملف الكاش في GameDir (بعد FetchMeta). */
+	void SaveMetaCache();
+	/** يحمل بيانات التوازن من ملف الكاش إن وُجد (يُنادى من Init). */
+	void LoadMetaCache();
 
 	// P8-T7: كاشات أنظمة القادة العميقة والحماية والمهام — تُحدّث من Fetch* وتُبث للواجهات.
 	FRok2CommanderTalents CommanderTalents;
@@ -681,6 +690,20 @@ protected:
 	static constexpr float WsReconnectMaxDelay = 30.f;
 	/** مهلة طلب HTTP الافتراضية (ثانية) */
 	static constexpr float HttpTimeoutSeconds = 15.f;
+	// ---- P13-T1: صندوق واردات WebSocket — الرسائل المرسلة قبل الاتصال لا تضيع ----
+	TArray<FString> WsOutbox;
+	/** يتأكد من أن الرسالة صالحة JSON قبل إضافتها، أو يحفظ النص خامًا. */
+	void EnqueueWsMessage(const FString& JsonMessage);
+	/** يفرّغ كل الرسائل المتراكمة فور اتصال الـ WebSocket. */
+	void FlushWsOutbox();
+	// ---- P13-T3: نبض WebSocket + watchdog للانقطاع الصامت ----
+	float WsHeartbeatTimer = 0.f;
+	float WsLastMessageAt = 0.f;
+	/** الفاصل الزمني لنبض القلب (ثانية) */
+	static constexpr float WsHeartbeatIntervalSeconds = 30.f;
+	/** حد الانقطاع الصامت قبل إعادة الاتصال الإجبارية (ثانية) */
+	static constexpr float WsSilentDisconnectThresholdSeconds = 90.f;
+	void SendWsHeartbeat();
 	/** أقصى عدد محاولات إعادة لطلبات القراءة عند أخطاء الشبكة */
 	static constexpr int32 HttpMaxRetries = 2;
 

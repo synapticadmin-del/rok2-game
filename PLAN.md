@@ -184,6 +184,15 @@
 - [x] **P12-T6** Season 2 readiness: إعادة ضبط موسم (reset موثق + ترحيل بيانات لاعبين) + محتوى موسم 2 (قادة جدد + أحداث) من `data/*.json` دون كسر موسم 1 — حارس + وثيقة + job.
 - **🚪 بوابة النجاح:** لعبة منشورة على متجر Android بـ 1000 مستخدم beta، retention D7 موثق، وكل أصولها مرخصة وموثقة.
 
+### المرحلة 13 — Client Resilience Pack: موثوقية العميل تحت الشبكات غير المستقرة
+الهدف: حماية تجربة اللاعب على أندرويد من انقطاعات الشبكة المتكررة — لا رسائل مفقودة، اكتشاف انقطاع صامت، وفتح فوري من كاش محلي.
+- [x] **P13-T1** صندوق واردات WebSocket (`WsOutbox`): رسائل الدردشة تُخزَّن عند الانقطاع وتُرسل عند العودة + تفريغ في `OnConnected` + حد أمان 128 — عميل C++ + حارس ✅ تم 2026-08-13
+- [x] **P13-T2** كاش بيانات التوازن المحلي (`rok2_meta_cache.json` في `ProjectSavedDir`): `SaveMetaCache` بعد `FetchMeta` + `LoadMetaCache` في `Init` قبل انتظار الخادم — عميل C++ + حارس ✅ تم 2026-08-13
+- [x] **P13-T3** نبض WS + watchdog: نبض كل 30s + إعادة اتصال تلقائي بعد 90s صامت + استعادة الحالة (`bRestoreOnNextWsConnection`) — عميل C++ + حارس ✅ تم 2026-08-13
+- [x] **P13-T4** إشعار Outbox للمستخدم: "الرسالة محفوظة مؤقتًا — ستُرسل تلقائيًا عند عودة الاتصال" ✅ تم 2026-08-13
+- [x] **P13-T5** نظافة التصميم: لا hard-coded في cpp + WeakThis + UPROPERTY + حدود أمان (128، إعادة تهيئة عدّادات في Disconnect) — حارس + وثيقة ✅ تم 2026-08-13
+- **🚪 بوابة النجاح:** انقطاع متعمد لا يفقد أي رسالة دردشة، إعادة اتصال خلال 90s تستعيد الحالة، وأول فتح بعد تثبيت من كاش محلي — مثبت بالحراس البنيوية (40/40) + `npm run check` EXIT=0. ✅ مغلقة 2026-08-13 (commit P13)
+
 ---
 
 ## 3. ترتيب بناء الخريطة تقنياً (قاعدة ثابتة)
@@ -205,6 +214,7 @@
 
 | التاريخ | البند | Commit | ملاحظات |
 |---------|-------|--------|---------|
+| 2026-08-13 | P13-T1..T5 — Client Resilience Pack | HEAD (P13) | Outbox WS (WsOutbox حد 128 + تفريغ في OnConnected + إشعار حفظ مؤقت) + كاش meta محلي (rok2_meta_cache.json في ProjectSavedDir: SaveMetaCache/LoadMetaCache) + نبض 30s + watchdog انقطاع صامت 90s مع استعادة الحالة + نظافة تصميم (لا hard-coded، WeakThis، UPROPERTY) — حارس verify_p13_client.mjs 40/40 + وثيقة P13_T1_CLIENT_RESILIENCE.md + job test:p13-client في check chain |
 | 2026-08-13 | P7-T1 — إثبات E2E لتسجيل الضيف وتأسيس المدينة | HEAD (P7-T1) | سكربت `e2e_p7_t1_guest_onboarding.mjs` بوضعين (معزول كامل: قاعدة D1/DO وهجرات وdev وتنظيف تلقائي؛ أو مباشر `E2E_LIVE=1`) أثبت 20/20 فحصًا: تسجيل ضيف، قياس هوية قبل/بعد FTUE، تأسيس مدينة (حضارة/اسم/قائد بداية/matchmaking/spawn)، قادة (18 رoster + مملوكون)، لقطة عالم بموسم، استمرارية جلسة. وُثّق في `game/docs/P7_T1_GUEST_ONBOARDING_E2E.md` وأُضيف الحارس `verify_p7_t1_onboarding.mjs` (test:p7-t1-onboarding) في `npm run check` التي اجتازتها كاملة (27 فحصًا). |
 | 2026-08-13 | Manus AI | P7-T3 | سيناريو E2E للاعبين: 43/43 فحصًا (خصوصية، FTUE، تحالف، رالي ممر، إطلاق خادمي، تقارير قتال، قصة موسم، عودة القوات) + حارس 29/29 ووثيقة |
 | 2026-08-13 | P8-T3 — نظام الوحدات T1–T5 والوحدات الخاصة الحضارية | HEAD (P8-T3) | `sim/troops.ts` جديد + `troop_tiers.json` (5 درجات: T1=1…T5=9 فتح City Hall) + `civilizations.json` (6 وحدات خاصة بـ stat_mods) + `combat.ts` + `KingdomShard` (CityEntity.civ) + قائمة تدريب ديناميكية whitelist — حارس ALL PASSED + وثيقة `P8_T3_TROOPS.md` + job `test:p8-t3-troops`؛ `npm run check` كاملة EXIT=0. |

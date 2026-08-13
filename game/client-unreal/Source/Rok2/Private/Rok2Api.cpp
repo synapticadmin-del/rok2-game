@@ -14,6 +14,8 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Misc/FileHelper.h"
+#include "HAL/PlatformFilemanager.h"
 #include "GenericPlatform/GenericPlatformHttp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2, Log, All);
@@ -96,8 +98,9 @@ void URok2Api::Init(const FString& ApiBaseUrl, const FString& InKingdomId, const
 	Meta.TrainableUnits.Add({TEXT("cavalry_t1"), TEXT("فرسان T1"), TEXT("cavalry")});
 	Meta.TrainableUnits.Add({TEXT("archer_t1"), TEXT("رماة T1"), TEXT("archer")});
 
+		// P13-T2: محاولة استرجاع بيانات التوازن من الكاش المحلي قبل انتظار الخادم
+	LoadMetaCache();
 	UE_LOG(LogRok2, Log, TEXT("Rok2Api init: %s device=%s"), *BaseUrl, *DeviceId);
-
 	FetchMeta();
 }
 
@@ -286,6 +289,8 @@ void URok2Api::FetchMeta()
 		UE_LOG(LogRok2, Log, TEXT("Meta loaded from server: %d units, %d buildings"),
 			Self->Meta.TrainableUnits.Num(), Self->Meta.Buildings.Num());
 		Self->OnMetaLoaded.Broadcast(true);
+		// P13-T2: حفظ بيانات التوازن محليًا — أول فتح لاحق بلا انتظار كامل
+		Self->SaveMetaCache();
 	});
 }
 
@@ -1802,9 +1807,10 @@ void URok2Api::FetchAllianceRalliesInternal(TFunction<void()> OnFinished)
 }
 
 // P6-T6: إرسال رسالة دردشة عبر WebSocket
+// P13-T1/T4: عند انقطاع WS تُجمع الرسالة في صندوق الواردات (لا تضيع) مع إشعار
 void URok2Api::SendChat(const FString& Channel, const FString& Text)
 {
-	if (!WebSocket.IsValid() || !bWsConnected) return;
+	if (!WebSocket.IsValid()) return;
 	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
 	Msg->SetStringField(TEXT("type"), TEXT("chat_send"));
 	Msg->SetStringField(TEXT("channel"), Channel);
@@ -1812,7 +1818,49 @@ void URok2Api::SendChat(const FString& Channel, const FString& Text)
 	FString Str;
 	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
 	FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
+	if (!bWsConnected)
+	{
+		EnqueueWsMessage(Str);
+		PushNotification(TEXT("ws_outbox"), TEXT("الرسالة محفوظة مؤقتًا"),
+			TEXT("ستُرسل تلقائيًا عند عودة الاتصال الحي"), 6.f);
+		return;
+	}
 	WebSocket->Send(Str);
+}
+
+
+// ---- P13-T1: صندوق واردات WebSocket — الرسائل لا تضيع عند الانقطاع ----
+void URok2Api::EnqueueWsMessage(const FString& JsonMessage)
+{
+if (JsonMessage.IsEmpty()) return;
+if (WsOutbox.Num() > 128) WsOutbox.RemoveAt(0); // حد أمان ضد تراكم غير محدود
+WsOutbox.Add(JsonMessage);
+UE_LOG(LogRok2, Log, TEXT("WS outbox: queued (%d pending)"), WsOutbox.Num());
+}
+
+void URok2Api::FlushWsOutbox()
+{
+	if (!WebSocket.IsValid() || !bWsConnected || WsOutbox.Num() == 0) return;
+	const int32 Flushed = WsOutbox.Num();
+	for (const FString& Msg : WsOutbox)
+	{
+		WebSocket->Send(Msg);
+	}
+	WsOutbox.Empty();
+	UE_LOG(LogRok2, Log, TEXT("WS outbox flushed: %d messages sent"), Flushed);
+}
+
+// ---- P13-T3: نبض القلب — يبقي connection حيًا ويحدّث watchdog ----
+void URok2Api::SendWsHeartbeat()
+{
+	if (!WebSocket.IsValid() || !bWsConnected) return;
+	TSharedPtr<FJsonObject> Msg = MakeShared<FJsonObject>();
+	Msg->SetStringField(TEXT("type"), TEXT("heartbeat"));
+	FString Str;
+	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
+	FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
+	WebSocket->Send(Str);
+	WsLastMessageAt = 0.f; // نبضنا يُحتسب نشاطًا للـ watchdog
 }
 
 void URok2Api::AllianceHelp()
@@ -1919,6 +1967,8 @@ void URok2Api::ConnectWebSocket()
 			const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Str);
 			FJsonSerializer::Serialize(Msg.ToSharedRef(), W);
 			Self->WebSocket->Send(Str);
+			// P13-T1: تفريغ صندوق الواردات المتراكمة أثناء الانقطاع
+			Self->FlushWsOutbox();
 			if (bShouldRestore)
 			{
 				Self->RestoreAuthoritativeState();
@@ -1929,6 +1979,8 @@ void URok2Api::ConnectWebSocket()
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
+		// P13-T3: أي رسالة من الخادم تجدد عداد الانقطاع الصامت
+		Self->WsLastMessageAt = 0.f;
 		TSharedPtr<FJsonObject> Obj;
 		const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Message);
 		if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid()) return;
@@ -2197,6 +2249,9 @@ void URok2Api::DisconnectWebSocket()
 		WebSocket.Reset();
 	}
 	bWsConnected = false;
+	// P13-T3: إعادة تهيئة عدادات النبض عند الفصل حتى لا يُطلق watchdog فجأة
+	WsHeartbeatTimer = 0.f;
+	WsLastMessageAt = 0.f;
 }
 
 // ---------------------------------------------------------------------------
@@ -2276,6 +2331,30 @@ void URok2Api::PumpEvents(float DeltaSeconds)
 		{
 			CitySyncTimer = 0.f;
 			LoadCity();
+		}
+		// P13-T3: نبض القلب الدوري + watchdog للانقطاع الصامت
+		if (bWsConnected && WsOutbox.Num() == 0)
+		{
+			WsHeartbeatTimer += DeltaSeconds;
+			WsLastMessageAt += DeltaSeconds;
+			if (WsLastMessageAt >= WsSilentDisconnectThresholdSeconds)
+			{
+				UE_LOG(LogRok2, Warning, TEXT("WS silent disconnect detected (%.0fs no messages) — reconnecting"), WsLastMessageAt);
+				SetOnline(false, TEXT("انقطع الاتصال صامتًا"));
+				if (WebSocket.IsValid())
+				{
+					WebSocket->Close();
+					WebSocket.Reset();
+				}
+				bWsConnected = false;
+				bRestoreOnNextWsConnection = true;
+				WsReconnectDelay = 2.f;
+			}
+			else if (WsHeartbeatTimer >= WsHeartbeatIntervalSeconds)
+			{
+				WsHeartbeatTimer = 0.f;
+				SendWsHeartbeat();
+			}
 		}
 	}
 }
@@ -3625,4 +3704,137 @@ void URok2Api::ParseSeasonReport(const TSharedPtr<FJsonObject>& Json)
     {
         OnSeasonEnded.Broadcast();
     }
+}
+
+// ---------------------------------------------------------------------------
+// P13-T2: كاش محلي لبيانات التوازن (rok2_meta_cache.json في GameDir)
+// أول فتح بعد ذلك يحمّل البيانات محليًا بلا انتظار الخادم — تُستبدل ببيانات
+// الخادم الحية فور وصول FetchMeta.
+// ---------------------------------------------------------------------------
+FString URok2Api::MetaCachePath() const
+{
+	return FPaths::Combine(FPaths::ProjectSavedDir(), MetaCacheFileName);
+}
+
+void URok2Api::SaveMetaCache()
+{
+	FString Path = MetaCachePath();
+	TSharedPtr<FJsonObject> Root = MakeShared<FJsonObject>();
+	TArray<TSharedPtr<FJsonValue>> Units, BuildingsArr;
+	for (const FRok2TrainableUnit& U : Meta.TrainableUnits)
+	{
+		TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
+		O->SetStringField(TEXT("id"), U.Id);
+		O->SetStringField(TEXT("name"), U.Name);
+		O->SetStringField(TEXT("branch"), U.Branch);
+		Units.Add(MakeShared<FJsonValueObject>(O));
+	}
+	for (const FRok2BuildingMeta& B : Meta.Buildings)
+	{
+		TSharedPtr<FJsonObject> O = MakeShared<FJsonObject>();
+		O->SetStringField(TEXT("id"), B.Id);
+		O->SetStringField(TEXT("category"), B.Category);
+		O->SetStringField(TEXT("name"), B.Name);
+		O->SetStringField(TEXT("desc"), B.Desc);
+		BuildingsArr.Add(MakeShared<FJsonValueObject>(O));
+	}
+	for (const FString& K : Meta.ProductionBase.GetKeys())
+	{
+		Root->SetNumberField(TEXT("prod_") + K, Meta.ProductionBase[K]);
+	}
+	Root->SetNumberField(TEXT("production_level_mult"), Meta.ProductionLevelMult);
+	Root->SetNumberField(TEXT("talent_points_per_level"), Meta.TalentPointsPerLevel);
+	Root->SetNumberField(TEXT("points_cap_common"), Meta.PointsCapCommon);
+	Root->SetNumberField(TEXT("max_points_per_node"), Meta.MaxPointsPerNode);
+	Root->SetNumberField(TEXT("reset_refund_ratio"), Meta.ResetRefundRatio);
+	Root->SetNumberField(TEXT("cached_at_ms"), FDateTime::UtcNow().ToUnixTimestampMilli());
+	FString Out;
+	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
+	FJsonSerializer::Serialize(Root.ToSharedRef(), W);
+	FFileHelper::SaveStringToFile(Out, *Path);
+	UE_LOG(LogRok2, Log, TEXT("Meta cache saved: %s"), *Path);
+}
+
+void URok2Api::LoadMetaCache()
+{
+	FString Path = MetaCachePath();
+	if (!FPaths::FileExists(Path))
+	{
+		UE_LOG(LogRok2, Log, TEXT("No meta cache yet — using local fallback values"));
+		return;
+	}
+	FString Out;
+	if (!FFileHelper::LoadFileToString(Out, *Path) || Out.IsEmpty())
+	{
+		UE_LOG(LogRok2, Warning, TEXT("Meta cache unreadable — using local fallback values"));
+		return;
+	}
+	TSharedPtr<FJsonObject> Root;
+	const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Out);
+	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid())
+	{
+		UE_LOG(LogRok2, Warning, TEXT("Meta cache invalid JSON — using local fallback values"));
+		return;
+	}
+	TSharedPtr<FJsonObject> Obj;
+	if (Root->TryGetObjectField(TEXT("meta"), Obj) && Obj.IsValid()) Root = Obj;
+	TArray<FRok2TrainableUnit> Units;
+	TArray<FRok2BuildingMeta> Buildings;
+	const TArray<TSharedPtr<FJsonValue>>* UnitsArr;
+	if (Root->TryGetArrayField(TEXT("units"), UnitsArr))
+	{
+		for (const auto& V : *UnitsArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!V->TryGetObject(O)) continue;
+			FRok2TrainableUnit U;
+			U.Id = Rok2Json::Str(*O, TEXT("id"));
+			U.Name = Rok2Json::Str(*O, TEXT("name"));
+			U.Branch = Rok2Json::Str(*O, TEXT("branch"));
+			Units.Add(U);
+		}
+	}
+	const TArray<TSharedPtr<FJsonValue>>* BuildingsArr;
+	if (Root->TryGetArrayField(TEXT("buildings"), BuildingsArr))
+	{
+		for (const auto& V : *BuildingsArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!V->TryGetObject(O)) continue;
+			FRok2BuildingMeta B;
+			B.Id = Rok2Json::Str(*O, TEXT("id"));
+			B.Category = Rok2Json::Str(*O, TEXT("category"));
+			B.Name = Rok2Json::Str(*O, TEXT("name"));
+			B.Desc = Rok2Json::Str(*O, TEXT("desc"));
+			Buildings.Add(B);
+		}
+	}
+	if (Units.Num() > 0 || Buildings.Num() > 0)
+	{
+		Meta.TrainableUnits = Units;
+		Meta.Buildings = Buildings;
+		Meta.ProductionLevelMult = Rok2Json::Num(*Root, TEXT("production_level_mult"), 1.2);
+		Meta.TalentPointsPerLevel = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("talent_points_per_level"), 1.0));
+		Meta.PointsCapCommon = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("points_cap_common"), 40.0));
+		Meta.MaxPointsPerNode = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("max_points_per_node"), 5.0));
+		Meta.ResetRefundRatio = Rok2Json::Num(*Root, TEXT("reset_refund_ratio"), 0.8);
+		// القيم الافتراضية نفسها إن لم تكن موجودة في الكاش القديم
+		if (Meta.ProductionBase.Num() == 0)
+		{
+			Meta.ProductionBase.Add(TEXT("farm"), 100.0);
+			Meta.ProductionBase.Add(TEXT("lumber_mill"), 100.0);
+			Meta.ProductionBase.Add(TEXT("quarry"), 70.0);
+			Meta.ProductionBase.Add(TEXT("goldmine"), 40.0);
+		}
+		RecomputeResourceRates();
+		bMetaCacheLoaded = true;
+		Meta.bLoaded = true;
+		OnMetaLoaded.Broadcast(true);
+		UE_LOG(LogRok2, Log, TEXT("Meta cache loaded from %s: %d units, %d buildings"),
+			*Path, Meta.TrainableUnits.Num(), Meta.Buildings.Num());
+	}
+	else
+	{
+		UE_LOG(LogRok2, Warning, TEXT("Meta cache empty — using local fallback values"));
+	}
 }
