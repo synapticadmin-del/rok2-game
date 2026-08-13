@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "notes": "ROK2 ops monitoring config (P7-T15). Thresholds for kingdom shard health indicators: command error window, tick staleness, queue pressure, and command-error alert threshold. All values read by KingdomShard.ts — no hardcoded thresholds in code. Alerts emitted by opsSnapshot() are listed in docs/P7_T15_OPS_RUNBOOK.md.",
+  "constants": {
+    "enabled": true,
+    "command_error_window_ms": 3600000,
+    "tick_stale_threshold_ms": 30000,
+    "queue_stuck_threshold": 40,
+    "command_alert_threshold": 5,
+    "error_log_limit": 200
+  }
+}

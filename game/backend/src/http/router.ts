@@ -2320,6 +2320,13 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const res = await stub.fetch("https://do/anticheat/violations");
       return json(await res.json());
     }
+    // P7-T15: مؤشرات التشغيل — صحة الـ shard (آخر tick، أخطاء الأوامر، الطوابير، التنبيهات) — requireAdmin فقط.
+    if (path === "/v1/admin/ops" && request.method === "GET") {
+      requireAdmin(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/ops");
+      return json(await res.json());
+    }
 
     if (path === "/v1/admin/grant" && request.method === "POST") {
       requireAdmin(request, env);

@@ -2,6 +2,21 @@ import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
 import { getMap, getChatConfig, getAllianceStructures, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist } from "../lib/ids";
+import opsData from "../data/ops.json";
+
+const OPS_CONSTANTS = {
+  enabled: (opsData as any).constants.enabled as boolean,
+  commandErrorWindowMs: (opsData as any).constants.command_error_window_ms as number,
+  tickStaleThresholdMs: (opsData as any).constants.tick_stale_threshold_ms as number,
+  queueStuckThreshold: (opsData as any).constants.queue_stuck_threshold as number,
+  commandAlertThreshold: (opsData as any).constants.command_alert_threshold as number,
+  errorLogLimit: (opsData as any).constants.error_log_limit as number,
+};
+
+const COMMAND_OPS_WINDOW_MS = OPS_CONSTANTS.commandErrorWindowMs;
+const TICK_STALE_THRESHOLD_MS = OPS_CONSTANTS.tickStaleThresholdMs;
+const QUEUE_STUCK_THRESHOLD = OPS_CONSTANTS.queueStuckThreshold;
+const COMMAND_ALERT_THRESHOLD = OPS_CONSTANTS.commandAlertThreshold;
 import { assertAdminKey } from "../lib/secrets";
 import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
@@ -208,6 +223,11 @@ export class KingdomShard extends DurableObject<Env> {
   private mountainBelt = 20;
   private passWidth = 10;
   private seasonDay = 0;
+
+  // P7-T15: مؤشرات التشغيل — أخطاء الأوامر حسب الرمز مع نافذة ساعة منزلقة.
+  private commandErrorCounts = new Map<string, { n: number; firstMs: number; lastMs: number }>();
+  private commandTotal = 0;
+  private lastTickMs = 0;
   // P3-T1: طابع بداية الموسم — خدمة فتح المناطق تحسب اليوم منه زمنياً
   private seasonStartMs = 0;
   private cities = new Map<string, CityEntity>();
@@ -1429,6 +1449,9 @@ export class KingdomShard extends DurableObject<Env> {
       this.seasonStartMs,
     );
 
+    // P7-T15: تسجيل زمن آخر tick لمؤشرات التشغيل (نافذة ساعة منزلقة تُحسب عند الطلب).
+    this.lastTickMs = now;
+
     if (changed) {
       // لا تعاد اللقطة الكاملة مع كل tick: الاتصال الأول فقط يستلم snapshot.
       this.broadcast({ type: "world_delta", ...this.worldDelta() });
@@ -2076,7 +2099,7 @@ export class KingdomShard extends DurableObject<Env> {
       const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
       if (identityError) return identityError;
       const c = this.cities.get(body.playerId);
-      if (!c) return Response.json({ error: "city_not_found" }, { status: 404 });
+      if (!c) { this.recordCommandError("city_not_found"); return Response.json({ error: "city_not_found" }, { status: 404 }); }
       c.allianceId = body.allianceId;
       this.persistCity(c);
       this.broadcast({ type: "city_upsert", city: c });
@@ -2089,14 +2112,14 @@ export class KingdomShard extends DurableObject<Env> {
       if (identityError) return identityError;
       const builder = this.cities.get(body.playerId);
       if (!builder || !body.allianceId || builder.allianceId !== body.allianceId) {
-        return Response.json({ error: "not_your_alliance" }, { status: 403 });
+        this.recordCommandError("not_your_alliance"); return Response.json({ error: "not_your_alliance" }, { status: 403 });
       }
       // تحقق من الإحداثيات قبل الحفظ — أعلام خارج الخريطة/NaN تفسد الرسم والمنطق
       const map = getMap();
       const x = Number(body.x);
       const y = Number(body.y);
       if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > map.width || y < 0 || y > map.height) {
-        return Response.json({ error: "bad_flag_coords" }, { status: 400 });
+        this.recordCommandError("bad_flag_coords"); return Response.json({ error: "bad_flag_coords" }, { status: 400 });
       }
       const flag: AllianceFlag = {
         id: newId("flg"),
@@ -2120,38 +2143,38 @@ export class KingdomShard extends DurableObject<Env> {
       if (identityError) return identityError;
       const builder = this.cities.get(body.createdBy);
       if (!builder || !body.allianceId || builder.allianceId !== body.allianceId) {
-        return Response.json({ error: "not_your_alliance" }, { status: 403 });
+        this.recordCommandError("not_your_alliance"); return Response.json({ error: "not_your_alliance" }, { status: 403 });
       }
       const map = getMap();
       const x = Number(body.x);
       const y = Number(body.y);
       const allianceId = String(body.allianceId || "");
       const kind = String(body.kind || "");
-      if (!allianceId || !body.createdBy) return Response.json({ error: "alliance_and_builder_required" }, { status: 400 });
+      if (!allianceId || !body.createdBy) { this.recordCommandError("alliance_and_builder_required"); return Response.json({ error: "alliance_and_builder_required" }, { status: 400 }); }
       if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > map.width || y < 0 || y > map.height) {
-        return Response.json({ error: "bad_structure_coords" }, { status: 400 });
+        this.recordCommandError("bad_structure_coords"); return Response.json({ error: "bad_structure_coords" }, { status: 400 });
       }
 
       const catalog = getAllianceStructures() as any;
       const spec = (catalog.structures || []).find((candidate: any) => candidate.id === kind);
-      if (!spec) return Response.json({ error: "unknown_structure_kind" }, { status: 400 });
+      if (!spec) { this.recordCommandError("unknown_structure_kind"); return Response.json({ error: "unknown_structure_kind" }, { status: 400 }); }
 
       const allianceStructures = [...this.allianceStructures.values()].filter((s) => s.allianceId === allianceId);
       if (allianceStructures.length >= Number(catalog.placement?.max_structures_per_alliance || 0)) {
-        return Response.json({ error: "alliance_structure_cap_reached" }, { status: 400 });
+        this.recordCommandError("alliance_structure_cap_reached"); return Response.json({ error: "alliance_structure_cap_reached" }, { status: 400 });
       }
       if (allianceStructures.filter((s) => s.kind === kind).length >= Number(spec.max_per_alliance || 0)) {
-        return Response.json({ error: "structure_kind_cap_reached" }, { status: 400 });
+        this.recordCommandError("structure_kind_cap_reached"); return Response.json({ error: "structure_kind_cap_reached" }, { status: 400 });
       }
       const spacing = Number(catalog.placement?.minimum_spacing || 0);
       if (this.allianceStructures.size && [...this.allianceStructures.values()].some((s) => dist(x, y, s.x, s.y) < spacing)) {
-        return Response.json({ error: "structure_too_close" }, { status: 400 });
+        this.recordCommandError("structure_too_close"); return Response.json({ error: "structure_too_close" }, { status: 400 });
       }
       if (catalog.placement?.requires_alliance_territory) {
         const insideTerritory = [...this.flags.values()].some((flag) =>
           flag.allianceId === allianceId && dist(x, y, flag.x, flag.y) <= flag.radius,
         );
-        if (!insideTerritory) return Response.json({ error: "structure_requires_alliance_territory" }, { status: 400 });
+        if (!insideTerritory) { this.recordCommandError("structure_requires_alliance_territory"); return Response.json({ error: "structure_requires_alliance_territory" }, { status: 400 }); }
       }
 
       const structure: AllianceStructure = {
@@ -2319,19 +2342,19 @@ export class KingdomShard extends DurableObject<Env> {
       const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
       if (identityError) return identityError;
       const q = this.queues.get(body.queueId);
-      if (!q || q.state !== "running") return Response.json({ error: "queue_not_found" }, { status: 404 });
+      if (!q || q.state !== "running") { this.recordCommandError("queue_not_found"); return Response.json({ error: "queue_not_found" }, { status: 404 }); }
 
       // ملكية الطابور: بدون هذا يستطيع أي لاعب تسريع طابور لاعب آخر
       // بمجرد تخمين/معرفة المعرّف.
       if (!body.playerId || q.playerId !== body.playerId) {
-        return Response.json({ error: "not_your_queue" }, { status: 403 });
+        this.recordCommandError("not_your_queue"); return Response.json({ error: "not_your_queue" }, { status: 403 });
       }
 
       // الثواني تأتي من مصدر موثوق (عنصر في الحقيبة أو مزية VIP) لكن نتحقق
       // هنا أيضاً — هذه آخر نقطة قبل تعديل الحالة.
       const seconds = Number(body.seconds);
       if (!Number.isFinite(seconds) || seconds <= 0) {
-        return Response.json({ error: "invalid_seconds" }, { status: 400 });
+        this.recordCommandError("invalid_seconds"); return Response.json({ error: "invalid_seconds" }, { status: 400 });
       }
       const cappedSeconds = Math.min(seconds, MAX_SPEEDUP_SECONDS);
 
@@ -2351,6 +2374,11 @@ export class KingdomShard extends DurableObject<Env> {
       });
     }
 
+    // P7-T15: مؤشرات التشغيل — قراءة داخلية فقط (الراوتر العام لا يعرّضها إلا تحت /v1/admin/ops مع requireAdmin).
+    if (path === "/ops" && request.method === "GET") {
+      const snap = this.opsSnapshot();
+      return Response.json({ ok: true, enabled: OPS_CONSTANTS.enabled, ...snap, violations: this.antiCheatViolations.slice(-10).reverse() });
+    }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
 
@@ -2359,7 +2387,7 @@ export class KingdomShard extends DurableObject<Env> {
     const playerId = typeof claimedPlayerId === "string" ? claimedPlayerId : "";
     const authenticatedPlayerId = request.headers.get("x-rok2-player") || "";
     if (!playerId || !authenticatedPlayerId || authenticatedPlayerId !== playerId) {
-      return Response.json({ error: "player_identity_mismatch" }, { status: 403 });
+      this.recordCommandError("player_identity_mismatch"); return Response.json({ error: "player_identity_mismatch" }, { status: 403 });
     }
     return null;
   }
@@ -2370,6 +2398,77 @@ export class KingdomShard extends DurableObject<Env> {
     if (this.antiCheatViolations.length > ANTICHEAT_CONSTANTS.violationLogLimit) {
       this.antiCheatViolations.splice(0, this.antiCheatViolations.length - ANTICHEAT_CONSTANTS.violationLogLimit);
     }
+  }
+
+  // P7-T15: تسجيل فشل أمر من خادم مصادق عليه — نافذة ساعة منزلقة حسب رمز الخطأ.
+  private recordCommandError(code: string): void {
+    if (!OPS_CONSTANTS.enabled) return;
+    const now = nowMs();
+    this.commandTotal += 1;
+    const entry = this.commandErrorCounts.get(code);
+    const windowStart = now - COMMAND_OPS_WINDOW_MS;
+    if (!entry || entry.lastMs < windowStart) {
+      this.commandErrorCounts.set(code, { n: 1, firstMs: now, lastMs: now });
+    } else {
+      entry.n += 1;
+      entry.lastMs = now;
+    }
+    // حد سجل الأخطاء في الذاكرة مثل سجل anti-cheat.
+    if (this.commandErrorCounts.size > OPS_CONSTANTS.errorLogLimit) {
+      const oldest = [...this.commandErrorCounts.entries()].sort((a, b) => a[1].lastMs - b[1].lastMs)[0];
+      if (oldest) this.commandErrorCounts.delete(oldest[0]);
+    }
+  }
+
+  // P7-T15: لقطه مؤشرات التشغيل — أخطاء نافذة الساعة + آخر tick + عمق الطوابير + الانتهاكات.
+  private opsSnapshot(): {
+    seasonDay: number;
+    seasonStartMs: number;
+    lastTickMs: number;
+    tickStaleMs: number;
+    commandErrors: Array<{ code: string; n: number; firstMs: number; lastMs: number }>;
+    commandErrorWindowMs: number;
+    queuesTotal: number;
+    queuesByKind: Record<string, number>;
+    marchesActive: number;
+    violationsTotal: number;
+    alerts: string[];
+  } {
+    const now = nowMs();
+    const windowStart = now - COMMAND_OPS_WINDOW_MS;
+    const commandErrors: Array<{ code: string; n: number; firstMs: number; lastMs: number }> = [];
+    for (const [code, entry] of this.commandErrorCounts) {
+      if (entry.lastMs >= windowStart) commandErrors.push({ code, ...entry });
+    }
+    commandErrors.sort((a, b) => b.n - a.n);
+    const queuesTotal = [...this.queues.values()].filter((q) => q.state === "running").length;
+    const queuesByKind: Record<string, number> = {};
+    for (const q of this.queues.values()) {
+      if (q.state === "running") queuesByKind[q.type] = (queuesByKind[q.type] || 0) + 1;
+    }
+    const marchesActive = [...this.marches.values()].filter((m) => m.state === "moving" || m.state === "returning").length;
+    const alerts: string[] = [];
+    if (this.lastTickMs > 0 && now - this.lastTickMs > TICK_STALE_THRESHOLD_MS) {
+      alerts.push("tick_stale");
+    }
+    if (queuesTotal > QUEUE_STUCK_THRESHOLD) {
+      alerts.push("queue_pressure");
+    }
+    const topErrors = commandErrors.filter((e) => e.n >= COMMAND_ALERT_THRESHOLD).map((e) => `command_error_${e.code}`);
+    alerts.push(...topErrors);
+    return {
+      seasonDay: this.seasonDay,
+      seasonStartMs: this.seasonStartMs,
+      lastTickMs: this.lastTickMs,
+      tickStaleMs: this.lastTickMs > 0 ? now - this.lastTickMs : -1,
+      commandErrors: commandErrors.slice(0, 10),
+      commandErrorWindowMs: COMMAND_OPS_WINDOW_MS,
+      queuesTotal,
+      queuesByKind,
+      marchesActive,
+      violationsTotal: this.antiCheatViolations.length,
+      alerts,
+    };
   }
 
   private async createMarch(body: any): Promise<MarchEntity> {
