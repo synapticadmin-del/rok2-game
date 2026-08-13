@@ -1,0 +1,111 @@
+name: Build Android APK
+'on':
+  push:
+    branches:
+    - main
+    paths-ignore:
+    - game/backend/**
+    - '**.md'
+    - docs/**
+  workflow_dispatch:
+    inputs:
+      full_rebuild:
+        description: إعادة بناء UE من المصدر (تجاهل cache)
+        required: false
+        default: 'false'
+        type: boolean
+env:
+  UE_ROOT: /opt/UnrealEngine
+  ANDROID_HOME: /opt/android-sdk
+  NDK_ROOT: /opt/android-sdk/ndk/27.2.12479018
+  NDK_VERSION: 27.2.12479018
+  JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+jobs:
+  build-apk:
+    runs-on: ${{ vars.ROK2_RUNNER || 'ubuntu-22.04' }}
+    timeout-minutes: 300
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Free disk space (runner الافتراضي ~14GB فقط)
+      if: ${{ vars.ROK2_RUNNER == '' }}
+      run: 'sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+        sudo docker rmi $(docker images -q) 2>/dev/null || true
+
+        df -h /'
+    - name: Check UE cache
+      id: ue-cache
+      if: ${{ github.event.inputs.full_rebuild != 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: /opt/UnrealEngine
+        key: ue544-${{ runner.os }}-${{ hashFiles("game/client-unreal/Rok2.uproject") }}
+    - name: Clone Unreal Engine 5.4.4 (source)
+      if: steps.ue-cache.outputs.cache-hit != 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.UE5_TOKEN }}
+      run: "if [ -z \"$GITHUB_TOKEN\" ]; then\n  echo \"::error::UE5_TOKEN missing in repository secrets; cannot pull UE 5.4.4\"\
+        \n  echo \"Create it: Settings > Secrets and variables > Actions > New repository secret\"\n  echo \"Value: GitHub\
+        \ PAT attached to an Epic Games GitHub account (unrealengine org)\"\n  exit 1\nfi\ngit clone --depth 1 --single-branch\
+        \ https://\"$GITHUB_TOKEN\"@github.com/EpicGames/UnrealEngine.git -b 5.4.4-release \"$UE_ROOT\"\ncd \"$UE_ROOT\"\n\
+        ./Setup.sh --exclude=Templates\n./GenerateProjectFiles.sh\nmake -j$(nproc)"
+    - name: Verify UE 5.4.4 binary
+      run: $UE_ROOT/Engine/Binaries/Linux/UnrealBuildTool --version || grep -o '"PatchVersion"[^,]*' "$UE_ROOT/Engine/Build/Build.version"
+    - name: Install OpenJDK 17
+      run: 'sudo apt-get install -y openjdk-17-jdk-headless >/dev/null 2>&1
+
+        echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"'
+    - name: Install Android SDK + NDK r27c
+      uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: ${{ env.NDK_VERSION }}
+    - name: Android SDK platforms + build-tools
+      run: 'mkdir -p "$ANDROID_HOME/cmdline-tools"
+
+        cd "$ANDROID_HOME/cmdline-tools"
+
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmd.zip
+
+        unzip -q cmd.zip && mv cmdline-tools latest 2>/dev/null || true
+
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1
+
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" 2>&1 | tail -2
+
+        echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"'
+    - name: 'Gate: UE version == 5.4.4'
+      run: "V=$(python3 -c \"import json;d=json.load(open('$UE_ROOT/Engine/Build/Build.version'));print(f\\\"{d['MajorVersion']}.{d['MinorVersion']}.{d['PatchVersion']}\\\
+        \")\")\nif [ \"$V\" != \"5.4.4\" ]; then\n  echo \"::error::required UE version 5.4.4, found: $V\"\n  exit 1\nfi"
+    - name: Import raw assets to .uasset
+      run: 'cd game/client-unreal
+
+        mkdir -p Intermediate/Android/arm64/JavaLibs
+
+        cp -r Build/Android/JavaLibs/vrpermissionstub Intermediate/Android/arm64/JavaLibs/vrpermissionstub
+
+        "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor-Cmd" Rok2.uproject -run=pythonscript -script=import_assets.py -nullrhi
+        -unattended -nosplash -nopause -stdout -utf8output 2>&1 | grep -E "\\[ROK2\\]|ERROR|SUCCESS" | tail -20'
+    - name: BuildCookRun Android ASTC
+      run: 'cd game/client-unreal
+
+        "$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun -project=$(pwd)/Rok2.uproject -platform=Android -cookflavor=ASTC
+        -clientconfig=Development -targetplatform=Android -build -cook -stage -package -pak -iostore -compressed -archive
+        -archivedirectory=$(pwd)/Build/Android -nodebuginfo -utf8output -nop4 -unattended -nullrhi'
+    - name: Locate APK
+      id: locate-apk
+      run: "APK=$(find game/client-unreal/Build/Android -name \"*.apk\" | head -1)\nif [ -z \"$APK\" ]; then\n  echo \"::error::no\
+        \ APK found in Build/Android\"\n  exit 1\nfi\necho \"apk_path=$APK\" >> \"$GITHUB_OUTPUT\"\nls -lh \"$APK\""
+    - name: Manifest safety check (BF-007)
+      run: "APK=\"${{ steps.locate-apk.outputs.apk_path }}\"\nif unzip -p \"$APK\" AndroidManifest.xml | grep -q \"WRITE_EXTERNAL_STORAGE\"\
+        ; then\n  echo \"::error::regression guard: APK contains WRITE_EXTERNAL_STORAGE (BF-007)\"\n  exit 1\nfi\necho \"\
+        Manifest clean (no legacy storage permissions)\""
+    - uses: actions/upload-artifact@v4
+      with:
+        name: rok2-arm64-apk
+        path: ${{ steps.locate-apk.outputs.apk_path }}
+        retention-days: 30
