@@ -193,17 +193,36 @@ if ($Package) {
     # at runtime (otherwise PreInit fails with "Engine Preinit Failed").
     if ($Platform -eq 'Android') {
         $StagedPaks = Join-Path $ProjectRoot 'Saved\StagedBuilds\Android_ASTC\Rok2\Content\Paks'
-        $AndroidAssets = Join-Path $ProjectRoot 'Intermediate\Android\arm64\assets'
-        if ((Test-Path $StagedPaks) -and (Test-Path $AndroidAssets)) {
+        $GradleAssets = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle\app\src\main\assets\Rok2\Content\Paks'
+        if (Test-Path $StagedPaks) {
+            New-Item -ItemType Directory -Force -Path $GradleAssets | Out-Null
             Get-ChildItem -Path $StagedPaks -Filter 'Rok2-Android_ASTC*' -ErrorAction SilentlyContinue | ForEach-Object {
-                $TargetPath = Join-Path $AndroidAssets $_.Name
+                $TargetName = $_.Name -replace '_ASTC', ''
+                $TargetPath = Join-Path $GradleAssets $TargetName
                 Copy-Item -Path $_.FullName -Destination $TargetPath -Force
             }
             Get-ChildItem -Path $StagedPaks -Filter 'global*' -ErrorAction SilentlyContinue | ForEach-Object {
-                $TargetPath = Join-Path $AndroidAssets $_.Name
+                $TargetPath = Join-Path $GradleAssets $_.Name
                 Copy-Item -Path $_.FullName -Destination $TargetPath -Force
             }
-            Write-Host "[ROK2] Copied staged paks to Android assets" -ForegroundColor DarkGray
+            Write-Host "[ROK2] Copied staged paks to gradle assets" -ForegroundColor DarkGray
+
+            # Re-run gradle assembleDebug so the APK picks up the new assets
+            $GradleDir = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle'
+            $Env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot'
+            $Env:PATH = "$Env:JAVA_HOME\bin;$Env:PATH"
+            Push-Location $GradleDir
+            & cmd.exe /c "gradlew.bat assembleDebug --no-daemon -x lint -x lintAnalyzeDebug -x lintReportDebug" 2>&1 | Out-Host
+            Pop-Location
+            Write-Host "[ROK2] Gradle assembleDebug completed (exit=$LASTEXITCODE)" -ForegroundColor DarkGray
+
+            # Copy final APK to output directory
+            $BuiltApk = Join-Path $GradleDir 'app\build\outputs\apk\debug\app-debug.apk'
+            $OutputApk = Join-Path $ResolvedOutputDirectory 'Rok2-arm64.apk'
+            if (Test-Path $BuiltApk) {
+                Copy-Item -Path $BuiltApk -Destination $OutputApk -Force
+                Write-Host "[ROK2] Copied final APK to $OutputApk" -ForegroundColor DarkGray
+            }
         }
     }
 }

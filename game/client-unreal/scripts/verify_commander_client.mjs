@@ -30,7 +30,7 @@ requireMatch(apiCpp, /SetStringField\(TEXT\("primaryCommanderId"\)/, "march payl
 requireMatch(apiCpp, /Commander\.Level = \(int32\)Rok2Json::Num\(CommanderObj, TEXT\("level"\), 1\)/, "client hydrates commander level from server response");
 requireMatch(apiCpp, /Commander\.SkillLevels\.Add/, "client hydrates commander skill levels from server response");
 requireMatch(apiCpp, /if \(Self->HasPlayer\(\)\) Self->FetchCommanders\(\);/, "login triggers commander synchronization for returning players");
-requireMatch(apiCpp, /Self->FetchCommanders\(\);\n\t\t\t\/\/ P5-T6/, "city initialization synchronizes starter commander");
+requireMatch(apiCpp, /Self->FetchCommanders\(\);\r?\n\t\t\t\/\/ P5-T6/, "city initialization synchronizes starter commander");
 if (/Commanders\.Add\(\{TEXT\("cmd_/.test(apiCpp)) {
   console.error("FAIL: client still seeds a fake commander roster");
   process.exitCode = 1;
