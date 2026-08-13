@@ -40,6 +40,15 @@ export function troopPower(troops: Troops, civId?: string): number {
   return p;
 }
 
+/** P9-T1: تضخيم/تقليص قوات المسيرة بمعامل (لبافات تقنيات التحالف عند ضرب القوات قبل القتال). */
+export function scaleTroops(troops: Troops, factor: number): Troops {
+  const out: Troops = {};
+  for (const [u, c] of Object.entries(troops)) {
+    out[u] = Math.max(0, Math.floor(Number(c) * factor));
+  }
+  return out;
+}
+
 export function totalTroops(troops: Troops): number {
   return Object.values(troops).reduce((s, n) => s + Math.max(0, n || 0), 0);
 }

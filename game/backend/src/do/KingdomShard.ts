@@ -13,12 +13,14 @@ const OPS_CONSTANTS = {
   errorLogLimit: (opsData as any).constants.error_log_limit as number,
 };
 
-const COMMAND_OPS_WINDOW_MS = OPS_CONSTANTS.commandErrorWindowMs;
+// P9-T1: نافذة تبرع واحدة بالملّي ثانية (من alliance_tech.json)
+const ALLIANCE_TECH_WINDOW_MS = ALLIANCE_TECH_CFG.window_seconds * 1000;
 const TICK_STALE_THRESHOLD_MS = OPS_CONSTANTS.tickStaleThresholdMs;
+const COMMAND_OPS_WINDOW_MS = OPS_CONSTANTS.commandErrorWindowMs;
 const QUEUE_STUCK_THRESHOLD = OPS_CONSTANTS.queueStuckThreshold;
 const COMMAND_ALERT_THRESHOLD = OPS_CONSTANTS.commandAlertThreshold;
 import { assertAdminKey } from "../lib/secrets";
-import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
+import { resolveCombat, totalTroops, troopPower, scaleTroops, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
 import { talentAttackMod } from "./sim/talents";
@@ -34,6 +36,13 @@ import {
   templeUnlocked,
   templeWoundedDeadShare,
 } from "./sim/holy_sites";
+import {
+  AllianceTechService,
+  ALLIANCE_TECH_CFG,
+  ALLIANCE_TECH_RESEARCH_CFG,
+  type TechProgress,
+  type DonationWindow,
+} from "./sim/alliance_tech";
 import {
   buildDailyQuests,
   buildWeeklyQuests,
@@ -231,6 +240,14 @@ type ThroneEntity = {
 // P2-T2: ملخص دخول المستشفى المرفق بتقارير القتال
 type HospitalSummary = { admitted: Troops; died: Troops; capacity: number };
 
+// P9-T1: حالة تكنولوجيا التحالف — progress لكل تقنية + سجل تبرعات اللاعب ونوافذها.
+type AllianceTechState = {
+  /** تقدم التقنيات لكل تحالف: allianceId → {techId: TechProgress} */
+  allianceTech: Map<string, Record<string, TechProgress>>;
+  /** سجل تبرعات كل لاعب: playerId → DonationWindow[] (نافذة 30 دقيقة بسقف 20) */
+  donationWindows: Map<string, DonationWindow[]>;
+};
+
 // P6-T6: رسالة دردشة حية (قناة المملكة أو التحالف)
 type ChatMessage = {
   id: string;
@@ -301,6 +318,11 @@ export class KingdomShard extends DurableObject<Env> {
   private flags = new Map<string, AllianceFlag>();
   // منشآت التحالف المرئية: حصون ومنجنيقات وأبراج مراقبة.
   private allianceStructures = new Map<string, AllianceStructure>();
+  // P9-T1: تكنولوجيا التحالف — تقدم تقنيات كل تحالف + نوافذ تبرع كل عضو
+  private allianceTech: AllianceTechState = {
+    allianceTech: new Map(),
+    donationWindows: new Map(),
+  };
   // P5-T5: الكشافة النشطة على الخريطة
   private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
@@ -580,6 +602,28 @@ export class KingdomShard extends DurableObject<Env> {
       this.ctx.storage.sql.exec("ALTER TABLE map_cities ADD COLUMN last_relocation_ms INTEGER");
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (11)");
     }
+    if (ver < 12) {
+      // P9-T1: تكنولوجيا التحالف — تقدم التقنيات لكل تحالف + نوافذ تبرع الأعضاء.
+      this.ctx.storage.sql.exec(
+        `CREATE TABLE IF NOT EXISTS alliance_tech (
+          alliance_id TEXT NOT NULL,
+          tech_id TEXT NOT NULL,
+          points INTEGER NOT NULL DEFAULT 0,
+          level INTEGER NOT NULL DEFAULT 0,
+          research_started_at_ms INTEGER,
+          PRIMARY KEY (alliance_id, tech_id)
+        )`,
+      );
+      this.ctx.storage.sql.exec(
+        `CREATE TABLE IF NOT EXISTS donation_windows (
+          player_id TEXT NOT NULL,
+          window_start_ms INTEGER NOT NULL,
+          count INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (player_id, window_start_ms)
+        )`,
+      );
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (12)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -687,6 +731,8 @@ export class KingdomShard extends DurableObject<Env> {
     }
     // P8-T4: المواقع المقدسة ودورة الملك — تُحمّل من الحفظ السلطوي
     this.loadHolySites();
+    // P9-T1: تكنولوجيا التحالف — التقدم والنوافذ يُحمّلان من الحفظ السلطوي
+    this.loadAllianceTech();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -960,6 +1006,57 @@ export class KingdomShard extends DurableObject<Env> {
     const temple = this.holySites.get(HOLY_SITES.temple.id);
     if (temple?.ownerAllianceId && temple.heldSinceMs != null && nowMs() - temple.heldSinceMs >= holdForKingMs()) {
       this.king = { allianceId: temple.ownerAllianceId, crownedAtMs: temple.heldSinceMs, expiresAtMs: null };
+    }
+  }
+
+  // P9-T1: تحميل تقدم تقنيات التحالف ونوافذ تبرع الأعضاء من الحفظ السلطوي
+  private loadAllianceTech() {
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_tech").toArray()) {
+      const allianceId = row.alliance_id;
+      let state = this.allianceTech.allianceTech.get(allianceId);
+      if (!state) {
+        state = {};
+        this.allianceTech.allianceTech.set(allianceId, state);
+      }
+      state[row.tech_id] = {
+        points: row.points ?? 0,
+        level: row.level ?? 0,
+        researchStartedAtMs: row.research_started_at_ms ?? null,
+      };
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM donation_windows").toArray()) {
+      const windows = this.allianceTech.donationWindows.get(row.player_id) || [];
+      windows.push({ windowStartMs: row.window_start_ms, count: row.count ?? 0 });
+      this.allianceTech.donationWindows.set(row.player_id, windows);
+    }
+  }
+
+  // P9-T1: حفظ تقدم تقنية تحالف — INSERT OR REPLACE عبر المفتاح المزدوج
+  private persistAllianceTech(allianceId: string, techId: string, progress: TechProgress) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO alliance_tech
+       (alliance_id, tech_id, points, level, research_started_at_ms)
+       VALUES (?, ?, ?, ?, ?)`,
+      allianceId,
+      techId,
+      progress.points,
+      progress.level,
+      progress.researchStartedAtMs,
+    );
+  }
+
+  // P9-T1: حفظ نافذة تبرع لاعب واحدة — وينظّف النوافذ القديمة أولاً
+  private persistDonationWindows(playerId: string, windows: DonationWindow[]) {
+    this.ctx.storage.sql.exec(`DELETE FROM donation_windows WHERE player_id = ?`, playerId);
+    const windowMs = ALLIANCE_TECH_WINDOW_MS;
+    const alive = windows.filter((w) => nowMs() - w.windowStartMs < windowMs);
+    for (const w of alive) {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO donation_windows (player_id, window_start_ms, count) VALUES (?, ?, ?)`,
+        playerId,
+        w.windowStartMs,
+        w.count,
+      );
     }
   }
 
@@ -1257,6 +1354,114 @@ export class KingdomShard extends DurableObject<Env> {
 
   // ══════════ نهاية P8-T6 ══════════
 
+  // ══════════ P9-T1: تكنولوجيا التحالف ══════════
+
+  /** حالة تقنيات التحالف للّبث: تحالف اللاعب المعني إن حُدّد، وإلا كل التحالفات ذات التقدم. */
+  private allianceTechStateFor(playerAllianceId: string | null | undefined) {
+    const entries = playerAllianceId
+      ? [[playerAllianceId, this.allianceTech.allianceTech.get(playerAllianceId)]]
+      : [...this.allianceTech.allianceTech.entries()];
+    return entries
+      .filter(([, state]) => state && Object.keys(state).length > 0)
+      .map(([allianceId, state]) => ({ allianceId, techs: Object.entries(state || {}) }));
+  }
+
+  /** بث تقدم تقنية تغيرت — للتحالف المعني فقط. */
+  private broadcastAllianceTechChange(allianceId: string, techId: string, progress: TechProgress) {
+    const tech = AllianceTechService.techById(techId);
+    this.broadcast({
+      type: "alliance_tech_updated",
+      allianceId,
+      techId,
+      techName: tech?.name ?? techId,
+      points: progress.points,
+      level: progress.level,
+      buffs: AllianceTechService.computeBuffs(this.allianceTech.allianceTech.get(allianceId) ?? {}),
+    });
+  }
+
+  /** نقاط باف البحث الحالية لتحالف عضو (للتطبيق على المساعدة/التدريب/القتال). */
+  allianceTechBuffs(allianceId: string | null | undefined): Record<string, number> {
+    if (!allianceId) return {};
+    return AllianceTechService.computeBuffs(this.allianceTech.allianceTech.get(allianceId) ?? {});
+  }
+
+  /** بافات القتال (هجوم/دفاع/HP) لتحالف مسيرة — تُضاف إلى تعديلات القائد/الأبحاث/المواهب. */
+  private marchAllianceTechAttackMod(marchAllianceId: string | null | undefined): number {
+    const buffs = this.allianceTechBuffs(marchAllianceId);
+    // الهجوم والدفاع والـHP تُجمع في aMult/dMult — سقف مجموع 0.5 كحد أمان ضد تراكم غير متوقع
+    return Math.min(0.5, (buffs["alliance_attack_bonus"] || 0) + (buffs["alliance_defense_bonus"] || 0) + (buffs["alliance_hp_bonus"] || 0));
+  }
+
+  /** باف الحصار/الممرات لتحالف مسيرة — يضاف إلى attackerTalentAttackMod. */
+  private marchAllianceTechSiegeMod(marchAllianceId: string | null | undefined): number {
+    const buffs = this.allianceTechBuffs(marchAllianceId);
+    return Math.min(0.5, (buffs["siege_damage_bonus"] || 0) + (buffs["pass_attack_bonus"] || 0));
+  }
+
+  /** P9-T1: تبرع عضو بنقطة تقنية — البحث النشط للتحالف هو المستفيد الوحيد. */
+  private donateAllianceTech(playerId: string, allianceId: string, techId: string): { ok: true; level: number; points: number } | { error: string; status: number } {
+    const city = this.cities.get(playerId);
+    if (!city || city.allianceId !== allianceId) return { error: "not_your_alliance", status: 403 };
+    const state = this.allianceTech.allianceTech.get(allianceId) ?? {};
+    // البحث النشط للتحالف: التقنية التي فيها progress مع البحث الجاري (أي تقنية بدأها ضباط)
+    const activeTechId = Object.entries(state).find(([, p]) => p.researchStartedAtMs != null)?.[0];
+    if (!activeTechId) return { error: "no_active_research", status: 400 };
+    const tech = AllianceTechService.techById(activeTechId);
+    if (!tech) return { error: "unknown_tech", status: 400 };
+    if (techId !== activeTechId) return { error: "donate_goes_to_active_research", status: 400 };
+    if (state[activeTechId].level >= tech.levels)
+      return { error: "tech_max_level", status: 400 };
+    const windows = this.allianceTech.donationWindows.get(playerId) || [];
+    const now = nowMs();
+    if (!AllianceTechService.canDonate(now, windows)) return { error: "donation_limit_reached", status: 429 };
+    const nextWindows = AllianceTechService.recordDonation(now, windows);
+    this.allianceTech.donationWindows.set(playerId, nextWindows);
+    this.persistDonationWindows(playerId, nextWindows);
+    // نقاط البحث تتراكم؛ البحث النشط يبدأ فقط بعد بلوغ عتبة المستوى التالي (نقاط كافية)
+    const progress = AllianceTechService.applyPoints(state[activeTechId] ?? { points: 0, level: 0, researchStartedAtMs: now }, tech, ALLIANCE_TECH_CFG.points_per_donation);
+    state[activeTechId] = progress;
+    this.allianceTech.allianceTech.set(allianceId, state);
+    this.persistAllianceTech(allianceId, activeTechId, progress);
+    this.broadcastAllianceTechChange(allianceId, activeTechId, progress);
+    return { ok: true, level: progress.level, points: progress.points };
+  }
+
+  /** P9-T1: ضابط (R3+) يبدأ بحثًا جماعيًا — بحث نشط واحد لكل تحالف. */
+  private startAllianceResearch(
+    playerId: string,
+    allianceId: string,
+    rank: string,
+    techId: string,
+  ): { ok: true; techId: string } | { error: string; status: number } {
+    const city = this.cities.get(playerId);
+    if (!city || city.allianceId !== allianceId) return { error: "not_your_alliance", status: 403 };
+    if (!AllianceTechService.canStartResearch(rank)) return { error: "rank_insufficient", status: 403 };
+    const tech = AllianceTechService.techById(techId);
+    if (!tech) return { error: "unknown_tech", status: 400 };
+    const state = this.allianceTech.allianceTech.get(allianceId) ?? {};
+    // البحث النشط الوحيد؛ يمكن التبديل فقط عندما يكتمل البحث الحالي (نقاط العتبة الأخيرة)
+    const activeEntry = Object.entries(state).find(([, p]) => p.researchStartedAtMs != null);
+    if (activeEntry) {
+      const [activeId, activeProgress] = activeEntry;
+      const activeTech = AllianceTechService.techById(activeId);
+      if (!activeTech || activeProgress.level < activeTech.levels)
+        return { error: "active_research_exists", status: 409 };
+      // البحث المكتمل يُغلق قبل بدء التقنية الجديدة
+      activeEntry[1].researchStartedAtMs = null;
+    }
+    const progress = state[techId] ?? { points: 0, level: 0, researchStartedAtMs: null };
+    if (progress.level >= tech.levels) return { error: "tech_max_level", status: 400 };
+    progress.researchStartedAtMs = nowMs();
+    state[techId] = progress;
+    this.allianceTech.allianceTech.set(allianceId, state);
+    this.persistAllianceTech(allianceId, techId, progress);
+    this.broadcast({ type: "alliance_research_started", allianceId, techId, techName: tech.name, startedBy: playerId });
+    return { ok: true, techId };
+  }
+
+  // ══════════ نهاية P9-T1 ══════════
+
   /** تُظهر التقرير للمهاجم أو المدافع أو المشارك، ولتحالف أي طرف ذي صلة فقط. */
   private reportVisibleTo(report: any, playerId: string, allianceId: string | null | undefined) {
     if (!playerId) return false;
@@ -1453,6 +1658,8 @@ export class KingdomShard extends DurableObject<Env> {
       // الكتالوج ومثيلاته يُبثان مع اللقطة ليعرض العميل العلامة ودائرة النطاق من البيانات السلطوية.
       allianceStructures: [...this.allianceStructures.values()],
       allianceStructureCatalog: getAllianceStructures(),
+      // P9-T1: حالة تكنولوجيا التحالف — التقدم والمستويات للتحالف المعني فقط إن حُدّدت لاعب، وإلا لكل التحالفات
+      allianceTechState: this.allianceTechStateFor(playerAllianceId),
       // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       // التقارير خاصة؛ لا تدخل في اللقطات العامة أو إرسال الحالة لكل العالم.
@@ -1484,7 +1691,7 @@ export class KingdomShard extends DurableObject<Env> {
    * تحديث دوري جزئي بعد تغيّر المحاكاة. يترك البيانات الثابتة والخاصة
    * (المدن، التقارير، سجل الدردشة، الخريطة والكتالوج) للّقطة الأولى/REST.
    */
-  private worldDelta() {
+  private worldDelta(playerId?: string) {
     return {
       seasonDay: this.seasonDay,
       passes: [...this.passes.values()],
@@ -1496,6 +1703,8 @@ export class KingdomShard extends DurableObject<Env> {
       // P8-T4: المواقع المقدسة (حالة المالك/الحيازة + الملك) — deltas للعالم الحي
       holySites: [...this.holySites.values()],
       king: this.king,
+      // P9-T1: تقدم تقنيات التحالف — deltas للعالم الحي
+      allianceTechState: this.allianceTechStateFor(playerId ? this.cities.get(playerId)?.allianceId ?? null : null),
       zones: zonesStatus(this.seasonDay, this.regions),
       seasonStory: this.seasonStory,
     };
@@ -1898,9 +2107,13 @@ export class KingdomShard extends DurableObject<Env> {
       const attackerTalentAttackMod = talentAttackMod(attackerCommander?.talentAllocations);
       // P8-T2: باف troop_attack من معدات القائد (قطع مجهزة × جودة × set bonus 2/4/6)
       const attackerEquipmentMod = equipmentAttackMod(attackerCommander?.equipmentState);
+      // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
+      const allianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
+      // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
+      const passAugmentedTroops = scaleTroops(m.troops, 1 + allianceTechMod);
 
       const result = resolveCombat(
-        { name: m.ownerPlayerId, troops: m.troops },
+        { name: m.ownerPlayerId, troops: passAugmentedTroops },
         { name: pass.ownerAllianceId || "neutral_guard", troops: defenderTroops },
         1,
         attackerCommander,
@@ -2002,9 +2215,13 @@ export class KingdomShard extends DurableObject<Env> {
       const throneTalentAttackMod = talentAttackMod(throneAttackerCommander?.talentAllocations);
       // P8-T2: باف troop_attack من معدات القائد
       const throneEquipmentMod = equipmentAttackMod(throneAttackerCommander?.equipmentState);
+      // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
+      const throneAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
+      // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
+      const throneAugmentedTroops = scaleTroops(m.troops, 1 + throneAllianceTechMod);
 
       const result = resolveCombat(
-        { name: m.ownerPlayerId, troops: m.troops },
+        { name: m.ownerPlayerId, troops: throneAugmentedTroops },
         { name: this.throne.ownerAllianceId || "neutral_guard", troops: defenderTroops },
         3,
         throneAttackerCommander,
@@ -2111,8 +2328,12 @@ export class KingdomShard extends DurableObject<Env> {
       const coTalentAttackMod = talentAttackMod(coCommander?.talentAllocations);
       // P8-T2: باف troop_attack من معدات القائد
       const coEquipmentMod = equipmentAttackMod(coCommander?.equipmentState);
+      // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
+      const coAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
+      // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
+      const coAugmentedTroops = scaleTroops(m.troops, 1 + coAllianceTechMod);
       const result = resolveCombat(
-        { name: m.ownerPlayerId, troops: m.troops },
+        { name: m.ownerPlayerId, troops: coAugmentedTroops },
         { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
         2,
         coCommander,
@@ -2215,8 +2436,12 @@ export class KingdomShard extends DurableObject<Env> {
       const hsResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
       const hsTalentAttackMod = talentAttackMod(hsCommander?.talentAllocations);
       const hsEquipmentMod = equipmentAttackMod(hsCommander?.equipmentState);
+      // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP + حصار/ممرات) — بحث جماعي نشط
+      const hsAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId) + this.marchAllianceTechSiegeMod(m.allianceId);
+      // P9-T1: باف تقنيات التحالف يُطبَّق على قوات المهاجم قبل الحساب (تضخيم القوة)
+      const hsAugmentedTroops = scaleTroops(m.troops, 1 + hsAllianceTechMod);
       const result = resolveCombat(
-        { name: m.ownerPlayerId, troops: m.troops },
+        { name: m.ownerPlayerId, troops: hsAugmentedTroops },
         { name: site.ownerAllianceId || "holy_guard", troops: defenderTroops },
         site.kind === "temple" ? 3 : 2,
         hsCommander,
@@ -2289,7 +2514,10 @@ export class KingdomShard extends DurableObject<Env> {
           const barbTalentAttackMod = talentAttackMod(barbCommander?.talentAllocations);
           // P8-T2: باف troop_attack من معدات القائد
           const barbEquipmentMod = equipmentAttackMod(barbCommander?.equipmentState);
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0, this.cities.get(m.ownerPlayerId)?.civ || undefined);
+          // P9-T1: باف تقنيات التحالف (هجوم/دفاع/HP) — بحث جماعي نشط
+          const barbAllianceTechMod = this.marchAllianceTechAttackMod(m.allianceId);
+          const barbAugmentedTroops = scaleTroops(m.troops, 1 + barbAllianceTechMod);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: barbAugmentedTroops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0, this.cities.get(m.ownerPlayerId)?.civ || undefined);
           const report: {
             id: string;
             createdAt: number;
@@ -2972,6 +3200,58 @@ export class KingdomShard extends DurableObject<Env> {
     if (path === "/ops" && request.method === "GET") {
       const snap = this.opsSnapshot();
       return Response.json({ ok: true, enabled: OPS_CONSTANTS.enabled, ...snap, violations: this.antiCheatViolations.slice(-10).reverse() });
+    }
+    // P9-T1: تبرع عضو بنقطة تقنية — البحث النشط للتحالف هو المستفيد الوحيد
+    if (path.endsWith("/alliance-tech-donate") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      const allianceId = city?.allianceId || String(body.allianceId || "");
+      if (!city || !allianceId || city.allianceId !== allianceId) {
+        this.recordCommandError("not_your_alliance"); return Response.json({ error: "not_your_alliance" }, { status: 403 });
+      }
+      const techId = String(body.techId || "");
+      const result = this.donateAllianceTech(playerId, allianceId, techId);
+      if ("error" in result) { this.recordCommandError(result.error); return Response.json({ error: result.error }, { status: result.status }); }
+      return Response.json({ ok: true, techId, level: result.level, points: result.points });
+    }
+    // P9-T1: ضابط (R3+) يبدأ بحثًا جماعيًا — بحث نشط واحد لكل تحالف
+    if (path.endsWith("/alliance-tech-start") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      const allianceId = city?.allianceId || String(body.allianceId || "");
+      if (!city || !allianceId || city.allianceId !== allianceId) {
+        this.recordCommandError("not_your_alliance"); return Response.json({ error: "not_your_alliance" }, { status: 403 });
+      }
+      const result = this.startAllianceResearch(playerId, allianceId, String(body.rank || "R1"), String(body.techId || ""));
+      if ("error" in result) { this.recordCommandError(result.error); return Response.json({ error: result.error }, { status: result.status }); }
+      return Response.json({ ok: true, techId: result.techId });
+    }
+    // P9-T1: حالة تقنيات التحالف (للبث — تحالف اللاعب إن حُدّدت، وإلا العامة)
+    if (path.endsWith("/alliance-tech-state") && request.method === "GET") {
+      const playerAllianceId = (() => {
+        const headerId = request.headers.get("x-rok2-player") || "";
+        return this.cities.get(headerId)?.allianceId ?? null;
+      })();
+      const techDefs = AllianceTechService.techs().map((tech) => ({
+        id: tech.id,
+        category: tech.category,
+        name: tech.name,
+        levels: tech.levels,
+        levelRequired: tech.level_required,
+        effect: tech.effect,
+      }));
+      return Response.json({
+        ok: true,
+        techs: techDefs,
+        allianceTechState: this.allianceTechStateFor(playerAllianceId),
+        donationQuota: playerAllianceId ? undefined : undefined,
+      });
     }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }

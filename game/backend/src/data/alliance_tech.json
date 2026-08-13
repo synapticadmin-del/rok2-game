@@ -1,0 +1,35 @@
+{
+  "donation": {
+    "points_per_donation": 1,
+    "max_donations_per_window": 20,
+    "window_seconds": 1800,
+    "refill_rate": "تبرع واحد متاح كل 90 ثانية حتى سقف النافذة 20 (30 دقيقة) — مطابقة قواعد RoK التقريبية"
+  },
+  "research": {
+    "min_rank": "R3",
+    "max_active_research": 1,
+    "points_per_level": "كل مستوى يتطلب نقاطًا إضافية بحسب level_required أدناه"
+  },
+  "techs": [
+    { "id": "help_bonus", "category": "development", "name": "تحالف متماسك", "levels": 5, "effect": { "buff": "help_speed_bonus", "per_level": 0.05, "unit": "ratio" }, "level_required": [100, 300, 700, 1500, 3000] },
+    { "id": "expedition_speed", "category": "development", "name": "مسيرات أسطول", "levels": 5, "effect": { "buff": "march_speed_bonus", "per_level": 0.02, "unit": "ratio" }, "level_required": [150, 450, 1000, 2200, 4500] },
+    { "id": "structure_discount", "category": "development", "name": "مهندسون متقدمون", "levels": 5, "effect": { "buff": "alliance_structure_cost_reduction", "per_level": 0.10, "unit": "ratio" }, "level_required": [200, 600, 1400, 3000, 6000] },
+    { "id": "healing_discount", "category": "development", "name": "مستشفيات ميدانية", "levels": 5, "effect": { "buff": "hospital_cost_reduction", "per_level": 0.05, "unit": "ratio" }, "level_required": [250, 750, 1750, 3750, 7500] },
+    { "id": "territory_range", "category": "territory", "name": "نفوذ واسع", "levels": 5, "effect": { "buff": "territory_radius_bonus", "per_level": 0.06, "unit": "ratio" }, "level_required": [300, 900, 2000, 4200, 8500] },
+    { "id": "teleport_bonus", "category": "territory", "name": "نقل متقدم", "levels": 5, "effect": { "buff": "alliance_teleport_range_bonus", "per_level": 0.08, "unit": "ratio" }, "level_required": [400, 1200, 2600, 5400, 11000] },
+    { "id": "gathering_safety", "category": "territory", "name": "قوافل محصنة", "levels": 5, "effect": { "buff": "gathering_march_damage_reduction", "per_level": 0.04, "unit": "ratio" }, "level_required": [350, 1050, 2400, 5000, 10000] },
+    { "id": "node_speed", "category": "territory", "name": "حصاد متسارع", "levels": 5, "effect": { "buff": "node_gather_speed_bonus", "per_level": 0.05, "unit": "ratio" }, "level_required": [500, 1500, 3300, 6800, 14000] },
+    { "id": "attack_buff", "category": "war", "name": "سلاح حاد", "levels": 8, "effect": { "buff": "alliance_attack_bonus", "per_level": 0.01, "unit": "ratio" }, "level_required": [200, 600, 1300, 2700, 5500, 10000, 17000, 27000] },
+    { "id": "defense_buff", "category": "war", "name": "درع متين", "levels": 8, "effect": { "buff": "alliance_defense_bonus", "per_level": 0.01, "unit": "ratio" }, "level_required": [200, 600, 1300, 2700, 5500, 10000, 17000, 27000] },
+    { "id": "hp_buff", "category": "war", "name": "عزيمة عالية", "levels": 8, "effect": { "buff": "alliance_hp_bonus", "per_level": 0.01, "unit": "ratio" }, "level_required": [200, 600, 1300, 2700, 5500, 10000, 17000, 27000] },
+    { "id": "siege_damage", "category": "war", "name": "قوة الحصار", "levels": 6, "effect": { "buff": "siege_damage_bonus", "per_level": 0.03, "unit": "ratio" }, "level_required": [800, 2400, 5200, 10500, 20000, 35000] },
+    { "id": "pass_damage", "category": "war", "name": "قوة الممرات", "levels": 6, "effect": { "buff": "pass_attack_bonus", "per_level": 0.03, "unit": "ratio" }, "level_required": [1000, 3000, 6500, 13000, 25000, 44000] },
+    { "id": "training_speed", "category": "skill", "name": "ميدان تدريب", "levels": 6, "effect": { "buff": "training_speed_bonus", "per_level": 0.03, "unit": "ratio" }, "level_required": [300, 900, 2000, 4200, 8500, 16000] },
+    { "id": "building_speed", "category": "skill", "name": "ورشة بناء", "levels": 6, "effect": { "buff": "building_speed_bonus", "per_level": 0.03, "unit": "ratio" }, "level_required": [300, 900, 2000, 4200, 8500, 16000] },
+    { "id": "research_speed", "category": "skill", "name": "مكتبة التحالف", "levels": 6, "effect": { "buff": "research_speed_bonus", "per_level": 0.03, "unit": "ratio" }, "level_required": [400, 1200, 2600, 5400, 11000, 21000] },
+    { "id": "commander_exp", "category": "skill", "name": "خبرة قتالية", "levels": 6, "effect": { "buff": "commander_exp_bonus", "per_level": 0.02, "unit": "ratio" }, "level_required": [500, 1500, 3300, 6800, 14000, 26000] },
+    { "id": "vip_exp", "category": "skill", "name": "مكافآت النخبة", "levels": 4, "effect": { "buff": "vip_exp_bonus", "per_level": 0.02, "unit": "ratio" }, "level_required": [1000, 3000, 7000, 15000] },
+    { "id": "heal_speed", "category": "skill", "name": "طاقم طبي", "levels": 4, "effect": { "buff": "hospital_heal_speed_bonus", "per_level": 0.05, "unit": "ratio" }, "level_required": [600, 1800, 4000, 8500] },
+    { "id": "spawn_speed", "category": "skill", "name": "تجنيد سريع", "levels": 4, "effect": { "buff": "queue_speed_bonus", "per_level": 0.04, "unit": "ratio" }, "level_required": [700, 2100, 4600, 9800] }
+  ]
+}

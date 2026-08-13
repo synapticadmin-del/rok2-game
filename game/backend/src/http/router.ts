@@ -2324,7 +2324,16 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       ).bind(body.queueId).first<{ c: number }>())?.c || 0;
       const sec = helpSpeedupSec(remainingMs, helpsCount + 1);
       const prevSec = helpSpeedupSec(remainingMs, helpsCount);
-      const deltaSec = Math.max(0, sec - prevSec);
+      // P9-T1: باف تقنية التحالف «تحالف متماسك» يضاعف تسريع كل مساعدة
+      const allianceTechSnap = (snap.allianceTechState || []).find((a: any) => a.allianceId === player.alliance_id);
+      const techBuffs: Record<string, number> = {};
+      if (allianceTechSnap) {
+        for (const [, p] of Object.entries<Record<string, any>>(Object.fromEntries(allianceTechSnap.techs || []))) {
+          if ((p as any).level > 0) techBuffs[(p as any).buff] = (techBuffs[(p as any).buff] || 0) + (p as any).perLevel;
+        }
+      }
+      const helpBonus = techBuffs["help_speed_bonus"] || 0;
+      const deltaSec = Math.max(0, Math.floor((sec - prevSec) * (1 + helpBonus)));
 
       let queue = null;
       if (deltaSec > 0) {
@@ -2475,6 +2484,87 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         `INSERT INTO rally_participants (rally_id, player_id, troops_json, joined_at) VALUES (?, ?, ?, ?)`,
       ).bind(body.rallyId, player.id, JSON.stringify(troops), nowMs()).run();
       return json({ ok: true, rallyId: body.rallyId, participants: (existing?.c || 0) + 1 });
+    }
+
+    // P9-T1: تكنولوجيا التحالف — حالة التقنيات وبافات البحث النشطة
+    if (path === "/v1/alliance-tech/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const res = await kingdomStub(env).fetch("https://do/alliance-tech-state", {
+        headers: shardPlayerHeaders(player.id),
+      });
+      if (!res.ok) throw new HttpError(res.status, "alliance_tech_unavailable");
+      const data = await res.json<any>();
+      // نربط كل تقنية في حالة التحالف بتعريفها (الاسم/التأثير) لتفادي تكرار البث
+      const techById = new Map((data.techs || []).map((t: any) => [t.id, t]));
+      const own = (data.allianceTechState || []).find((a: any) => a.allianceId === player.alliance_id);
+      const techs = (data.techs || []).map((def: any) => {
+        const ownProgress = own ? (own.techs || []).find(([id]: any[]) => id === def.id) : null;
+        const points = ownProgress ? (ownProgress[1] as any).points : 0;
+        const level = ownProgress ? (ownProgress[1] as any).level : 0;
+        const researching = ownProgress ? (ownProgress[1] as any).researchStartedAtMs != null : false;
+        return {
+          id: def.id,
+          category: def.category,
+          name: def.name,
+          levels: def.levels,
+          levelRequired: def.levelRequired,
+          effect: def.effect,
+          currentLevel: level,
+          points,
+          researching,
+        };
+      });
+      const buffs: Record<string, number> = {};
+      for (const t of techs) {
+        if (t.currentLevel > 0) {
+          buffs[t.effect.buff] = (buffs[t.effect.buff] || 0) + t.effect.per_level * t.currentLevel;
+        }
+      }
+      return json({ ok: true, allianceId: player.alliance_id, techs, buffs });
+    }
+
+    // P9-T1: تبرع عضو بنقطة تقنية — البحث النشط للتحالف هو المستفيد الوحيد
+    if (path === "/v1/alliance-tech/donate" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ techId: string }>(request);
+      if (!body.techId) throw new HttpError(400, "techId required");
+      enforceRateLimit(player.id, "alliance_tech_donate");
+      const res = await kingdomStub(env).fetch("https://do/alliance-tech-donate", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, techId: body.techId }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "donate_failed", data);
+      // P8-T6: تقدم مهمة التبرع اليومي/الأسبوعي (donate)
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "donate", amount: 1 }),
+        });
+      } catch { /* تقدم المهام اختياري */ }
+      return json({ ok: true, techId: data.techId, level: data.level, points: data.points });
+    }
+
+    // P9-T1: ضابط (R3+) يبدأ بحثًا جماعيًا — بحث نشط واحد لكل تحالف
+    if (path === "/v1/alliance-tech/start-research" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ techId: string }>(request);
+      if (!body.techId) throw new HttpError(400, "techId required");
+      enforceRateLimit(player.id, "alliance_tech_start");
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      const res = await kingdomStub(env).fetch("https://do/alliance-tech-start", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, rank, techId: body.techId }),
+      });
+      const data = await res.json<any>();
+      if (!res.ok) throw new HttpError(res.status, data.error || "start_research_failed", data);
+      return json({ ok: true, techId: data.techId });
     }
 
     // Alliance flag build

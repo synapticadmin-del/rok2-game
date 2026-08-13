@@ -38,7 +38,7 @@
     "test:p7-t12-splash-hang": "node ../client-unreal/scripts/verify_p7_t12_splash_hang.mjs",
     "test:p8-descriptor-fix": "node ../client-unreal/scripts/verify_p8_descriptor_fix.mjs",
     "test:p7-t15-ops-monitoring": "node ../client-unreal/scripts/verify_p7_t15_ops.mjs",
-    "check": "npm run test:p7-t12-splash-hang && npm run test:p7-t11-android-storage && npm run typecheck && npm run test:p7-t15-ops-monitoring && npm run test:security-hardening && npm run test:offline && npm run test:client-contract && npm run test:visual-contract && npm run test:design-docs && npm run test:alliance-structures && npm run test:city-map-experience && npm run test:city-layout-sync && npm run test:building-economy-loop && npm run test:march-combat-queues && npm run test:alliance-rally-loop && npm run test:rally-combat-reports && npm run test:march-redirect && npm run test:march-redirect-notifications && npm run test:p7-baseline && npm run test:e2e-p7-t3 && npm run test:p7-t3-journey && npm run test:p7-t1-integration && npm run test:p7-t1-onboarding && npm run test:p7-t2-build-pipeline && npm run test:p7-t9-civ-showcase && npm run test:city-map-ui-assets && npm run test:reconnect-restore && npm run test:world-performance-budget && npm run test:p7-t9-play-loop-bridge && npm run test:p8-descriptor-fix && npm run test:p8-t1-talents && npm run test:p8-t2-equipment && npm run test:p8-t3-troops && npm run test:p8-t4-holy-sites && npm run test:p8-t5-action-points && npm run test:p8-t6-daily-quests && npm run test:p8-t8-human-units && npm run test:pie-android-acceptance",
+    "check": "npm run test:p7-t12-splash-hang && npm run test:p7-t11-android-storage && npm run typecheck && npm run test:p7-t15-ops-monitoring && npm run test:security-hardening && npm run test:offline && npm run test:client-contract && npm run test:visual-contract && npm run test:design-docs && npm run test:alliance-structures && npm run test:city-map-experience && npm run test:city-layout-sync && npm run test:building-economy-loop && npm run test:march-combat-queues && npm run test:alliance-rally-loop && npm run test:rally-combat-reports && npm run test:march-redirect && npm run test:march-redirect-notifications && npm run test:p7-baseline && npm run test:e2e-p7-t3 && npm run test:p7-t3-journey && npm run test:p7-t1-integration && npm run test:p7-t1-onboarding && npm run test:p7-t2-build-pipeline && npm run test:p7-t9-civ-showcase && npm run test:city-map-ui-assets && npm run test:reconnect-restore && npm run test:world-performance-budget && npm run test:p7-t9-play-loop-bridge && npm run test:p8-descriptor-fix && npm run test:p8-t1-talents && npm run test:p8-t2-equipment && npm run test:p8-t3-troops && npm run test:p8-t4-holy-sites && npm run test:p8-t5-action-points && npm run test:p8-t6-daily-quests && npm run test:p8-t8-human-units && npm run test:p9-t1-alliance-tech && npm run test:pie-android-acceptance",
     "db:migrate:local": "wrangler d1 migrations apply rok2-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply rok2-db --remote",
     "smoke": "node scripts/smoke.mjs",
@@ -51,7 +51,8 @@
     "test:p8-t3-troops": "node scripts/troops_offline_test.mjs",
     "test:p8-t4-holy-sites": "node scripts/holy_sites_offline_test.mjs",
     "test:p8-t5-action-points": "node scripts/action_points_offline_test.mjs",
-    "test:p8-t6-daily-quests": "node scripts/daily_quests_offline_test.mjs"
+    "test:p8-t6-daily-quests": "node scripts/daily_quests_offline_test.mjs",
+    "test:p9-t1-alliance-tech": "node scripts/alliance_tech_offline_test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260721.1",
