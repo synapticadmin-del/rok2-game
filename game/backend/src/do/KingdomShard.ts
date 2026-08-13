@@ -110,6 +110,22 @@ const MAX_SPEEDUP_SECONDS = 30 * 24 * 60 * 60;
 import { researchBuff } from "./sim/research";
 // P9-T4: دوال VIP النقية (15 مستوى + بافات + متجر) — تُقرأ من data/shop.json
 import { vipTierForPoints, vipTiers } from "./sim/shop";
+// P9-T5: منطق Trading Post النقي (سعر ديناميكي + رسوم + حدود) — يُقرأ من data/trading.json
+import {
+  tradingConstants,
+  tradingResources,
+  isValidTradingResource,
+  resourceBasePrice,
+  initialPriceFor,
+  offerCostForBuyer,
+  sellerNet,
+  adaptPrice,
+  validateOffer,
+  validateClaim,
+  settleTrade,
+  rateBounds,
+  type TradingOffer,
+} from "./sim/trading";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -404,6 +420,8 @@ export class KingdomShard extends DurableObject<Env> {
   private chatRateLimit = new Map<string, { count: number; windowStart: number }>();
   // P9-T4: مستوى VIP لكل لاعب — حدّثه الراوتر (سلطوي، من D1) عبر header x-rok2-vip-level
   private playerVipLevels = new Map<string, number>();
+  // P9-T5: Trading Post — أسعار السوق الحالية للموارد (قراءة من trading_prices)
+  private tradingPrices = new Map<string, { price: number; day: number; demand: number; supply: number; updatedMs: number }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -728,6 +746,36 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (14)");
     }
+    if (ver < 15) {
+      // P9-T5: Trading Post — عروض السوق المفتوحة + أسعار ديناميكية حسب العرض والطلب.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS trading_offers (
+          id TEXT NOT NULL,
+          seller_id TEXT NOT NULL,
+          sell_resource TEXT NOT NULL,
+          buy_resource TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          rate REAL NOT NULL,
+          created_ms INTEGER NOT NULL,
+          remaining INTEGER NOT NULL,
+          PRIMARY KEY (id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`CREATE INDEX IF NOT EXISTS idx_trading_sell ON trading_offers (sell_resource)`);
+      this.ctx.storage.sql.exec(`CREATE INDEX IF NOT EXISTS idx_trading_buy ON trading_offers (buy_resource)`);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS trading_prices (
+          resource TEXT NOT NULL,
+          price REAL NOT NULL,
+          day INTEGER NOT NULL DEFAULT 0,
+          demand_trades INTEGER NOT NULL DEFAULT 0,
+          supply_offers INTEGER NOT NULL DEFAULT 0,
+          updated_ms INTEGER NOT NULL,
+          PRIMARY KEY (resource)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (15)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -865,6 +913,8 @@ export class KingdomShard extends DurableObject<Env> {
     // P9-T1: تكنولوجيا التحالف — التقدم والنوافذ يُحمّلان من الحفظ السلطوي
     this.loadAllianceTech();
     this.loadAllianceShop();
+    // P9-T5: أسعار الموارد والعروض النشطة في سوق المملكة
+    this.loadTradingState();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -1164,6 +1214,63 @@ export class KingdomShard extends DurableObject<Env> {
       });
     }
   }
+  // P9-T5: تحميل حالة Trading Post من الحفظ السلطوي — أسعار الموارد + العروض النشطة.
+  private loadTradingState() {
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM trading_prices").toArray()) {
+      this.tradingPrices.set(row.resource, {
+        price: Number(row.price),
+        day: Number(row.day) || 0,
+        demand: Number(row.demand_trades) || 0,
+        supply: Number(row.supply_offers) || 0,
+        updatedMs: Number(row.updated_ms) || 0,
+      });
+    }
+  }
+
+  // P9-T5: سعر مورد حالي — مهيأ من JSON عند أول طلب إن لم يُسجّل بعد
+  private tradingPriceFor(resource: string, nowMs: number): number {
+    const cur = this.tradingPrices.get(resource);
+    if (cur) return cur.price;
+    const price = initialPriceFor(resource);
+    this.tradingPrices.set(resource, { price, day: 0, demand: 0, supply: 0, updatedMs: nowMs });
+    this.ctx.storage.sql.exec(
+      `INSERT OR IGNORE INTO trading_prices (resource, price, day, demand_trades, supply_offers, updated_ms) VALUES (?, ?, 0, 0, 0, ?)`,
+      [resource, price, nowMs],
+    );
+    return price;
+  }
+
+  // P9-T5: حركة سعر مورد بعد صفقة (طلب ↑) أو عرض جديد دون إتمام (عرض ↑)
+  // P9-T5: السعر المعروض = base التراكمية (base + Δd×step − Δs×step/2) مقربة لخطوة السعر.
+  // نحسبه من العدادات التراكمية المخزنة (demand/supply) لا من السعر المقرب السابق —
+  // لأن إعادة التقريب من قيمة مقربة ستفقد الخطوات الصغيرة (0.02 < 0.05) ولا يتراكم السعر.
+  private bumpTradingPrice(resource: string, demandDelta: number, supplyDelta: number, nowMs: number) {
+    if (demandDelta === 0 && supplyDelta === 0) return;
+    const cur = this.tradingPrices.get(resource) ?? { price: initialPriceFor(resource), day: 0, demand: 0, supply: 0, updatedMs: nowMs };
+    const price = adaptPrice(resourceBasePrice(resource), cur.demand + demandDelta, cur.supply + supplyDelta);
+    this.tradingPrices.set(resource, {
+      price,
+      day: cur.day,
+      demand: Math.max(0, cur.demand + demandDelta),
+      supply: Math.max(0, cur.supply + supplyDelta),
+      updatedMs: nowMs,
+    });
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO trading_prices (resource, price, day, demand_trades, supply_offers, updated_ms) VALUES (?, ?, ?, ?, ?, ?)`,
+      [resource, price, this.tradingPrices.get(resource)!.day, this.tradingPrices.get(resource)!.demand, this.tradingPrices.get(resource)!.supply, nowMs],
+    );
+  }
+
+  // P9-T5: العروض النشطة للاعب (عدد) — لحد سقف العروض
+  private activeOffersForPlayer(playerId: string, nowMs: number): TradingOffer[] {
+    const ttlSec = Number(tradingConstants().offer_ttl_sec);
+    const out: TradingOffer[] = [];
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM trading_offers WHERE seller_id = ? AND remaining > 0", [playerId]).toArray()) {
+      if (row.created_ms + ttlSec * 1000 > nowMs) out.push(row);
+    }
+    return out;
+  }
+
   private persistAllianceShop(allianceId: string, state: AllianceShopState) {
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO alliance_shop
@@ -3864,6 +3971,118 @@ export class KingdomShard extends DurableObject<Env> {
       this.persistCity(targetCity);
       this.broadcast({ type: "alliance_title_granted", allianceId, titleId, holder: targetPlayerId, buffs: title.buffs });
       return Response.json({ ok: true, title: { id: title.id, name: title.name, buffs: title.buffs }, balance: next.balance });
+    }
+    // P9-T5: Trading Post — قائمة عروض السوق المفتوحة + أسعار الموارد الديناميكية
+    if (path.endsWith("/trading-list") && request.method === "GET") {
+      const now = nowMs();
+      const c = tradingConstants();
+      const ttlMs = Number(c.offer_ttl_sec) * 1000;
+      // تنظيف العروض المنتهية (تُرجَّع كمياتها لصاحبها لاحقًا عند الطلب — هنا نحدّث الحالة فقط)
+      for (const row of this.ctx.storage.sql.exec<any>("SELECT id, seller_id, sell_resource, buy_resource, amount, rate, created_ms, remaining FROM trading_offers").toArray()) {
+        if (row.remaining <= 0 || row.created_ms + ttlMs <= now) {
+          this.ctx.storage.sql.exec("DELETE FROM trading_offers WHERE id = ?", [row.id]);
+        }
+      }
+      const offers: TradingOffer[] = [];
+      for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM trading_offers WHERE remaining > 0 ORDER BY rate DESC, created_ms ASC").toArray()) {
+        if (row.created_ms + ttlMs > now) offers.push(row);
+      }
+      const prices: Record<string, { price: number; day: number; demand: number; supply: number }> = {};
+      for (const res of tradingResources()) {
+        const p = this.tradingPriceFor(res, now);
+        const s = this.tradingPrices.get(res)!;
+        prices[res] = { price: p, day: s.day, demand: s.demand, supply: s.supply };
+      }
+      return Response.json({ ok: true, offers, prices, now });
+    }
+    // P9-T5: فتح عرض بيع جديد — البائع يستبسل sellResource ويعرض rate صرفًا مقابل buyResource
+    if (path.endsWith("/trading-offer") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) { this.recordCommandError("unknown_player"); return Response.json({ error: "unknown_player" }, { status: 404 }); }
+      const sellResource = String(body.sellResource || "");
+      const buyResource = String(body.buyResource || "");
+      const amount = Number(body.amount);
+      const rate = Number(body.rate);
+      // فحص موارد البائع: الموارد في جدول D1 cities — الشارد لا يملك رصيدًا؛ يُفحص في الراوتر (refreshCity)
+      // قبل استدعاء هذا المسار، فيجب أن يكون الراوتر قد تحقّق من توفر amount من sellResource.
+      const hallLevel = city.hallLevel || 1;
+      const minHall = Number(tradingConstants().min_trade_hall_level);
+      if (hallLevel < minHall) return Response.json({ error: "hall_locked", required: minHall, hall: hallLevel }, { status: 403 });
+      const validation = validateOffer({ sellResource, buyResource, amount, rate, activeOfferCount: this.activeOffersForPlayer(playerId, nowMs()).length });
+      if (!validation.ok) { this.recordCommandError(validation.error); return Response.json({ error: validation.error }, { status: 400 }); }
+      const id = newId("trd");
+      const now = nowMs();
+      this.ctx.storage.sql.exec(
+        `INSERT INTO trading_offers (id, seller_id, sell_resource, buy_resource, amount, rate, created_ms, remaining) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, playerId, sellResource, buyResource, amount, rate, now, amount,
+      );
+      // P9-T5: العرض الجديد يرفع جانب العرض فيسبب ضغطًا هبوطيًا طفيفًا على سعر المورد المطلوب بالبيع
+      this.bumpTradingPrice(sellResource, 0, 1, now);
+      this.broadcast({ type: "trading_offer_opened", playerId, sellResource, buyResource, amount, rate, offerId: id });
+      return Response.json({ ok: true, offerId: id, remaining: amount, rate });
+    }
+    // P9-T5: إتمام صفقة شراء — المشتري يدفع buyResource ويستلم sellResource ناقص الرسوم
+    if (path.endsWith("/trading-claim") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      if (playerId === String(body.sellerId || "")) return Response.json({ error: "self_trade" }, { status: 400 });
+      const offerId = String(body.offerId || "");
+      const claimAmount = Number(body.amount);
+      const rate = Number(body.rate);
+      const now = nowMs();
+      const row = this.ctx.storage.sql.exec<any>("SELECT * FROM trading_offers WHERE id = ?", [offerId]).toArray()[0];
+      if (!row) { this.recordCommandError("offer_not_found"); return Response.json({ error: "offer_not_found" }, { status: 404 }); }
+      // تحويل حقول SQL (snake_case) إلى نوع TradingOffer النقي (camelCase)
+      const offer: TradingOffer = {
+        id: String(row.id),
+        sellerId: String(row.seller_id),
+        sellResource: String(row.sell_resource),
+        buyResource: String(row.buy_resource),
+        amount: Number(row.amount),
+        rate: Number(row.rate),
+        created_ms: Number(row.created_ms),
+        remaining: Number(row.remaining ?? row.amount),
+      };
+      const check = validateClaim({ claimAmount, offerAmount: offer.remaining ?? 0, claimRate: rate, offerRate: offer.rate, createdMs: offer.created_ms, ttlSec: Number(tradingConstants().offer_ttl_sec), nowMs: now, claimedToday: Number(body.claimedToday || 0) });
+      if (!check.ok) { this.recordCommandError(check.error); return Response.json({ error: check.error }, { status: 400 }); }
+      const amount = check.amount;
+      // تسوية مالية نقية
+      const settlement = settleTrade(offer, amount);
+      // تحديث العرض + البائع
+      const remaining = (offer.remaining ?? 0) - amount;
+      if (remaining <= 0) {
+        this.ctx.storage.sql.exec("DELETE FROM trading_offers WHERE id = ?", [offerId]);
+      } else {
+        this.ctx.storage.sql.exec("UPDATE trading_offers SET remaining = remaining - ? WHERE id = ?", [amount, offerId]);
+      }
+      // تحريك السعر: الطلب على sellResource (مورد المشتري) يرتفع، والعرض الزائد ينخفض
+      this.bumpTradingPrice(offer.sellResource, 1, -1, now);
+      this.broadcast({ type: "trading_claim_done", buyerId: playerId, sellerId: offer.sellerId, sellResource: offer.sellResource, buyResource: offer.buyResource, amount, netGainsBuy: settlement.sellerGainsBuy, fee: settlement.feeCharged });
+      return Response.json({
+        ok: true,
+        amount,
+        buyResource: offer.buyResource,
+        sellResource: offer.sellResource,
+        paysBuy: settlement.buyerPaysBuy,
+        receivesSell: settlement.buyerReceivesSell,
+        sellerLosesSell: settlement.sellerLosesSell,
+        sellerGainsBuy: settlement.sellerGainsBuy,
+        fee: settlement.feeCharged,
+        offerDone: remaining <= 0,
+      });
+    }
+    // P9-T5: أسعار السوق الحالية فقط (قراءة خفيفة — لا تنظيف)
+    if (path.endsWith("/trading-prices") && request.method === "GET") {
+      const now = nowMs();
+      const prices: Record<string, number> = {};
+      for (const res of tradingResources()) prices[res] = this.tradingPriceFor(res, now);
+      return Response.json({ ok: true, prices, now });
     }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }

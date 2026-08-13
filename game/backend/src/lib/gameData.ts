@@ -10,6 +10,7 @@ import softLaunchSpec from "../data/softlaunch.json";
 import battlePassSpec from "../data/battlepass.json";
 import chatSpec from "../data/chat.json";
 import allianceStructuresSpec from "../data/alliance_structures.json";
+import tradingSpec from "../data/trading.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -116,6 +117,10 @@ export function getShop() {
 /** P3-T5: إعدادات Soft launch (ممالك محدودة + عتبات retention) — تُقرأ من data/softlaunch.json */
 export function getSoftLaunch() {
   return softLaunchSpec;
+}
+/** P9-T5: مواصفة Trading Post (الموارد + ثوابت السعر الديناميكي والرسوم) — تُقرأ من data/trading.json */
+export function getTrading() {
+  return tradingSpec;
 }
 
 export function starterBuildings(): string[] {

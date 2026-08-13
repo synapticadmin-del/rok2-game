@@ -65,6 +65,16 @@
       "window_ms": 3600000,
       "max_actions": 30,
       "cooldown_ms": 0
+    },
+    "trade_offer": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 0
+    },
+    "trade_claim": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 0
     }
   },
   "anomaly": {

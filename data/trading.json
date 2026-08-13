@@ -1,0 +1,29 @@
+{
+  "resources": [
+    { "id": "food", "name": "الطعام", "icon": "food" },
+    { "id": "wood", "name": "الخشب", "icon": "wood" },
+    { "id": "stone", "name": "الحجر", "icon": "stone" },
+    { "id": "gold", "name": "الذهب", "icon": "gold" }
+  ],
+  "constants": {
+    "fee_rate": 0.05,
+    "min_rate": 0.5,
+    "max_rate": 2.0,
+    "rate_step": 0.05,
+    "max_offers_per_player": 5,
+    "min_offer_amount": 100,
+    "max_offer_amount": 500000,
+    "min_claim_amount": 100,
+    "max_claim_per_day": 10,
+    "offer_ttl_sec": 86400,
+    "price_adaptive_step": 0.02,
+    "min_trade_hall_level": 5,
+    "price_refresh_interval_sec": 3600,
+    "base_prices": {
+      "food": 1.0,
+      "wood": 1.1,
+      "stone": 1.25,
+      "gold": 2.0
+    }
+  }
+}

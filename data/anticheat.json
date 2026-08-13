@@ -6,12 +6,76 @@
     "violation_log_limit": 50
   },
   "rate_limits": {
-    "march": { "window_ms": 60000, "max_actions": 10, "cooldown_ms": 1000 },
-    "pass_attack": { "window_ms": 60000, "max_actions": 5, "cooldown_ms": 2000 },
-    "help": { "window_ms": 60000, "max_actions": 15, "cooldown_ms": 500 },
-    "shop_buy": { "window_ms": 60000, "max_actions": 20, "cooldown_ms": 0 },
-    "use_speedup": { "window_ms": 60000, "max_actions": 30, "cooldown_ms": 0 },
-    "rally": { "window_ms": 60000, "max_actions": 3, "cooldown_ms": 5000 }
+    "march": {
+      "window_ms": 60000,
+      "max_actions": 10,
+      "cooldown_ms": 1000
+    },
+    "pass_attack": {
+      "window_ms": 60000,
+      "max_actions": 5,
+      "cooldown_ms": 2000
+    },
+    "help": {
+      "window_ms": 60000,
+      "max_actions": 15,
+      "cooldown_ms": 500
+    },
+    "shop_buy": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 0
+    },
+    "use_speedup": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 0
+    },
+    "rally": {
+      "window_ms": 60000,
+      "max_actions": 3,
+      "cooldown_ms": 5000
+    },
+    "shield_activate": {
+      "window_ms": 60000,
+      "max_actions": 10,
+      "cooldown_ms": 0
+    },
+    "city_relocate": {
+      "window_ms": 60000,
+      "max_actions": 5,
+      "cooldown_ms": 0
+    },
+    "alliance_tech_donate": {
+      "window_ms": 60000,
+      "max_actions": 24,
+      "cooldown_ms": 1200
+    },
+    "alliance_tech_start": {
+      "window_ms": 3600000,
+      "max_actions": 6,
+      "cooldown_ms": 60000
+    },
+    "alliance_outpost": {
+      "window_ms": 3600000,
+      "max_actions": 6,
+      "cooldown_ms": 60000
+    },
+    "alliance_shop_purchase": {
+      "window_ms": 3600000,
+      "max_actions": 30,
+      "cooldown_ms": 0
+    },
+    "trade_offer": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 0
+    },
+    "trade_claim": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 0
+    }
   },
   "anomaly": {
     "max_troops_per_march": 200000,

@@ -149,6 +149,28 @@ import {
   relocationCosts,
   relocationCooldownMs,
 } from "../do/sim/action_points";
+// P9-T5: منطق Trading Post النقي (سعر ديناميكي + رسوم + حدود) — يُقرأ من data/trading.json
+import {
+  tradingConstants,
+  tradingResources,
+  isValidTradingResource,
+  offerCostForBuyer,
+  sellerNet,
+} from "../do/sim/trading";
+
+/** حدود الكميات والأسعار من data/trading.json — للتحقق المبكر قبل الوصول للشارد. */
+function tradingLimits(): { min_offer: number; max_offer: number; min_rate: number; max_rate: number; max_per_player: number; min_claim: number; max_claim_per_day: number } {
+  const c = tradingConstants();
+  return {
+    min_offer: Number((c as any).min_offer_amount ?? 100),
+    max_offer: Number((c as any).max_offer_amount ?? 500000),
+    min_rate: Number((c as any).min_rate ?? 0.5),
+    max_rate: Number((c as any).max_rate ?? 2.0),
+    max_per_player: Number((c as any).max_offers_per_player ?? 5),
+    min_claim: Number((c as any).min_claim_amount ?? 100),
+    max_claim_per_day: Number((c as any).max_claim_per_day ?? 10),
+  };
+}
 
 // P4-T5: anti-cheat — rate limiter مشترك على مستوى الـ isolate (worker) للأفعال الكتابية الحساسة.
 // الـ DO يملك limiter خاصاً به للمسيرات/الهجمات؛ هذا يغطي endpoints الـ router (helps, shop, rally, speedup).
@@ -3279,6 +3301,126 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
     }
 
+    // P9-T5: Trading Post — قائمة عروض السوق وأسعار الموارد الديناميكية
+    if (path === "/v1/trading/list" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/trading-list", {
+        method: "GET",
+        headers: shardPlayerHeaders(player.id),
+      });
+      const body = await res.json<any>();
+      return json(body, res.status);
+    }
+    // P9-T5: فتح عرض بيع جديد — توفر موارد البائع يُفحص هنا من D1 بعد تحديث الإنتاج؛ الحجز والسلوك في الشارد
+    if (path === "/v1/trading/offer" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "trade_offer");
+      const body = await request.json<any>();
+      const sellResource = String(body.sellResource || "");
+      const buyResource = String(body.buyResource || "");
+      const amount = Number(body.amount);
+      const rate = Number(body.rate);
+      if (!isValidTradingResource(sellResource) || !isValidTradingResource(buyResource) || sellResource === buyResource) {
+        return json({ error: "invalid_resources" }, 400);
+      }
+      if (!Number.isFinite(amount) || !Number.isFinite(rate) || amount <= 0 || rate <= 0) {
+        return json({ error: "invalid_values" }, 400);
+      }
+      const bounds = tradingLimits();
+      if (amount < bounds.min_offer || amount > bounds.max_offer) {
+        return json({ error: "offer_amount_out_of_range", min: bounds.min_offer, max: bounds.max_offer }, 400);
+      }
+      if (rate < bounds.min_rate || rate > bounds.max_rate) {
+        return json({ error: "rate_out_of_range", min: bounds.min_rate, max: bounds.max_rate }, 400);
+      }
+      // توفر موارد البائع: تحديث الإنتاج أولًا ثم الفحص على الرصيد المحدث
+      const city = await refreshCity(env, player.id);
+      const have = (city as Record<string, any>)[sellResource] ?? 0;
+      if (have < amount) {
+        return json({ error: "insufficient_sell_resource", have: Math.floor(have), need: amount }, 409);
+      }
+      const c = tradingConstants();
+      const minHall = Number((c as any).min_trade_hall_level ?? 5);
+      if ((city as Record<string, any>).hall_level < minHall) {
+        return json({ error: "hall_locked", required: minHall }, 403);
+      }
+      const vip = await getOrCreateVip(env, player.id);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/trading-offer", {
+        method: "POST",
+        headers: shardPlayerHeadersWithVip(player.id, vipTierForPoints(vip.points).level),
+        body: JSON.stringify({ playerId: player.id, sellResource, buyResource, amount, rate }),
+      });
+      const offerBody = await res.json<any>();
+      if (res.status >= 400 || !offerBody?.ok) {
+        // الشارد رفض العرض — لا نخصم الموارد؛ الخطأ يصل للعميل كما هو
+        return json(offerBody, res.status);
+      }
+      // حجز الموارد المباعة من رصيد البائع فور قبول العرض (سلطوي)
+      const sellHave = (city as Record<string, any>)[sellResource] ?? 0;
+      const nextSell = sellHave - amount;
+      await env.DB.prepare(
+        `UPDATE cities SET ${sellResource}=?, updated_at=? WHERE player_id=?`,
+      )
+        .bind(nextSell, nowMs(), player.id)
+        .run();
+      return json({ ok: true, offerId: offerBody.offerId, sellResource, buyResource, amount, rate, newBalance: Math.floor(nextSell) });
+    }
+    // P9-T5: إتمام صفقة — المشتري يدفع buyResource ويستلم sellResource ناقص الرسوم، والبائع يستلم ما عرضه
+    if (path === "/v1/trading/claim" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "trade_claim");
+      const body = await request.json<any>();
+      const offerId = String(body.offerId || "");
+      const claimAmount = Number(body.amount);
+      const rate = Number(body.rate);
+      const sellerId = String(body.sellerId || "");
+      if (!offerId || !Number.isFinite(claimAmount) || !Number.isFinite(rate) || claimAmount <= 0) {
+        return json({ error: "invalid_values" }, 400);
+      }
+      if (sellerId === player.id) return json({ error: "self_trade" }, 400);
+      // تحقق مزدوج: السعر المتفق عليه يجب أن يطابق عرض السوق المفتوح (المنع الأول في الشارد)
+      const stub = kingdomStub(env);
+      const vip = await getOrCreateVip(env, player.id);
+      const res = await stub.fetch("https://do/trading-claim", {
+        method: "POST",
+        headers: shardPlayerHeadersWithVip(player.id, vipTierForPoints(vip.points).level),
+        body: JSON.stringify({ playerId: player.id, sellerId, offerId, amount: claimAmount, rate }),
+      });
+      const claimBody = await res.json<any>();
+      if (res.status >= 400 || !claimBody?.ok) return json(claimBody, res.status);
+      const buyResource = String(claimBody.buyResource || "");
+      const sellResource = String(claimBody.sellResource || "");
+      if (!isValidTradingResource(buyResource) || !isValidTradingResource(sellResource)) {
+        return json({ error: "invalid_settlement_resources" }, 500);
+      }
+      const paysBuy = Number(claimBody.paysBuy) || 0;
+      const receivesSell = Number(claimBody.receivesSell) || 0;
+      const sellerLosesSell = Number(claimBody.sellerLosesSell) || 0;
+      const sellerGainsBuy = Number(claimBody.sellerGainsBuy) || 0;
+      // تسوية المشتري: دفع buyResource واستلام sellResource
+      const buyerCity = await refreshCity(env, player.id);
+      const buyerHaveBuy = (buyerCity as Record<string, any>)[buyResource] ?? 0;
+      if (buyerHaveBuy < paysBuy) {
+        return json({ error: "insufficient_buy_resource", have: Math.floor(buyerHaveBuy), need: paysBuy }, 409);
+      }
+      await env.DB.prepare(
+        `UPDATE cities SET ${buyResource}=${buyResource}-?, ${sellResource}=${sellResource}+?, updated_at=? WHERE player_id=?`,
+      )
+        .bind(paysBuy, receivesSell, nowMs(), player.id)
+        .run();
+      // تسوية البائع: خسارة sellResource (كانت محجوزة عند فتح العرض) وكسب buyResource
+      const sellerCity = await env.DB.prepare("SELECT * FROM cities WHERE player_id = ?").bind(sellerId).first<any>();
+      if (sellerCity) {
+        await env.DB.prepare(
+          `UPDATE cities SET ${sellResource}=${sellResource}-?, ${buyResource}=${buyResource}+?, updated_at=? WHERE player_id=?`,
+        )
+          .bind(sellerLosesSell, sellerGainsBuy, nowMs(), sellerId)
+          .run();
+      }
+      return json({ ok: true, amount: claimBody.amount, paysBuy, receivesSell, sellerGainsBuy, fee: claimBody.fee, buyResource, sellResource });
+    }
     return json({ error: "Not found", path }, 404);
   } catch (err: any) {
     if (err instanceof HttpError) {

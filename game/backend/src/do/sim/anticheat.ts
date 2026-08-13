@@ -26,7 +26,10 @@ export type RateLimitAction =
   | "alliance_tech_donate"
   | "alliance_tech_start"
   | "alliance_outpost"
-  | "alliance_shop_purchase";
+  | "alliance_shop_purchase"
+  // P9-T5: Trading Post — سقف فتح العروض وإتمام الصفقات لكل لاعب.
+  | "trade_offer"
+  | "trade_claim";
 
 const CFG = anticheatData as any;
 
