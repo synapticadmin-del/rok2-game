@@ -75,6 +75,16 @@
       "window_ms": 60000,
       "max_actions": 30,
       "cooldown_ms": 0
+    },
+    "gift_claim": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 500
+    },
+    "gift_create": {
+      "window_ms": 60000,
+      "max_actions": 10,
+      "cooldown_ms": 2000
     }
   },
   "anomaly": {

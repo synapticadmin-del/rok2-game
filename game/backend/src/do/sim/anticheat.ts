@@ -29,7 +29,10 @@ export type RateLimitAction =
   | "alliance_shop_purchase"
   // P9-T5: Trading Post — سقف فتح العروض وإتمام الصفقات لكل لاعب.
   | "trade_offer"
-  | "trade_claim";
+  | "trade_claim"
+  // P9-T6: صناديق هدايا التحالف — سقف فتح الصناديق وإنشاء الصناديق الجديدة لكل لاعب.
+  | "gift_claim"
+  | "gift_create";
 
 const CFG = anticheatData as any;
 
@@ -38,7 +41,12 @@ export const ANTICHEAT_CONSTANTS = {
   violationLogLimit: CFG.constants.violation_log_limit as number,
 };
 
-export const RATE_LIMITS: Record<RateLimitAction, RateLimitRule> = CFG.rate_limits;
+export const RATE_LIMITS: Record<RateLimitAction, RateLimitRule> = {
+  ...((CFG.rate_limits || {}) as Record<string, RateLimitRule>),
+  // P9-T6: أفعال جديدة قد لا تكون بعد في data/anticheat.json — حد افتراضي سخي لا يضر اللاعب الشرعي.
+  gift_claim: (CFG.rate_limits?.gift_claim as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 500 },
+  gift_create: (CFG.rate_limits?.gift_create as RateLimitRule) || { window_ms: 60_000, max_actions: 10, cooldown_ms: 2_000 },
+} as Record<RateLimitAction, RateLimitRule>;
 
 export const ANOMALY_LIMITS = CFG.anomaly as {
   max_troops_per_march: number;

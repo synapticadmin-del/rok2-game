@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "description": "P9-T6: صناديق هدايا التحالف — شراء الباقات وهدايا الصناديق (P8-T6) يولّد صناديق جماعية يفتحها كل أعضاء التحالف. كل القيم تُقرأ من هذا الملف — لا ثوابت في الكود.",
+  "constants": {
+    "max_active_gifts_per_alliance": 10,
+    "gift_open_window_ms": 86400000,
+    "max_opens_per_member_per_gift": 1,
+    "max_daily_opens_per_member": 30,
+    "min_members_for_gift": 1
+  },
+  "gift_types": [
+    {
+      "id": "quest_weekly_gift",
+      "name": "صندوق المهام الأسبوعية",
+      "source": "weekly_chest",
+      "description": "صندوق جماعي من خزانة المهام الأسبوعية — يفتحه كل الأعضاء",
+      "min_hall_level": 8,
+      "open_weight": 8,
+      "pool": [
+        { "kind": "resource", "resource": "food", "amount": 50000, "weight": 3 },
+        { "kind": "resource", "resource": "wood", "amount": 50000, "weight": 3 },
+        { "kind": "resource", "resource": "stone", "amount": 50000, "weight": 3 },
+        { "kind": "resource", "resource": "gold", "amount": 30000, "weight": 3 },
+        { "kind": "speedup", "speedup_id": "speedup_1h", "amount": 1, "weight": 2 },
+        { "kind": "gems", "amount": 20, "weight": 1 }
+      ]
+    },
+    {
+      "id": "victory_gift",
+      "name": "صندوق النصر",
+      "source": "victory",
+      "description": "صندوق جماعي بعد انتصار تحالف في معركة — يوزعه قائد التحالف",
+      "min_hall_level": 10,
+      "open_weight": 6,
+      "pool": [
+        { "kind": "resource", "resource": "food", "amount": 100000, "weight": 2 },
+        { "kind": "resource", "resource": "wood", "amount": 100000, "weight": 2 },
+        { "kind": "resource", "resource": "stone", "amount": 100000, "weight": 2 },
+        { "kind": "resource", "resource": "gold", "amount": 60000, "weight": 2 },
+        { "kind": "speedup", "speedup_id": "speedup_1h", "amount": 2, "weight": 1 },
+        { "kind": "speedup", "speedup_id": "speedup_4h", "amount": 1, "weight": 1 },
+        { "kind": "gems", "amount": 50, "weight": 1 }
+      ]
+    },
+    {
+      "id": "tech_gift",
+      "name": "صندوق البحث",
+      "source": "tech_donation",
+      "description": "صندوق جماعي من تبرعات تكنولوجيا التحالف المتراكمة",
+      "min_hall_level": 9,
+      "open_weight": 7,
+      "pool": [
+        { "kind": "resource", "resource": "food", "amount": 40000, "weight": 2 },
+        { "kind": "resource", "resource": "wood", "amount": 40000, "weight": 2 },
+        { "kind": "resource", "resource": "stone", "amount": 40000, "weight": 2 },
+        { "kind": "resource", "resource": "gold", "amount": 25000, "weight": 2 },
+        { "kind": "speedup", "speedup_id": "speedup_30m", "amount": 2, "weight": 2 },
+        { "kind": "speedup", "speedup_id": "speedup_1h", "amount": 1, "weight": 1 },
+        { "kind": "gems", "amount": 15, "weight": 1 }
+      ]
+    },
+    {
+      "id": "rally_gift",
+      "name": "صندوق الرالي",
+      "source": "rally_win",
+      "description": "صندوق جماعي من انتصار رالي على ممر أو قلعة",
+      "min_hall_level": 10,
+      "open_weight": 5,
+      "pool": [
+        { "kind": "resource", "resource": "food", "amount": 80000, "weight": 2 },
+        { "kind": "resource", "resource": "wood", "amount": 80000, "weight": 2 },
+        { "kind": "resource", "resource": "stone", "amount": 80000, "weight": 2 },
+        { "kind": "resource", "resource": "gold", "amount": 50000, "weight": 2 },
+        { "kind": "speedup", "speedup_id": "speedup_1h", "amount": 2, "weight": 2 },
+        { "kind": "speedup", "speedup_id": "speedup_4h", "amount": 1, "weight": 1 },
+        { "kind": "gems", "amount": 40, "weight": 1 }
+      ]
+    }
+  ],
+  "pool_rules": {
+    "weight_selection": "weighted_random",
+    "resource_cap_per_gift_ms": 300000,
+    "notes": "اختيار العنصر بوزن مرجح من pool النوع؛ التوزيع يُثبت لحظة إنشاء الصندوق ولا يتغير عند الفتح."
+  },
+  "notification": "فتح تحالفك صندوقًا جماعيًا — اطلب نصيبك الآن!"
+}

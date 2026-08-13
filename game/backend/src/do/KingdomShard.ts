@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, getChatConfig, getAllianceStructures, type MapPass, type MapRegion } from "../lib/gameData";
-import { newId, nowMs, dist } from "../lib/ids";
+import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, type MapPass, type MapRegion } from "../lib/gameData";
+import { newId, nowMs, dist, dayString } from "../lib/ids";
 import opsData from "../data/ops.json";
 
 const OPS_CONSTANTS = {
@@ -126,6 +126,16 @@ import {
   rateBounds,
   type TradingOffer,
 } from "./sim/trading";
+// P9-T6: صناديق هدايا التحالف — منطق نقي يُقرأ من data/alliance_gifts.json
+import {
+  createGift,
+  claimGift,
+  expiredGifts,
+  isGiftExpired,
+  giftOpenSlotsRemaining,
+  type AllianceGiftsSpec,
+  type AllianceGift,
+} from "./sim/alliance_gifts";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -402,6 +412,8 @@ export class KingdomShard extends DurableObject<Env> {
   };
   // P9-T3: متجر التحالف والألقاب — رصيد تحالف + مشتريات + ألقاب ممنوحة لكل تحالف
   private allianceShop = new Map<string, AllianceShopState>();
+  // P9-T6: صناديق هدايا التحالف — صناديق جماعية نشطة لكل تحالف
+  private allianceGifts = new Map<string, AllianceGift[]>();
   // P5-T5: الكشافة النشطة على الخريطة
   private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
@@ -746,6 +758,34 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (14)");
     }
+    if (ver < 16) {
+      // P9-T6: صناديق هدايا التحالف — صناديق جماعية يفتحها كل الأعضاء.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS alliance_gifts (
+          id TEXT NOT NULL,
+          alliance_id TEXT NOT NULL,
+          gift_type_id TEXT NOT NULL,
+          items_json TEXT NOT NULL DEFAULT '[]',
+          created_ms INTEGER NOT NULL,
+          expires_ms INTEGER NOT NULL,
+          openers_json TEXT NOT NULL DEFAULT '[]',
+          max_openers INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`CREATE INDEX IF NOT EXISTS idx_alliance_gifts_alliance ON alliance_gifts (alliance_id)`);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS alliance_gift_claims (
+          player_id TEXT NOT NULL,
+          day TEXT NOT NULL,
+          gift_id TEXT NOT NULL,
+          reward_json TEXT NOT NULL DEFAULT '{}',
+          created_ms INTEGER NOT NULL,
+          PRIMARY KEY (player_id, day, gift_id)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (16)");
+    }
     if (ver < 15) {
       // P9-T5: Trading Post — عروض السوق المفتوحة + أسعار ديناميكية حسب العرض والطلب.
       this.ctx.storage.sql.exec(`
@@ -915,6 +955,8 @@ export class KingdomShard extends DurableObject<Env> {
     this.loadAllianceShop();
     // P9-T5: أسعار الموارد والعروض النشطة في سوق المملكة
     this.loadTradingState();
+    // P9-T6: صناديق هدايا التحالف النشطة لكل تحالف
+    this.loadAllianceGifts();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -1226,6 +1268,96 @@ export class KingdomShard extends DurableObject<Env> {
       });
     }
   }
+  // P9-T6: تنظيف الصناديق المنتهية لتحالف معيّن (قائمة + حصر + جدول D1) — تُستدعى قبل كل قراءة/مطالبة.
+  private expireAllianceGiftsFor(allianceId: string, now: number) {
+    const list = this.allianceGifts.get(allianceId) || [];
+    const live = list.filter((g) => !isGiftExpired(g, now));
+    for (const g of list) {
+      if (isGiftExpired(g, now)) this.ctx.storage.sql.exec("DELETE FROM alliance_gifts WHERE id = ?", [g.id]);
+    }
+    if (live.length !== list.length) {
+      this.allianceGifts.set(allianceId, live);
+      this.ctx.storage.sql.exec("DELETE FROM alliance_gift_claims WHERE gift_id NOT IN (SELECT id FROM alliance_gifts)");
+    }
+  }
+  // تحميل صناديق هدايا التحالف من الحفظ السلطوي — يُستبعد المنتهي فورًا.
+  private loadAllianceGifts() {
+    const now = nowMs();
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_gifts").toArray()) {
+      if (row.expires_ms <= now) {
+        this.ctx.storage.sql.exec("DELETE FROM alliance_gifts WHERE id = ?", [row.id]);
+        continue;
+      }
+      let openedBy: string[] = [];
+      try {
+        openedBy = JSON.parse(row.openers_json || "[]");
+      } catch { openedBy = []; }
+      const items = this.safeJsonParse<any[]>(row.items_json || "[]", []);
+      const gift: AllianceGift = {
+        id: String(row.id),
+        allianceId: String(row.alliance_id),
+        giftTypeId: String(row.gift_type_id),
+        items,
+        createdMs: Number(row.created_ms),
+        expiresMs: Number(row.expires_ms),
+        openedBy,
+        maxOpeners: Number(row.max_openers) || 0,
+      };
+      const existing = this.allianceGifts.get(gift.allianceId) || [];
+      existing.push(gift);
+      this.allianceGifts.set(gift.allianceId, existing);
+    }
+  }
+  // P9-T6: حالة صناديق تحالف نشطة + عدد عضوه الحالي (مقارنة بقائمة المدن) — بدون بيانات المكافأة الداخلية.
+  private allianceGiftsFor(allianceId: string | null | undefined): { gifts: any[]; memberCount: number } {
+    const gifts = (this.allianceGifts.get(allianceId ?? "") || []).map((g) => ({
+      id: g.id,
+      giftTypeId: g.giftTypeId,
+      createdMs: g.createdMs,
+      expiresMs: g.expiresMs,
+      openCount: g.openedBy.length,
+      slotsRemaining: giftOpenSlotsRemaining(g, this.memberCount(allianceId)),
+    }));
+    return { gifts, memberCount: this.memberCount(allianceId) };
+  }
+  private memberCount(allianceId: string | null | undefined): number {
+    if (!allianceId) return 0;
+    let n = 0;
+    for (const c of this.cities.values()) if (c.allianceId === allianceId) n += 1;
+    return n;
+  }
+  // P9-T6: دالة مساعدة لإنشاء صندوق جديد لتحالف — يتحقق من المصدر والحالة.
+  private createAllianceGift(opts: {
+    allianceId: string;
+    giftTypeId: string;
+    hallLevel: number;
+    rand?: () => number;
+  }): { ok: true; gift: AllianceGift } | { ok: false; reason: string } {
+    const spec = this.allianceGiftSpec();
+    const memberCount = this.memberCount(opts.allianceId);
+    const activeCount = (this.allianceGifts.get(opts.allianceId) || []).length;
+    const result = createGift({
+      allianceId: opts.allianceId,
+      giftTypeId: opts.giftTypeId,
+      hallLevel: opts.hallLevel,
+      memberCount,
+      activeGiftCount: activeCount,
+      spec,
+      now: nowMs(),
+      rand: opts.rand || this.pseudoRandom.bind(this),
+    });
+    if (!result.ok) return result;
+    const row = result.gift;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO alliance_gifts (id, alliance_id, gift_type_id, items_json, created_ms, expires_ms, openers_json, max_openers) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      row.id, row.allianceId, row.giftTypeId, JSON.stringify(row.items), row.createdMs, row.expiresMs, "[]", row.maxOpeners,
+    );
+    const list = this.allianceGifts.get(opts.allianceId) || [];
+    list.push(row);
+    this.allianceGifts.set(opts.allianceId, list);
+    this.broadcast({ type: "alliance_gift_created", allianceId: opts.allianceId, giftId: row.id, giftTypeId: row.giftTypeId });
+    return { ok: true, gift: row };
+  }
 
   // P9-T5: سعر مورد حالي — مهيأ من JSON عند أول طلب إن لم يُسجّل بعد
   private tradingPriceFor(resource: string, nowMs: number): number {
@@ -1271,6 +1403,27 @@ export class KingdomShard extends DurableObject<Env> {
     return out;
   }
 
+  private persistAllianceGift(gift: AllianceGift) {
+    this.ctx.storage.sql.exec(
+      `UPDATE alliance_gifts SET openers_json = ?, expires_ms = ? WHERE id = ?`,
+      JSON.stringify(gift.openedBy), gift.expiresMs, gift.id,
+    );
+  }
+
+  // P9-T6: مواصفة الصناديق — تُقرأ من data/alliance_gifts.json عبر gameData (لا hard-coded).
+  private allianceGiftSpec(): AllianceGiftsSpec {
+    return getAllianceGiftsSpec() as unknown as AllianceGiftsSpec;
+  }
+
+  // P9-T6: محلل JSON آمن مع قيمة بديلة عند الفشل (تحميل الحفظ السلطوي).
+  private safeJsonParse<T>(s: string, fallback: T): T {
+    try { return JSON.parse(s) as T; } catch { return fallback; }
+  }
+
+  // P9-T6: مولد أرقام شبه عشوائي — قابل للاختبار بتمرير دالة حتمية بديلة عبر opts.rand.
+  private pseudoRandom(): number {
+    return Math.random();
+  }
   private persistAllianceShop(allianceId: string, state: AllianceShopState) {
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO alliance_shop
@@ -4083,6 +4236,61 @@ export class KingdomShard extends DurableObject<Env> {
       const prices: Record<string, number> = {};
       for (const res of tradingResources()) prices[res] = this.tradingPriceFor(res, now);
       return Response.json({ ok: true, prices, now });
+    }
+    // P9-T6: صناديق هدايا التحالف — قائمة الصناديق النشطة للتحالف (قراءة)
+    if (path.endsWith("/alliance-gift-list") && request.method === "GET") {
+      const identityError = this.requireAuthenticatedPlayer(request, "");
+      const url = new URL(request.url);
+      const allianceId = String(url.searchParams.get("allianceId") || "");
+      if (!allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      if (identityError) return identityError;
+      const now = nowMs();
+      this.expireAllianceGiftsFor(allianceId, now);
+      return Response.json({ ok: true, ...this.allianceGiftsFor(allianceId), now });
+    }
+    // P9-T6: إنشاء صندوق هدية تحالف جديد — مصدر: باقة صناديق أو تبرعات؛ السقف والمستوى من JSON
+    if (path.endsWith("/alliance-gift-create") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const allianceId = String(body.allianceId || "");
+      const giftTypeId = String(body.giftTypeId || "");
+      if (!allianceId || !giftTypeId) return Response.json({ error: "missing_params" }, { status: 400 });
+      const city = this.cities.get(String(body.playerId || ""));
+      if (!city || city.allianceId !== allianceId) { this.recordCommandError("not_member"); return Response.json({ error: "not_member" }, { status: 403 }); }
+      const creation = this.createAllianceGift({ allianceId, giftTypeId, hallLevel: city.hallLevel || 1 });
+      if (!creation.ok) { this.recordCommandError(creation.reason); return Response.json({ error: creation.reason }, { status: 400 }); }
+      return Response.json({ ok: true, gift: { id: creation.gift.id, giftTypeId: creation.gift.giftTypeId, expiresMs: creation.gift.expiresMs } });
+    }
+    // P9-T6: فتح صندوق هدية تحالف — منح المكافأة العشوائية للساحب (فتحة واحدة/صندوق + سقف يومي)
+    if (path.endsWith("/alliance-gift-claim") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const playerId = String(body.playerId || "");
+      const giftId = String(body.giftId || "");
+      if (!playerId || !giftId) return Response.json({ error: "missing_params" }, { status: 400 });
+      const city = this.cities.get(playerId);
+      if (!city) { this.recordCommandError("unknown_player"); return Response.json({ error: "unknown_player" }, { status: 404 }); }
+      if (!city.allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      const allianceId = city.allianceId;
+      const now = nowMs();
+      this.expireAllianceGiftsFor(allianceId, now);
+      const gift = (this.allianceGifts.get(allianceId) || []).find((g) => g.id === giftId);
+      if (!gift) return Response.json({ error: "gift_missing" }, { status: 404 });
+      if (isGiftExpired(gift, now)) { this.recordCommandError("gift_expired"); return Response.json({ error: "gift_expired" }, { status: 400 }); }
+      // عضو اليوم الحالي: أعضاء التحالف الفعليين (مدينة لكل عضو) — ليس من maxOpeners (لقطة الإنشاء)
+      const memberIds: string[] = [];
+      for (const c of this.cities.values()) if (c.allianceId === allianceId) memberIds.push(c.playerId);
+      const dayKey = dayString(now);
+      const dailyOpens = this.ctx.storage.sql.exec<any>("SELECT COUNT(*) AS n FROM alliance_gift_claims WHERE player_id = ? AND day = ?", [playerId, dayKey]).one()?.n || 0;
+      const claim = claimGift({ gift, playerId, memberIds, dailyOpens: Number(dailyOpens) || 0, spec: this.allianceGiftSpec(), now });
+      if (!claim.ok) { this.recordCommandError(claim.reason); return Response.json({ error: claim.reason }, { status: 400 }); }
+      // تسجيل الفتحة الحالية + تحديث المفتوحين والحفظ
+      gift.openedBy = gift.openedBy.concat(playerId);
+      this.persistAllianceGift(gift);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO alliance_gift_claims (player_id, day, gift_id, reward_json, created_ms) VALUES (?, ?, ?, ?, ?)", [playerId, dayKey, giftId, JSON.stringify(claim.reward), now]);
+      return Response.json({ ok: true, reward: claim.reward, opened: claim.opened, slotsRemaining: giftOpenSlotsRemaining(gift, memberIds.length) });
     }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }

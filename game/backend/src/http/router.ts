@@ -22,6 +22,7 @@ import {
   trainCost,
   trainDurationSec,
   unitPower,
+  getAllianceGiftsSpec,
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
 import { HOLY_SITES } from "../do/sim/holy_sites";
@@ -3420,6 +3421,89 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           .run();
       }
       return json({ ok: true, amount: claimBody.amount, paysBuy, receivesSell, sellerGainsBuy, fee: claimBody.fee, buyResource, sellResource });
+    }
+    // P9-T6: قائمة صناديق هدايا التحالف النشطة (قراءة — أي عضو)
+    if (path === "/v1/alliance/gifts/list" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const allianceId = player.alliance_id || "";
+      if (!allianceId) return json({ error: "no_alliance" }, 400);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/alliance-gift-list?allianceId=${encodeURIComponent(allianceId)}`, {
+        method: "GET",
+        headers: shardPlayerHeaders(player.id),
+      });
+      const body = await res.json<any>();
+      return json(body, res.status);
+    }
+    // P9-T6: فتح صندوق هدية تحالف — عضو يحصل على مكافأته العشوائية (فتحة واحدة/صندوق + سقف يومي)
+    if (path === "/v1/alliance/gifts/claim" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) return json({ error: "no_alliance" }, 400);
+      enforceRateLimit(player.id, "gift_claim");
+      const body = await request.json<any>();
+      const giftId = String(body.giftId || "");
+      if (!giftId) return json({ error: "missing_gift_id" }, 400);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/alliance-gift-claim", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, giftId }),
+      });
+      const claimBody = await res.json<any>();
+      if (res.status >= 400 || !claimBody?.ok) return json(claimBody, res.status);
+      // تسليم المكافأة محليًا (سلطوي في D1) — موارد/تسريع/جواهر
+      const reward = claimBody.reward || {};
+      const updates: string[] = [];
+      const args: any[] = [];
+      if (reward.resource) {
+        const r = String(reward.resource.resource || "");
+        const a = Number(reward.resource.amount) || 0;
+        if (a > 0 && ["food", "wood", "stone", "gold"].includes(r)) {
+          updates.push(`${r}=${r}+?`);
+          args.push(a);
+        }
+      }
+      if (reward.gems && Number(reward.gems) > 0) {
+        updates.push("gems=gems+?");
+        args.push(Number(reward.gems));
+      }
+      if (updates.length > 0) {
+        updates.push("updated_at=?");
+        args.push(nowMs(), player.id);
+        await env.DB.prepare(`UPDATE cities SET ${updates.join(", ")} WHERE player_id=?`).bind(...args).run();
+      }
+      // تسريع: منحة وحدة تسريع واحدة للصفقة (لا تتكدّس في D1 — تُعالج كجائزة فورية عبر inventory)
+      if (reward.speedup) {
+        const s = reward.speedup;
+        await env.DB.prepare(
+          "INSERT INTO player_inventory (player_id, item_id, count, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (player_id, item_id) DO UPDATE SET count = count + ?, updated_at = ?",
+        ).bind(player.id, String(s.speedup_id || ""), Math.floor(Number(s.amount) || 0), nowMs(), Math.floor(Number(s.amount) || 0), nowMs()).run();
+      }
+      return json({ ok: true, reward, slotsRemaining: claimBody.slotsRemaining });
+    }
+    // P9-T6: إنشاء صندوق هدية تحالف جديد — R3+ فقط (مصادر داخلية: باقات/تبرعات)؛ السقف والمستوى من JSON
+    if (path === "/v1/alliance/gifts/create" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) return json({ error: "no_alliance" }, 400);
+      enforceRateLimit(player.id, "gift_create");
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rank || rank === "R1" || rank === "R2") return json({ error: "rank_requirement", rank: rank || "none" }, 403);
+      const body = await request.json<any>();
+      const giftTypeId = String(body.giftTypeId || "");
+      if (!giftTypeId) return json({ error: "missing_gift_type" }, 400);
+      // النوع مقبول فقط إن كان معرفًا في alliance_gifts.json (لا hard-coded)
+      const giftSpec = getAllianceGiftsSpec();
+      if (!(giftSpec as any).gift_types || !(giftSpec as any).gift_types.some((t: any) => t.id === giftTypeId)) {
+        return json({ error: "unknown_gift_type" }, 400);
+      }
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/alliance-gift-create", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, giftTypeId }),
+      });
+      const bodyRes = await res.json<any>();
+      return json(bodyRes, res.status);
     }
     return json({ error: "Not found", path }, 404);
   } catch (err: any) {

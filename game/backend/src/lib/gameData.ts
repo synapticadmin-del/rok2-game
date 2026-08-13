@@ -11,6 +11,7 @@ import battlePassSpec from "../data/battlepass.json";
 import chatSpec from "../data/chat.json";
 import allianceStructuresSpec from "../data/alliance_structures.json";
 import tradingSpec from "../data/trading.json";
+import allianceGiftsSpec from "../data/alliance_gifts.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -121,6 +122,11 @@ export function getSoftLaunch() {
 /** P9-T5: مواصفة Trading Post (الموارد + ثوابت السعر الديناميكي والرسوم) — تُقرأ من data/trading.json */
 export function getTrading() {
   return tradingSpec;
+}
+
+/** P9-T6: مواصفة صناديق هدايا التحالف (الأنواع + الاحتمالات + الثوابت) — تُقرأ من data/alliance_gifts.json */
+export function getAllianceGiftsSpec() {
+  return allianceGiftsSpec;
 }
 
 export function starterBuildings(): string[] {
