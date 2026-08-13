@@ -20,6 +20,7 @@ import {
   buildingUpgradeDurationSec,
   resourceProductionRates,
   trainCost,
+  trainDurationSec,
   unitPower,
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
@@ -124,6 +125,14 @@ import {
   checkShopBuyPayload,
   type RateLimitAction,
 } from "../do/sim/anticheat";
+import {
+  unitTier,
+  unitBranch,
+  trainableUnits,
+  specialUnitsForCiv,
+  hallUnlocksTier,
+  isSpecialUnit,
+} from "../do/sim/troops";
 
 // P4-T5: anti-cheat — rate limiter مشترك على مستوى الـ isolate (worker) للأفعال الكتابية الحساسة.
 // الـ DO يملك limiter خاصاً به للمسيرات/الهجمات؛ هذا يغطي endpoints الـ router (helps, shop, rally, speedup).
@@ -573,11 +582,15 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
             maxDay: (getZones() as any).constants?.season_max_day ?? 60,
             service: (getZones() as any).season_service ?? null,
           },
-          trainableUnits: [
-            { id: "infantry_t1", name: "مشاة T1", branch: "infantry" },
-            { id: "cavalry_t1", name: "فرسان T1", branch: "cavalry" },
-            { id: "archer_t1", name: "رماة T1", branch: "archer" },
-          ],
+          trainableUnits: (() => {
+            const list: any[] = trainableUnits();
+            for (const civ of getCivilizations().civilizations) {
+              for (const u of trainableUnits(civ.id)) {
+                if (!list.some((x) => x.id === u.id)) list.push({ ...u, civ: civ.id });
+              }
+            }
+            return list;
+          })(),
         },
       });
     }
@@ -820,6 +833,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         body: JSON.stringify({
           playerId,
           name,
+          civ,
           allianceId: null,
           x: spawn.x,
           y: spawn.y,
@@ -1011,12 +1025,19 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const body = await readJson<{ unit: string; count: number }>(request);
       const unit = body.unit;
       const count = Math.floor(Number(body.count) || 0);
-      if (!["infantry_t1", "cavalry_t1", "archer_t1"].includes(unit)) {
-        throw new HttpError(400, "Unsupported unit for prototype");
-      }
       if (count <= 0 || count > 10000) throw new HttpError(400, "Invalid count");
-
       let city = await refreshCity(env, player.id);
+      const buildingsMap = await getBuildingsMap(env, player.id);
+      const hallLevel = Number(buildingsMap.city_hall) || 1;
+      const tier = unitTier(unit);
+      if (!tier) {
+        const su = (isSpecialUnit(unit) && player.civ ? specialUnitsForCiv(player.civ).find((x) => x.id === unit) : null) ?? null;
+        if (!su) throw new HttpError(400, "Unknown unit");
+        // الوحدة الخاصة مقفلة حتى فتح المرحلة المطلوبة لقاعة المدينة
+        if (!hallUnlocksTier(hallLevel, su.unlock_tier)) throw new HttpError(400, "Unit locked (city hall level)");
+      } else if (!hallUnlocksTier(hallLevel, tier)) {
+        throw new HttpError(400, "Unit locked (city hall level)");
+      }
       const cost = trainCost(unit, count);
       if (!canAfford(city, cost)) throw new HttpError(400, "Not enough resources", { cost });
       const spent = spend(city, cost);
@@ -1027,7 +1048,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
 
       // P3-T4: مضاعف سرعة التدريب من مستوى VIP (تراكمي مع أبحاث training_speed)
       const vipT = vipTierForPoints((await getOrCreateVip(env, player.id)).points);
-      const duration = Math.max(1, Math.floor(10 * count / ((1 + researchBuff(await getResearchLevels(env, player.id), "training_speed")) * vipT.train_speed_mult)));
+      const researchMult = 1 + researchBuff(await getResearchLevels(env, player.id), "training_speed");
+      const duration = trainDurationSec(unit, count, researchMult * vipT.train_speed_mult);
       const queueId = newId("q");
       const stub = kingdomStub(env);
       const queueResponse = await stub.fetch("https://do/queue/add", {

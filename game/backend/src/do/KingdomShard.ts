@@ -67,6 +67,7 @@ type CityEntity = {
   playerId: string;
   name: string;
   allianceId: string | null;
+  civ: string;
   x: number;
   y: number;
   hallLevel: number;
@@ -287,6 +288,7 @@ export class KingdomShard extends DurableObject<Env> {
           player_id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           alliance_id TEXT,
+          civ TEXT NOT NULL DEFAULT '',
           x REAL NOT NULL,
           y REAL NOT NULL,
           hall_level INTEGER NOT NULL,
@@ -521,6 +523,7 @@ export class KingdomShard extends DurableObject<Env> {
         playerId: row.player_id,
         name: row.name,
         allianceId: row.alliance_id,
+        civ: row.civ || "",
         x: row.x,
         y: row.y,
         hallLevel: row.hall_level,
@@ -887,11 +890,12 @@ export class KingdomShard extends DurableObject<Env> {
 
   private persistCity(c: CityEntity) {
     this.ctx.storage.sql.exec(
-      `INSERT OR REPLACE INTO map_cities (player_id, name, alliance_id, x, y, hall_level, region_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO map_cities (player_id, name, alliance_id, civ, x, y, hall_level, region_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       c.playerId,
       c.name,
       c.allianceId,
+      c.civ,
       c.x,
       c.y,
       c.hallLevel,
@@ -1523,6 +1527,9 @@ export class KingdomShard extends DurableObject<Env> {
         0,
         attackerTalentAttackMod,
         0,
+        attackerEquipmentMod,
+        0,
+        this.cities.get(m.ownerPlayerId)?.civ || undefined,
       );
 
       const report: {
@@ -1626,6 +1633,7 @@ export class KingdomShard extends DurableObject<Env> {
         0,
         throneEquipmentMod,
         0,
+        this.cities.get(m.ownerPlayerId)?.civ || undefined,
       );
 
       const report: {
@@ -1733,6 +1741,7 @@ export class KingdomShard extends DurableObject<Env> {
         0,
         coEquipmentMod,
         0,
+        this.cities.get(m.ownerPlayerId)?.civ || undefined,
       );
 
       const report: {
@@ -1808,7 +1817,7 @@ export class KingdomShard extends DurableObject<Env> {
           const barbTalentAttackMod = talentAttackMod(barbCommander?.talentAllocations);
           // P8-T2: باف troop_attack من معدات القائد
           const barbEquipmentMod = equipmentAttackMod(barbCommander?.equipmentState);
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0, barbEquipmentMod, 0, this.cities.get(m.ownerPlayerId)?.civ || undefined);
           const report: {
             id: string;
             createdAt: number;
@@ -2108,6 +2117,7 @@ export class KingdomShard extends DurableObject<Env> {
         playerId: body.playerId,
         name: body.name,
         allianceId: body.allianceId ?? null,
+        civ: body.civ || "",
         x: body.x,
         y: body.y,
         hallLevel: body.hallLevel ?? 1,

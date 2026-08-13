@@ -180,22 +180,15 @@ export function resourceProductionRates(
   };
 }
 
+// P8-T3: تكلفة التدريب من troop_tiers.json بلا hard-code — الوحدة الخاصة تستخدم تكلفة فرعها.
 export function trainCost(unitId: string, count: number) {
-  const unitCosts: Record<string, { food: number; wood: number; stone: number; gold: number }> = {
+  const fallback: Record<string, { food: number; wood: number; stone: number; gold: number }> = {
     infantry_t1: { food: 50, wood: 20, stone: 0, gold: 0 },
     cavalry_t1: { food: 60, wood: 40, stone: 0, gold: 10 },
     archer_t1: { food: 40, wood: 50, stone: 0, gold: 5 },
-    infantry_t2: { food: 100, wood: 40, stone: 0, gold: 0 },
-    cavalry_t2: { food: 120, wood: 80, stone: 0, gold: 20 },
-    archer_t2: { food: 80, wood: 100, stone: 0, gold: 10 },
-    infantry_t3: { food: 200, wood: 80, stone: 0, gold: 0 },
-    cavalry_t3: { food: 240, wood: 160, stone: 0, gold: 40 },
-    archer_t3: { food: 160, wood: 200, stone: 0, gold: 20 },
-    infantry_t4: { food: 400, wood: 160, stone: 0, gold: 0 },
-    cavalry_t4: { food: 480, wood: 320, stone: 0, gold: 80 },
-    archer_t4: { food: 320, wood: 400, stone: 0, gold: 40 },
   };
-  const c = unitCosts[unitId] || unitCosts.infantry_t1;
+  const s = troopTierStatsRaw(unitId);
+  const c = s ? normalizeCost(s.train_cost) : (fallback[unitId] || fallback.infantry_t1);
   return {
     food: c.food * count,
     wood: c.wood * count,
@@ -204,15 +197,40 @@ export function trainCost(unitId: string, count: number) {
   };
 }
 
+// P8-T3: مدة التدريب بالثواني من troop_tiers.json (train_time × count، مقسوم على مضاعف السرعة).
+export function trainDurationSec(unitId: string, count: number, speedMult = 1): number {
+  const s = troopTierStatsRaw(unitId);
+  const base = s ? Number(s.train_time) || 10 : 10;
+  const norm = Math.max(0.1, Number(speedMult) || 1);
+  return Math.max(1, Math.ceil((base * Math.max(1, count)) / 10 / norm));
+}
+
+function normalizeCost(raw: unknown): { food: number; wood: number; stone: number; gold: number } {
+  const c = (raw || {}) as Record<string, number>;
+  return {
+    food: Number(c.food) || 0,
+    wood: Number(c.wood) || 0,
+    stone: Number(c.stone) || 0,
+    gold: Number(c.gold) || 0,
+  };
+}
+
+function troopTierStatsRaw(unitId: string): { train_cost: unknown; train_time: unknown } | null {
+  const m = /^([a-z]+)_t(\d+)$/.exec(unitId || "");
+  if (!m) return null;
+  const branch = m[1];
+  const tier = Number(m[2]);
+  const t = (troopTiers as any).tiers?.find((x: any) => x.tier === tier);
+  return t?.stats?.[branch] || null;
+}
+
+// P8-T3: قوة الوحدة تُقرأ من troop_tiers.json (قوة الهجوم = troopPower الأساس) بلا hard-code.
 export function unitPower(unitId: string): number {
-  let base = 10;
-  if (unitId.includes("cavalry")) base = 12;
-  else if (unitId.includes("archer")) base = 11;
-  
-  if (unitId.includes("_t2")) return base * 1.5;
-  if (unitId.includes("_t3")) return base * 2.2;
-  if (unitId.includes("_t4")) return base * 3.5;
-  return base * 1.0;
+  const m = /^([a-z]+)_t(\d+)$/.exec(unitId || "");
+  if (!m) return 10;
+  const t = (troopTiers as any).tiers?.find((x: any) => x.tier === Number(m[2]));
+  const s = t?.stats?.[m[1]];
+  return s ? Number(s.attack) : 10;
 }
 
 export function getCommanders() {

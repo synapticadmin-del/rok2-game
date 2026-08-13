@@ -2,6 +2,7 @@ import type { Troops } from "../../env";
 import { commanderAttackMod, commanderDefenseMod, type CommanderInstance } from "./commanders";
 import { talentAttackMod, talentCounterMod } from "./talents";
 import { equipmentAttackMod } from "./equipment";
+import { unitAtk, counterMult as troopCounterMult } from "./troops";
 
 export type CombatSide = {
   name: string;
@@ -27,40 +28,14 @@ export type CombatResult = {
 
 export type CommanderStub = CommanderInstance;
 
-const BRANCH: Record<string, "infantry" | "cavalry" | "archer"> = {
-  infantry_t1: "infantry",
-  cavalry_t1: "cavalry",
-  archer_t1: "archer",
-};
+// P8-T3: القوة ومثلث التفوق يُقرأان من troop_tiers.json عبر sim/troops.ts —
+// الوحدات الخاصة الحضارية تحل محل فرعها عند unlock_tier (مثلثها هو فرعها).
+// التوافقية: وحدة غير معروفة في JSON تعطي قوة 0 ومثلث 1 (لا تكسر قتالات قديمة).
 
-function unitAtk(unitId: string): number {
-  let base = 10;
-  if (unitId.includes("cavalry")) base = 12;
-  else if (unitId.includes("archer")) base = 11;
-
-  if (unitId.includes("_t2")) return base * 1.5;
-  if (unitId.includes("_t3")) return base * 2.2;
-  if (unitId.includes("_t4")) return base * 3.5;
-  return base * 1.0;
-}
-
-function counterMult(att: string, def: string): number {
-  const a = BRANCH[att] || "infantry";
-  const d = BRANCH[def] || "infantry";
-  // infantry > cavalry > archer > infantry
-  if (a === "infantry" && d === "cavalry") return 1.15;
-  if (a === "cavalry" && d === "archer") return 1.15;
-  if (a === "archer" && d === "infantry") return 1.15;
-  if (a === "cavalry" && d === "infantry") return 0.87;
-  if (a === "archer" && d === "cavalry") return 0.87;
-  if (a === "infantry" && d === "archer") return 0.87;
-  return 1;
-}
-
-export function troopPower(troops: Troops): number {
+export function troopPower(troops: Troops, civId?: string): number {
   let p = 0;
   for (const [u, c] of Object.entries(troops)) {
-    p += unitAtk(u) * Math.max(0, c || 0);
+    p += unitAtk(u, civId) * Math.max(0, c || 0);
   }
   return p;
 }
@@ -69,16 +44,16 @@ export function totalTroops(troops: Troops): number {
   return Object.values(troops).reduce((s, n) => s + Math.max(0, n || 0), 0);
 }
 
-export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub, attackerResearchMod: number = 0, defenderResearchMod: number = 0, attackerTalentAttackMod: number = 0, defenderTalentAttackMod: number = 0, attackerEquipmentMod: number = 0, defenderEquipmentMod: number = 0): CombatResult {
-  const aPower = Math.max(1, troopPower(attacker.troops));
-  const dPower = Math.max(1, troopPower(defender.troops));
+export function resolveCombat(attacker: CombatSide, defender: CombatSide, zoneId: number = 1, attackerCommander?: CommanderStub, defenderCommander?: CommanderStub, attackerResearchMod: number = 0, defenderResearchMod: number = 0, attackerTalentAttackMod: number = 0, defenderTalentAttackMod: number = 0, attackerEquipmentMod: number = 0, defenderEquipmentMod: number = 0, attackerCiv?: string, defenderCiv?: string): CombatResult {
+  const aPower = Math.max(1, troopPower(attacker.troops, attackerCiv));
+  const dPower = Math.max(1, troopPower(defender.troops, defenderCiv));
 
   // weighted counter average
   let aMult = 1;
   let samples = 0;
   for (const au of Object.keys(attacker.troops)) {
     for (const du of Object.keys(defender.troops)) {
-      aMult += counterMult(au, du);
+      aMult += troopCounterMult(au, du);
       samples++;
     }
   }
