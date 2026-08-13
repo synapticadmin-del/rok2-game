@@ -32,7 +32,23 @@ export type RateLimitAction =
   | "trade_claim"
   // P9-T6: صناديق هدايا التحالف — سقف فتح الصناديق وإنشاء الصناديق الجديدة لكل لاعب.
   | "gift_claim"
-  | "gift_create";
+  | "gift_create"
+  // P10: أوضاع اللعب المتكررة — الحانة + Expedition + Canyon + Osiris + الأحداث الكبرى.
+  | "tavern_state"
+  | "tavern_open"
+  | "tavern_keys"
+  | "expedition_state"
+  | "expedition_attempt"
+  | "expedition_buy"
+  | "canyon_state"
+  | "canyon_challenge"
+  | "canyon_buff"
+  | "canyon_token_buy"
+  | "osiris_register"
+  | "osiris_attack"
+  | "osiris_move"
+  | "mg_score"
+  | "wheel_spin";
 
 const CFG = anticheatData as any;
 
@@ -46,6 +62,22 @@ export const RATE_LIMITS: Record<RateLimitAction, RateLimitRule> = {
   // P9-T6: أفعال جديدة قد لا تكون بعد في data/anticheat.json — حد افتراضي سخي لا يضر اللاعب الشرعي.
   gift_claim: (CFG.rate_limits?.gift_claim as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 500 },
   gift_create: (CFG.rate_limits?.gift_create as RateLimitRule) || { window_ms: 60_000, max_actions: 10, cooldown_ms: 2_000 },
+  // P10: أفعال أوضاع اللعب المتكررة — قراءة من JSON مع fallback افتراضي.
+  tavern_state: (CFG.rate_limits?.tavern_state as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
+  tavern_open: (CFG.rate_limits?.tavern_open as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 1_000 },
+  tavern_keys: (CFG.rate_limits?.tavern_keys as RateLimitRule) || { window_ms: 60_000, max_actions: 10, cooldown_ms: 2_000 },
+  expedition_state: (CFG.rate_limits?.expedition_state as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
+  expedition_attempt: (CFG.rate_limits?.expedition_attempt as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 1_000 },
+  expedition_buy: (CFG.rate_limits?.expedition_buy as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 1_000 },
+  canyon_state: (CFG.rate_limits?.canyon_state as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
+  canyon_challenge: (CFG.rate_limits?.canyon_challenge as RateLimitRule) || { window_ms: 60_000, max_actions: 10, cooldown_ms: 1_000 },
+  canyon_buff: (CFG.rate_limits?.canyon_buff as RateLimitRule) || { window_ms: 60_000, max_actions: 5, cooldown_ms: 3_000 },
+  canyon_token_buy: (CFG.rate_limits?.canyon_token_buy as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 1_000 },
+  osiris_register: (CFG.rate_limits?.osiris_register as RateLimitRule) || { window_ms: 60_000, max_actions: 5, cooldown_ms: 3_000 },
+  osiris_attack: (CFG.rate_limits?.osiris_attack as RateLimitRule) || { window_ms: 60_000, max_actions: 30, cooldown_ms: 1_000 },
+  osiris_move: (CFG.rate_limits?.osiris_move as RateLimitRule) || { window_ms: 60_000, max_actions: 5, cooldown_ms: 3_000 },
+  mg_score: (CFG.rate_limits?.mg_score as RateLimitRule) || { window_ms: 60_000, max_actions: 60, cooldown_ms: 500 },
+  wheel_spin: (CFG.rate_limits?.wheel_spin as RateLimitRule) || { window_ms: 60_000, max_actions: 20, cooldown_ms: 2_000 },
 } as Record<RateLimitAction, RateLimitRule>;
 
 export const ANOMALY_LIMITS = CFG.anomaly as {

@@ -1117,3 +1117,156 @@ struct FRok2KingMarker
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	int64 ExpiresAtMs = 0;
 };
+
+// P10-T6: أوضاع اللعب المتكررة — الحانة، Expedition، Sunset Canyon، Ark of Osiris، الأحداث الكبرى.
+USTRUCT(BlueprintType)
+struct FRok2TavernRoll
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString BoxId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Kind; // common | rare | materials | epic | legendary
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Quantity = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2TavernState
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TMap<FString, int32> Keys;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TArray<FRok2TavernRoll> LastRolls;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 OpensThisHour = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	bool DailyKeyClaimed = false;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2ExpeditionBattleResult
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString StageId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	bool Victory = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Stars = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 DamageTaken = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2ExpeditionState
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TMap<FString, int32> StageStars;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Medals = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 AttemptsToday = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TArray<FRok2ExpeditionBattleResult> RecentResults;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2CanyonChallenge
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString SeasonId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 DaySlot = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Stars = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Score = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2CanyonState
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TArray<FRok2CanyonChallenge> Challenges;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 ActiveBuffs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Tokens = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 VictoryPoints = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString CurrentSeasonId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 SeasonDay = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2OsirisFacility
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 CapturePoints = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int64 HeldUntilMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString OwnerTeam; // red | blue
+};
+
+USTRUCT(BlueprintType)
+struct FRok2OsirisState
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString LeagueId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TArray<FRok2OsirisFacility> Facilities;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 RedPoints = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 BluePoints = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	bool Registered = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int64 NextArkMoveMs = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2WheelSpinResult
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString SlotId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Kind;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 Quantity = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	bool FreeSpin = false;
+};
+
+USTRUCT(BlueprintType)
+struct FRok2EventsState
+{
+	GENERATED_BODY()
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 EventDay = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	FString Phase; // gathering | battle | results
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	bool WheelOpen = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	TArray<FRok2WheelSpinResult> RecentSpins;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P10")
+	int32 MGTotalScore = 0;
+};

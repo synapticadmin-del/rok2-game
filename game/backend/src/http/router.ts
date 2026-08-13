@@ -3505,6 +3505,176 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const bodyRes = await res.json<any>();
       return json(bodyRes, res.status);
     }
+    // =========================================================================
+    // P10: أوضاع اللعب المتكررة — الحانة + Expedition + Canyon + Osiris + الأحداث الكبرى.
+    // endpoints كلها تُوجَّه إلى KingdomShard بنفس نمط P9 (requirePlayer + signed headers).
+    // =========================================================================
+    if (path === "/v1/tavern/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "tavern_state");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/tavern-state?playerId=${encodeURIComponent(player.id)}`, { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/tavern/open" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "tavern_open");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/tavern-open", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, boxId: String(body.boxId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/tavern/keys" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "tavern_keys");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/tavern-add-keys", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, key: String(body.key || "bronze"), count: Number(body.count) || 1 }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/tavern/daily-key" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/tavern-daily-key", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/expedition/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "expedition_state");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/expedition-state?playerId=${encodeURIComponent(player.id)}`, { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/expedition/battle" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "expedition_attempt");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/expedition-battle", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, stageId: String(body.stageId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/expedition/medal-buy" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "expedition_buy");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/expedition-medal-buy", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, itemId: String(body.itemId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_state");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/canyon-state?playerId=${encodeURIComponent(player.id)}`, { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/challenge" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_challenge");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/canyon-challenge-create", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/complete" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_challenge");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/canyon-challenge-complete", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, challengeId: String(body.challengeId || ""), stars: Number(body.stars) || 0 }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/buff" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_buff");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/canyon-buff", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, buffId: String(body.buffId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/token-buy" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_token_buy");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/canyon-token-buy", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, itemId: String(body.itemId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/canyon/season" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "canyon_state");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/canyon-season?playerId=${encodeURIComponent(player.id)}`, { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/osiris/register" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "osiris_register");
+      if (!player.alliance_id) return json({ error: "no_alliance" }, 400);
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (!rank || rank === "R1") return json({ error: "rank_requirement", rank: rank || "none" }, 403);
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/osiris-register", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, sideId: String(body.sideId || player.alliance_id) }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/osiris/attack" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "osiris_attack");
+      if (!player.alliance_id) return json({ error: "no_alliance" }, 400);
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/osiris-attack-facility", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, facilityId: String(body.facilityId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/osiris/move-ark" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "osiris_move");
+      if (!player.alliance_id) return json({ error: "no_alliance" }, 400);
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/osiris-move-ark", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, routeId: String(body.routeId || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/osiris/league-result" && request.method === "POST") {
+      // إداري: إعلان نتيجة الدوري (يُستدعى في نهاية أسبوعي الدوري) — يتحقق من ADMIN_KEY
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/osiris-league-result", { method: "POST", headers: { "X-Admin-Key": env.ADMIN_KEY || "" } });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/events/state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch(`https://do/events-state?playerId=${encodeURIComponent(player.id)}`, { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/events/wheel-window" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/events-wheel-window", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ untilMs: Number(body.untilMs) || 0 }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/events/mg-score" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "mg_score");
+      const body = await request.json<any>();
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/mg-score", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, points: Number(body.points) || 0, phase: String(body.phase || "") }) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/events/mg-leaderboard" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/mg-leaderboard", { method: "GET", headers: shardPlayerHeaders(player.id) });
+      return json(await res.json(), res.status);
+    }
+    if (path === "/v1/events/wheel-spin" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      enforceRateLimit(player.id, "wheel_spin");
+      const stub = kingdomStub(env);
+      const res = await stub.fetch("https://do/wheel-spin", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id }) });
+      return json(await res.json(), res.status);
+    }
     return json({ error: "Not found", path }, 404);
   } catch (err: any) {
     if (err instanceof HttpError) {

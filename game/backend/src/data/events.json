@@ -5,7 +5,17 @@
     "barb_respawn_ms": 300000,
     "node_respawn_ms": 600000,
     "max_extra_spawn_per_region": 3,
-    "barb_base_level": 2
+    "barb_base_level": 2,
+    "mightiest_governor_phases": [
+      "power_growth",
+      "kill_events",
+      "building",
+      "research",
+      "march_training",
+      "final_battle"
+    ],
+    "wheel_interval_days": 14,
+    "wheel_cosmic_cycle_days": 56
   },
   "events": [
     {
@@ -48,6 +58,161 @@
         "pvp_kill_score": 10
       },
       "notify": "حمى الحرب الأسبوعية! هجوم وسرعة مسير أعلى — نقاط مضاعفة على قتال اللاعبين."
+    },
+    {
+      "id": "mightiest_governor",
+      "name": "الحاكم الأقوى",
+      "kind": "mightiest_governor",
+      "recurrence": "season_event",
+      "duration_ticks": 518400,
+      "buffs": {
+        "mightiest_active": true
+      },
+      "notify": "بدء حدث الحاكم الأقوى — ستة أيام وستة مراحل للتصنيف!"
+    },
+    {
+      "id": "wheel_of_fortune",
+      "name": "عجلة الحظ",
+      "kind": "wheel_of_fortune",
+      "recurrence": "biweekly",
+      "duration_ticks": 259200,
+      "buffs": {
+        "wheel_open": true
+      },
+      "notify": "عجلة الحظ مفتوحة الآن لمدة ثلاثة أيام!"
     }
-  ]
+  ],
+  "majorEvents": {
+    "mightiestGovernor": {
+      "id": "mightiest_governor",
+      "name": "الحاكم الأقوى",
+      "durationDays": 6,
+      "phases": [
+        "power_growth",
+        "kill_events",
+        "building",
+        "research",
+        "march_training",
+        "final_battle"
+      ],
+      "pointsPerUnit": {
+        "power_growth": 1,
+        "kill_events": 5,
+        "building": 1,
+        "research": 1,
+        "march_training": 1,
+        "final_battle": 10
+      },
+      "scoreWindowMs": 86400000,
+      "leaderboardSize": 200,
+      "rewards": [
+        {
+          "rankCeil": 1,
+          "title": "الحاكم الأقوى",
+          "gems": 15000,
+          "sculptureShards": 5000,
+          "speedups": {
+            "8h": 5
+          }
+        },
+        {
+          "rankCeil": 5,
+          "title": "نجم الحاكم",
+          "gems": 5000,
+          "sculptureShards": 1500,
+          "speedups": {
+            "4h": 3
+          }
+        },
+        {
+          "rankCeil": 50,
+          "title": "طموح الحاكم",
+          "gems": 1000,
+          "sculptureShards": 400,
+          "speedups": {
+            "1h": 5
+          }
+        },
+        {
+          "rankCeil": 200,
+          "title": "محارب الحدث",
+          "gems": 300,
+          "sculptureShards": 100,
+          "speedups": {
+            "30m": 10
+          }
+        }
+      ]
+    },
+    "wheelOfFortune": {
+      "id": "wheel_of_fortune",
+      "name": "عجلة الحظ",
+      "intervalDays": 14,
+      "cosmicCycleDays": 56,
+      "spins": {
+        "maxPerDay": 10, "costPerSpinGems": 200,
+        "freeSpinAfterSpins": 10
+      },
+      "slots": [
+        {
+          "id": "gems_small",
+          "name": "50 جوهرة",
+          "pct": 30,
+          "reward": {
+            "gems": 50
+          }
+        },
+        {
+          "id": "speedup_1h",
+          "name": "تسريع ساعة",
+          "pct": 25,
+          "reward": {
+            "speedups": {
+              "1h": 1
+            }
+          }
+        },
+        {
+          "id": "sculpture_100",
+          "name": "100 شظايا منحوتة",
+          "pct": 18,
+          "reward": {
+            "sculptureShards": 100
+          }
+        },
+        {
+          "id": "resources",
+          "name": "حزمة موارد",
+          "pct": 15,
+          "reward": {
+            "resources": 50000
+          }
+        },
+        {
+          "id": "materials",
+          "name": "500 مواد",
+          "pct": 8,
+          "reward": {
+            "materials": 500
+          }
+        },
+        {
+          "id": "gems_large",
+          "name": "500 جوهرة",
+          "pct": 3,
+          "reward": {
+            "gems": 500
+          }
+        },
+        {
+          "id": "legendary_commander",
+          "name": "قائد أسطوري",
+          "pct": 1,
+          "reward": {
+            "commanderShards": 30
+          }
+        }
+      ]
+    }
+  }
 }

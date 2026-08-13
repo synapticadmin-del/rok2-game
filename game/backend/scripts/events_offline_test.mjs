@@ -51,13 +51,19 @@ const barbLevelBonus = (d, t) => eventBuff(d, t, "barb_level_bonus", true);
 // ---- 1. shape ----
 assert(DATA.constants && typeof DATA.constants.barb_respawn_ms === "number", "constants.barb_respawn_ms present");
 assert(typeof C.maxExtraSpawnPerRegion === "number" && C.maxExtraSpawnPerRegion > 0, `max extra spawn/region (${C.maxExtraSpawnPerRegion})`);
-assert(EVENTS.length === 3, `3 events defined (got ${EVENTS.length})`);
+// P10-T5: events.json يحتوي أيضًا mightiest_governor و wheel_of_fortune ضمن majorEvents،
+// لكن مصفوفة EVENTS التي يقرأها هذا الحارس تشمل الأحداث القابلة للتكرار فقط — نسمح بكلٍّ منها.
+const EXPECTED_KINDS = ["barbarians", "mightiest_governor", "resource_rush", "war_fever", "wheel_of_fortune"];
+assert(EVENTS.length >= 3 && EVENTS.length <= 5, `${EVENTS.length} events defined (3–5 مقبول مع P10 majorEvents)`);
 const kinds = EVENTS.map((e) => e.kind).sort();
-assert(JSON.stringify(kinds) === JSON.stringify(["barbarians", "resource_rush", "war_fever"]), `event kinds barbarians/resource_rush/war_fever (${kinds})`);
+assert(JSON.stringify(kinds) === JSON.stringify(EXPECTED_KINDS), `event kinds (${kinds})`);
 const barb = EVENTS.find((e) => e.id === "barbarian_horde");
 const rush = EVENTS.find((e) => e.id === "resource_rush");
 const war = EVENTS.find((e) => e.id === "war_fever");
 assert(barb && rush && war, "all three events present by id");
+const mg = EVENTS.find((e) => e.id === "mightiest_governor");
+const wf = EVENTS.find((e) => e.id === "wheel_of_fortune");
+assert(mg && wf, "P10-T5 majorEvents present by id");
 
 // ---- 2. recurrence ----
 assert(barb.recurrence === "daily" && rush.recurrence === "daily", "barbarians + resource_rush are daily");

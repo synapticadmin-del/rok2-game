@@ -3065,3 +3065,359 @@ void URok2Api::ParseAllianceGifts(const TSharedPtr<FJsonObject>& Obj)
 	}
 	OnAllianceGiftsUpdated.Broadcast(AllianceGifts);
 }
+
+// ---------- P10-T6: أوضاع اللعب المتكررة (الحانة / Expedition / Canyon / Osiris / أحداث كبرى) ---
+// P10-T6: الحانة — GET /v1/tavern/state + POST /v1/tavern/open
+void URok2Api::FetchTavernState()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("v1/tavern/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseTavernState(Obj);
+	});
+}
+void URok2Api::OpenTavernBox(const FString& BoxId)
+{
+	FString Body = FString::Printf(TEXT("{"boxId":"%s"}"), *BoxId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/tavern/open"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseTavernState(Obj);
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("فتحت فتحة في حانة القادة"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ParseTavernState(const TSharedPtr<FJsonObject>& Obj)
+{
+	TavernState = FRok2TavernState();
+	TavernState.Keys.Reset();
+	const TSharedPtr<FJsonObject>* KeysObj;
+	if (Obj->TryGetObjectField(TEXT("keys"), KeysObj) && (*KeysObj)->IsValid())
+	{
+		TArray<FString> Names;
+		(*KeysObj)->Values.GetKeys(Names);
+		for (const FString& N : Names)
+		{
+			double V = 0.0;
+			if ((*KeysObj)->TryGetNumberField(N, V)) TavernState.Keys.Add(N, (int32)V);
+		}
+	}
+	TavernState.LastRolls.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Rolls;
+	if (Obj->TryGetArrayField(TEXT("lastRolls"), Rolls) && Rolls)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Rolls)
+		{
+			const TSharedPtr<FJsonObject>* J;
+			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			FRok2TavernRoll R;
+			R.BoxId = Rok2Json::Str(**J, TEXT("boxId"));
+			R.Kind = Rok2Json::Str(**J, TEXT("kind"));
+			R.Quantity = (int32)Rok2Json::Num(**J, TEXT("quantity"));
+			TavernState.LastRolls.Add(R);
+		}
+	}
+	TavernState.OpensThisHour = (int32)Rok2Json::Num(*Obj, TEXT("opensThisHour"));
+	TavernState.DailyKeyClaimed = Rok2Json::Bool(*Obj, TEXT("dailyKeyClaimed"));
+	OnTavernUpdated.Broadcast(TavernState);
+}
+
+// P10-T6: Expedition — GET /v1/expedition/state + POST /v1/expedition/battle
+void URok2Api::FetchExpeditionState()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("v1/expedition/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseExpeditionState(Obj);
+	});
+}
+void URok2Api::AttemptExpeditionBattle(const FString& StageId, const TArray<int32>& TroopCounts)
+{
+	FString Counts;
+	for (int32 C : TroopCounts)
+	{
+		if (!Counts.IsEmpty()) Counts += TEXT(",");
+		Counts += FString::Printf(TEXT("%d"), C);
+	}
+	FString Body = FString::Printf(TEXT("{"stageId":"%s","troopCounts":[%s]}"), *StageId, *Counts);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/expedition/battle"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseExpeditionState(Obj);
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("خضت معركة Expedition"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ParseExpeditionState(const TSharedPtr<FJsonObject>& Obj)
+{
+	ExpeditionState = FRok2ExpeditionState();
+	ExpeditionState.StageStars.Reset();
+	const TSharedPtr<FJsonObject>* StarsObj;
+	if (Obj->TryGetObjectField(TEXT("stageStars"), StarsObj) && (*StarsObj)->IsValid())
+	{
+		TArray<FString> Names;
+		(*StarsObj)->Values.GetKeys(Names);
+		for (const FString& N : Names)
+		{
+			double V = 0.0;
+			if ((*StarsObj)->TryGetNumberField(N, V)) ExpeditionState.StageStars.Add(N, (int32)V);
+		}
+	}
+	ExpeditionState.Medals = (int32)Rok2Json::Num(*Obj, TEXT("medals"));
+	ExpeditionState.AttemptsToday = (int32)Rok2Json::Num(*Obj, TEXT("attemptsToday"));
+	ExpeditionState.RecentResults.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Results;
+	if (Obj->TryGetArrayField(TEXT("recentResults"), Results) && Results)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Results)
+		{
+			const TSharedPtr<FJsonObject>* J;
+			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			FRok2ExpeditionBattleResult R;
+			R.StageId = Rok2Json::Str(**J, TEXT("stageId"));
+			R.Victory = Rok2Json::Bool(**J, TEXT("victory"));
+			R.Stars = (int32)Rok2Json::Num(**J, TEXT("stars"));
+			R.DamageTaken = (int32)Rok2Json::Num(**J, TEXT("damageTaken"));
+			ExpeditionState.RecentResults.Add(R);
+		}
+	}
+	OnExpeditionUpdated.Broadcast(ExpeditionState);
+}
+
+// P10-T6: Sunset Canyon — GET/POST /v1/canyon/*
+void URok2Api::FetchCanyonState()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("v1/canyon/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseCanyonState(Obj);
+	});
+}
+void URok2Api::CreateCanyonChallenge()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/canyon/challenge"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchCanyonState();
+		WeakThis->EmitToast(TEXT("بدأت تحدي Sunset Canyon"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::CompleteCanyonChallenge(const FString& ChallengeId, int32 Stars)
+{
+	FString Body = FString::Printf(TEXT("{"challengeId":"%s","stars":%d}"), *ChallengeId, Stars);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/canyon/complete"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchCanyonState();
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("أكملت تحدي Sunset Canyon"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ActivateCanyonBuff(const FString& BuffId)
+{
+	FString Body = FString::Printf(TEXT("{"buffId":"%s"}"), *BuffId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/canyon/buff"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchCanyonState();
+		WeakThis->EmitToast(TEXT("فعّلت مؤثر Canyon"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ParseCanyonState(const TSharedPtr<FJsonObject>& Obj)
+{
+	CanyonState = FRok2CanyonState();
+	CanyonState.Challenges.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Challenges;
+	if (Obj->TryGetArrayField(TEXT("challenges"), Challenges) && Challenges)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Challenges)
+		{
+			const TSharedPtr<FJsonObject>* J;
+			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			FRok2CanyonChallenge C;
+			C.Id = Rok2Json::Str(**J, TEXT("id"));
+			C.SeasonId = Rok2Json::Str(**J, TEXT("seasonId"));
+			C.DaySlot = (int32)Rok2Json::Num(**J, TEXT("daySlot"));
+			C.Stars = (int32)Rok2Json::Num(**J, TEXT("stars"));
+			C.Score = (int32)Rok2Json::Num(**J, TEXT("score"));
+			CanyonState.Challenges.Add(C);
+		}
+	}
+	CanyonState.ActiveBuffs = (int32)Rok2Json::Num(*Obj, TEXT("activeBuffs"));
+	CanyonState.Tokens = (int32)Rok2Json::Num(*Obj, TEXT("tokens"));
+	CanyonState.VictoryPoints = (int32)Rok2Json::Num(*Obj, TEXT("victoryPoints"));
+	CanyonState.CurrentSeasonId = Rok2Json::Str(*Obj, TEXT("currentSeasonId"));
+	CanyonState.SeasonDay = (int32)Rok2Json::Num(*Obj, TEXT("seasonDay"));
+	OnCanyonUpdated.Broadcast(CanyonState);
+}
+
+// P10-T6: Ark of Osiris — GET /v1/osiris/state + POST *
+void URok2Api::FetchOsirisState()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("v1/osiris/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseOsirisState(Obj);
+	});
+}
+void URok2Api::RegisterOsiris(const FString& Team)
+{
+	FString Body = FString::Printf(TEXT("{"team":"%s"}"), *Team);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/osiris/register"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchOsirisState();
+		WeakThis->EmitToast(TEXT("سُجلت في Ark of Osiris"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::AttackOsirisFacility(const FString& FacilityId)
+{
+	FString Body = FString::Printf(TEXT("{"facilityId":"%s"}"), *FacilityId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/osiris/attack"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchOsirisState();
+		WeakThis->EmitToast(TEXT("هاجمت منشأة في Ark of Osiris"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::MoveOsirisArk(const FString& FacilityId)
+{
+	FString Body = FString::Printf(TEXT("{"facilityId":"%s"}"), *FacilityId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/osiris/move-ark"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchOsirisState();
+		WeakThis->EmitToast(TEXT("حرّكت سفينة Osiris"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ParseOsirisState(const TSharedPtr<FJsonObject>& Obj)
+{
+	OsirisState = FRok2OsirisState();
+	OsirisState.LeagueId = Rok2Json::Str(*Obj, TEXT("leagueId"));
+	OsirisState.Facilities.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Facilities;
+	if (Obj->TryGetArrayField(TEXT("facilities"), Facilities) && Facilities)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Facilities)
+		{
+			const TSharedPtr<FJsonObject>* J;
+			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			FRok2OsirisFacility F;
+			F.Id = Rok2Json::Str(**J, TEXT("id"));
+			F.Name = Rok2Json::Str(**J, TEXT("name"));
+			F.CapturePoints = (int32)Rok2Json::Num(**J, TEXT("capturePoints"));
+			F.HeldUntilMs = (int64)Rok2Json::Num(**J, TEXT("heldUntilMs"));
+			F.OwnerTeam = Rok2Json::Str(**J, TEXT("ownerTeam"));
+			OsirisState.Facilities.Add(F);
+		}
+	}
+	OsirisState.RedPoints = (int32)Rok2Json::Num(*Obj, TEXT("redPoints"));
+	OsirisState.BluePoints = (int32)Rok2Json::Num(*Obj, TEXT("bluePoints"));
+	OsirisState.Registered = Rok2Json::Bool(*Obj, TEXT("registered"));
+	OsirisState.NextArkMoveMs = (int64)Rok2Json::Num(*Obj, TEXT("nextArkMoveMs"));
+	OnOsirisUpdated.Broadcast(OsirisState);
+}
+
+// P10-T6: الأحداث الكبرى — Mightiest Governor + Wheel of Fortune
+void URok2Api::FetchEventsState()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("v1/events/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseEventsState(Obj);
+	});
+}
+void URok2Api::SpinWheel()
+{
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/events/wheel-spin"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseEventsState(Obj);
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("درت عجلة الحظ"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::SubmitMGScore(double Points)
+{
+	FString Body = FString::Printf(TEXT("{"points":%.0f}"), Points);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/events/mg-score"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseEventsState(Obj);
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+void URok2Api::ParseEventsState(const TSharedPtr<FJsonObject>& Obj)
+{
+	EventsState = FRok2EventsState();
+	EventsState.EventDay = (int32)Rok2Json::Num(*Obj, TEXT("eventDay"));
+	EventsState.Phase = Rok2Json::Str(*Obj, TEXT("phase"));
+	EventsState.WheelOpen = Rok2Json::Bool(*Obj, TEXT("wheelOpen"));
+	EventsState.RecentSpins.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Spins;
+	if (Obj->TryGetArrayField(TEXT("recentSpins"), Spins) && Spins)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *Spins)
+		{
+			const TSharedPtr<FJsonObject>* J;
+			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			FRok2WheelSpinResult R;
+			R.SlotId = Rok2Json::Str(**J, TEXT("slotId"));
+			R.Kind = Rok2Json::Str(**J, TEXT("kind"));
+			R.Quantity = (int32)Rok2Json::Num(**J, TEXT("quantity"));
+			R.FreeSpin = Rok2Json::Bool(**J, TEXT("freeSpin"));
+			EventsState.RecentSpins.Add(R);
+		}
+	}
+	EventsState.MGTotalScore = (int32)Rok2Json::Num(*Obj, TEXT("mgTotalScore"));
+	OnEventsUpdated.Broadcast(EventsState);
+}

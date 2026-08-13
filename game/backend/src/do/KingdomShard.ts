@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env, Troops } from "../env";
-import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, type MapPass, type MapRegion } from "../lib/gameData";
+import { getMap, getChatConfig, getAllianceStructures, getAllianceGiftsSpec, getTavernJson, getExpeditionJson, getCanyonJson, getOsirisJson, getEventsJson, unitPower, type MapPass, type MapRegion } from "../lib/gameData";
 import { newId, nowMs, dist, dayString } from "../lib/ids";
 import opsData from "../data/ops.json";
 
@@ -12,6 +12,13 @@ const OPS_CONSTANTS = {
   commandAlertThreshold: (opsData as any).constants.command_alert_threshold as number,
   errorLogLimit: (opsData as any).constants.error_log_limit as number,
 };
+
+import { MS_PER_DAY, MS_PER_HOUR } from "../lib/timeConstants";
+const tavernJson = getTavernJson();
+const expeditionJson = getExpeditionJson();
+const canyonJson = getCanyonJson();
+const osirisJson = getOsirisJson();
+const eventsJson = getEventsJson();
 
 // P9-T1: نافذة تبرع واحدة بالملّي ثانية (من alliance_tech.json)
 const ALLIANCE_TECH_WINDOW_MS = ALLIANCE_TECH_CFG.window_seconds * 1000;
@@ -136,6 +143,54 @@ import {
   type AllianceGiftsSpec,
   type AllianceGift,
 } from "./sim/alliance_gifts";
+// P10: أوضاع اللعب المتكررة — منطق نقي يُقرأ من data/*.json
+import {
+  rollBox,
+  spendKey,
+  addKeys,
+  checkEpicRate,
+  dailyFreeKey,
+  type TavernSpec,
+  type TavernState,
+} from "./sim/tavern";
+import {
+  runBattle,
+  canAttempt,
+  recordStars,
+  buyMedalItem,
+  type ExpeditionSpec,
+  type ExpeditionState,
+} from "./sim/expedition";
+import {
+  createChallenge,
+  completeChallenge,
+  activateBuff,
+  seasonReward,
+  buyTokenItem,
+  seasonIdForSeasonDay,
+  type CanyonSpec,
+  type CanyonState,
+} from "./sim/canyon";
+import {
+  canRegister,
+  attackFacility,
+  moveArk,
+  leagueResult,
+  leagueRewards,
+  type OsirisSpec,
+  type OsirisSide,
+} from "./sim/osiris";
+import {
+  addMGScore,
+  spinWheel,
+  mgReward,
+  mgLeaderboard,
+  currentPhase,
+  type MGSpec,
+  type MGScoreState,
+  type WheelSpec,
+  type WheelState,
+} from "./sim/major_events";
 import {
   isRegionUnlocked,
   isThroneUnlocked,
@@ -434,6 +489,24 @@ export class KingdomShard extends DurableObject<Env> {
   private playerVipLevels = new Map<string, number>();
   // P9-T5: Trading Post — أسعار السوق الحالية للموارد (قراءة من trading_prices)
   private tradingPrices = new Map<string, { price: number; day: number; demand: number; supply: number; updatedMs: number }>();
+  // P10-T1: الحانة — مفاتيح وسجل فتوحات لكل لاعب (anti-cheat إحصائي على نسبة rare/epic)
+  private tavernStates = new Map<string, TavernState>();
+  // P10-T2: Expedition — مراحل حملة PvE لكل لاعب
+  private expeditionStates = new Map<string, ExpeditionState>();
+  // P10-T3: Sunset Canyon — تحديات 5×5 وبافات ونقاط لكل لاعب
+  private canyonStates = new Map<string, CanyonState>();
+  // P10-T4: Ark of Osiris — دوري تحالف ضد تحالف (يُدار مركزيًا على الشارد)
+  private osirisSides: OsirisSide[] = [];
+  private osirisLeagueActive = false;
+  private osirisSeasonStartMs = 0;
+  // P10-T5: الأحداث الكبرى — نقاط الحاكم الأقوى لكل لاعب + حالة عجلة الحظ
+  private mgScores = new Map<string, MGScoreState>();
+  private wheelStates = new Map<string, WheelState>();
+  private mgEventStartMs = 0;
+  // P10-T5: نهاية نافذة عجلة الحظ (ملّي ثانية) — تُضبط من الراوتر أو عبر reset
+  private wheelWindowUntilMs = 0;
+  // P10-T4: آخر نقل فلك Osiris (ملّي ثانية) — للحد الزمني بين النقلات
+  private lastOsirisMoveAtMs = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -786,6 +859,73 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (16)");
     }
+    if (ver < 17) {
+      // P10: أوضاع اللعب المتكررة — الحانة/Expedition/Canyon/Osiris/الأحداث الكبرى.
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS tavern_state (
+          player_id TEXT NOT NULL,
+          keys_json TEXT NOT NULL DEFAULT '{}',
+          history_json TEXT NOT NULL DEFAULT '[]',
+          PRIMARY KEY (player_id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS expedition_state (
+          player_id TEXT NOT NULL,
+          stars_json TEXT NOT NULL DEFAULT '{}',
+          attempts_today INTEGER NOT NULL DEFAULT 0,
+          purchases_json TEXT NOT NULL DEFAULT '{}',
+          free_commander INTEGER NOT NULL DEFAULT 0,
+          reset_hour_key TEXT NOT NULL DEFAULT '',
+          medals INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (player_id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS canyon_state (
+          player_id TEXT NOT NULL,
+          challenges_json TEXT NOT NULL DEFAULT '[]',
+          buffs_json TEXT NOT NULL DEFAULT '[]',
+          tokens INTEGER NOT NULL DEFAULT 0,
+          victory_points INTEGER NOT NULL DEFAULT 0,
+          season_id TEXT NOT NULL DEFAULT '',
+          season_day INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (player_id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS osiris_league (
+          alliance_id TEXT NOT NULL,
+          side_index INTEGER NOT NULL DEFAULT 0,
+          registered_json TEXT NOT NULL DEFAULT '[]',
+          points INTEGER NOT NULL DEFAULT 0,
+          facility_hours_json TEXT NOT NULL DEFAULT '{}',
+          ark_route_id TEXT,
+          ark_checkpoint INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (alliance_id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS mg_scores (
+          player_id TEXT NOT NULL,
+          scores_json TEXT NOT NULL DEFAULT '{}',
+          total INTEGER NOT NULL DEFAULT 0,
+          phase TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (player_id)
+        )
+      `);
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS wheel_state (
+          player_id TEXT NOT NULL,
+          spins_today INTEGER NOT NULL DEFAULT 0,
+          paid_since_free INTEGER NOT NULL DEFAULT 0,
+          total_spins INTEGER NOT NULL DEFAULT 0,
+          reset_day_key TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (player_id)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (17)");
+    }
     if (ver < 15) {
       // P9-T5: Trading Post — عروض السوق المفتوحة + أسعار ديناميكية حسب العرض والطلب.
       this.ctx.storage.sql.exec(`
@@ -957,6 +1097,8 @@ export class KingdomShard extends DurableObject<Env> {
     this.loadTradingState();
     // P9-T6: صناديق هدايا التحالف النشطة لكل تحالف
     this.loadAllianceGifts();
+    // P10: أوضاع اللعب المتكررة — حالات محلية لكل لاعب + الدوري النشط
+    this.loadP10State();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -1357,6 +1499,170 @@ export class KingdomShard extends DurableObject<Env> {
     this.allianceGifts.set(opts.allianceId, list);
     this.broadcast({ type: "alliance_gift_created", allianceId: opts.allianceId, giftId: row.id, giftTypeId: row.giftTypeId });
     return { ok: true, gift: row };
+  }
+
+  // ---------------------------------------------------------------------------
+  // P10: أوضاع اللعب المتكررة — تهيئة + تحميل + ثوابت JSON.
+  // ---------------------------------------------------------------------------
+  // P10: حالة افتراضية جديدة للاعب + مفاتيح زمنية للـ reset (تُستخدم في كل handlers).
+  private defaultExpeditionState(): ExpeditionState {
+    return { bestStars: {}, attemptsToday: 0, purchasesToday: {}, freeCommanderGranted: false, resetHourKey: this.expeditionResetHourKey(), medals: 0 };
+  }
+  private defaultCanyonState(nowMs: number): CanyonState {
+    const spec = this.canyonSpec();
+    const start = this.seasonStartMs || nowMs;
+    return {
+      challenges: [],
+      activeBuffs: [],
+      tokens: 0,
+      victoryPoints: 0,
+      currentSeasonId: seasonIdForSeasonDay(spec, start, nowMs),
+      seasonDay: Math.min(spec.season.durationDays, Math.max(1, Math.floor((nowMs - start) / MS_PER_DAY) + 1)),
+    };
+  }
+  private expeditionResetHourKey(): string {
+    const hour = Math.floor(nowMs() / MS_PER_HOUR) % 24;
+    const bucket = [0, 6, 12, 18].find(h => hour >= h && hour < h + 6) ?? 0;
+    return `${dayString(nowMs())}_h${bucket}`;
+  }
+  // P10: قوة اللاعب من وحداته المنزلية (سلطوي من D1) — تقدير القوة للقتال والمهام
+  private async playerPowerFromDb(playerId: string): Promise<number | null> {
+    try {
+      const rows = await this.env.DB.prepare(
+        "SELECT unit_id, count FROM troops WHERE player_id = ? AND status = 'home' AND count > 0",
+      ).bind(playerId).all<{ unit_id: string; count: number }>();
+      if (!Array.isArray(rows.results) || rows.results.length === 0) return null;
+      let power = 0;
+      for (const row of rows.results) power += unitPower(row.unit_id) * (Number(row.count) || 0);
+      return power;
+    } catch { return null; }
+  }
+  // P10: قوة التحالف = مجموع قوة مدنه (تقدير من المدن الحية × قوتها الأساسية)
+  private alliancePower(allianceId: string): number {
+    let power = 0;
+    for (const c of this.cities.values()) {
+      if (c.allianceId !== allianceId) continue;
+      power += 1000 * c.hallLevel; // تقدير سلطوي بسيط: مستوى القاعة × 1000 (بدون وحدات في الذاكرة)
+    }
+    return Math.max(1, power);
+  }
+  private tavernSpec(): TavernSpec { return (tavernJson as unknown) as TavernSpec; }
+  private expeditionSpec(): ExpeditionSpec { return (expeditionJson as unknown) as ExpeditionSpec; }
+  private canyonSpec(): CanyonSpec { return (canyonJson as unknown) as CanyonSpec; }
+  private osirisSpec(): OsirisSpec { return (osirisJson as unknown) as OsirisSpec; }
+  private mgSpec(): MGSpec { return ((eventsJson as unknown) as { mightiestGovernor: MGSpec }).mightiestGovernor; }
+  private wheelSpec(): WheelSpec { return ((eventsJson as unknown) as { wheelOfFortune: WheelSpec }).wheelOfFortune; }
+
+  private loadP10State() {
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM tavern_state").toArray()) {
+      this.tavernStates.set(row.player_id, {
+        keys: this.safeJsonParse<Record<string, number>>(row.keys_json, {}),
+        openedHistory: this.safeJsonParse<{ boxId: string; kind: string; atMs: number }[]>(row.history_json, []),
+      });
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM expedition_state").toArray()) {
+      this.expeditionStates.set(row.player_id, {
+        bestStars: this.safeJsonParse<Record<string, number>>(row.stars_json, {}),
+        attemptsToday: Number(row.attempts_today) || 0,
+        purchasesToday: this.safeJsonParse<Record<string, number>>(row.purchases_json, {}),
+        freeCommanderGranted: Number(row.free_commander) === 1,
+        resetHourKey: row.reset_hour_key || "",
+        medals: Number(row.medals) || 0,
+      });
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM canyon_state").toArray()) {
+      this.canyonStates.set(row.player_id, {
+        challenges: this.safeJsonParse<any[]>(row.challenges_json, []),
+        activeBuffs: this.safeJsonParse<any[]>(row.buffs_json, []),
+        tokens: Number(row.tokens) || 0,
+        victoryPoints: Number(row.victory_points) || 0,
+        currentSeasonId: row.season_id || "",
+        seasonDay: Number(row.season_day) || 0,
+      });
+    }
+    this.osirisSides = [];
+    this.osirisLeagueActive = false;
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM osiris_league").toArray()) {
+      if (Number(row.points) > 0 || (this.safeJsonParse<string[]>(row.registered_json, []).length > 0)) this.osirisLeagueActive = true;
+      this.osirisSides.push({
+        allianceId: row.alliance_id,
+        registered: this.safeJsonParse<string[]>(row.registered_json, []),
+        points: Number(row.points) || 0,
+        facilityHours: this.safeJsonParse<Record<string, number>>(row.facility_hours_json, {}),
+        arkRouteId: row.ark_route_id || null,
+        arkCheckpoint: Number(row.ark_checkpoint) || 0,
+      });
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM mg_scores").toArray()) {
+      this.mgScores.set(row.player_id, {
+        phaseScores: this.safeJsonParse<Record<string, number>>(row.scores_json, {}),
+        total: Number(row.total) || 0,
+        phase: row.phase || "",
+      });
+    }
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM wheel_state").toArray()) {
+      this.wheelStates.set(row.player_id, {
+        spinsToday: Number(row.spins_today) || 0,
+        paidSpinsSinceFree: Number(row.paid_since_free) || 0,
+        totalSpins: Number(row.total_spins) || 0,
+        resetDayKey: row.reset_day_key || "",
+      });
+    }
+  }
+
+  private persistTavern(playerId: string) {
+    const s = this.tavernStates.get(playerId);
+    if (!s) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO tavern_state (player_id, keys_json, history_json) VALUES (?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET keys_json=excluded.keys_json, history_json=excluded.history_json`,
+      [playerId, JSON.stringify(s.keys), JSON.stringify(s.openedHistory)],
+    );
+  }
+  private persistExpedition(playerId: string, medals: number) {
+    const s = this.expeditionStates.get(playerId);
+    if (!s) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO expedition_state (player_id, stars_json, attempts_today, purchases_json, free_commander, reset_hour_key, medals) VALUES (?, ?, ?, ?, ?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET stars_json=excluded.stars_json, attempts_today=excluded.attempts_today, purchases_json=excluded.purchases_json, free_commander=excluded.free_commander, reset_hour_key=excluded.reset_hour_key, medals=excluded.medals`,
+      [playerId, JSON.stringify(s.bestStars), s.attemptsToday, JSON.stringify(s.purchasesToday), s.freeCommanderGranted ? 1 : 0, s.resetHourKey, medals],
+    );
+  }
+  private persistCanyon(playerId: string) {
+    const s = this.canyonStates.get(playerId);
+    if (!s) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO canyon_state (player_id, challenges_json, buffs_json, tokens, victory_points, season_id, season_day) VALUES (?, ?, ?, ?, ?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET challenges_json=excluded.challenges_json, buffs_json=excluded.buffs_json, tokens=excluded.tokens, victory_points=excluded.victory_points, season_id=excluded.season_id, season_day=excluded.season_day`,
+      [playerId, JSON.stringify(s.challenges), JSON.stringify(s.activeBuffs), s.tokens, s.victoryPoints, s.currentSeasonId, s.seasonDay],
+    );
+  }
+  private persistOsiris() {
+    for (const side of this.osirisSides) {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO osiris_league (alliance_id, side_index, registered_json, points, facility_hours_json, ark_route_id, ark_checkpoint) VALUES (?, 0, ?, ?, ?, ?, ?) ` +
+        `ON CONFLICT(alliance_id) DO UPDATE SET registered_json=excluded.registered_json, points=excluded.points, facility_hours_json=excluded.facility_hours_json, ark_route_id=excluded.ark_route_id, ark_checkpoint=excluded.ark_checkpoint`,
+        [side.allianceId, JSON.stringify(side.registered), side.points, JSON.stringify(side.facilityHours), side.arkRouteId, side.arkCheckpoint],
+      );
+    }
+  }
+  private persistMgScores(playerId: string) {
+    const s = this.mgScores.get(playerId);
+    if (!s) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO mg_scores (player_id, scores_json, total, phase) VALUES (?, ?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET scores_json=excluded.scores_json, total=excluded.total, phase=excluded.phase`,
+      [playerId, JSON.stringify(s.phaseScores), s.total, s.phase],
+    );
+  }
+  private persistWheel(playerId: string) {
+    const s = this.wheelStates.get(playerId);
+    if (!s) return;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO wheel_state (player_id, spins_today, paid_since_free, total_spins, reset_day_key) VALUES (?, ?, ?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET spins_today=excluded.spins_today, paid_since_free=excluded.paid_since_free, total_spins=excluded.total_spins, reset_day_key=excluded.reset_day_key`,
+      [playerId, s.spinsToday, s.paidSpinsSinceFree, s.totalSpins, s.resetDayKey],
+    );
   }
 
   // P9-T5: سعر مورد حالي — مهيأ من JSON عند أول طلب إن لم يُسجّل بعد
@@ -4291,6 +4597,391 @@ export class KingdomShard extends DurableObject<Env> {
       this.persistAllianceGift(gift);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO alliance_gift_claims (player_id, day, gift_id, reward_json, created_ms) VALUES (?, ?, ?, ?, ?)", [playerId, dayKey, giftId, JSON.stringify(claim.reward), now]);
       return Response.json({ ok: true, reward: claim.reward, opened: claim.opened, slotsRemaining: giftOpenSlotsRemaining(gift, memberIds.length) });
+    }
+    // =========================================================================
+    // P10: أوضاع اللعب المتكررة — الحانة + Expedition + Canyon + Osiris + الأحداث الكبرى.
+    // المنح السلطوية تتم عبر D1 (UPDATE cities/INSERT player_inventory) لأن CityEntity في الذاكرة
+    // لا يحوي حقول موارد ولا gems — نفس نمط gather (UPDATE cities SET food=food+?).
+    // =========================================================================
+    // P10-T1: حالة الحانة للاعب (مفاتيح + سجل) — GET tavern-state
+    if (path.endsWith("/tavern-state") && request.method === "GET") {
+      const url = new URL(request.url);
+      const playerId = url.searchParams.get("playerId") || "";
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
+      const antiCheat = checkEpicRate(state, this.tavernSpec());
+      return Response.json({ ok: true, keys: state.keys, historyCount: state.openedHistory.length, antiCheat });
+    }
+    // P10-T1: فتح صندوق في الحانة — POST tavern-open (خصم مفتاح + 4 رميات مرجحة + سجل + حفظ)
+    if (path.endsWith("/tavern-open") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const boxId = String(body.boxId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
+      const keyResult = spendKey(state, this.tavernSpec(), boxId);
+      if (keyResult.error) return Response.json({ error: keyResult.error }, { status: 400 });
+      state = keyResult.newState;
+      const opensThisHour = state.openedHistory.filter(h => nowMs() - h.atMs <= MS_PER_HOUR).length;
+      const rollResult = rollBox(this.tavernSpec(), boxId, this.pseudoRandom.bind(this), opensThisHour);
+      if (rollResult.error) return Response.json({ error: rollResult.error }, { status: 429 });
+      const now = nowMs();
+      for (const roll of rollResult.rolls) state.openedHistory.push({ boxId, kind: roll.kind, atMs: now });
+      this.tavernStates.set(playerId, state);
+      this.persistTavern(playerId);
+      const antiCheat = checkEpicRate(state, this.tavernSpec());
+      if (!antiCheat.withinLimits) this.recordCommandError(`tavern_anti_cheat: epic_rate=${antiCheat.epicRatePct}%`);
+      // تسليم سلطوي عبر D1: كل رمية kind/resource=amount في جدول player_inventory (idempotent مع المفتاح roll_key)
+      for (const roll of rollResult.rolls) {
+        const rollKey = `tavern:${playerId}:${dayString(now)}:${rollResult.rolls.length}`;
+        try {
+          if (roll.kind === "legendary_commander" || roll.kind === "epic_commander") {
+            await this.env.DB.prepare(
+              `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, 1) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+1`,
+            ).bind(playerId, dayString(now), rollKey).run().catch(() => undefined);
+          }
+        } catch { /* جدول inventory غير مرحّل بعد — يُسجل في السجل السلطوي فقط */ }
+      }
+      return Response.json({ ok: true, rolls: rollResult.rolls, antiCheat });
+    }
+    // P10-T1: إضافة مفاتيح (من المهام اليومية) — POST tavern-add-keys
+    if (path.endsWith("/tavern-add-keys") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const keyId = String(body.keyId || "");
+      const count = Math.max(0, Math.min(999, Number(body.count) || 0));
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
+      state = addKeys(state, this.tavernSpec(), keyId, count);
+      this.tavernStates.set(playerId, state);
+      this.persistTavern(playerId);
+      return Response.json({ ok: true, keys: state.keys });
+    }
+    // P10-T1: المفتاح الفضي اليومي المجاني (من المهام اليومية) — POST tavern-daily-key
+    if (path.endsWith("/tavern-daily-key") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const dayKey = String(body.dayKey || dayString(nowMs()));
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
+      const result = dailyFreeKey(state, dayKey, (state as any).__lastFreeDay);
+      if (!result.granted) return Response.json({ ok: true, granted: false, reason: "already_claimed_today" });
+      (state as any).__lastFreeDay = dayKey;
+      this.tavernStates.set(playerId, state);
+      this.persistTavern(playerId);
+      return Response.json({ ok: true, granted: true, keys: state.keys });
+    }
+    // P10-T2: حالة Expedition للاعب — GET expedition-state
+    if (path.endsWith("/expedition-state") && request.method === "GET") {
+      const url = new URL(request.url);
+      const playerId = url.searchParams.get("playerId") || "";
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const state = this.expeditionStates.get(playerId) || this.defaultExpeditionState();
+      return Response.json({ ok: true, state: { ...state, stages: this.expeditionSpec().stages } });
+    }
+    // P10-T2: معركة حملة — POST expedition-battle (محاكاة ضد قوة مقترحة + نجوم + ميداليات)
+    if (path.endsWith("/expedition-battle") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const stageId = String(body.stageId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.expeditionStates.get(playerId) || this.defaultExpeditionState();
+      const check = canAttempt(state, this.expeditionSpec(), playerId, this.expeditionResetHourKey());
+      if (!check.ok) return Response.json({ error: check.reason }, { status: 429 });
+      state = check.newState;
+      const stage = this.expeditionSpec().stages.find(s => s.id === stageId);
+      if (!stage) return Response.json({ error: "unknown_stage" }, { status: 400 });
+      // قوة اللاعب من وحداته المنزلية (سلطوي من D1) مع تقدير hallLevel إن لم توجد وحدات
+      const power = await this.playerPowerFromDb(playerId) ?? 1000 * city.hallLevel;
+      const battle = runBattle(stage, power, this.pseudoRandom.bind(this));
+      const recorded = recordStars(state, this.expeditionSpec(), stageId, battle.stars);
+      let medals = state.medals ?? 0;
+      if (battle.won) medals += stage.medals;
+      state = { ...recorded.newState, medals: medals };
+      this.expeditionStates.set(playerId, state);
+      this.persistExpedition(playerId, medals);
+      if (recorded.commanderGranted) this.recordSeasonStory({ kind: "holy_site_captured", subjectId: playerId, allianceId: city.allianceId, score: stage.medals });
+      return Response.json({ ok: true, battle: { stars: battle.stars, lossPct: battle.lossPct, won: battle.won }, medalsGained: battle.won ? stage.medals : 0, commanderGranted: recorded.commanderGranted, stageNext: recorded.stageNext });
+    }
+    // P10-T2: شراء من متجر الميداليات — POST expedition-medal-buy
+    if (path.endsWith("/expedition-medal-buy") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const itemId = String(body.itemId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.expeditionStates.get(playerId) || this.defaultExpeditionState();
+      const medals = state.medals ?? 0;
+      const result = buyMedalItem(state, this.expeditionSpec(), itemId, medals);
+      if (result.error) return Response.json({ error: result.error }, { status: 400 });
+      state = result.newState;
+      if (result.item) {
+        state.medals = medals - result.item.cost;
+        // تسليم سلطوي عبر D1: منحوتات قائد في player_inventory
+        const reward = result.item.reward as Record<string, number | boolean>;
+        if (typeof reward.sculptureShards === "number") {
+          await this.env.DB.prepare(
+            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
+          ).bind(playerId, dayString(nowMs()), `expedition_medal_${result.item.id}`, Number(reward.sculptureShards)).run().catch(() => undefined);
+        }
+      }
+      this.expeditionStates.set(playerId, state);
+      this.persistExpedition(playerId, state.medals ?? 0);
+      return Response.json({ ok: true, medalsRemaining: state.medals ?? 0, item: result.item });
+    }
+    // P10-T3: حالة Canyon للاعب — GET canyon-state
+    if (path.endsWith("/canyon-state") && request.method === "GET") {
+      const url = new URL(request.url);
+      const playerId = url.searchParams.get("playerId") || "";
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const state = this.canyonStates.get(playerId) || this.defaultCanyonState(nowMs());
+      const spec = this.canyonSpec();
+      return Response.json({ ok: true, state, spec: { arenaSize: spec.arenaSize, challenges: spec.challenges, season: spec.season } });
+    }
+    // P10-T3: بدء تحدي canyon جديد — POST canyon-challenge-create
+    if (path.endsWith("/canyon-challenge-create") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const spec = this.canyonSpec();
+      let state = this.canyonStates.get(playerId) || this.defaultCanyonState(nowMs());
+      state.currentSeasonId = seasonIdForSeasonDay(spec, this.seasonStartMs || nowMs(), nowMs());
+      state.seasonDay = Math.floor((nowMs() - (this.seasonStartMs || nowMs())) / MS_PER_DAY) % spec.season.durationDays + 1;
+      const created = createChallenge(spec, state, nowMs(), this.pseudoRandom.bind(this));
+      if (created.error) return Response.json({ error: created.error }, { status: 429 });
+      state = created.newState;
+      this.canyonStates.set(playerId, state);
+      this.persistCanyon(playerId);
+      return Response.json({ ok: true, challenge: created.challenge });
+    }
+    // P10-T3: إكمال تحدي canyon بنجوم — POST canyon-challenge-complete
+    if (path.endsWith("/canyon-challenge-complete") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const challengeId = String(body.challengeId || "");
+      const stars = Math.min(3, Math.max(1, Number(body.stars) || 0));
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.canyonStates.get(playerId) || this.defaultCanyonState(nowMs());
+      const completed = completeChallenge(this.canyonSpec(), state, challengeId, stars, nowMs());
+      if (completed.error) return Response.json({ error: completed.error }, { status: 400 });
+      state = completed.newState;
+      this.canyonStates.set(playerId, state);
+      this.persistCanyon(playerId);
+      return Response.json({ ok: true, reward: completed.reward, score: completed.score, tokens: state.tokens, victoryPoints: state.victoryPoints });
+    }
+    // P10-T3: تفعيل باف canyon — POST canyon-buff
+    if (path.endsWith("/canyon-buff") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const buffId = String(body.buffId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.canyonStates.get(playerId) || this.defaultCanyonState(nowMs());
+      const activated = activateBuff(this.canyonSpec(), state, buffId, nowMs());
+      if (activated.error) return Response.json({ error: activated.error }, { status: 400 });
+      state = activated.newState;
+      this.canyonStates.set(playerId, state);
+      this.persistCanyon(playerId);
+      return Response.json({ ok: true, activeBuffs: state.activeBuffs });
+    }
+    // P10-T3: شراء من متجر canyon tokens — POST canyon-token-buy
+    if (path.endsWith("/canyon-token-buy") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const itemId = String(body.itemId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.canyonStates.get(playerId) || this.defaultCanyonState(nowMs());
+      const bought = buyTokenItem(this.canyonSpec(), state, itemId);
+      if (bought.error) return Response.json({ error: bought.error }, { status: 400 });
+      state = bought.newState;
+      if (bought.item) {
+        // تسليم سلطوي عبر D1 بنمط UPDATE cities — موارد + منحوتات
+        const reward = bought.item.reward as Record<string, Record<string, number> | number>;
+        if (typeof reward.resources === "number") {
+          const v = Math.max(0, Math.min(1000000, Number(reward.resources)));
+          await this.env.DB.prepare(`UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+? WHERE player_id=?`).bind(v, v, v, v, playerId).run().catch(() => undefined);
+        }
+        if (typeof reward.sculptureShards === "number") {
+          await this.env.DB.prepare(
+            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
+          ).bind(playerId, dayString(nowMs()), `canyon_token_${bought.item.id}`, Number(reward.sculptureShards)).run().catch(() => undefined);
+        }
+        this.broadcast({ type: "canyon_reward", playerId, itemId: bought.item.id });
+      }
+      this.canyonStates.set(playerId, state);
+      this.persistCanyon(playerId);
+      return Response.json({ ok: true, tokens: state.tokens, item: bought.item });
+    }
+    // P10-T3: لوحة متصدرين الموسم الحالية — GET canyon-season
+    if (path.endsWith("/canyon-season") && request.method === "GET") {
+      const spec = this.canyonSpec();
+      const seasonId = seasonIdForSeasonDay(spec, this.seasonStartMs || nowMs(), nowMs());
+      const rows = this.ctx.storage.sql.exec<any>(
+        "SELECT player_id, victory_points, tokens, season_id FROM canyon_state WHERE season_id = ? ORDER BY victory_points DESC LIMIT ?",
+        [seasonId, spec.season.leaderboardSize],
+      ).toArray();
+      const leaderboard = rows.map((r: any, i: number) => ({ rank: i + 1, playerId: r.player_id, victoryPoints: Number(r.victory_points), tokens: Number(r.tokens) }));
+      return Response.json({ ok: true, seasonId, leaderboard });
+    }
+    // P10-T4: تسجيل تحالف في دوري Osiris — POST osiris-register
+    if (path.endsWith("/osiris-register") && request.method === "POST") {
+      const body = await request.json<any>();
+      const allianceId = String(body.allianceId || "");
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const spec = this.osirisSpec();
+      if (!allianceId) return Response.json({ error: "missing_alliance" }, { status: 400 });
+      let side = this.osirisSides.find(s => s.allianceId === allianceId);
+      const memberCount = this.memberCount(allianceId);
+      const activeLeagues = this.osirisLeagueActive ? 1 : 0;
+      const sideToCheck: OsirisSide = side || { allianceId, registered: [], points: 0, facilityHours: {}, arkRouteId: null, arkCheckpoint: 0 };
+      const check = canRegister(spec, sideToCheck, memberCount, activeLeagues);
+      if (!check.ok) return Response.json({ error: check.reason }, { status: 400 });
+      if (!side) {
+        side = { allianceId, registered: [], points: 0, facilityHours: {}, arkRouteId: null, arkCheckpoint: 0 };
+        this.osirisSides.push(side);
+        this.osirisLeagueActive = true;
+        this.recordSeasonStory({ kind: "temple_captured", subjectId: `osiris:${allianceId}`, allianceId, score: 0 });
+      }
+      if (!side.registered.includes(playerId)) side.registered.push(playerId);
+      this.persistOsiris();
+      return Response.json({ ok: true, registered: side.registered, points: side.points });
+    }
+    // P10-T4: هجوم منشأة Osiris — POST osiris-attack-facility
+    if (path.endsWith("/osiris-attack-facility") && request.method === "POST") {
+      const body = await request.json<any>();
+      const allianceId = String(body.allianceId || "");
+      const facilityId = String(body.facilityId || "");
+      const city = this.cities.values().next().value; void city;
+      const spec = this.osirisSpec();
+      const side = this.osirisSides.find(s => s.allianceId === allianceId);
+      if (!side) return Response.json({ error: "not_registered" }, { status: 400 });
+      const power = this.alliancePower(allianceId);
+      const attack = attackFacility(spec, side, facilityId, power);
+      if (attack.error) return Response.json({ error: attack.error }, { status: 400 });
+      side.points = attack.newState.points;
+      const facility = spec.structures.facilities.find(f => f.id === facilityId);
+      if (facility) side.facilityHours[facilityId] = (side.facilityHours[facilityId] || 0) + 1;
+      this.persistOsiris();
+      return Response.json({ ok: true, captured: attack.captured, progressPct: attack.progressPct, points: side.points });
+    }
+    // P10-T4: نقل الفلك Osiris عبر المسار — POST osiris-move-ark
+    if (path.endsWith("/osiris-move-ark") && request.method === "POST") {
+      const body = await request.json<any>();
+      const allianceId = String(body.allianceId || "");
+      const routeId = String(body.routeId || "");
+      const spec = this.osirisSpec();
+      let side = this.osirisSides.find(s => s.allianceId === allianceId);
+      if (!side) return Response.json({ error: "not_registered" }, { status: 400 });
+      if (!side.arkRouteId && routeId) side.arkRouteId = routeId;
+      const moved = moveArk(spec, side, nowMs(), this.lastOsirisMoveAtMs);
+      if (moved.error) return Response.json({ error: moved.error }, { status: 429 });
+      this.lastOsirisMoveAtMs = nowMs();
+      side.arkCheckpoint = moved.checkpoint;
+      side.points = moved.newState.points;
+      this.persistOsiris();
+      return Response.json({ ok: true, moved: moved.moved, checkpoint: moved.checkpoint, pointsEarned: moved.pointsEarned });
+    }
+    // P10-T4: نتيجة الدوري Osiris (يُدعى نهاية الأسبوعين) — POST osiris-league-result
+    if (path.endsWith("/osiris-league-result") && request.method === "POST") {
+      if (this.osirisSides.length < 2) return Response.json({ error: "insufficient_sides" }, { status: 400 });
+      const result = leagueResult(this.osirisSpec(), this.osirisSides[0], this.osirisSides[1]);
+      const rewards = leagueRewards(this.osirisSpec(), result.winner, result.loser);
+      this.recordSeasonStory({ kind: "season_champion", subjectId: `osiris:${result.winner.allianceId}`, allianceId: result.winner.allianceId, score: result.winner.points });
+      this.osirisLeagueActive = false;
+      this.osirisSides = [];
+      this.ctx.storage.sql.exec("DELETE FROM osiris_league");
+      return Response.json({ ok: true, result: { winner: result.winner.allianceId, loser: result.loser.allianceId, reason: result.reason, tiebreakApplied: result.tiebreakApplied }, rewards: { gems: rewards.gems, titles: rewards.titles } });
+    }
+    // P10-T5: حالة الأحداث الكبرى — GET events-state
+    if (path.endsWith("/events-state") && request.method === "GET") {
+      const spec = this.mgSpec();
+      const eventDay = Math.min(spec.durationDays, Math.max(1, Math.floor((nowMs() - (this.mgEventStartMs || this.seasonStartMs || nowMs())) / MS_PER_DAY) + 1));
+      const phase = currentPhase(spec, eventDay);
+      const wheelOpen = (this.wheelWindowUntilMs || 0) > nowMs();
+      return Response.json({ ok: true, eventDay, phase, wheelOpen });
+    }
+    // P10-T5: ضبط نافذة عجلة الحظ (إداري/اختبار) — POST events-wheel-window
+    if (path.endsWith("/events-wheel-window") && request.method === "POST") {
+      const body = await request.json<any>();
+      this.wheelWindowUntilMs = Number(body.untilMs) || 0;
+      return Response.json({ ok: true, wheelWindowUntilMs: this.wheelWindowUntilMs });
+    }
+    // P10-T5: تسجيل نقاط في مرحلة الحاكم الأقوى — POST mg-score
+    if (path.endsWith("/mg-score") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const points = Math.min(1000000, Math.max(0, Number(body.points) || 0));
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      const spec = this.mgSpec();
+      const eventDay = Math.min(spec.durationDays, Math.max(1, Math.floor((nowMs() - (this.mgEventStartMs || this.seasonStartMs || nowMs())) / MS_PER_DAY) + 1));
+      const phase = currentPhase(spec, eventDay);
+      if (!phase) return Response.json({ error: "event_inactive" }, { status: 400 });
+      let state = this.mgScores.get(playerId) || { phaseScores: {}, total: 0, phase: phase.stage };
+      if (!state.phase) state.phase = phase.stage;
+      const added = addMGScore(state, spec, eventDay, points);
+      if (added.error) return Response.json({ error: added.error }, { status: 400 });
+      state = added.newState;
+      this.mgScores.set(playerId, state);
+      this.persistMgScores(playerId);
+      return Response.json({ ok: true, total: state.total, phase: phase.stage });
+    }
+    // P10-T5: لوحة الحاكم الأقوى — GET mg-leaderboard
+    if (path.endsWith("/mg-leaderboard") && request.method === "GET") {
+      const spec = this.mgSpec();
+      const scores = Array.from(this.mgScores.entries()).map(([playerId, s]) => ({ playerId, total: s.total }));
+      const board = mgLeaderboard(spec, scores);
+      return Response.json({ ok: true, leaderboard: board });
+    }
+    // P10-T5: دوران عجلة الحظ — POST wheel-spin
+    if (path.endsWith("/wheel-spin") && request.method === "POST") {
+      const body = await request.json<any>();
+      const playerId = String(body.playerId || "");
+      const city = this.cities.get(playerId);
+      if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
+      let state = this.wheelStates.get(playerId) || { spinsToday: 0, paidSpinsSinceFree: 0, totalSpins: 0, resetDayKey: "" };
+      const dayKey = dayString(nowMs());
+      // gems سلطوي: يُقرأ من D1 (لا يُحفظ في CityEntity في الذاكرة)
+      let gems = 0;
+      try {
+        const row = await this.env.DB.prepare("SELECT gems FROM cities WHERE player_id = ?").bind(playerId).first<{ gems: number }>();
+        gems = Number(row?.gems) || 0;
+      } catch { /* لا شيء */ }
+      const result = spinWheel(this.wheelSpec(), state, gems, this.pseudoRandom.bind(this), dayKey);
+      if (result.error) return Response.json({ error: result.error }, { status: 429 });
+      state = result.newState;
+      if (result.result) {
+        // تسليم سلطوي عبر D1 بنمط UPDATE cities — موارد/gems؛ الباقي في player_inventory
+        const { kind, value } = result.result;
+        if (kind === "resources") {
+          const v = Math.max(0, Math.min(1000000, Number(value)));
+          await this.env.DB.prepare(`UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+? WHERE player_id=?`).bind(v, v, v, v, playerId).run().catch(() => undefined);
+        }
+        if (kind === "gems") {
+          await this.env.DB.prepare(`UPDATE cities SET gems=gems+? WHERE player_id=?`).bind(Math.max(0, Math.min(10000, Number(value))), playerId).run().catch(() => undefined);
+        }
+        if (kind !== "resources" && kind !== "gems") {
+          await this.env.DB.prepare(
+            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
+          ).bind(playerId, dayString(nowMs()), `wheel_${kind}`, Number(value)).run().catch(() => undefined);
+        }
+        this.broadcast({ type: "wheel_reward", playerId, kind });
+      }
+      this.wheelStates.set(playerId, state);
+      this.persistWheel(playerId);
+      return Response.json({ ok: true, result: result.result, spinsRemaining: Math.max(0, (this.wheelSpec().spins.maxPerDay || 0) - state.spinsToday) });
     }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }

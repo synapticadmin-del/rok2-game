@@ -1,0 +1,54 @@
+{
+  "boxes": [
+    {
+      "id": "silver_box",
+      "name": "صندوق فضي",
+      "key": "silver_key",
+      "rollCount": 4,
+      "pool": [
+        { "weight": 590, "kind": "common", "description": "موارد/خبرة شائعة" },
+        { "weight": 199, "kind": "rare", "description": "قائد نادر مميز" },
+        { "weight": 150, "kind": "materials", "description": "مواد بناء" },
+        { "weight": 61, "kind": "epic", "description": "قائد Epic" }
+      ]
+    },
+    {
+      "id": "gold_box",
+      "name": "صندوق ذهبي",
+      "key": "gold_key",
+      "rollCount": 4,
+      "pool": [
+        { "weight": 300, "kind": "common", "description": "موارد/خبرة شائعة" },
+        { "weight": 590, "kind": "rare", "description": "قائد نادر مميز" },
+        { "weight": 80, "kind": "materials", "description": "مواد بناء" },
+        { "weight": 30, "kind": "epic", "description": "قائد Epic" }
+      ]
+    },
+    {
+      "id": "gear_box",
+      "name": "صندوق معدات",
+      "key": "gear_key",
+      "rollCount": 4,
+      "pool": [
+        { "weight": 600, "kind": "materials", "description": "مواد تجهيزات" },
+        { "weight": 250, "kind": "rare", "description": "تجهيزة نادرة" },
+        { "weight": 100, "kind": "epic", "description": "تجهيزة Epic" },
+        { "weight": 50, "kind": "legendary", "description": "تجهيزة أسطورية" }
+      ]
+    }
+  ],
+  "rateTargets": {
+    "silver": { "common": 0.59, "rare": 0.199, "materials": 0.15, "epic": 0.061 },
+    "gold": { "common": 0.30, "rare": 0.59, "materials": 0.08, "epic": 0.03 },
+    "gear": { "materials": 0.60, "rare": 0.25, "epic": 0.10, "legendary": 0.05 }
+  },
+  "limits": {
+    "maxOpensPerHour": 60,
+    "maxKeysStored": 999,
+    "dailyFreeSilverKeys": 1,
+    "epicRateFloorPct": 1.99,
+    "epicRateCeilPct": 6.8,
+    "statisticalSampleSize": 10000,
+    "chiSquarePctThreshold": 1.0
+  }
+}

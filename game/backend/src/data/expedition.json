@@ -1,0 +1,28 @@
+{
+  "stages": [
+    { "id": "exp_1", "name": "وادي الرواد", "recommendedPower": 150000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.02, 0.15, 0.40] }, "rewards": { "sculptureShards": 20, "materials": 500 }, "medals": 10 },
+    { "id": "exp_2", "name": "صحراء الظلال", "recommendedPower": 300000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.03, 0.18, 0.45] }, "rewards": { "sculptureShards": 40, "materials": 1000 }, "medals": 20 },
+    { "id": "exp_3", "name": "قلعة الحراسة", "recommendedPower": 550000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.04, 0.20, 0.50] }, "rewards": { "sculptureShards": 80, "materials": 2000 }, "medals": 35 },
+    { "id": "exp_4", "name": "ممر الجبال الثلجية", "recommendedPower": 900000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.05, 0.23, 0.55] }, "rewards": { "sculptureShards": 150, "materials": 4000 }, "medals": 55 },
+    { "id": "exp_5", "name": "عاصمة الكارثة", "recommendedPower": 1500000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.06, 0.26, 0.60] }, "rewards": { "sculptureShards": 300, "materials": 8000 }, "medals": 85 },
+    { "id": "exp_6", "name": "عرش الظلام", "recommendedPower": 2500000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.08, 0.30, 0.65] }, "rewards": { "sculptureShards": 500, "materials": 15000 }, "medals": 130 },
+    { "id": "exp_7", "name": "برج النسيان", "recommendedPower": 4000000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.10, 0.34, 0.70] }, "rewards": { "sculptureShards": 800, "materials": 28000 }, "medals": 200 },
+    { "id": "exp_8", "name": "بوابة الأساطير", "recommendedPower": 6500000, "stars": { "thresholds": [1, 0.7, 0.4], "lossPct": [0.12, 0.38, 0.75] }, "rewards": { "sculptureShards": 1200, "materials": 50000, "freeCommander": true }, "medals": 320 }
+  ],
+  "freeCommander": {
+    "grantedAt": "exp_8",
+    "name": "قائد الحملة"
+  },
+  "medalShop": {
+    "items": [
+      { "id": "medal_sculpture_box", "name": "صندوق منحوتات", "cost": 500, "reward": { "sculptureShards": 1000 } },
+      { "id": "medal_exp_boost", "name": "تسريع خبرة حملة", "cost": 300, "reward": { "expBoostPct": 20 } },
+      { "id": "medal_material_crate", "name": "شحنة مواد", "cost": 800, "reward": { "materials": 40000 } }
+    ]
+  },
+  "limits": {
+    "attemptsPerDay": 10,
+    "maxMedalStoreItemsPerDay": 5,
+    "resetHours": [0, 6, 12, 18]
+  }
+}

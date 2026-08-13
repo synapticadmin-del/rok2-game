@@ -85,6 +85,81 @@
       "window_ms": 60000,
       "max_actions": 10,
       "cooldown_ms": 2000
+    },
+    "tavern_state": {
+      "window_ms": 60000,
+      "max_actions": 60,
+      "cooldown_ms": 500
+    },
+    "tavern_open": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 1000
+    },
+    "tavern_keys": {
+      "window_ms": 60000,
+      "max_actions": 10,
+      "cooldown_ms": 2000
+    },
+    "expedition_state": {
+      "window_ms": 60000,
+      "max_actions": 60,
+      "cooldown_ms": 500
+    },
+    "expedition_attempt": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 1000
+    },
+    "expedition_buy": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 1000
+    },
+    "canyon_state": {
+      "window_ms": 60000,
+      "max_actions": 60,
+      "cooldown_ms": 500
+    },
+    "canyon_challenge": {
+      "window_ms": 60000,
+      "max_actions": 10,
+      "cooldown_ms": 1000
+    },
+    "canyon_buff": {
+      "window_ms": 60000,
+      "max_actions": 5,
+      "cooldown_ms": 3000
+    },
+    "canyon_token_buy": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 1000
+    },
+    "osiris_register": {
+      "window_ms": 60000,
+      "max_actions": 5,
+      "cooldown_ms": 3000
+    },
+    "osiris_attack": {
+      "window_ms": 60000,
+      "max_actions": 30,
+      "cooldown_ms": 1000
+    },
+    "osiris_move": {
+      "window_ms": 60000,
+      "max_actions": 5,
+      "cooldown_ms": 3000
+    },
+    "mg_score": {
+      "window_ms": 60000,
+      "max_actions": 60,
+      "cooldown_ms": 500
+    },
+    "wheel_spin": {
+      "window_ms": 60000,
+      "max_actions": 20,
+      "cooldown_ms": 2000
     }
   },
   "anomaly": {

@@ -12,6 +12,11 @@ import chatSpec from "../data/chat.json";
 import allianceStructuresSpec from "../data/alliance_structures.json";
 import tradingSpec from "../data/trading.json";
 import allianceGiftsSpec from "../data/alliance_gifts.json";
+import tavernSpec from "../data/tavern.json";
+import expeditionSpec from "../data/expedition.json";
+import canyonSpec from "../data/canyon.json";
+import osirisSpec from "../data/osiris.json";
+import eventsSpec from "../data/events.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -127,6 +132,31 @@ export function getTrading() {
 /** P9-T6: مواصفة صناديق هدايا التحالف (الأنواع + الاحتمالات + الثوابت) — تُقرأ من data/alliance_gifts.json */
 export function getAllianceGiftsSpec() {
   return allianceGiftsSpec;
+}
+
+/** P10-T1: مواصفة الحانة والصناديق (الأنواع + الأوزان + حدود anti-cheat) — تُقرأ من data/tavern.json */
+export function getTavernJson() {
+  return tavernSpec;
+}
+
+/** P10-T2: مواصفة Expedition (المراحل + متجر الميداليات + الحدود) — تُقرأ من data/expedition.json */
+export function getExpeditionJson() {
+  return expeditionSpec;
+}
+
+/** P10-T3: مواصفة Sunset Canyon (الساحة + التحديات + الموسم + البافات) — تُقرأ من data/canyon.json */
+export function getCanyonJson() {
+  return canyonSpec;
+}
+
+/** P10-T4: مواصفة Ark of Osiris (الدوري + المنشآت + الفلك + المكافآت) — تُقرأ من data/osiris.json */
+export function getOsirisJson() {
+  return osirisSpec;
+}
+
+/** P10-T5: مواصفة الأحداث الكبرى واليومية (Mightiest Governor + Wheel + أحداث العالم) — تُقرأ من data/events.json */
+export function getEventsJson() {
+  return eventsSpec;
 }
 
 export function starterBuildings(): string[] {

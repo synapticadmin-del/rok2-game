@@ -68,6 +68,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTitleChanged, const FRok2
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVipStatusUpdated, const FRok2VipStatus&, Status);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTradingOffersUpdated, const TArray<FRok2TradingOffer>&, Offers);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceGiftsUpdated, const TArray<FRok2AllianceGift>&, Gifts);
+// P10-T6: delegates لأوضاع اللعب المتكررة.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTavernUpdated, const FRok2TavernState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnExpeditionUpdated, const FRok2ExpeditionState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCanyonUpdated, const FRok2CanyonState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOsirisUpdated, const FRok2OsirisState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEventsUpdated, const FRok2EventsState&, State);
 
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
@@ -340,6 +346,37 @@ public:
 	/** يفتح فتحة في صندوق هدية تحالف — POST /v1/alliance/gifts/claim {giftId} */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
 	void ClaimAllianceGift(const FString& GiftId);
+	// P10-T6: أوضاع اللعب المتكررة.
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void FetchTavernState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void OpenTavernBox(const FString& BoxId);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void FetchExpeditionState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void AttemptExpeditionBattle(const FString& StageId, const TArray<int32>& TroopCounts);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void FetchCanyonState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void CreateCanyonChallenge();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void CompleteCanyonChallenge(const FString& ChallengeId, int32 Stars);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void ActivateCanyonBuff(const FString& BuffId);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void FetchOsirisState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void RegisterOsiris(const FString& Team);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void AttackOsirisFacility(const FString& FacilityId);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void MoveOsirisArk(const FString& FacilityId);
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void FetchEventsState();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void SpinWheel();
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void SubmitMGScore(double Points);
 
 	// Polling pump - called from GameMode Tick
 	void PumpEvents(float DeltaSeconds);
@@ -522,6 +559,17 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
 	FOnAllianceGiftsUpdated OnAllianceGiftsUpdated;
+	// P10-T6: أحداث أوضاع اللعب المتكررة.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|P10")
+	FOnTavernUpdated OnTavernUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|P10")
+	FOnExpeditionUpdated OnExpeditionUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|P10")
+	FOnCanyonUpdated OnCanyonUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|P10")
+	FOnOsirisUpdated OnOsirisUpdated;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|P10")
+	FOnEventsUpdated OnEventsUpdated;
 
 protected:
 	FString BaseUrl;
@@ -556,6 +604,17 @@ protected:
 	FRok2VipStatus VipStatus;
 	TArray<FRok2TradingOffer> TradingOffers;
 	TArray<FRok2AllianceGift> AllianceGifts;
+	// P10-T6: كاشات حالة أوضاع اللعب المتكررة.
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|P10")
+	FRok2TavernState TavernState;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|P10")
+	FRok2ExpeditionState ExpeditionState;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|P10")
+	FRok2CanyonState CanyonState;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|P10")
+	FRok2OsirisState OsirisState;
+	UPROPERTY(BlueprintReadOnly, Category = "Rok2|P10")
+	FRok2EventsState EventsState;
 
 	// ---- HUD الموحد (P2-T6) ----
 	/** سجل الإشعارات (الأحدث أولاً) */
@@ -639,6 +698,12 @@ protected:
 		TFunction<void(const TSharedPtr<FJsonObject>&)> OnOk, TFunction<void(const FString&)> OnErr, int32 MaxRetries);
 
 	void ParsePlayer(const TSharedPtr<FJsonObject>& Obj);
+	// P10-T6: دوال Parse لحالة أوضاع اللعب المتكررة.
+	void ParseTavernState(const TSharedPtr<FJsonObject>& Obj);
+	void ParseExpeditionState(const TSharedPtr<FJsonObject>& Obj);
+	void ParseCanyonState(const TSharedPtr<FJsonObject>& Obj);
+	void ParseOsirisState(const TSharedPtr<FJsonObject>& Obj);
+	void ParseEventsState(const TSharedPtr<FJsonObject>& Obj);
 	void ParseCity(const TSharedPtr<FJsonObject>& Obj);
 	void ParseWorld(const TSharedPtr<FJsonObject>& Obj);
 

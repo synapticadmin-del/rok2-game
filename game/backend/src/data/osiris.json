@@ -1,0 +1,47 @@
+{
+  "season": {
+    "durationDays": 14,
+    "phases": [
+      { "id": "qualifier", "name": "التأهيل", "days": [1, 7] },
+      { "id": "league", "name": "الدوري", "days": [8, 14] }
+    ],
+    "playersPerSide": 30,
+    "registrationWindowHours": 48,
+    "matchmakingMinPlayers": 20
+  },
+  "structures": {
+    "facilities": [
+      { "id": "obelisk_a", "name": "مسلة الشرق", "capturePoints": 500, "pointsPerHoldHour": 20 },
+      { "id": "obelisk_b", "name": "مسلة الغرب", "capturePoints": 500, "pointsPerHoldHour": 20 },
+      { "id": "temple_center", "name": "معبد أوزيريس", "capturePoints": 1500, "pointsPerHoldHour": 60 }
+    ],
+    "captureRules": {
+      "attackPowerMultiplier": 1.0,
+      "holdCapPerStructurePct": 100,
+      "contestedThresholdPct": 60
+    }
+  },
+  "ark": {
+    "routes": [
+      { "id": "route_north", "name": "المسار الشمالي", "checkpoints": 4 },
+      { "id": "route_south", "name": "المسار الجنوبي", "checkpoints": 4 }
+    ],
+    "moveIntervalHours": 12,
+    "pointsPerCheckpoint": 300
+  },
+  "scoring": {
+    "pointsPerMember": 100,
+    "victoryThresholdPct": 60,
+    "tiebreaker": "structureHours"
+  },
+  "rewards": {
+    "winnerAlliance": { "gems": 5000, "title": "حراس أوزيريس", "seasonStoryEntry": "osiris_champion" },
+    "loserAlliance": { "gems": 1500, "title": "فرسان النهر" },
+    "mvpPlayer": { "gems": 1000, "sculptureShards": 200 }
+  },
+  "limits": {
+    "maxLeaguesPerSeason": 1,
+    "minAllianceMembersToRegister": 15,
+    "cooldownDaysAfterLeague": 1
+  }
+}

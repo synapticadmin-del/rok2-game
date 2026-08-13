@@ -1,0 +1,46 @@
+{
+  "arenaSize": 5,
+  "buffs": {
+    "atkDef": 1.0,
+    "hp": 1.0,
+    "marchSpeed": 1.0
+  },
+  "buffSources": [
+    { "id": "canyon_scout", "description": "استطلاع canyon: +10% هجوم ودفاع مؤقت", "atkDef": 0.10, "durationHours": 24 },
+    { "id": "canyon_banner", "description": "راية canyon: +8% HP", "hp": 0.08, "durationHours": 24 }
+  ],
+  "challenges": {
+    "perDay": 5,
+    "forces": {
+      "minTier": 3,
+      "maxTier": 3,
+      "description": "قوات T3 متطابقة لجميع اللاعبين — القادة فقط هم الفارق"
+    },
+    "starRewards": {
+      "3stars": { "canyonTokens": 12, "victoryPoints": 100 },
+      "2stars": { "canyonTokens": 7, "victoryPoints": 50 },
+      "1star": { "canyonTokens": 3, "victoryPoints": 20 }
+    }
+  },
+  "season": {
+    "durationDays": 7,
+    "leaderboardSize": 50,
+    "seasonRewards": [
+      { "rankCeil": 1, "tokens": 500, "title": "أسد canyon" },
+      { "rankCeil": 10, "tokens": 300, "title": "فارس canyon" },
+      { "rankCeil": 50, "tokens": 150, "title": "محارب canyon" }
+    ]
+  },
+  "tokenShop": {
+    "items": [
+      { "id": "token_speedup", "name": "تسريع 4 ساعات", "cost": 100, "reward": { "speedups": { "4h": 1 } } },
+      { "id": "token_resources", "name": "حزمة موارد", "cost": 150, "reward": { "resources": 60000 } },
+      { "id": "token_sculpture", "name": "منحوتة عشوائية", "cost": 400, "reward": { "sculptureShards": 500 } }
+    ]
+  },
+  "limits": {
+    "maxBuffsActive": 2,
+    "seasonsOverlap": 0,
+    "scoreDecayPctPerDay": 0
+  }
+}
