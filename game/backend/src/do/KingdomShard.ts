@@ -21,6 +21,7 @@ import { assertAdminKey } from "../lib/secrets";
 import { resolveCombat, totalTroops, troopPower, type CombatResult } from "./sim/combat";
 import { marchDurationMs, planMarch } from "./sim/pathfinding";
 import { COMMANDER_CONSTANTS, xpForLevel, type CommanderInstance } from "./sim/commanders";
+import { talentAttackMod } from "./sim/talents";
 import { admitWounded, hospitalCapacity } from "./sim/hospital";
 
 /** سقف صلب لأي عملية تسريع واحدة (30 يوماً). حاجز أخير ضد قيمة شاذة
@@ -1506,6 +1507,8 @@ export class KingdomShard extends DurableObject<Env> {
       // P2-T1: القائد المرافق للمسيرة يمنح باف هجوم من مهاراته
       const attackerCommander = await this.fetchMarchCommander(m.id);
       const attackerResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+      // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
+      const attackerTalentAttackMod = talentAttackMod(attackerCommander?.talentAllocations);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -1514,6 +1517,8 @@ export class KingdomShard extends DurableObject<Env> {
         attackerCommander,
         undefined,
         attackerResearchMod,
+        0,
+        attackerTalentAttackMod,
         0,
       );
 
@@ -1601,6 +1606,8 @@ export class KingdomShard extends DurableObject<Env> {
 
       const throneAttackerCommander = await this.fetchMarchCommander(m.id);
       const throneResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+      // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
+      const throneTalentAttackMod = talentAttackMod(throneAttackerCommander?.talentAllocations);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
@@ -1609,6 +1616,8 @@ export class KingdomShard extends DurableObject<Env> {
         throneAttackerCommander,
         undefined,
         throneResearchMod,
+        0,
+        throneTalentAttackMod,
         0,
       );
 
@@ -1701,6 +1710,8 @@ export class KingdomShard extends DurableObject<Env> {
 
       const coCommander = await this.fetchMarchCommander(m.id);
       const coResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
+      // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
+      const coTalentAttackMod = talentAttackMod(coCommander?.talentAllocations);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: m.troops },
         { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
@@ -1708,6 +1719,8 @@ export class KingdomShard extends DurableObject<Env> {
         coCommander,
         undefined,
         coResearchMod,
+        0,
+        coTalentAttackMod,
         0,
       );
 
@@ -1780,7 +1793,9 @@ export class KingdomShard extends DurableObject<Env> {
           const def: Troops = { infantry_t1: 40 * node.level };
           const barbCommander = await this.fetchMarchCommander(m.id);
           const barbResearchMod = await this.fetchResearchAttackMod(m.ownerPlayerId);
-          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0);
+          // P8-T1: باف troop_attack من مواهب القائد المرافق للمسيرة
+          const barbTalentAttackMod = talentAttackMod(barbCommander?.talentAllocations);
+          const result = resolveCombat({ name: m.ownerPlayerId, troops: m.troops }, { name: "barb", troops: def }, 1, barbCommander, undefined, barbResearchMod, 0, barbTalentAttackMod, 0);
           const report: {
             id: string;
             createdAt: number;
@@ -2781,16 +2796,23 @@ export class KingdomShard extends DurableObject<Env> {
     return march;
   }
 
-  /** P2-T1: جلب القائد المرافق لمسيرة من D1 (إن وُجد) */
+  /** P2-T1 (+P8-T1): جلب القائد المرافق لمسيرة من D1 مع مستواه ومهاراته ومواهبه */
   private async fetchMarchCommander(marchId: string): Promise<CommanderInstance | undefined> {
     try {
-      const row = await this.env.DB.prepare(
-        "SELECT commander_id, skills_json FROM march_commanders WHERE march_id = ?",
-      )
-        .bind(marchId)
-        .first<{ commander_id: string; skills_json: string }>();
-      if (!row) return undefined;
-      return { commanderId: row.commander_id, level: 1, skills: JSON.parse(row.skills_json || "[1,1,1]") };
+      const mc = await this.env.DB.prepare(
+        "SELECT commander_id, player_id FROM march_commanders WHERE march_id = ?",
+      ).bind(marchId).first<{ commander_id: string; player_id: string }>();
+      if (!mc) return undefined;
+      const pc = await this.env.DB.prepare(
+        "SELECT level, skills_json, talents_json FROM player_commanders WHERE player_id = ? AND commander_id = ?",
+      ).bind(mc.player_id, mc.commander_id).first<{ level: number; skills_json: string; talents_json: string }>();
+      if (!pc) return undefined;
+      return {
+        commanderId: mc.commander_id,
+        level: pc.level,
+        skills: JSON.parse(pc.skills_json || "[1,1,1]"),
+        talentAllocations: JSON.parse(pc.talents_json || "{}"),
+      };
     } catch {
       return undefined; // الجدول قد لا يكون مُرحّلاً بعد
     }

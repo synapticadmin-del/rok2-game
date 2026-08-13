@@ -66,6 +66,16 @@ import {
   xpForLevel,
 } from "../do/sim/commanders";
 import {
+  availableTalentPoints,
+  computeTalentMods,
+  resetTalentAllocations,
+  talentNode,
+  talentPointsEarned,
+  validateTalentAllocation,
+  getTalentTrees,
+  TALENT_CONSTANTS,
+} from "../do/sim/talents";
+import {
   isKingdomOpen,
   kingdomCapacity,
   openKingdoms,
@@ -295,6 +305,7 @@ type OwnedCommanderRow = {
   xp: number;
   tomes: number;
   skills_json: string;
+  talents_json?: string; // P8-T1: عمود المواهب — جديد، قد يكون undefined قبل الترحيل
   created_at: number;
 };
 
@@ -322,11 +333,15 @@ async function getOwnedCommander(env: Env, playerId: string, commanderId: string
 function commanderJson(row: OwnedCommanderRow) {
   const def = getCommanderDef(row.commander_id);
   const skills = JSON.parse(row.skills_json || "[1,1,1]") as number[];
+  // P8-T1: مواهب القائد — allocations تُقرأ من عمود talents_json الجديد (افتراضي '{}')
+  const allocations = JSON.parse(row.talents_json || "{}") as Record<string, number>;
+  const rarity = def?.rarity || "elite";
+  const talentMods = computeTalentMods(allocations);
   return {
     instanceId: row.id,
     commanderId: row.commander_id,
     name: def?.name || row.commander_id,
-    rarity: def?.rarity || "elite",
+    rarity,
     nation: def?.nation || null,
     level: row.level,
     xp: row.xp,
@@ -341,6 +356,12 @@ function commanderJson(row: OwnedCommanderRow) {
       effects: s.effects,
     })),
     marchSpeedMod: commanderPassiveMod({ commanderId: row.commander_id, level: row.level, skills }, "march_speed"),
+    // P8-T1: إحصاءات المواهب
+    talentAllocations: allocations,
+    talentPointsEarned: talentPointsEarned(row.level),
+    talentPointsAvailable: availableTalentPoints(row.level, rarity, allocations),
+    talentPointsCap: TALENT_CONSTANTS.points_cap_rarity[rarity] ?? Object.values(TALENT_CONSTANTS.points_cap_rarity)[0] ?? 60,
+    talentMods,
   };
 }
 
@@ -459,6 +480,10 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     if (path === "/v1/meta/techtree" && request.method === "GET") {
       return json(getTechTree());
     }
+    // P8-T1: شجرتا مواهب القادة (troop_type + role) من data/talents.json
+    if (path === "/v1/meta/talents" && request.method === "GET") {
+      return json({ version: 1, constants: TALENT_CONSTANTS, trees: getTalentTrees() });
+    }
     // P2-T4: مواصفة المناطق (فتح زمني + نطاقات موارد) من data/zones.json
     if (path === "/v1/meta/zones" && request.method === "GET") {
       return json(getZones());
@@ -473,6 +498,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         commanders: getCommanders(),
         techTree: getTechTree(),
         zones: getZones(),
+        // P8-T1: شجرتا مواهب القادة
+        talents: { version: 1, constants: TALENT_CONSTANTS, trees: getTalentTrees() },
         constants: {
           productionBase: { farm: 100, lumber_mill: 100, quarry: 70, goldmine: 40 },
           productionLevelMult: 1.2,
@@ -1512,6 +1539,46 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       return json({ ok: true, commander: updated ? commanderJson(updated) : null });
     }
 
+    // P8-T1: تخصيص نقاط مواهب (شجرتا troop_type وrole من data/talents.json)
+    if (path === "/v1/commander/talent/allocate" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string; nodeId: string; points: number }>(request);
+      if (!body.commanderId || !body.nodeId) throw new HttpError(400, "commanderId and nodeId required");
+      const points = Math.floor(Number(body.points) || 0);
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      const def = getCommanderDef(row.commander_id);
+      if (!def) throw new HttpError(404, "Commander def missing");
+      const allocations = JSON.parse(row.talents_json || "{}") as Record<string, number>;
+      const err = validateTalentAllocation(body.nodeId, points, row.level, def.rarity, allocations);
+      if (err) throw new HttpError(400, err);
+      const node = talentNode(body.nodeId);
+      if (!node) throw new HttpError(400, "Unknown talent node");
+      const next: Record<string, number> = { ...allocations };
+      next[body.nodeId] = (next[body.nodeId] || 0) + points;
+      await env.DB.prepare(
+        `UPDATE player_commanders SET talents_json=? WHERE id=?`,
+      ).bind(JSON.stringify(next), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, commander: updated ? commanderJson(updated) : null });
+    }
+
+    // P8-T1: إعادة ضبط مواهب القائد واسترجاع reset_refund_ratio من النقاط المصروفة
+    if (path === "/v1/commander/talent/reset" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ commanderId: string }>(request);
+      if (!body.commanderId) throw new HttpError(400, "commanderId required");
+      const row = await getOwnedCommander(env, player.id, body.commanderId);
+      if (!row) throw new HttpError(404, "Commander not owned");
+      const allocations = JSON.parse(row.talents_json || "{}") as Record<string, number>;
+      const { allocs: nextAllocs } = resetTalentAllocations(allocations);
+      await env.DB.prepare(
+        `UPDATE player_commanders SET talents_json=? WHERE id=?`,
+      ).bind(JSON.stringify(nextAllocs), row.id).run();
+      const updated = await getOwnedCommander(env, player.id, body.commanderId);
+      return json({ ok: true, commander: updated ? commanderJson(updated) : null });
+    }
+
     // P2-T1: تعيين قائد على مسيرة نشطة مملوكة للاعب
     if (path === "/v1/commander/assign" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
@@ -1528,9 +1595,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       if (march.ownerPlayerId !== player.id) throw new HttpError(403, "Not your march");
 
       await env.DB.prepare(
-        `INSERT OR REPLACE INTO march_commanders (march_id, player_id, commander_id, skills_json, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
-      ).bind(body.marchId, player.id, body.commanderId, row.skills_json, nowMs()).run();
+        `INSERT OR REPLACE INTO march_commanders (march_id, player_id, commander_id, skills_json, talents_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(body.marchId, player.id, body.commanderId, row.skills_json, row.talents_json || "{}", nowMs()).run();
 
       return json({ ok: true, marchId: body.marchId, commander: commanderJson(row) });
     }

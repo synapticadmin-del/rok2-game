@@ -33,6 +33,7 @@ export type CommanderInstance = {
   level: number;
   skills: number[]; // مستويات المهارات الثلاث [attack, defense, passive]
   xp?: number; // خبرة تراكمية نحو المستوى التالي (تُستخدم في addXp)
+  talentAllocations?: Record<string, number>; // P8-T1: نقاط المواهب الموزعة (nodeId -> points)
 };
 
 const DEFS: Record<string, CommanderDef> = {};
@@ -125,6 +126,10 @@ export function addXp(inst: CommanderInstance, amount: number): CommanderInstanc
 }
 
 /** قائد البداية لحضارة معينة (يُقرأ من civilizations.json starter_commander) */
+export function commanderRarity(commanderId: string): string {
+  return DEFS[commanderId]?.rarity || "common";
+}
+
 export function starterCommanderForCiv(civ: string): string | null {
   // القيمة تُقرأ من بيانات الحضارات؛ نتجنب import دائري هنا، لذا نطابق بالاسم
   const match = Object.values(DEFS).find((d) => d.nation === civ && d.id.endsWith("_starter"));

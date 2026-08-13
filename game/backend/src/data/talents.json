@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "description": "P8-T1 نظام مواهب القادة (Talents): شجرتان لكل قائد — شجرة نوع القوات (troop_type) وشجرة الدور (role). نقاط المواهب تُمنح بمستوى القائد وتُصرف على عقد الشجرتين، وتُطبَّق بافاتها على قوة المسيرة في القتال وسرعة المسير والتدريب. كل القيم من هذا الملف تُقرأ عبر TALENT_CONSTANTS وtalentNode() في sim/talents.ts — لا قيم hard-coded في الكود.",
+  "constants": {
+    "talent_points_per_level": 1,
+    "points_cap_rarity": { "common": 40, "elite": 60, "epic": 80, "legendary": 100 },
+    "max_points_per_node": 5,
+    "reset_refund_ratio": 0.8,
+    "reset_cooldown_ms": 60000,
+    "talent_buff_stat_cap": 0.3
+  },
+  "trees": [
+    {
+      "id": "troop_type",
+      "name": "نوع القوات",
+      "branches": ["infantry", "cavalry", "archer", "siege"],
+      "description": "كل فرع يختص بنوع قوات واحد؛ بافاته تخص القوات من هذا الفرع فقط.",
+      "nodes": [
+        { "id": "infantry_attack", "branch": "infantry", "stat": "troop_attack", "per_point": 0.01, "max_points": 5 },
+        { "id": "infantry_defense", "branch": "infantry", "stat": "troop_defense", "per_point": 0.01, "max_points": 5 },
+        { "id": "infantry_health", "branch": "infantry", "stat": "troop_health", "per_point": 0.01, "max_points": 5 },
+        { "id": "infantry_march_speed", "branch": "infantry", "stat": "march_speed", "per_point": 0.005, "max_points": 5 },
+        { "id": "infantry_training_speed", "branch": "infantry", "stat": "training_speed", "per_point": 0.01, "max_points": 3 },
+        { "id": "cavalry_attack", "branch": "cavalry", "stat": "troop_attack", "per_point": 0.01, "max_points": 5 },
+        { "id": "cavalry_defense", "branch": "cavalry", "stat": "troop_defense", "per_point": 0.01, "max_points": 5 },
+        { "id": "cavalry_health", "branch": "cavalry", "stat": "troop_health", "per_point": 0.01, "max_points": 5 },
+        { "id": "cavalry_march_speed", "branch": "cavalry", "stat": "march_speed", "per_point": 0.01, "max_points": 5 },
+        { "id": "cavalry_training_speed", "branch": "cavalry", "stat": "training_speed", "per_point": 0.01, "max_points": 3 },
+        { "id": "archer_attack", "branch": "archer", "stat": "troop_attack", "per_point": 0.01, "max_points": 5 },
+        { "id": "archer_defense", "branch": "archer", "stat": "troop_defense", "per_point": 0.01, "max_points": 5 },
+        { "id": "archer_health", "branch": "archer", "stat": "troop_health", "per_point": 0.01, "max_points": 5 },
+        { "id": "archer_march_speed", "branch": "archer", "stat": "march_speed", "per_point": 0.005, "max_points": 5 },
+        { "id": "archer_training_speed", "branch": "archer", "stat": "training_speed", "per_point": 0.01, "max_points": 3 },
+        { "id": "siege_attack", "branch": "siege", "stat": "siege_damage", "per_point": 0.015, "max_points": 5 },
+        { "id": "siege_defense", "branch": "siege", "stat": "siege_resistance", "per_point": 0.01, "max_points": 5 },
+        { "id": "siege_health", "branch": "siege", "stat": "troop_health", "per_point": 0.01, "max_points": 5 },
+        { "id": "siege_march_speed", "branch": "siege", "stat": "march_speed", "per_point": 0.005, "max_points": 3 },
+        { "id": "siege_training_speed", "branch": "siege", "stat": "training_speed", "per_point": 0.01, "max_points": 3 }
+      ]
+    },
+    {
+      "id": "role",
+      "name": "الدور",
+      "branches": ["attack", "defense", "support"],
+      "description": "شجرة الدور تعزز دور القائد في المعركة والحياة الاقتصادية، بافات عامة لا تخص نوع قوات.",
+      "nodes": [
+        { "id": "attack_troop_attack", "branch": "attack", "stat": "troop_attack", "per_point": 0.008, "max_points": 5 },
+        { "id": "attack_counter_damage", "branch": "attack", "stat": "counter_damage", "per_point": 0.01, "max_points": 3 },
+        { "id": "attack_damage_taken_reduction", "branch": "attack", "stat": "damage_taken_reduction", "per_point": 0.005, "max_points": 5 },
+        { "id": "attack_xp_gain", "branch": "attack", "stat": "xp_gain", "per_point": 0.02, "max_points": 3 },
+        { "id": "defense_troop_defense", "branch": "defense", "stat": "troop_defense", "per_point": 0.008, "max_points": 5 },
+        { "id": "defense_troop_health", "branch": "defense", "stat": "troop_health", "per_point": 0.008, "max_points": 5 },
+        { "id": "defense_garrison_damage_reduction", "branch": "defense", "stat": "garrison_damage_reduction", "per_point": 0.01, "max_points": 3 },
+        { "id": "defense_heal_cost_reduction", "branch": "defense", "stat": "heal_cost_reduction", "per_point": 0.01, "max_points": 3 },
+        { "id": "support_resource_production", "branch": "support", "stat": "resource_production", "per_point": 0.01, "max_points": 5 },
+        { "id": "support_training_speed", "branch": "support", "stat": "training_speed", "per_point": 0.008, "max_points": 5 },
+        { "id": "support_gathering_speed", "branch": "support", "stat": "gathering_speed", "per_point": 0.01, "max_points": 5 },
+        { "id": "support_march_speed", "branch": "support", "stat": "march_speed", "per_point": 0.005, "max_points": 5 }
+      ]
+    }
+  ]
+}
