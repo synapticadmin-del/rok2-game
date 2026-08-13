@@ -11,6 +11,7 @@ const clientRoot = resolve(import.meta.dirname, '..');
 const read = (relativePath) => readFileSync(resolve(clientRoot, relativePath), 'utf8');
 const header = read('Source/Rok2/Public/Rok2Api.h');
 const source = read('Source/Rok2/Private/Rok2Api.cpp');
+const rendererSource = read('Source/Rok2/Private/Rok2WorldRenderer.cpp');
 
 const failures = [];
 function requireText(haystack, needle, label) {
@@ -47,10 +48,18 @@ for (const helper of ['FetchCommandersInternal', 'FetchBattleReportsInternal', '
   if (!segment.includes('const FString&')) failures.push(`${helper} لا يعالج فشل طلب القراءة`);
 }
 
+// ---- الدردشة والقصة تُستعادان بعد القطع ----
+requireText(source, 'Type == TEXT("chat_history")', 'لا تعالج الدردشة (chat_history) بعد عودة الاتصال');
+requireText(source, 'TryGetArrayField(TEXT("seasonStory")', 'لا تعالج قصة الموسم (seasonStory) في لقطة العالم');
+
+// ---- لا actors مكررة ولا عدادات قديمة عند إعادة المزامنة ----
+requireText(rendererSource, 'SpawnedActors.Empty()', 'لا يفرغ actors العالم القديمة قبل إعادة المزامنة (خطر تكرار actors)');
+requireText(source, '.Empty()', 'كيانات الاستعادة لا تفرغ البيانات القديمة قبل إعادة التعبئة (خطر عدادات/بيانات قديمة)');
+
 if (failures.length) {
   console.error('P7-T5 reconnect restore verification failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('P7-T5 reconnect restore verification passed (authoritative 5-part bundle + reconnect guards).');
+console.log('P7-T5 reconnect restore verification passed (5-part authoritative bundle + reconnect guards + chat/story restore + no duplicate actors).');
