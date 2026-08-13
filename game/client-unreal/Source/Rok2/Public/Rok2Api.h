@@ -60,6 +60,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnApStateChanged, const FRok2Action
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestsUpdated, const FRok2QuestState&, State);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKingUpdated);
 
+// P9-T7: النسيج الاجتماعي والاقتصادي — تقنية/أرض/متجر/ألقاب/VIP/Trading/هدايا.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTechUpdated, const TArray<FRok2AllianceTechNode>&, Nodes);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTerritoryUpdated, const FRok2AllianceTerritoryState&, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceShopUpdated, const TArray<FRok2AllianceShopItem>&, Items);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTitleChanged, const FRok2AllianceTitle&, Title);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVipStatusUpdated, const FRok2VipStatus&, Status);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTradingOffersUpdated, const TArray<FRok2TradingOffer>&, Offers);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceGiftsUpdated, const TArray<FRok2AllianceGift>&, Gifts);
+
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
 {
@@ -270,6 +279,68 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|HolySites")
 	void MarchToHolySite(const FString& SiteId, const FString& PrimaryCommander, const FString& SecondaryCommander);
 
+	// ---------------------------------------------------------------------------
+	// P9-T7: تقنية التحالف — بحث جماعي بباڤات لكل الأعضاء (من sim/alliance_tech).
+	// ---------------------------------------------------------------------------
+	/** يسحب تقنية التحالف من GET /v1/alliance/tech ويبثها على OnAllianceTechUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void FetchAllianceTech();
+
+	/** يتبرع بنقاط بحث في تقنية — POST /v1/alliance/tech/donate {techId, points} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void DonateAllianceTech(const FString& TechId, int32 Points);
+
+	// ---------------------------------------------------------------------------
+	// P9-T7: أراضي التحالف ومراكز الموارد (من sim/territory).
+	// ---------------------------------------------------------------------------
+	/** يسحب حالة أرض التحالف من GET /v1/territory/state ويبثها على OnAllianceTerritoryUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void FetchAllianceTerritory();
+
+	// ---------------------------------------------------------------------------
+	// P9-T7: متجر التحالف والألقاب (من sim/alliance_shop).
+	// ---------------------------------------------------------------------------
+	/** يسحب رصيد متجر التحالف والعناصر من GET /v1/alliance/shop-state ويبثها على OnAllianceShopUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void FetchAllianceShop();
+
+	/** يشتري عنصرًا من رصيد التحالف — POST /v1/alliance/shop/purchase {itemId} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void PurchaseAllianceShopItem(const FString& ItemId);
+
+	// ---------------------------------------------------------------------------
+	// P9-T7: نظام VIP (15 مستوى — من sim/shop/vip).
+	// ---------------------------------------------------------------------------
+	/** يسحب حالة VIP من GET /v1/vip/status (منح يومي تلقائي) ويبثها على OnVipStatusUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|VIP")
+	void FetchVipStatus();
+
+	// ---------------------------------------------------------------------------
+	// P9-T7: Trading Post — سوق تبادل موارد بين لاعبي المملكة (من sim/trading).
+	// ---------------------------------------------------------------------------
+	/** يسحب عروض التداول النشطة من GET /v1/trading/list ويبثها على OnTradingOffersUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Trading")
+	void FetchTradingOffers();
+
+	/** ينشر عرض تبادل — POST /v1/trading/offer {sellResource, buyResource, amount} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Trading")
+	void PostTradingOffer(const FString& SellResource, const FString& BuyResource, int32 Amount);
+
+	/** يشتري عرض تداول قائمًا — POST /v1/trading/claim {offerId} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Trading")
+	void ClaimTradingOffer(const FString& OfferId);
+
+	// ---------------------------------------------------------------------------
+	// P9-T7: صناديق هدايا التحالف الجماعية (من sim/alliance_gifts).
+	// ---------------------------------------------------------------------------
+	/** يسحب الصناديق النشطة للتحالف من GET /v1/alliance/gifts/list ويبثها على OnAllianceGiftsUpdated */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void FetchAllianceGifts();
+
+	/** يفتح فتحة في صندوق هدية تحالف — POST /v1/alliance/gifts/claim {giftId} */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Alliance")
+	void ClaimAllianceGift(const FString& GiftId);
+
 	// Polling pump - called from GameMode Tick
 	void PumpEvents(float DeltaSeconds);
 
@@ -430,6 +501,28 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|World")
 	FOnKingUpdated OnKingUpdated;
 
+	// P9-T7: أحداث النسيج الاجتماعي والاقتصادي.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceTechUpdated OnAllianceTechUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceTerritoryUpdated OnAllianceTerritoryUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceShopUpdated OnAllianceShopUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceTitleChanged OnAllianceTitleChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|VIP")
+	FOnVipStatusUpdated OnVipStatusUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Trading")
+	FOnTradingOffersUpdated OnTradingOffersUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Alliance")
+	FOnAllianceGiftsUpdated OnAllianceGiftsUpdated;
+
 protected:
 	FString BaseUrl;
 	FString KingdomId;
@@ -454,6 +547,15 @@ protected:
 	TArray<FRok2EquipmentItem> EquipmentInventory;
 	FRok2QuestState QuestState;
 	bool bKingKnown = false;
+
+	// P9-T7: كاشات النسيج الاجتماعي والاقتصادي — تُحدّث من Fetch* وتُبث للواجهات.
+	TArray<FRok2AllianceTechNode> AllianceTechNodes;
+	FRok2AllianceTerritoryState TerritoryState;
+	TArray<FRok2AllianceShopItem> AllianceShopItems;
+	int32 AllianceShopBalance = 0;
+	FRok2VipStatus VipStatus;
+	TArray<FRok2TradingOffer> TradingOffers;
+	TArray<FRok2AllianceGift> AllianceGifts;
 
 	// ---- HUD الموحد (P2-T6) ----
 	/** سجل الإشعارات (الأحدث أولاً) */
@@ -569,6 +671,24 @@ protected:
 
 	/** يستخرج حالة الملك من GET /v1/meta/all ويبثها (P8-T7) */
 	void ParseKingState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج عقد تقنية التحالف من GET /v1/alliance/tech ويبثها (P9-T7) */
+	void ParseAllianceTechState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج حالة أرض التحالف من GET /v1/territory/state ويبثها (P9-T7) */
+	void ParseAllianceTerritoryState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج رصيد متجر التحالف وعناصره من GET /v1/alliance/shop-state ويبثها (P9-T7) */
+	void ParseAllianceShopState(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج حالة VIP من GET /v1/vip/status ويبثها (P9-T7) */
+	void ParseVipStatus(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج عروض التداول من GET /v1/trading/list ويبثها (P9-T7) */
+	void ParseTradingOffers(const TSharedPtr<FJsonObject>& Obj);
+
+	/** يستخرج صناديق هدايا التحالف من GET /v1/alliance/gifts/list ويبثها (P9-T7) */
+	void ParseAllianceGifts(const TSharedPtr<FJsonObject>& Obj);
 
 	/** يضيف/يحدّث/يزيل مسيرة في World.Marches ويبث التحديث (من أحداث الـ WS) */
 	void UpsertMarch(const FRok2MarchEntity& E);

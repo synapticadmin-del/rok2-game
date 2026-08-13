@@ -941,6 +941,161 @@ struct FRok2QuestState
 	bool bWeeklyChestAvailable = false;
 };
 
+// ---------------------------------------------------------------------------
+// P9-T7: النسيج الاجتماعي والاقتصادي — تحالف حي (تقنية/أرض/متجر/ألقاب)
+// واقتصاد متقدم (VIP كامل + Trading Post + صناديق هدايا جماعية).
+// الأنواع مرآة لتعريفات الخادم في data/alliance_tech.json وdata/alliance_territory.json
+// وdata/alliance_shop.json وdata/shop.json وdata/trading.json وdata/alliance_gifts.json.
+// ---------------------------------------------------------------------------
+
+/** عقدة بحث تقنية تحالف (من GET /v1/alliance/tech). */
+USTRUCT(BlueprintType)
+struct FRok2AllianceTechNode
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Category; // development | territory | war | skill
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 Level = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 MaxLevel = 5;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 Points = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 PointsRequired = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bCompleted = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	double BuffValue = 0;
+};
+
+/** حالة أراضي التحالف ومراكز الموارد (من GET /v1/territory/state). */
+USTRUCT(BlueprintType)
+struct FRok2AllianceTerritoryState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString AllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	TArray<FString> CenterIds; // مراكز الموارد المحتلة
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	TArray<FString> OutpostIds; // قلاع Outposts النشطة
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 PatrolModifierPct = 25;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 GatherMultiplierPct = 125;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bInsideTerritory = false;
+};
+
+/** عنصر متجر التحالف (من GET /v1/alliance/shop-state). */
+USTRUCT(BlueprintType)
+struct FRok2AllianceShopItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 Price = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 BoughtCount = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 MaxPerAlliance = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bLocked = false;
+};
+
+/** لقب تحالف مطبق على اللاعب (من POST /v1/alliance/shop/grant-title). */
+USTRUCT(BlueprintType)
+struct FRok2AllianceTitle
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	TMap<FString, double> Buffs; // atk_def | research_build | hp | gather
+};
+
+/** حالة VIP (من GET /v1/vip/status). */
+USTRUCT(BlueprintType)
+struct FRok2VipStatus
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 Level = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 Points = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 PointsDailyGranted = 40;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bVipStoreOpen = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	double VipStoreDiscount = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bExtraBuildQueue = false;
+};
+
+/** عرض تداول في Trading Post (من GET /v1/trading/list). */
+USTRUCT(BlueprintType)
+struct FRok2TradingOffer
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString OfferId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString SellerPlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString SellResource; // food | wood | stone | gold
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString BuyResource;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 SellAmount = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 BuyAmount = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	double Rate = 1.0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int64 CreatedAtMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int64 ExpiresAtMs = 0;
+};
+
+/** صندوق هدية تحالف جماعي (من GET /v1/alliance/gifts/list). */
+USTRUCT(BlueprintType)
+struct FRok2AllianceGift
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString GiftId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString GiftTypeId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 SlotsRemaining = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int32 SlotsTotal = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	int64 ExpiresAtMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P9")
+	bool bExpired = false;
+};
+
 /** موقع الملك الحالي على خريطة العالم (من snapshot وGET /v1/meta/all). */
 USTRUCT(BlueprintType)
 struct FRok2KingMarker

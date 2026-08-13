@@ -2779,3 +2779,289 @@ void URok2Api::MarchToHolySite(const FString& SiteId, const FString& PrimaryComm
 		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
 	});
 }
+
+// ===========================================================================
+// P9-T7: النسيج الاجتماعي والاقتصادي — تحالف حي (تقنية/أرض/متجر/ألقاب)
+// واقتصاد متقدم (VIP كامل + Trading Post + صناديق هدايا جماعية).
+// تنفيذ مطابق لـ endpoints الخادم في router.ts (GET/POST) — التحقق الكامل
+// منطقيًا سلطوي في الخادم؛ العميل مرآة عرض فقط مع طلبات REST مباشرة.
+// ===========================================================================
+
+// ---------- تقنية التحالف (GET /v1/alliance/tech, POST /v1/alliance/tech/donate) -
+void URok2Api::FetchAllianceTech()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	// الخادم يعرّف تقنية التحالف على /v1/alliance-tech/state (ليست /v1/alliance/tech).
+	Get(TEXT("/v1/alliance-tech/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseAllianceTechState(Obj);
+	});
+}
+
+void URok2Api::DonateAllianceTech(const FString& TechId, int32 Points)
+{
+	FString Body = FString::Printf(TEXT("{\"techId\":\"%s\",\"points\":%d}"), *TechId, Points);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance-tech/donate"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchAllianceTech();
+		WeakThis->EmitToast(TEXT("تبرّعت بنقاط بحث للتقنية"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseAllianceTechState(const TSharedPtr<FJsonObject>& Obj)
+{
+	AllianceTechNodes.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Nodes;
+	if (!Obj->TryGetArrayField(TEXT("nodes"), Nodes) || !Nodes) return;
+	for (const TSharedPtr<FJsonValue>& V : *Nodes)
+	{
+		const TSharedPtr<FJsonObject>* J;
+		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		FRok2AllianceTechNode N;
+		N.Id = Rok2Json::Str(**J, TEXT("id"));
+		N.Name = Rok2Json::Str(**J, TEXT("name"));
+		N.Category = Rok2Json::Str(**J, TEXT("category"));
+		N.Level = (int32)Rok2Json::Num(**J, TEXT("level"));
+		N.MaxLevel = (int32)Rok2Json::Num(**J, TEXT("maxLevel"));
+		N.Points = (int32)Rok2Json::Num(**J, TEXT("points"));
+		N.PointsRequired = (int32)Rok2Json::Num(**J, TEXT("pointsRequired"));
+		N.bCompleted = Rok2Json::Bool(**J, TEXT("completed"));
+		N.BuffValue = Rok2Json::Num(**J, TEXT("buffValue"));
+		AllianceTechNodes.Add(N);
+	}
+	OnAllianceTechUpdated.Broadcast(AllianceTechNodes);
+}
+
+// ---------- أراضي التحالف ومراكز الموارد (GET /v1/territory/state) -------------
+void URok2Api::FetchAllianceTerritory()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/territory/state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseAllianceTerritoryState(Obj);
+	});
+}
+
+void URok2Api::ParseAllianceTerritoryState(const TSharedPtr<FJsonObject>& Obj)
+{
+	TerritoryState = FRok2AllianceTerritoryState();
+	TerritoryState.AllianceId = Rok2Json::Str(*Obj, TEXT("allianceId"));
+	TerritoryState.PatrolModifierPct = (int32)Rok2Json::Num(*Obj, TEXT("patrolModifierPct"));
+	TerritoryState.GatherMultiplierPct = (int32)Rok2Json::Num(*Obj, TEXT("gatherMultiplierPct"));
+	TerritoryState.bInsideTerritory = Rok2Json::Bool(*Obj, TEXT("insideTerritory"));
+	const TArray<TSharedPtr<FJsonValue>>* C;
+	if (Obj->TryGetArrayField(TEXT("centerIds"), C) && C)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *C) TerritoryState.CenterIds.Add(V->AsString());
+	}
+	const TArray<TSharedPtr<FJsonValue>>* O;
+	if (Obj->TryGetArrayField(TEXT("outpostIds"), O) && O)
+	{
+		for (const TSharedPtr<FJsonValue>& V : *O) TerritoryState.OutpostIds.Add(V->AsString());
+	}
+	OnAllianceTerritoryUpdated.Broadcast(TerritoryState);
+}
+
+// ---------- متجر التحالف والألقاب (GET /v1/alliance/shop-state) ------------------
+void URok2Api::FetchAllianceShop()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/alliance/shop-state"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseAllianceShopState(Obj);
+	});
+}
+
+void URok2Api::PurchaseAllianceShopItem(const FString& ItemId)
+{
+	FString Body = FString::Printf(TEXT("{\"itemId\":\"%s\"}"), *ItemId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/shop/purchase"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchAllianceShop();
+		WeakThis->LoadCity();
+		WeakThis->EmitToast(TEXT("اشتريت العنصر من رصيد التحالف"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseAllianceShopState(const TSharedPtr<FJsonObject>& Obj)
+{
+	AllianceShopItems.Reset();
+	AllianceShopBalance = (int32)Rok2Json::Num(*Obj, TEXT("balance"));
+	const TArray<TSharedPtr<FJsonValue>>* Items;
+	if (!Obj->TryGetArrayField(TEXT("items"), Items) || !Items) return;
+	for (const TSharedPtr<FJsonValue>& V : *Items)
+	{
+		const TSharedPtr<FJsonObject>* J;
+		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		FRok2AllianceShopItem I;
+		I.Id = Rok2Json::Str(**J, TEXT("id"));
+		I.Name = Rok2Json::Str(**J, TEXT("name"));
+		I.Price = (int32)Rok2Json::Num(**J, TEXT("price"));
+		I.BoughtCount = (int32)Rok2Json::Num(**J, TEXT("boughtCount"));
+		I.MaxPerAlliance = (int32)Rok2Json::Num(**J, TEXT("maxPerAlliance"));
+		I.bLocked = Rok2Json::Bool(**J, TEXT("locked"));
+		AllianceShopItems.Add(I);
+	}
+	OnAllianceShopUpdated.Broadcast(AllianceShopItems);
+}
+
+// ---------- نظام VIP (GET /v1/vip/status) ---------------------------------------
+void URok2Api::FetchVipStatus()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/vip/status"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseVipStatus(Obj);
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseVipStatus(const TSharedPtr<FJsonObject>& Obj)
+{
+	VipStatus = FRok2VipStatus();
+	VipStatus.Level = (int32)Rok2Json::Num(*Obj, TEXT("level"));
+	VipStatus.Points = (int32)Rok2Json::Num(*Obj, TEXT("points"));
+	VipStatus.PointsDailyGranted = (int32)Rok2Json::Num(*Obj, TEXT("pointsDailyGranted"));
+	VipStatus.bVipStoreOpen = Rok2Json::Bool(*Obj, TEXT("vipStoreOpen"));
+	VipStatus.VipStoreDiscount = Rok2Json::Num(*Obj, TEXT("vipStoreDiscount"));
+	VipStatus.bExtraBuildQueue = Rok2Json::Bool(*Obj, TEXT("extraBuildQueue"));
+	OnVipStatusUpdated.Broadcast(VipStatus);
+}
+
+// ---------- Trading Post (GET /v1/trading/list + POST offer/claim) -------------
+void URok2Api::FetchTradingOffers()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/trading/list"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseTradingOffers(Obj);
+	});
+}
+
+void URok2Api::PostTradingOffer(const FString& SellResource, const FString& BuyResource, int32 Amount)
+{
+	FString Body = FString::Printf(TEXT("{\"sellResource\":\"%s\",\"buyResource\":\"%s\",\"amount\":%d}"),
+		*SellResource, *BuyResource, Amount);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/trading/offer"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->FetchTradingOffers();
+		WeakThis->EmitToast(TEXT("نُشر عرض التبادل في السوق"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ClaimTradingOffer(const FString& OfferId)
+{
+	FString Body = FString::Printf(TEXT("{\"offerId\":\"%s\"}"), *OfferId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/trading/claim"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->FetchTradingOffers();
+		WeakThis->EmitToast(TEXT("اشتريت العرض من السوق"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseTradingOffers(const TSharedPtr<FJsonObject>& Obj)
+{
+	TradingOffers.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Offers;
+	if (!Obj->TryGetArrayField(TEXT("offers"), Offers) || !Offers) return;
+	for (const TSharedPtr<FJsonValue>& V : *Offers)
+	{
+		const TSharedPtr<FJsonObject>* J;
+		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		FRok2TradingOffer O;
+		O.OfferId = Rok2Json::Str(**J, TEXT("offerId"));
+		O.SellerPlayerId = Rok2Json::Str(**J, TEXT("sellerPlayerId"));
+		O.SellResource = Rok2Json::Str(**J, TEXT("sellResource"));
+		O.BuyResource = Rok2Json::Str(**J, TEXT("buyResource"));
+		O.SellAmount = (int32)Rok2Json::Num(**J, TEXT("sellAmount"));
+		O.BuyAmount = (int32)Rok2Json::Num(**J, TEXT("buyAmount"));
+		O.Rate = Rok2Json::Num(**J, TEXT("rate"));
+		O.CreatedAtMs = (int64)Rok2Json::Num(**J, TEXT("createdAtMs"));
+		O.ExpiresAtMs = (int64)Rok2Json::Num(**J, TEXT("expiresAtMs"));
+		TradingOffers.Add(O);
+	}
+	OnTradingOffersUpdated.Broadcast(TradingOffers);
+}
+
+// ---------- صناديق هدايا التحالف (GET /v1/alliance/gifts/list) -------------------
+void URok2Api::FetchAllianceGifts()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/alliance/gifts/list"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseAllianceGifts(Obj);
+	});
+}
+
+void URok2Api::ClaimAllianceGift(const FString& GiftId)
+{
+	FString Body = FString::Printf(TEXT("{\"giftId\":\"%s\"}"), *GiftId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/alliance/gifts/claim"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->LoadCity();
+		WeakThis->FetchAllianceGifts();
+		WeakThis->EmitToast(TEXT("افتتحت فتحة في صندوق الهدية"));
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseAllianceGifts(const TSharedPtr<FJsonObject>& Obj)
+{
+	AllianceGifts.Reset();
+	const TArray<TSharedPtr<FJsonValue>>* Gifts;
+	if (!Obj->TryGetArrayField(TEXT("gifts"), Gifts) || !Gifts) return;
+	for (const TSharedPtr<FJsonValue>& V : *Gifts)
+	{
+		const TSharedPtr<FJsonObject>* J;
+		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		FRok2AllianceGift G;
+		G.GiftId = Rok2Json::Str(**J, TEXT("giftId"));
+		G.GiftTypeId = Rok2Json::Str(**J, TEXT("giftTypeId"));
+		G.Name = Rok2Json::Str(**J, TEXT("name"));
+		G.SlotsRemaining = (int32)Rok2Json::Num(**J, TEXT("slotsRemaining"));
+		G.SlotsTotal = (int32)Rok2Json::Num(**J, TEXT("slotsTotal"));
+		G.ExpiresAtMs = (int64)Rok2Json::Num(**J, TEXT("expiresAtMs"));
+		G.bExpired = Rok2Json::Bool(**J, TEXT("expired"));
+		AllianceGifts.Add(G);
+	}
+	OnAllianceGiftsUpdated.Broadcast(AllianceGifts);
+}
