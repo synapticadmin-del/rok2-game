@@ -28,7 +28,10 @@ const build = read('scripts/Build-Rok2.ps1');
 const civImport = read('scripts/Import-CivVisuals.ps1');
 const cityMapUiImport = read('scripts/Import-CityMapUIAssets.ps1');
 const smoke = read('scripts/Run-Rok2RuntimeSmoke.ps1');
+const preflight = read('scripts/Run-Rok2Preflight.ps1');
 const guide = read('Docs/BUILD_AND_PIE.md');
+const failuresLog = read('Docs/BUILD_FAILURES.md');
+const pieQuick = read('Docs/PIE_QUICK_SCENARIO.md');
 const defaultEngine = read('Config/DefaultEngine.ini');
 const project = JSON.parse(read('Rok2.uproject'));
 
@@ -86,6 +89,30 @@ expect(
 expect(
   'الدليل يغطي الصوت والأيقونات وحكاية المملكة',
   includesAll(guide, ['UiButtonClick', 'حكاية المملكة', 'URok2WorldIconography', 'season_story_event'])
+);
+expect(
+  'سكربت الجاهزية Preflight يتحقق من نسخة المحرك وأدوات البناء والمشروع',
+  includesAll(preflight, ['Build.version', 'Build.bat', 'RunUAT.bat', 'UnrealEditor-Cmd.exe', 'Rok2.uproject', 'Rok2Main.umap', 'GameDefaultMap=/Game/Maps/Rok2Main', 'vswhere', '$env:UE_ROOT'])
+);
+expect(
+  'سكربت الجاهزية يفحص VS 2022 وWindows SDK وJDK 17 ويقرر بexit code',
+  includesAll(preflight, ['Microsoft.Component.MSBuild', '10.0.22621', 'exit 1', 'JDK 17', 'bSplashScreen=False', 'Saved\\BuildLogs'])
+);
+expect(
+  'سجل الأعطال يوثّق BF-001 حتى BF-006 بقواعد تعامل وصفوف موثقة',
+  includesAll(failuresLog, ['BF-001', 'BF-002', 'BF-003', 'BF-004', 'BF-005', 'BF-006', 'Blocker Log', 'major version 65', 'bSplashScreen=False', 'PermissionHelper', 'Run-Rok2Preflight.ps1'])
+);
+expect(
+  'سجل الأعطال يحظر حذف الصفوف ويطلب فحص منع انحدار',
+  includesAll(failuresLog, ['لا تحذف الصفوف', 'verify_p7_t2_build_pipeline.mjs'])
+);
+expect(
+  'سيناريو PIE القصير يغطي ست خطوات وجدول تسجيل ومعرفات الأدلة',
+  includesAll(pieQuick, ['New Editor Window (PIE)', 'UiButtonClick', 'UiPanelOpen', 'season_story_event', 'RestoreAuthoritativeState', 'P7-T2-PIE-SMOKE', 'PIE-06', 'PIE-11'])
+);
+expect(
+  'الدليل يشير إلى Preflight وسجل الأعطال وسيناريو PIE القصير',
+  includesAll(guide, ['Run-Rok2Preflight.ps1', 'BUILD_FAILURES.md', 'PIE_QUICK_SCENARIO.md', 'BF-001'])
 );
 
 for (const check of checks) {
