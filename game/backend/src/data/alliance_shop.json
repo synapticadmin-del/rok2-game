@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "comment": "متجر التحالف والألقاب (P9-T3). رصيد التحالف يُكسب من مساعدات الأعضاء (help credit) والهدايا/صناديق المطالبَة — لا يأتي من مشتريات حقيقية.",
+  "credits": {
+    "earn": {
+      "help_credit": {
+        "comment": "كل مساعدة (help) ناجحة تمنح رصيد تحالف ثابتاً",
+        "per_help": 2
+      },
+      "gift_claims": {
+        "comment": "كل مطالبة هدية تحالف تمنح رصيداً صغيراً",
+        "per_claim": 5
+      },
+      "daily_cap": {
+        "comment": "سقف كسب الرصيد اليومي لكل تحالف",
+        "amount": 2000
+      },
+      "balance_cap": {
+        "comment": "سقف رصيد التحالف الإجمالي",
+        "amount": 100000
+      }
+    },
+    "rate_limits": {
+      "window_seconds": 3600,
+      "max_purchases_per_hour": 24
+    }
+  },
+  "catalog": [
+    {
+      "id": "relocation_scroll",
+      "name": "تنقّلة تحالف",
+      "category": "utility",
+      "price": 200,
+      "max_per_alliance": 30,
+      "description": "يوزّعها القائد على الأعضاء: إلغاء تكلفة تنقل مدينة واحدة (teleport).",
+      "grant": { "type": "relocation_token", "amount": 1 }
+    },
+    {
+      "id": "shield_scroll",
+      "name": "درع تحالف",
+      "category": "utility",
+      "price": 500,
+      "max_per_alliance": 20,
+      "description": "درع أمان 8 ساعات يوزّع على عضو واحد.",
+      "grant": { "type": "shield_8h", "amount": 1 }
+    },
+    {
+      "id": "passport_page",
+      "name": "صفحة جواز",
+      "category": "utility",
+      "price": 150,
+      "max_per_alliance": 50,
+      "description": "تقدّم جواز السفر (passport) صفحة إضافية لعضو محدد.",
+      "grant": { "type": "passport_page", "amount": 1 }
+    },
+    {
+      "id": "civ_change",
+      "name": "تغيير الحضارة",
+      "category": "utility",
+      "price": 3000,
+      "max_per_alliance": 6,
+      "description": "يسمح لعضو بتغيير حضارته مرة واحدة دون تكلفة.",
+      "grant": { "type": "civ_change_token", "amount": 1 }
+    }
+  ],
+  "titles": {
+    "comment": "ألقاب مخصصة يمنحها قائد التحالف (R5) لعضو واحد في المرة. أثرها باف دائم ما دام التحالف نشطاً.",
+    "max_granted_per_alliance": 4,
+    "max_holders_per_title": 1,
+    "definitions": [
+      {
+        "id": "warlord",
+        "name": "قائد الحرب",
+        "icon": "warlord",
+        "buffs": { "attack_mod": 0.01, "defense_mod": 0.01 },
+        "description": "حارب في الصفوف الأمامية: +1% ATK و+1% DEF."
+      },
+      {
+        "id": "counsellor",
+        "name": "المستشار",
+        "icon": "counsellor",
+        "buffs": { "research_mod": 0.01, "build_mod": 0.01 },
+        "description": "يوجّه تطور التحالف: +1% بحث و+1% بناء."
+      },
+      {
+        "id": "envoy",
+        "name": "السفير",
+        "icon": "envoy",
+        "buffs": { "hp_mod": 0.01 },
+        "description": "يمثل التحالف في المفاوضات: +1% HP."
+      },
+      {
+        "id": "saint",
+        "name": "القديس",
+        "icon": "saint",
+        "buffs": { "gather_mod": 0.10 },
+        "description": "يبارك جمع التحالف: +10% جمع موارد."
+      }
+    ]
+  }
+}

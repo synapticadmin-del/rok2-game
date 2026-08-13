@@ -1531,6 +1531,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const now = nowMs();
       await env.DB.prepare("UPDATE player_quests SET claimed=1, updated_at=? WHERE player_id=? AND quest_id=?")
         .bind(now, player.id, id).run();
+      // P9-T3: رصيد تحالف من مطالبة جائزة مهمة — اختياري، لا يفشل المسار عند غيابه
+      try {
+        await kingdomStub(env).fetch("https://do/alliance-shop-earn-gift", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id || "" }),
+        });
+      } catch { /* رصيد التحالف اختياري */ }
       return json({ ok: true, quest: { ...quest, claimed: true }, claimedAt: now });
     }
 
@@ -2271,7 +2279,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
         headers: shardPlayerHeaders(target.id),
-        body: JSON.stringify({ playerId: target.id, allianceId: null }),
+        body: JSON.stringify({ playerId: target.id, allianceId: null, previousAllianceId: player.alliance_id }),
       });
       return json({ ok: true, kicked: target.id });
     }
@@ -2292,7 +2300,7 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       await stub.fetch("https://do/set-alliance", {
         method: "POST",
         headers: shardPlayerHeaders(player.id),
-        body: JSON.stringify({ playerId: player.id, allianceId: null }),
+        body: JSON.stringify({ playerId: player.id, allianceId: null, previousAllianceId: allianceId }),
       });
       return json({ ok: true, left: allianceId });
     }
@@ -2369,7 +2377,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         });
       } catch { /* تقدم المهام اختياري */ }
       const helpsCountNow = helpsCount + 1;
-
+      // P9-T3: رصيد تحالف من المساعدة — اختياري، لا يفشل المسار عند غيابه
+      try {
+        await kingdomStub(env).fetch("https://do/alliance-shop-earn-help", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id }),
+        });
+      } catch { /* رصيد التحالف اختياري */ }
       return json({
         ok: true,
         queueId: body.queueId,
@@ -2380,7 +2395,46 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         queue,
       });
     }
-
+    // P9-T3: حالة متجر التحالف والألقاب — الكتالوج + الرصيد + الألقاب الممنوحة
+    if (path === "/v1/alliance/shop-state" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const data = await (await kingdomStub(env).fetch("https://do/alliance-shop-state", {
+        headers: shardPlayerHeaders(player.id),
+      })).json<any>();
+      if (!data.ok) throw new HttpError(data.error ? 500 : 400, data.error || "shop_state_failed");
+      return json({ ok: true, catalog: data.catalog, titleDefinitions: data.titleDefinitions, allianceShopState: data.allianceShopState });
+    }
+    // P9-T3: شراء عنصر من متجر التحالف برصيد التحالف
+    if (path === "/v1/alliance/shop/purchase" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const body = await readJson<{ itemId: string }>(request);
+      if (!body.itemId) throw new HttpError(400, "itemId required");
+      enforceRateLimit(player.id, "alliance_shop_purchase");
+      const data = await (await kingdomStub(env).fetch("https://do/alliance-shop-purchase", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, itemId: String(body.itemId) }),
+      })).json<any>();
+      if (!data.ok) throw new HttpError(data.error === "insufficient_alliance_balance" ? 400 : 400, data.error || "shop_purchase_failed", data);
+      return json({ ok: true, item: data.item, balance: data.balance });
+    }
+    // P9-T3: القائد (R5) يمنح لقبًا تحالف مخصصًا (أو يعيّن حاملًا جديدًا)
+    if (path === "/v1/alliance/shop/grant-title" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      if (!player.alliance_id) throw new HttpError(400, "Not in an alliance");
+      const rank = await getMemberRank(env, player.id, player.alliance_id);
+      if (rank !== "R5") throw new HttpError(403, "leader_only");
+      const body = await readJson<{ titleId: string; targetPlayerId: string }>(request);
+      if (!body.titleId || !body.targetPlayerId) throw new HttpError(400, "titleId and targetPlayerId required");
+      const data = await (await kingdomStub(env).fetch("https://do/alliance-shop-grant-title", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({ playerId: player.id, allianceId: player.alliance_id, titleId: String(body.titleId), targetPlayerId: String(body.targetPlayerId) }),
+      })).json<any>();
+      if (!data.ok) throw new HttpError(data.error === "target_not_in_alliance" ? 400 : 400, data.error || "grant_title_failed", data);
+      return json({ ok: true, title: data.title, balance: data.balance });
+    }
     // Alliance Rally launch (P2-T5): قائد R3+ يفتح حملة على ممر/عرش + ينضم بقواته
     if (path === "/v1/alliance/rally" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);

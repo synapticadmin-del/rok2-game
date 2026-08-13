@@ -60,6 +60,11 @@
       "window_ms": 3600000,
       "max_actions": 6,
       "cooldown_ms": 60000
+    },
+    "alliance_shop_purchase": {
+      "window_ms": 3600000,
+      "max_actions": 30,
+      "cooldown_ms": 0
     }
   },
   "anomaly": {

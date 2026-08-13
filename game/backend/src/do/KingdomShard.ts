@@ -45,6 +45,25 @@ import {
 } from "./sim/alliance_tech";
 import { rankHas } from "./sim/alliance";
 import {
+  type AllianceShopState,
+  applyHelpCredit,
+  applyGiftClaimCredit,
+  itemCatalog,
+  itemById,
+  titleById,
+  validatePurchase,
+  purchase as purchaseShopItem,
+  validateTitleGrant,
+  grantTitle as grantAllianceTitle,
+  revokeTitle,
+  revokeTitlesForPlayer,
+  titleBuffsForPlayer,
+  titleDefinitions,
+  allianceShopStateInitial,
+  dailyCap,
+  balanceCap,
+} from "./sim/alliance_shop";
+import {
   flagRadius,
   outpostRadius,
   gatherBonus,
@@ -129,6 +148,8 @@ type CityEntity = {
   // P9-T2: اسم التحالف ورتبة اللاعب فيه (يمررها الراوتر مع set-alliance) — لصلاحيات بناء قلاع outpost
   allianceName?: string;
   rank?: string;
+  // P9-T3: لقب التحالف الممنوح للاعب (عبر متجر التحالف) — إن وجد
+  titleId?: string;
   civ: string;
   x: number;
   y: number;
@@ -361,6 +382,8 @@ export class KingdomShard extends DurableObject<Env> {
     allianceTech: new Map(),
     donationWindows: new Map(),
   };
+  // P9-T3: متجر التحالف والألقاب — رصيد تحالف + مشتريات + ألقاب ممنوحة لكل تحالف
+  private allianceShop = new Map<string, AllianceShopState>();
   // P5-T5: الكشافة النشطة على الخريطة
   private scouts = new Map<string, ScoutEntity>();
   private queues = new Map<string, QueueEntity>();
@@ -686,6 +709,21 @@ export class KingdomShard extends DurableObject<Env> {
       this.ensureCoreWorldTables();
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (13)");
     }
+    if (ver < 14) {
+      // P9-T3: متجر التحالف والألقاب — رصيد تحالف + مشتريات + ألقاب (JSON مرمّز لكل تحالف)
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS alliance_shop (
+          alliance_id TEXT NOT NULL,
+          balance INTEGER NOT NULL DEFAULT 0,
+          daily_earned INTEGER NOT NULL DEFAULT 0,
+          daily_earned_day INTEGER NOT NULL DEFAULT 0,
+          items_json TEXT NOT NULL DEFAULT '{}',
+          titles_json TEXT NOT NULL DEFAULT '{}',
+          PRIMARY KEY (alliance_id)
+        )
+      `);
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (14)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -822,6 +860,7 @@ export class KingdomShard extends DurableObject<Env> {
     this.loadHolySites();
     // P9-T1: تكنولوجيا التحالف — التقدم والنوافذ يُحمّلان من الحفظ السلطوي
     this.loadAllianceTech();
+    this.loadAllianceShop();
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM passes").toArray()) {
       this.passes.set(row.pass_id, {
         id: row.pass_id,
@@ -1100,6 +1139,55 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
+  // P9-T3: تحميل متجر التحالف والألقاب من الحفظ السلطوي
+  private loadAllianceShop() {
+    for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_shop").toArray()) {
+      let items: Record<string, number> = {};
+      let titles: Record<string, string> = {};
+      try {
+        items = JSON.parse(row.items_json || "{}");
+        titles = JSON.parse(row.titles_json || "{}");
+      } catch {
+        items = {};
+        titles = {};
+      }
+      this.allianceShop.set(row.alliance_id, {
+        balance: row.balance ?? 0,
+        dailyEarned: row.daily_earned ?? 0,
+        dailyEarnedDay: row.daily_earned_day ?? 0,
+        items,
+        titles,
+      });
+    }
+  }
+  private persistAllianceShop(allianceId: string, state: AllianceShopState) {
+    this.ctx.storage.sql.exec(
+      `INSERT OR REPLACE INTO alliance_shop
+       (alliance_id, balance, daily_earned, daily_earned_day, items_json, titles_json)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      allianceId,
+      state.balance,
+      state.dailyEarned,
+      state.dailyEarnedDay,
+      JSON.stringify(state.items),
+      JSON.stringify(state.titles),
+    );
+  }
+  private getOrInitShop(allianceId: string): AllianceShopState {
+    let state = this.allianceShop.get(allianceId);
+    if (!state) {
+      state = allianceShopStateInitial();
+      this.allianceShop.set(allianceId, state);
+    }
+    return state;
+  }
+  // P9-T3: بافات ألقاب اللاعب داخل تحالفه — تُطبَّق على مسيراته/مدنه
+  allianceTitleBuffs(playerId: string, allianceId: string | null | undefined): Record<string, number> {
+    if (!allianceId) return {};
+    const state = this.allianceShop.get(allianceId);
+    if (!state) return {};
+    return titleBuffsForPlayer(state, playerId);
+  }
   // P9-T1: تحميل تقدم تقنيات التحالف ونوافذ تبرع الأعضاء من الحفظ السلطوي
   private loadAllianceTech() {
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM alliance_tech").toArray()) {
@@ -1122,6 +1210,24 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
+  // P9-T3: كسب رصيد تحالف من مساعدة عضو — persist تلقائي
+  earnAllianceHelpCredit(allianceId: string): { earned: number; balance: number } {
+    const state = this.getOrInitShop(allianceId);
+    const { state: next, earned } = applyHelpCredit(state, this.seasonDay, nowMs());
+    if (earned <= 0) return { earned: 0, balance: next.balance };
+    this.allianceShop.set(allianceId, next);
+    this.persistAllianceShop(allianceId, next);
+    return { earned, balance: next.balance };
+  }
+  // P9-T3: كسب رصيد تحالف من مطالبة هدية
+  earnAllianceGiftClaimCredit(allianceId: string): { earned: number; balance: number } {
+    const state = this.getOrInitShop(allianceId);
+    const { state: next, earned } = applyGiftClaimCredit(state, this.seasonDay);
+    if (earned <= 0) return { earned: 0, balance: next.balance };
+    this.allianceShop.set(allianceId, next);
+    this.persistAllianceShop(allianceId, next);
+    return { earned, balance: next.balance };
+  }
   // P9-T1: حفظ تقدم تقنية تحالف — INSERT OR REPLACE عبر المفتاح المزدوج
   private persistAllianceTech(allianceId: string, techId: string, progress: TechProgress) {
     this.ctx.storage.sql.exec(
@@ -1456,6 +1562,15 @@ export class KingdomShard extends DurableObject<Env> {
       .filter(([, state]) => state && Object.keys(state).length > 0)
       .map(([allianceId, state]) => ({ allianceId, techs: Object.entries(state || {}) }));
   }
+  /** حالة متجر التحالف والألقاب للّبث: تحالف اللاعب المعني إن حُدّد، وإلا كل التحالفات ذات نشاط (رصيد>0 أو ألقاب). */
+  private allianceShopStateFor(playerAllianceId: string | null | undefined) {
+    const entries: Array<[string, AllianceShopState]> = playerAllianceId
+      ? [[playerAllianceId, this.allianceShop.get(playerAllianceId) || allianceShopStateInitial()]]
+      : Array.from(this.allianceShop.entries());
+    return entries
+      .filter(([, state]) => state && (state.balance > 0 || Object.keys(state.titles).length > 0 || Object.keys(state.items).length > 0))
+      .map(([allianceId, state]) => ({ allianceId, balance: state.balance, items: state.items, titles: state.titles }));
+  }
 
   /** بث تقدم تقنية تغيرت — للتحالف المعني فقط. */
   private broadcastAllianceTechChange(allianceId: string, techId: string, progress: TechProgress) {
@@ -1488,6 +1603,22 @@ export class KingdomShard extends DurableObject<Env> {
   private marchAllianceTechSiegeMod(marchAllianceId: string | null | undefined): number {
     const buffs = this.allianceTechBuffs(marchAllianceId);
     return Math.min(0.5, (buffs["siege_damage_bonus"] || 0) + (buffs["pass_attack_bonus"] || 0));
+  }
+  /**
+   * P9-T3: بافات ألقاب التحالف — تُطبَّق فقط على مسيرة اللاعب نفسه حين يكون حامل لقب نشط داخل تحالفها.
+   * الألقاب سلطوية: تُقارن by playerId، لا يُخضع أحد لقوات حامل اللقب.
+   * سقف 0.25 لكل باف (هجوم/دفاع/HP/جمع/حصار) كحد أمان.
+   */
+  private marchTitleMod(marchOwnerPlayerId: string, marchAllianceId: string | null | undefined, kind: "attack" | "defense" | "hp" | "siege" | "gather"): number {
+    if (!marchAllianceId) return 0;
+    const buffs = this.allianceTitleBuffs(marchOwnerPlayerId, marchAllianceId);
+    let v = 0;
+    if (kind === "attack") v = (buffs["attack_mod"] || 0) + (buffs["siege_mod"] || 0);
+    if (kind === "defense") v = (buffs["defense_mod"] || 0);
+    if (kind === "hp") v = (buffs["hp_mod"] || 0);
+    if (kind === "siege") v = (buffs["siege_mod"] || 0);
+    if (kind === "gather") v = (buffs["gather_mod"] || 0);
+    return Math.min(0.25, v);
   }
 
   /** P9-T1: تبرع عضو بنقطة تقنية — البحث النشط للتحالف هو المستفيد الوحيد. */
@@ -1808,6 +1939,8 @@ export class KingdomShard extends DurableObject<Env> {
       },
       // P9-T1: حالة تكنولوجيا التحالف — التقدم والمستويات للتحالف المعني فقط إن حُدّدت لاعب، وإلا لكل التحالفات
       allianceTechState: this.allianceTechStateFor(playerAllianceId),
+      // P9-T3: متجر التحالف والألقاب — الرصيد والمشتريات والألقاب للتحالف المعني فقط إن حُدّدت لاعب، وإلا لكل التحالفات
+      allianceShopState: this.allianceShopStateFor(playerAllianceId),
       // P5-T5: الكشافة المتحركة (يكملها العميل محلياً لرسم مسارها)
       scouts: [...this.scouts.values()].filter((s) => s.state === "moving"),
       // التقارير خاصة؛ لا تدخل في اللقطات العامة أو إرسال الحالة لكل العالم.
@@ -1856,6 +1989,8 @@ export class KingdomShard extends DurableObject<Env> {
       king: this.king,
       // P9-T1: تقدم تقنيات التحالف — deltas للعالم الحي
       allianceTechState: this.allianceTechStateFor(playerId ? this.cities.get(playerId)?.allianceId ?? null : null),
+      // P9-T3: متجر التحالف والألقاب — deltas للعالم الحي
+      allianceShopState: this.allianceShopStateFor(playerId ? this.cities.get(playerId)?.allianceId ?? null : null),
       zones: zonesStatus(this.seasonDay, this.regions),
       seasonStory: this.seasonStory,
     };
@@ -2084,6 +2219,11 @@ export class KingdomShard extends DurableObject<Env> {
             if (insideTerritory(center.x, center.y, this.castleList(), m.allianceId || null)) {
               gathered = Math.floor(gathered * gatherMultiplier());
             }
+            // P9-T3: باف جمع لحامل لقب التحالف (سلطوي — playerId فقط)
+            const gatherTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "gather");
+            if (gatherTitleMod > 0) {
+              gathered = Math.floor(gathered * (1 + gatherTitleMod));
+            }
             center.reserve = Math.max(0, center.reserve - gathered);
             if (m.allianceId && !center.lockedAllianceId) {
               const locked = lockCenter(center, m.allianceId, now);
@@ -2103,6 +2243,11 @@ export class KingdomShard extends DurableObject<Env> {
               // P9-T2: باف جمع +25% داخل الأرض الإقليمية للتحالف
               if (m.allianceId && insideTerritory(node.x, node.y, this.castleList(), m.allianceId)) {
                 gathered = Math.floor(gathered * gatherMultiplier());
+              }
+              // P9-T3: باف جمع لحامل لقب التحالف
+              const nodeGatherTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "gather");
+              if (nodeGatherTitleMod > 0) {
+                gathered = Math.floor(gathered * (1 + nodeGatherTitleMod));
               }
               node.remaining = 0;
               this.persistNode(node);
@@ -2298,7 +2443,9 @@ export class KingdomShard extends DurableObject<Env> {
         !!m.allianceId && !!pass.ownerAllianceId && pass.ownerAllianceId !== m.allianceId
           && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), pass.ownerAllianceId),
       );
-      const passAugmentedTroops = scaleTroops(m.troops, (1 + allianceTechMod) * passPatrolMod);
+      // P9-T3: بافات ألقاب التحالف للمسير صاحب اللقب (سلطوي — playerId فقط)
+      const passTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "attack");
+      const passAugmentedTroops = scaleTroops(m.troops, (1 + allianceTechMod + passTitleMod) * passPatrolMod);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: passAugmentedTroops },
@@ -2411,7 +2558,9 @@ export class KingdomShard extends DurableObject<Env> {
         !!m.allianceId && !!this.throne.ownerAllianceId && this.throne.ownerAllianceId !== m.allianceId
           && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), this.throne.ownerAllianceId),
       );
-      const throneAugmentedTroops = scaleTroops(m.troops, (1 + throneAllianceTechMod) * thronePatrolMod);
+      // P9-T3: بافات ألقاب التحالف للمسير صاحب اللقب
+      const throneTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "attack");
+      const throneAugmentedTroops = scaleTroops(m.troops, (1 + throneAllianceTechMod + throneTitleMod) * thronePatrolMod);
 
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: throneAugmentedTroops },
@@ -2529,7 +2678,9 @@ export class KingdomShard extends DurableObject<Env> {
         !!m.allianceId && !!obj.ownerAllianceId && obj.ownerAllianceId !== m.allianceId
           && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), obj.ownerAllianceId),
       );
-      const coAugmentedTroops = scaleTroops(m.troops, (1 + coAllianceTechMod) * coPatrolMod);
+      // P9-T3: بافات ألقاب التحالف للمسير صاحب اللقب
+      const coTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "attack");
+      const coAugmentedTroops = scaleTroops(m.troops, (1 + coAllianceTechMod + coTitleMod) * coPatrolMod);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: coAugmentedTroops },
         { name: obj.ownerAllianceId || "neutral_guard", troops: defenderTroops },
@@ -2642,7 +2793,9 @@ export class KingdomShard extends DurableObject<Env> {
         !!m.allianceId && !!site.ownerAllianceId && site.ownerAllianceId !== m.allianceId
           && marchCrossesTerritory(m.fromX, m.fromY, m.toX, m.toY, this.castleList(), site.ownerAllianceId),
       );
-      const hsAugmentedTroops = scaleTroops(m.troops, (1 + hsAllianceTechMod) * hsPatrolMod);
+      // P9-T3: بافات ألقاب التحالف للمسير صاحب اللقب
+      const hsTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "attack");
+      const hsAugmentedTroops = scaleTroops(m.troops, (1 + hsAllianceTechMod + hsTitleMod) * hsPatrolMod);
       const result = resolveCombat(
         { name: m.ownerPlayerId, troops: hsAugmentedTroops },
         { name: site.ownerAllianceId || "holy_guard", troops: defenderTroops },
@@ -2798,7 +2951,9 @@ export class KingdomShard extends DurableObject<Env> {
       m.state = "gathering";
       const troopsCount = totalTroops(m.troops);
       const perTick = Math.max(1, Math.floor(troopsCount / 100));
-      const ratePerSec = perTick * gatherMultiplier(); // باف +25% دائم داخل النطاق (المركز داخل نطاق أرض التحالف)
+      // P9-T3: باف جمع لحامل لقب التحالف يُضاف إلى باف +25% الأرضي
+      const gatherRateTitleMod = this.marchTitleMod(m.ownerPlayerId, m.allianceId, "gather");
+      const ratePerSec = perTick * gatherMultiplier() * (1 + gatherRateTitleMod); // باف +25% دائم داخل النطاق (المركز داخل نطاق أرض التحالف)
       const durationSec = Math.max(60, Math.min(center.reserve, troopsCount * 6) / ratePerSec);
       m.etaMs = now + durationSec * 1000;
       this.persistMarch(m);
@@ -3160,6 +3315,20 @@ export class KingdomShard extends DurableObject<Env> {
       if (body.allianceId == null) {
         c.allianceName = undefined;
         c.rank = undefined;
+        // P9-T3: عند مغادرة التحالف يُفقد اللقب الممنوح (يُسحب من قائمة ألقاب التحالف إن كان حاملًا له)
+        if (c.titleId) {
+          const prevAllianceId = String(body.previousAllianceId || "");
+          if (prevAllianceId) {
+            const shopState = this.allianceShop.get(prevAllianceId);
+            if (shopState && shopState.titles[c.titleId] === body.playerId) {
+              const nextShop = revokeTitle(shopState, c.titleId);
+              this.allianceShop.set(prevAllianceId, nextShop);
+              this.persistAllianceShop(prevAllianceId, nextShop);
+              this.broadcast({ type: "alliance_title_revoked", allianceId: prevAllianceId, titleId: c.titleId, holder: body.playerId });
+            }
+          }
+          c.titleId = undefined;
+        }
       }
       this.persistCity(c);
       this.broadcast({ type: "city_upsert", city: c });
@@ -3574,6 +3743,103 @@ export class KingdomShard extends DurableObject<Env> {
       this.persistAllianceOutpost(outpost);
       this.broadcast({ type: "alliance_outpost_built", outpost });
       return Response.json({ ok: true, outpost });
+    }
+    // P9-T3: متجر التحالف والألقاب — حالة الرصيد والمشتريات والألقاب (تحالف اللاعب المعني إن حُدّدت، وإلا العامة)
+    if (path.endsWith("/alliance-shop-state") && request.method === "GET") {
+      const playerAllianceId = (() => {
+        const headerId = request.headers.get("x-rok2-player") || "";
+        return this.cities.get(headerId)?.allianceId ?? null;
+      })();
+      const catalog = itemCatalog().map((it) => ({
+        id: it.id,
+        name: it.name,
+        category: it.category,
+        price: it.price,
+        maxPerAlliance: it.max_per_alliance,
+        description: it.description,
+      }));
+      const titleDefs = titleDefinitions().map((t) => ({
+        id: t.id,
+        name: t.name,
+        icon: t.icon,
+        buffs: t.buffs,
+        description: t.description,
+      }));
+      return Response.json({
+        ok: true,
+        catalog,
+        titleDefinitions: titleDefs,
+        allianceShopState: this.allianceShopStateFor(playerAllianceId),
+      });
+    }
+    // P9-T3: كسب رصيد تحالف من مساعدة — يستدعيه الراوتر بعد نجاح تسجيل المساعدة
+    if (path.endsWith("/alliance-shop-earn-help") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const allianceId = String(body.allianceId || "");
+      if (!allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      const result = this.earnAllianceHelpCredit(allianceId);
+      return Response.json({ ok: true, earned: result.earned, balance: result.balance });
+    }
+    // P9-T3: كسب رصيد تحالف من مطالبة هدية
+    if (path.endsWith("/alliance-shop-earn-gift") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const allianceId = String(body.allianceId || "");
+      if (!allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      const result = this.earnAllianceGiftClaimCredit(allianceId);
+      return Response.json({ ok: true, earned: result.earned, balance: result.balance });
+    }
+    // P9-T3: شراء عنصر من متجر التحالف برصيد التحالف — يتحقق الراوتر من التحالف قبله
+    if (path.endsWith("/alliance-shop-purchase") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const allianceId = String(body.allianceId || "");
+      if (!allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      const state = this.getOrInitShop(allianceId);
+      const v = validatePurchase(state, String(body.itemId || ""));
+      if (!v.ok) return Response.json({ error: v.reason }, { status: 400 });
+      const r = purchaseShopItem(state, String(body.itemId || ""), nowMs());
+      if ("ok" in r && !r.ok) return Response.json({ error: r.reason }, { status: 400 });
+      const { state: next, item } = r as { state: AllianceShopState; item: { id: string; name: string; price: number; grant: { type: string; amount: number } } };
+      this.allianceShop.set(allianceId, next);
+      this.persistAllianceShop(allianceId, next);
+      this.broadcast({ type: "alliance_shop_purchased", allianceId, itemId: item.id, boughtBy: String(body.playerId || "") });
+      return Response.json({ ok: true, item: { id: item.id, grant: item.grant }, balance: next.balance });
+    }
+    // P9-T3: منح لقب تحالف مخصص — القائد (R5) يمنح/يغيّر حامل لقب؛ التحقق من القيادة في الراوتر
+    if (path.endsWith("/alliance-shop-grant-title") && request.method === "POST") {
+      const body = await request.json<any>();
+      const identityError = this.requireAuthenticatedPlayer(request, body.playerId);
+      if (identityError) return identityError;
+      const allianceId = String(body.allianceId || "");
+      if (!allianceId) return Response.json({ error: "no_alliance" }, { status: 400 });
+      const titleId = String(body.titleId || "");
+      const targetPlayerId = String(body.targetPlayerId || "");
+      if (!targetPlayerId) return Response.json({ error: "missing_target_player" }, { status: 400 });
+      // حامل اللقب يجب أن يكون عضوًا فعليًا في التحالف
+      const targetCity = this.cities.get(targetPlayerId);
+      if (!targetCity || targetCity.allianceId !== allianceId) {
+        this.recordCommandError("target_not_in_alliance"); return Response.json({ error: "target_not_in_alliance" }, { status: 400 });
+      }
+      const state = this.getOrInitShop(allianceId);
+      // القائد قد يغيّر حامل لقب موجود — لا يُعدّ خطأ، بل إعادة تعيين (سقف الألقاب لا يتغيّر)
+      if (state.titles[titleId] && state.titles[titleId] !== targetPlayerId) {
+        this.broadcast({ type: "alliance_title_revoked", allianceId, titleId, holder: state.titles[titleId] });
+      }
+      const grantResult = grantAllianceTitle(state, titleId, targetPlayerId);
+      if (!("state" in grantResult)) return Response.json({ error: grantResult.reason }, { status: 400 });
+      const { state: next, title } = grantResult;
+      this.allianceShop.set(allianceId, next);
+      this.persistAllianceShop(allianceId, next);
+      // P9-T3: تحديث بطاقة المدينة (titleId) ليصل للعميل مع snapshot
+      targetCity.titleId = title.id;
+      this.persistCity(targetCity);
+      this.broadcast({ type: "alliance_title_granted", allianceId, titleId, holder: targetPlayerId, buffs: title.buffs });
+      return Response.json({ ok: true, title: { id: title.id, name: title.name, buffs: title.buffs }, balance: next.balance });
     }
     return Response.json({ error: "not_found", path }, { status: 404 });
   }
