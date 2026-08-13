@@ -25,6 +25,7 @@ import {
 } from "../lib/gameData";
 import { applyProduction, canAfford, spend } from "../do/sim/production";
 import { HOLY_SITES } from "../do/sim/holy_sites";
+import { QUESTS } from "../do/sim/daily_quests";
 import {
   shopConstants,
   shopCatalog,
@@ -1149,6 +1150,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       const queues = await getActiveQueues(env, player.id);
       // P4-T1: نقاط Battle Pass عن البناء
       await grantBpXp(env, player.id, "build");
+      // P8-T6: تقدم مهمة تطوير المباني اليومي/الأسبوعي
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "build_upgrade", amount: 1 }),
+        });
+      } catch { /* تقدم المهام اختياري — لا يفشل العملية */ }
       return json({
         ok: true,
         buildingId: body.buildingId,
@@ -1219,6 +1228,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       city = await refreshCity(env, player.id);
       // P4-T1: نقاط Battle Pass عن التدريب
       await grantBpXp(env, player.id, "train");
+      // P8-T6: تقدم مهمة التدريب اليومي/الأسبوعي
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "train", amount: count }),
+        });
+      } catch { /* تقدم المهام اختياري */ }
       return json({ ok: true, unit, count: count, queueId, city, troops: all });
     }
 
@@ -1410,6 +1427,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         throw new HttpError(res.status, data.error || "speedup_failed");
       }
       const remainingSeconds = Math.max(0, Math.ceil(((data.queue?.etaMs || now) - nowMs()) / 1000));
+      // P8-T6: تقدم مهمة التسريع اليومي/الأسبوعي
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "speedup", amount: 1 }),
+        });
+      } catch { /* تقدم المهام اختياري */ }
       return json({
         ok: true,
         queueId: body.queueId,
@@ -1471,6 +1496,92 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     }
 
     // المطالبة بمكافأة مستوى (مسار مجاني أو مدفوع)
+    // ═══ P8-T6: المهام اليومية/الأسبوعية (5 يومية + 3 أسبوعية + مفتاح ذهبي) ═══
+
+    if (path === "/v1/quests" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const state = await (await kingdomStub(env).fetch(`https://do/quests/state?playerId=${encodeURIComponent(player.id)}`, {
+        headers: shardPlayerHeaders(player.id),
+      })).json<any>();
+      if (!state.ok && state.error) throw new HttpError(500, state.error);
+      return json({
+        ...state,
+        rewards: {
+          golden_key: { cost_points: QUESTS.rewards.golden_key_cost_points, gems: QUESTS.rewards.golden_key_gems, item_id: QUESTS.rewards.golden_key_item_id },
+          weekly_chest: { cost_points: QUESTS.rewards.weekly_chest_cost_points, gems: QUESTS.rewards.weekly_chest_gems, speedups: QUESTS.rewards.weekly_chest_speedups, speedup_id: QUESTS.rewards.weekly_chest_speedup_id },
+        },
+      });
+    }
+
+    // المطالبة بنقاط مهمة مكتملة (تُحسب النقاط تلقائيًا عند الاكتمال — هنا تُعلَّم المستردة)
+    if (path === "/v1/quests/claim" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const body = await readJson<{ id: string }>(request);
+      const id = String(body.id || "").replace(/[|;]/g, "");
+      if (!id.startsWith("daily_") && !id.startsWith("weekly_")) throw new HttpError(400, "Invalid quest id");
+      const [cycle, , slot] = id.split("_");
+      const state = await (await kingdomStub(env).fetch(`https://do/quests/state?playerId=${encodeURIComponent(player.id)}`, {
+        headers: shardPlayerHeaders(player.id),
+      })).json<any>();
+      const list = (state[cycle === "daily" ? "daily" : "weekly"] || []) as any[];
+      const quest = list.find((q: any) => q.id === id);
+      if (!quest) throw new HttpError(404, "Quest not found");
+      if (quest.claimed) throw new HttpError(409, "Quest already claimed");
+      if (quest.progress < quest.goal) throw new HttpError(400, "Quest not complete");
+      const now = nowMs();
+      await env.DB.prepare("UPDATE player_quests SET claimed=1, updated_at=? WHERE player_id=? AND quest_id=?")
+        .bind(now, player.id, id).run();
+      return json({ ok: true, quest: { ...quest, claimed: true }, claimedAt: now });
+    }
+
+    // استرداد المفتاح الذهبي — عند وصول نقاط اليوم للحد (100) مرة واحدة يوميًا
+    if (path === "/v1/quests/redeem-golden-key" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const state = await (await kingdomStub(env).fetch(`https://do/quests/state?playerId=${encodeURIComponent(player.id)}`, {
+        headers: shardPlayerHeaders(player.id),
+      })).json<any>();
+      const day = state.day;
+      const dayPoints = await env.DB.prepare("SELECT points, golden_key_granted FROM player_quest_points WHERE player_id = ? AND cycle = 'daily' AND cycle_day = ?")
+        .bind(player.id, day).first<{ points: number | null; golden_key_granted: number | null }>();
+      const points = dayPoints?.points || 0;
+      if (points < QUESTS.rewards.golden_key_cost_points) throw new HttpError(400, "Not enough quest points", { have: points, need: QUESTS.rewards.golden_key_cost_points });
+      if (dayPoints?.golden_key_granted) throw new HttpError(409, "Golden key already granted today");
+      const now = nowMs();
+      // منح الجواهر + تسجيل المفتاح (idempotent عبر PK)
+      const city = await refreshCity(env, player.id);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?").bind(city.gems + QUESTS.rewards.golden_key_gems, now, player.id),
+        env.DB.prepare("UPDATE player_quest_points SET golden_key_granted=1, updated_at=? WHERE player_id=? AND cycle='daily' AND cycle_day=?").bind(now, player.id, day),
+        env.DB.prepare("INSERT OR IGNORE INTO player_quest_rewards (player_id, cycle, cycle_day, reward_type, granted_at) VALUES (?, 'daily', ?, 'golden_key', ?)").bind(player.id, day, now),
+      ]);
+      return json({ ok: true, reward: { type: "golden_key", gems: QUESTS.rewards.golden_key_gems, item_id: QUESTS.rewards.golden_key_item_id }, gems: city.gems + QUESTS.rewards.golden_key_gems });
+    }
+
+    // استرداد الصندوق الأسبوعي — عند وصول النقاط الأسبوعية للحد (300) مرة واحدة أسبوعيًا
+    if (path === "/v1/quests/redeem-weekly-chest" && request.method === "POST") {
+      const { player } = await requirePlayer(request, env);
+      const state = await (await kingdomStub(env).fetch(`https://do/quests/state?playerId=${encodeURIComponent(player.id)}`, {
+        headers: shardPlayerHeaders(player.id),
+      })).json<any>();
+      const week = state.week;
+      if ((state.weeklyPoints || 0) < QUESTS.rewards.weekly_chest_cost_points) throw new HttpError(400, "Not enough weekly quest points", { have: state.weeklyPoints, need: QUESTS.rewards.weekly_chest_cost_points });
+      const existing = await env.DB.prepare("SELECT reward_type FROM player_quest_rewards WHERE player_id = ? AND cycle = 'weekly' AND cycle_day = ? AND reward_type = 'weekly_chest'")
+        .bind(player.id, week).first<{ reward_type: string }>();
+      if (existing) throw new HttpError(409, "Weekly chest already claimed this week");
+      const now = nowMs();
+      const city = await refreshCity(env, player.id);
+      const speedupCount = QUESTS.rewards.weekly_chest_speedups;
+      await env.DB.batch([
+        env.DB.prepare("UPDATE cities SET gems=?, updated_at=? WHERE player_id=?").bind(city.gems + QUESTS.rewards.weekly_chest_gems, now, player.id),
+        env.DB.prepare(
+          `INSERT INTO player_inventory (player_id, item_id, count, updated_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT(player_id, item_id) DO UPDATE SET count=count+?, updated_at=?`,
+        ).bind(player.id, QUESTS.rewards.weekly_chest_speedup_id, speedupCount, now, speedupCount, now),
+        env.DB.prepare("INSERT OR IGNORE INTO player_quest_rewards (player_id, cycle, cycle_day, reward_type, granted_at) VALUES (?, 'weekly', ?, 'weekly_chest', ?)").bind(player.id, week, now),
+      ]);
+      return json({ ok: true, reward: { type: "weekly_chest", gems: QUESTS.rewards.weekly_chest_gems, speedups: { id: QUESTS.rewards.weekly_chest_speedup_id, count: speedupCount } }, gems: city.gems + QUESTS.rewards.weekly_chest_gems });
+    }
+
     if (path === "/v1/battlepass/claim" && request.method === "POST") {
       const { player } = await requirePlayer(request, env);
       const body = await readJson<{ level: number; track: string }>(request);
@@ -1667,6 +1778,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       city = await refreshCity(env, player.id);
       // P4-T1: نقاط Battle Pass عن البحث
       await grantBpXp(env, player.id, "research");
+      // P8-T6: تقدم مهمة البحث اليومي/الأسبوعي
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "research_start", amount: 1 }),
+        });
+      } catch { /* تقدم المهام اختياري */ }
       return json({ ok: true, techId: body.techId, level: nextLevel, durationSec: duration, queueId, cost, city });
     }
 
@@ -2231,6 +2350,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       } catch {
         throw new HttpError(409, "already_helped");
       }
+      // P8-T6: تقدم مهمة مساعدة التحالف اليومي/الأسبوعي
+      try {
+        await kingdomStub(env).fetch("https://do/quests/progress", {
+          method: "POST",
+          headers: shardPlayerHeaders(player.id),
+          body: JSON.stringify({ playerId: player.id, source: "help", amount: 1 }),
+        });
+      } catch { /* تقدم المهام اختياري */ }
       const helpsCountNow = helpsCount + 1;
 
       return json({

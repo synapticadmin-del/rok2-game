@@ -35,6 +35,14 @@ import {
   templeWoundedDeadShare,
 } from "./sim/holy_sites";
 import {
+  buildDailyQuests,
+  buildWeeklyQuests,
+  questDay,
+  questWeek,
+  questDescription,
+  QUESTS,
+} from "./sim/daily_quests";
+import {
   regenAp,
   apCap,
   AP_INTERVAL_MS,
@@ -1138,6 +1146,117 @@ export class KingdomShard extends DurableObject<Env> {
     );
   }
 
+  // ══════════ P8-T6: المهام اليومية/الأسبوعية (الكل في D1) ══════════
+
+  /** حالة مهام اللاعب الحالية: توزيع حتمي لليوم/الأسبوع + تقدم حي من الطوابير الجارية. */
+  private async questsStateFor(playerId: string): Promise<any> {
+    const day = questDay(nowMs());
+    const week = questWeek(nowMs());
+    const [dailyRows, weeklyRows, pointsRows, rewardsRows] = await Promise.all([
+      this.env.DB.prepare("SELECT * FROM player_quests WHERE player_id = ? AND cycle = 'daily'").bind(playerId).all<any>(),
+      this.env.DB.prepare("SELECT * FROM player_quests WHERE player_id = ? AND cycle = 'weekly'").bind(playerId).all<any>(),
+      this.env.DB.prepare("SELECT * FROM player_quest_points WHERE player_id = ?").bind(playerId).all<any>(),
+      this.env.DB.prepare("SELECT * FROM player_quest_rewards WHERE player_id = ?").bind(playerId).all<any>(),
+    ]);
+    const dayRow = pointsRows.results?.find?.((r: any) => r.cycle === "daily" && r.cycle_day === day) || null;
+    const weekRow = pointsRows.results?.find?.((r: any) => r.cycle === "weekly" && r.cycle_day === week) || null;
+    const goldenKeyGranted = Boolean(dayRow?.golden_key_granted);
+    const weeklyChestGranted = Boolean((rewardsRows.results || []).find((r: any) => r.reward_type === "weekly_chest" && r.cycle_day === week));
+    return {
+      day,
+      week,
+      daily: (dailyRows.results || []).map((r: any) => ({ id: r.quest_id, typeId: r.type_id, goal: r.goal, points: r.points, progress: r.progress, claimed: Boolean(r.claimed), description: questDescription(r.type_id, r.goal) })),
+      weekly: (weeklyRows.results || []).map((r: any) => ({ id: r.quest_id, typeId: r.type_id, goal: r.goal, points: r.points, progress: r.progress, claimed: Boolean(r.claimed), description: questDescription(r.type_id, r.goal) })),
+      dailyPoints: dayRow?.points || 0,
+      weeklyPoints: weekRow?.points || 0,
+      goldenKeyGranted,
+      weeklyChestGranted,
+      goldenKeyEligible: (dayRow?.points || 0) >= QUESTS.rewards.golden_key_cost_points,
+      weeklyChestEligible: (weekRow?.points || 0) >= QUESTS.rewards.weekly_chest_cost_points,
+    };
+  }
+
+  /** استدعاء shard داخلي: يوزع المهام إن لزم ثم يضيف تقدمًا من مصدر حدث. */
+  private async recordQuestProgress(playerId: string, source: string, amount: number): Promise<{ dailyPoints: number; weeklyPoints: number; completedQuestIds: string[] }> {
+    const day = questDay(nowMs());
+    const week = questWeek(nowMs());
+    const now = nowMs();
+    await this.ensureQuestsDistributed(playerId, day, week, now);
+    const [dailyRows, weeklyRows, pointsRows] = await Promise.all([
+      this.env.DB.prepare("SELECT * FROM player_quests WHERE player_id = ? AND cycle = 'daily' AND cycle_day = ?").bind(playerId, day).all<any>(),
+      this.env.DB.prepare("SELECT * FROM player_quests WHERE player_id = ? AND cycle = 'weekly' AND cycle_day = ?").bind(playerId, week).all<any>(),
+      this.env.DB.prepare("SELECT * FROM player_quest_points WHERE player_id = ?").bind(playerId).all<any>(),
+    ]);
+    const completedIds: string[] = [];
+    for (const r of dailyRows.results || []) {
+      const def = QUESTS.types[r.type_id];
+      if (!def || !def.progress_sources.includes(source)) continue;
+      if (r.completed) continue;
+      const next = Math.min(r.goal, Number(r.progress) + amount);
+      const points = r.points;
+      await this.env.DB.prepare("UPDATE player_quests SET progress=?, completed=?, updated_at=? WHERE player_id=? AND cycle='daily' AND slot=?")
+        .bind(next, next >= r.goal ? 1 : 0, now, playerId, r.slot).run();
+      if (next >= r.goal) {
+        completedIds.push(r.quest_id);
+        await this.addQuestPoints(playerId, "daily", day, points);
+      }
+    }
+    for (const r of weeklyRows.results || []) {
+      const def = QUESTS.types[r.type_id];
+      if (!def || !def.progress_sources.includes(source)) continue;
+      if (r.completed) continue;
+      const next = Math.min(r.goal, Number(r.progress) + amount);
+      const points = r.points;
+      await this.env.DB.prepare("UPDATE player_quests SET progress=?, completed=?, updated_at=? WHERE player_id=? AND cycle='weekly' AND slot=?")
+        .bind(next, next >= r.goal ? 1 : 0, now, playerId, r.slot).run();
+      if (next >= r.goal) {
+        completedIds.push(r.quest_id);
+        await this.addQuestPoints(playerId, "weekly", week, points);
+      }
+    }
+    const dayPoints = pointsRows.results?.find?.((r: any) => r.cycle === "daily" && r.cycle_day === day)?.points || 0;
+    const weekPoints = pointsRows.results?.find?.((r: any) => r.cycle === "weekly" && r.cycle_day === week)?.points || 0;
+    return { dailyPoints: dayPoints, weeklyPoints: weekPoints, completedQuestIds: completedIds };
+  }
+
+  /** إضافة نقاط دورة (y capped بالحد من JSON). */
+  private async addQuestPoints(playerId: string, cycle: "daily" | "weekly", cycleDay: number, points: number) {
+    const cap = cycle === "daily" ? QUESTS.constants.daily_points_limit : QUESTS.constants.weekly_points_limit;
+    const row = await this.env.DB.prepare("SELECT points FROM player_quest_points WHERE player_id = ? AND cycle = ? AND cycle_day = ?")
+      .bind(playerId, cycle, cycleDay).first<{ points: number | null }>();
+    const next = Math.min(cap, (row?.points || 0) + points);
+    await this.env.DB.prepare("INSERT INTO player_quest_points (player_id, cycle, cycle_day, points, golden_key_granted, updated_at) VALUES (?, ?, ?, ?, 0, ?) ON CONFLICT(player_id, cycle, cycle_day) DO UPDATE SET points=excluded.points, updated_at=excluded.updated_at")
+      .bind(playerId, cycle, cycleDay, next, nowMs()).run();
+  }
+
+  /** توزيع/استبدال المهام الحتمية عند عدم وجودها أو انتهاء اليوم/الأسبوع. */
+  private async ensureQuestsDistributed(playerId: string, day: number, week: number, now: number) {
+    const dailyRows = await this.env.DB.prepare("SELECT cycle_day FROM player_quests WHERE player_id = ? AND cycle = 'daily' LIMIT 1").bind(playerId).first<{ cycle_day: number | null }>();
+    if (!dailyRows || dailyRows.cycle_day !== day) {
+      const quests = buildDailyQuests(playerId, day);
+      await this.env.DB.prepare("DELETE FROM player_quests WHERE player_id = ? AND cycle = 'daily'").bind(playerId).run();
+      for (let i = 0; i < quests.length; i++) {
+        const q = quests[i];
+        const questId = `daily_${day}_${i}`;
+        await this.env.DB.prepare("INSERT INTO player_quests (player_id, cycle, slot, cycle_day, quest_id, type_id, goal, points, progress, claimed, completed, updated_at) VALUES (?, 'daily', ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)")
+          .bind(playerId, i, day, questId, q.typeId, q.goal, q.points, now).run();
+      }
+    }
+    const weeklyRows = await this.env.DB.prepare("SELECT cycle_day FROM player_quests WHERE player_id = ? AND cycle = 'weekly' LIMIT 1").bind(playerId).first<{ cycle_day: number | null }>();
+    if (!weeklyRows || weeklyRows.cycle_day !== week) {
+      const quests = buildWeeklyQuests(playerId, week);
+      await this.env.DB.prepare("DELETE FROM player_quests WHERE player_id = ? AND cycle = 'weekly'").bind(playerId).run();
+      for (let i = 0; i < quests.length; i++) {
+        const q = quests[i];
+        const questId = `weekly_${week}_${i}`;
+        await this.env.DB.prepare("INSERT INTO player_quests (player_id, cycle, slot, cycle_day, quest_id, type_id, goal, points, progress, claimed, completed, updated_at) VALUES (?, 'weekly', ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)")
+          .bind(playerId, i, week, questId, q.typeId, q.goal, q.points, now).run();
+      }
+    }
+  }
+
+  // ══════════ نهاية P8-T6 ══════════
+
   /** تُظهر التقرير للمهاجم أو المدافع أو المشارك، ولتحالف أي طرف ذي صلة فقط. */
   private reportVisibleTo(report: any, playerId: string, allianceId: string | null | undefined) {
     if (!playerId) return false;
@@ -1256,6 +1375,10 @@ export class KingdomShard extends DurableObject<Env> {
         defender.warFrenzyUntilMs = nowMs() + warFrenzyDurationMs();
         this.persistCity(defender);
       }
+    }
+    // P8-T6: تقدم مهمة الانتصارات اليومي/الأسبوعية (نصر في هجوم على مدينة)
+    if (march.targetType === "city" && result.winner === "attacker") {
+      try { void this.recordQuestProgress(march.ownerPlayerId, "battle_win", 1); } catch {}
     }
     return { hospital };
   }
@@ -1561,6 +1684,11 @@ export class KingdomShard extends DurableObject<Env> {
              ON CONFLICT(player_id, unit_id, status) DO UPDATE SET count=count+excluded.count`
           ).bind(q.playerId, u, Number(count)).run();
         }
+        // P8-T6: تقدم مهمة التدريب اليومي/الأسبوعي (مجموع الجنود المدربين في الطابور)
+        const trainedCount = Object.values(q.data.troops || {}).reduce((s: number, c) => s + Number(c), 0);
+        if (trainedCount > 0) {
+          try { void this.recordQuestProgress(q.playerId, "train", trainedCount); } catch {}
+        }
       } else if (q.type === "research") {
         // P2-T3: اكتمال البحث يكتب المستوى في D1
         try {
@@ -1572,6 +1700,11 @@ export class KingdomShard extends DurableObject<Env> {
         } catch {
           // الجدول قد لا يكون مُرحّلاً بعد
         }
+        // P8-T6: تقدم مهمة البحث اليومي/الأسبوعي
+        try { void this.recordQuestProgress(q.playerId, "research_start", 1); } catch {}
+      } else if (q.type === "build") {
+        // P8-T6: تقدم مهمة تطوير المباني اليومي/الأسبوعي
+        try { void this.recordQuestProgress(q.playerId, "build_upgrade", 1); } catch {}
       }
     }
 
@@ -1591,6 +1724,8 @@ export class KingdomShard extends DurableObject<Env> {
             node.remaining = 0;
             this.persistNode(node);
             m.payload = { kind: node.kind, amount: gathered };
+            // P8-T6: تقدم مهمة الجمع اليومي/الأسبوعي
+            try { void this.recordQuestProgress(m.ownerPlayerId, "gather", gathered); } catch {}
             // نقاط الجمع أثناء اندفاع الموارد
             const gatherScore = eventBuff(this.seasonDay, tickInDay, "gather_score", true);
             if (gatherScore > 0 && m.allianceId) {
@@ -2192,6 +2327,8 @@ export class KingdomShard extends DurableObject<Env> {
             }
             node.remaining = Math.max(0, node.remaining - 50);
             this.persistNode(node);
+            // P8-T6: تقدم مهمة قتل البرابرة اليومي/الأسبوعي (مجموع وحدات العدو المقتولة)
+            try { void this.recordQuestProgress(m.ownerPlayerId, "barb_kill", totalTroops(result.defenderLosses)); } catch {}
           }
           this.saveReport(report);
           this.broadcastReport(report);
@@ -2305,6 +2442,28 @@ export class KingdomShard extends DurableObject<Env> {
         warFrenzyUntilMs: c.warFrenzyUntilMs ?? null,
         lastRelocationMs: c.lastRelocationMs ?? null,
       });
+    }
+
+    // P8-T6: حالة المهام اليومية/الأسبوعية للاعب — توزيع حتمي + تقدم حي من الطوابير
+    if (path.endsWith("/quests/state") && request.method === "GET") {
+      const pid = url.searchParams.get("playerId") || "";
+      const state = await this.questsStateFor(pid);
+      return Response.json(state);
+    }
+
+    // P8-T6: تسجيل تقدم مهمة من shard نفسه (train/battle_win/barb_kill/gather)
+    if (path.endsWith("/quests/progress") && request.method === "POST") {
+      try {
+        const body = await request.json<any>();
+        const pid = String(body.playerId || "");
+        const source = String(body.source || "");
+        const amount = Number(body.amount) || 0;
+        if (!pid || !source || amount <= 0) return Response.json({ ok: false, error: "bad_quest_progress_args" }, { status: 400 });
+        const result = await this.recordQuestProgress(pid, source, amount);
+        return Response.json({ ok: true, ...result });
+      } catch {
+        return Response.json({ ok: false, error: "quest_progress_failed" }, { status: 500 });
+      }
     }
 
     if (path.endsWith("/snapshot") && request.method === "GET") {

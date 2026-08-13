@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "comment": "نظام المهام اليومية (Daily Quests) — P8-T6. 5 مهام تُوزَّع يوميًا من قوائم الأنواع، لكل مهمة عداد تقدم وهدف، نقاط تُعطى عند إكمال التقدم. 100 نقطة يوميًا → مفتاح ذهبي.",
+  "constants": {
+    "daily_quest_count": 5,
+    "daily_points_limit": 100,
+    "weekly_quest_count": 3,
+    "weekly_points_limit": 300,
+    "refresh_at_hour_utc": 0
+  },
+  "rewards": {
+    "golden_key_cost_points": 100,
+    "golden_key_item_id": "golden_key",
+    "golden_key_gems": 200,
+    "weekly_chest_cost_points": 300,
+    "weekly_chest_gems": 500,
+    "weekly_chest_speedups": 2,
+    "suggested_chest_gems": 100,
+    "weekly_chest_speedup_id": "speedup_1h"
+  },
+  "types": {
+    "train_troops": {
+      "id": "train_troops",
+      "name": "تدريب الجنود",
+      "unit": "troops",
+      "progress_sources": ["train"],
+      "description": "درّب {goal} جنديًا"
+    },
+    "win_battles": {
+      "id": "win_battles",
+      "name": "الانتصارات",
+      "unit": "battles",
+      "progress_sources": ["battle_win"],
+      "description": "اكسب {goal} معارك"
+    },
+    "defeat_barbarians": {
+      "id": "defeat_barbarians",
+      "name": "قتل البرابرة",
+      "unit": "kills",
+      "progress_sources": ["barb_kill"],
+      "description": "اقضِ على {goal} من قوات البرابرة"
+    },
+    "gather_resources": {
+      "id": "gather_resources",
+      "name": "جمع الموارد",
+      "unit": "resource",
+      "progress_sources": ["gather"],
+      "description": "اجمع {goal} من الموارد"
+    },
+    "help_alliance": {
+      "id": "help_alliance",
+      "name": "مساعدة التحالف",
+      "unit": "helps",
+      "progress_sources": ["help"],
+      "description": "ساعد أعضاء تحالفك {goal} مرات"
+    },
+    "research": {
+      "id": "research",
+      "name": "البحث العلمي",
+      "unit": "research",
+      "progress_sources": ["research_start"],
+      "description": "ابدأ {goal} بحثًا في الأكاديمية"
+    },
+    "speedup": {
+      "id": "speedup",
+      "name": "تسريع الإنتاج",
+      "unit": "uses",
+      "progress_sources": ["speedup"],
+      "description": "استخدم {goal} مسرّعًا"
+    },
+    "build_upgrades": {
+      "id": "build_upgrades",
+      "name": "تطوير المباني",
+      "unit": "upgrades",
+      "progress_sources": ["build_upgrade"],
+      "description": "طوّر {goal} مبنى"
+    }
+  },
+  "daily_pools": {
+    "train_troops": {
+      "goal_range": [100, 500],
+      "point_options": [10, 15, 20]
+    },
+    "win_battles": {
+      "goal_range": [3, 8],
+      "point_options": [10, 15, 20]
+    },
+    "defeat_barbarians": {
+      "goal_range": [500, 3000],
+      "point_options": [10, 15, 20]
+    },
+    "gather_resources": {
+      "goal_range": [5000, 25000],
+      "point_options": [10, 15, 20]
+    },
+    "help_alliance": {
+      "goal_range": [2, 6],
+      "point_options": [10, 15, 20]
+    },
+    "research": {
+      "goal_range": [2, 5],
+      "point_options": [10, 15, 20]
+    },
+    "speedup": {
+      "goal_range": [1, 3],
+      "point_options": [10, 15, 20]
+    },
+    "build_upgrades": {
+      "goal_range": [1, 3],
+      "point_options": [10, 15, 20]
+    }
+  },
+  "weekly_pools": {
+    "train_troops": {
+      "goal_range": [2000, 10000],
+      "point_options": [50, 75, 100]
+    },
+    "win_battles": {
+      "goal_range": [15, 40],
+      "point_options": [50, 75, 100]
+    },
+    "defeat_barbarians": {
+      "goal_range": [10000, 50000],
+      "point_options": [50, 75, 100]
+    },
+    "gather_resources": {
+      "goal_range": [100000, 500000],
+      "point_options": [50, 75, 100]
+    },
+    "help_alliance": {
+      "goal_range": [15, 40],
+      "point_options": [50, 75, 100]
+    }
+  },
+  "daily_order": ["train_troops", "win_battles", "defeat_barbarians", "gather_resources", "help_alliance", "research", "speedup", "build_upgrades"],
+  "weekly_order": ["train_troops", "win_battles", "defeat_barbarians", "gather_resources", "help_alliance"]
+}
