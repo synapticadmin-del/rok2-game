@@ -34,6 +34,10 @@ JOBS = [
     ("Art/kaykit",         "/Game/Art/kaykit",         False),
     ("Art/Commanders",     "/Game/Art/Commanders",     False),
     ("Art/WorldMapIcons",  "/Game/Art/WorldMapIcons",  False),  # P7-T10: أيقونات خريطة العالم (14 PNG)
+    ("Art/Splash",         "/Game/Art/Splash",         False),  # P16-T1: خلفيات Splash الثلاث (افتتاحية، تحميل، عاصفة)
+    ("Art/SeasonStory",    "/Game/Art/SeasonStory",    False),  # P16-T2: خلفيات فصول قصة الموسم (4)
+    ("Art/CommanderSkins", "/Game/Art/CommanderSkins", False),  # P16-T3: جلود القادة النادرة (6 حضارات)
+    ("Art/Events",         "/Game/Art/Events",         False),  # P16-T4: فن أحداث P10 (حانة، إكسبيديشن، كانيون، أوزيريس)
     ("Audio",              "/Game/Audio",              True),   # لازم: <civ>/music
 ]
 
@@ -147,6 +151,10 @@ def main():
 
     unreal.EditorAssetLibrary.save_directory("/Game/Art", False, True)
     unreal.EditorAssetLibrary.save_directory("/Game/Audio", False, True)
+    unreal.EditorAssetLibrary.save_directory("/Game/Art/Splash", False, True)
+    unreal.EditorAssetLibrary.save_directory("/Game/Art/SeasonStory", False, True)
+    unreal.EditorAssetLibrary.save_directory("/Game/Art/CommanderSkins", False, True)
+    unreal.EditorAssetLibrary.save_directory("/Game/Art/Events", False, True)
 
     log("=" * 58)
     log("[ROK2] نجح: %d   فشل: %d   متخطّى: %d" % (total_ok, total_fail, len(all_skipped)))
