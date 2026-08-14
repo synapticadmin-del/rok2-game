@@ -7,7 +7,7 @@
 | المكوّن | المسار | الدور |
 |---|---|---|
 | ثوابت المؤشرات (عتبات قابلة للضبط) | `game/backend/src/data/ops.json` | نوافذ زمن التنبيه والعتبات — تُقرأ بـ `OPS_CONSTANTS` |
-| جمع المؤشرات | `game/backend/src/do/KingdomShard.ts` | `recordCommandError()` + `lastTickMs` + `opsSnapshot()` |
+| جمع المؤشرات | `game/backend/src/do/KingdomShard.ts` | `recordCommandError()` + `lastTickMs` + مدة `tick` + `opsSnapshot()` |
 | نقطة قراءة داخلية | `KingdomShard.fetch` → `/ops` | لقطه snapshot + آخر 10 انتهاكات anti-cheat (لا تُعرَّض خارجيًا إلا عبر الإداري) |
 | نقطة إدارية محمية | `router.ts` → `GET /v1/admin/ops` | `requireAdmin` (مفتاح `x-admin-key`) |
 | حارس الجودة | `game/client-unreal/scripts/verify_p7_t15_ops.mjs` | فحص بنيوي: وجود الثوابت والـ endpoints وعدم وجود عتبات hard-coded |
@@ -28,10 +28,11 @@
 
 1. **`seasonDay` / `lastTickMs` / `tickStaleMs`** — يوم الموسم وزمن آخر دورة tick ناجحة (محدَّث بعد INSERT `world_meta` في نهاية كل tick).
 2. **`commandErrors`** — أخطاء أوامر اللاعبين خلال نافذة الساعة المنزلقة، مجمعة بالرمز، مرتبة تنازليًا، أعلى 10. تشمل: `city_not_found`, `bad_flag_coords`, `bad_structure_coords`, `unknown_structure_kind`, `alliance_structure_cap_reached`, `structure_kind_cap_reached`, `structure_too_close`, `structure_requires_alliance_territory`, `not_your_alliance`, `invalid_seconds`, `queue_not_found`, `not_your_queue`, `player_identity_mismatch`, `alliance_and_builder_required`.
-3. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
-4. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
-5. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
-6. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
+3. **`lastTickDurationMs` / `avgTickDurationMs` / `maxTickDurationMs` / `tickCount`** — زمن تنفيذ آخر دورة، ومتوسطها، وأطولها، وعدد الدورات المقاسة منذ إنشاء الشارد. تقيس هذه الحقول جسم الدورة، بينما يقيس `tickStaleMs` الزمن منذ اكتمال آخر دورة.
+4. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
+5. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
+6. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
+7. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
 
 لا تُسجل أخطاء البنية الإدارية (`auth_required`, `admin_unauthorized`, `unknown_action`, `not_found`) كأخطاء أوامر لاعب — فهي ليست مؤشرًا على سلوك اللاعبين أو على خلل في منطق اللعبة.
 
@@ -52,7 +53,13 @@
 3. افحص سجلات الـ worker للـ exception؛ إن وُجد أصلحه وادفعه (نمط AGENTS commit).
 4. إن لم يستجب الـ shard، أعِد نشر الـ worker عبر `wrangler deploy` ثم أعد استدعاء `/v1/admin/tick`.
 
-### 3.2 `queue_pressure`
+### 3.2 مؤشرات زمن `tick`
+
+**المعنى:** `lastTickDurationMs` هو زمن آخر دورة مكتملة، و`avgTickDurationMs` متوسط الدورات، و`maxTickDurationMs` أطول دورة، و`tickCount` عدد العينات. ارتفاع مدة tick مع `tickStaleMs` منخفض يعني ضغطاً داخل الدورة؛ ارتفاعهما معاً يعني تعثراً في الجدولة أو فشل الدورة.
+
+**الإجراء:** عند ظهور بطء، سجّل الحقول الأربعة ثم قارنها بـ`queuesTotal` و`marchesActive`. راجع عمليات D1 داخل معالجة الطوابير والمسيرات إذا ارتفع المتوسط أو الحد الأقصى بصورة مستمرة.
+
+### 3.3 `queue_pressure`
 
 **المعنى:** عدد الطوابير النشطة (`build`/`train`/`research`/`heal`) تجاوز `queue_stuck_threshold` (افتراضيًا 40).
 
@@ -65,7 +72,7 @@
 2. قارن مع `tick_stale`: إن كان التنبيهان معًا فالسبب غالبًا tick متعثر؛ عالج `tick_stale` أولًا.
 3. إن كان الأمر نمط استغلال، راجع سجلات anti-cheat (`/v1/admin/anticheat`) واعمل على حد معدل إضافي أو مراجعة المنطق.
 
-### 3.3 `command_error_<code>`
+### 3.4 `command_error_<code>`
 
 **المعنى:** رمز خطأ محدد تكرر ≥ `command_alert_threshold` (افتراضيًا 5) مرات خلال نافذة `command_error_window_ms` (افتراضيًا ساعة).
 
@@ -84,17 +91,17 @@
 
 **الإجراء العام:** لا يتطلب أي تنبيه تدخلًا فوريًا بذاته؛ التنبيه مؤشر استكشافي. القرار يكون بعد فحص التوزيع والنمط الزمني.
 
-## 4. التشغيل اليومي
+## 5. التشغيل اليومي
 
 1. نقطة الوصول الوحيدة الخارجية: `GET /v1/admin/ops` بمفتاح `x-admin-key` الإداري (عبر `requireAdmin`).
 2. `/ops` داخل الـ Durable Object قراءة داخلية فقط — الراوتر العام لا يعرّضها.
 3. جميع العتبات في `game/backend/src/data/ops.json` — لتغييرها عدّل الملف ثم أعد النشر؛ لا توجد عتبات hard-coded في الكود (يتحقق منها الحارس).
 4. سجل أخطاء الأوامر محصور في الذاكرة بحد `error_log_limit` (200) ثم يستبعد الأقدم؛ عند الحاجة لسجل دائم أضف INSERT في جدول D1 ضمن `recordCommandError()`.
 
-## 5. الفحص الآلي
+## 6. الفحص الآلي
 
 ```bash
 npm run test:p7-t15-ops-monitoring   # داخل game/backend — عبر npm run check
 ```
 
-الحارس يفحص: وجود `ops.json` بكل الثوابت، استيراد `opsData` و`OPS_CONSTANTS` في KingdomShard، وجود `opsSnapshot()` و`recordCommandError()` و`/ops` و`/v1/admin/ops` و`requireAdmin`، وتحديث `lastTickMs` في tick، وعدم وجود عتبات hard-coded (`3600000`، `30000`، `60*60*1000`).
+الحارس يفحص: وجود `ops.json` بكل الثوابت، استيراد `opsData` و`OPS_CONSTANTS` في KingdomShard، وجود `opsSnapshot()` و`recordCommandError()` و`/ops` و`/v1/admin/ops` و`requireAdmin`، وتحديث `lastTickMs` وقياس مدة tick، وعدم وجود عتبات hard-coded (`3600000`، `30000`، `60*60*1000`).

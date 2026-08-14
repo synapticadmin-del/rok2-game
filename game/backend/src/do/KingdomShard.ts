@@ -447,6 +447,11 @@ export class KingdomShard extends DurableObject<Env> {
   private commandErrorCounts = new Map<string, { n: number; firstMs: number; lastMs: number }>();
   private commandTotal = 0;
   private lastTickMs = 0;
+  // P7-T8: زمن تنفيذ tick لمراقبة التباطؤ، محفوظ في ذاكرة الشارد بنافذة عينات بسيطة.
+  private lastTickDurationMs = 0;
+  private maxTickDurationMs = 0;
+  private totalTickDurationMs = 0;
+  private tickCount = 0;
   // P3-T1: طابع بداية الموسم — خدمة فتح المناطق تحسب اليوم منه زمنياً
   private seasonStartMs = 0;
   private cities = new Map<string, CityEntity>();
@@ -3002,7 +3007,8 @@ export class KingdomShard extends DurableObject<Env> {
   }
 
   private async tick() {
-    const now = nowMs();
+    const startedAt = nowMs();
+    const now = startedAt;
     let changed = false;
 
     // P3-T1: خدمة فتح المناطق — تقدّم يوم الموسم زمنياً من season_start_ms.
@@ -3320,7 +3326,11 @@ export class KingdomShard extends DurableObject<Env> {
 
     // P7-T15: تسجيل زمن آخر tick لمؤشرات التشغيل (نافذة ساعة منزلقة تُحسب عند الطلب).
     this.lastTickMs = now;
-
+    // P7-T8: قياس مدة tick بعد اكتمال كل أعماله، لا زمن الجدولة بين ticks.
+    this.lastTickDurationMs = Math.max(0, nowMs() - startedAt);
+    this.maxTickDurationMs = Math.max(this.maxTickDurationMs, this.lastTickDurationMs);
+    this.totalTickDurationMs += this.lastTickDurationMs;
+    this.tickCount += 1;
     if (changed) {
       // لا تعاد اللقطة الكاملة مع كل tick: الاتصال الأول فقط يستلم snapshot.
       this.broadcast({ type: "world_delta", ...this.worldDelta() });
@@ -5567,6 +5577,10 @@ export class KingdomShard extends DurableObject<Env> {
     seasonStartMs: number;
     lastTickMs: number;
     tickStaleMs: number;
+    lastTickDurationMs: number;
+    avgTickDurationMs: number;
+    maxTickDurationMs: number;
+    tickCount: number;
     commandErrors: Array<{ code: string; n: number; firstMs: number; lastMs: number }>;
     commandErrorWindowMs: number;
     queuesTotal: number;
@@ -5602,6 +5616,10 @@ export class KingdomShard extends DurableObject<Env> {
       seasonStartMs: this.seasonStartMs,
       lastTickMs: this.lastTickMs,
       tickStaleMs: this.lastTickMs > 0 ? now - this.lastTickMs : -1,
+      lastTickDurationMs: this.lastTickDurationMs,
+      avgTickDurationMs: this.tickCount > 0 ? Math.round((this.totalTickDurationMs / this.tickCount) * 100) / 100 : 0,
+      maxTickDurationMs: this.maxTickDurationMs,
+      tickCount: this.tickCount,
       commandErrors: commandErrors.slice(0, 10),
       commandErrorWindowMs: COMMAND_OPS_WINDOW_MS,
       queuesTotal,

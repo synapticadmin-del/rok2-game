@@ -31,6 +31,8 @@ check("KingdomShard emits tick_stale alert", shardSrc.includes('"tick_stale"'));
 check("KingdomShard emits queue_pressure alert", shardSrc.includes('"queue_pressure"'));
 check("KingdomShard emits command_error_X alerts", /command_error_\$\{e\.code\}/.test(shardSrc));
 check("KingdomShard updates lastTickMs in tick", /lastTickMs\s*=\s*now/.test(shardSrc));
+check("KingdomShard records tick duration", shardSrc.includes("lastTickDurationMs") && shardSrc.includes("totalTickDurationMs"));
+check("opsSnapshot exposes tick duration metrics", /avgTickDurationMs[\s\S]*maxTickDurationMs[\s\S]*tickCount/.test(shardSrc));
 check("KingdomShard tracks commandErrorCounts Map", shardSrc.includes("commandErrorCounts = new Map<string,"));
 // No hardcoded thresholds — numeric literals must come from constants
 check("No hardcoded 3600000 literal", !shardSrc.includes("3600000"));
