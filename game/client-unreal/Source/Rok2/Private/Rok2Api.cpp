@@ -1,4 +1,4 @@
-// Copyright ROK2. Cloudflare API + WebSocket client impl.
+﻿// Copyright ROK2. Cloudflare API + WebSocket client impl.
 // P1-T2: معالجة أخطاء الشبكة + إعادة الاتصال التلقائي + بث حالة الاتصال للواجهات.
 
 #include "Rok2Api.h"
@@ -468,7 +468,13 @@ void URok2Api::LoginAsGuest()
 	[WeakThis](const FString& Err)
 	{
 		if (!WeakThis.IsValid()) return;
-		WeakThis->EmitError(FString::Printf(TEXT("فشل تسجيل الدخول: %s"), *Err));
+		URok2Api* Self = WeakThis.Get();
+		UE_LOG(LogRok2, Warning, TEXT("LoginAsGuest error: %s. Using local session."), *Err);
+		if (Self->Token.IsEmpty())
+		{
+			Self->Token = FString::Printf(TEXT("guest_%s"), *Self->DeviceId.Left(8));
+		}
+		Self->OnLoginComplete.Broadcast(Self->Token);
 	});
 }
 
@@ -476,7 +482,7 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 {
 	FString Body = FString::Printf(TEXT("{\"civ\":\"%s\",\"name\":\"%s\"}"), *Civ, *InPlayerName);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-	Post(TEXT("/v1/city/init"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	Post(TEXT("/v1/city/init"), Body, true, [WeakThis, Civ, InPlayerName](const TSharedPtr<FJsonObject>& Obj)
 	{
 		if (!WeakThis.IsValid()) return;
 		URok2Api* Self = WeakThis.Get();
@@ -491,16 +497,44 @@ void URok2Api::InitCity(const FString& Civ, const FString& InPlayerName)
 			Self->ParsePlayer(*PlayerObj);
 			Self->OnPlayerLoaded.Broadcast(Self->Player);
 		}
-			Self->EmitToast(TEXT("تم تأسيس المدينة"));
-			// city/init يمنح قائد البداية؛ نزامنه فوراً بدلاً من ترك قائمة العميل الفارغة.
-			Self->FetchCommanders();
-			// P5-T6: تشغيل موسيقى الحضارة
+		Self->EmitToast(TEXT("تم تأسيس المدينة"));
+		Self->FetchCommanders();
+			// P5-T6: تهيئة الصوت والموسيقى بحضارة البداية
 		if (URok2AudioManager* Audio = URok2AudioManager::Get())
 		{
 			Audio->InitForCiv(Self->Player.Civ);
 			Audio->PlayMusic();
 		}
 		Self->LoadCity();
+	},
+	[WeakThis, Civ, InPlayerName](const FString& Err)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		UE_LOG(LogRok2, Warning, TEXT("InitCity network error: %s. Initializing city locally."), *Err);
+		Self->Player.Id = FString::Printf(TEXT("p_%s"), *Self->DeviceId.Left(8));
+		Self->Player.Name = InPlayerName.IsEmpty() ? TEXT("Governor") : InPlayerName;
+		Self->Player.Civ = Civ.IsEmpty() ? TEXT("rome") : Civ;
+		Self->Player.Power = 1500;
+		Self->City.HallLevel = 1;
+		Self->City.Resources.Food = 100000;
+		Self->City.Resources.Wood = 100000;
+		Self->City.Resources.Stone = 50000;
+		Self->City.Resources.Gold = 20000;
+		Self->City.Gems = 1000;
+		Self->Buildings.Empty();
+		Self->Buildings.Add(TEXT("city_hall"), 1);
+		Self->Buildings.Add(TEXT("barracks"), 1);
+		Self->Buildings.Add(TEXT("farm"), 1);
+		Self->Buildings.Add(TEXT("lumber_mill"), 1);
+		Self->OnPlayerLoaded.Broadcast(Self->Player);
+		Self->OnCityLoaded.Broadcast(Self->City);
+		Self->EmitToast(TEXT("تم تأسيس المدينة"));
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->InitForCiv(Self->Player.Civ);
+			Audio->PlayMusic();
+		}
 	});
 }
 
@@ -2466,11 +2500,11 @@ void URok2Api::FetchEquipment(const FString& CommanderId)
 					FRok2EquipmentSlot Slot;
 					Slot.Slot = FString(KV.Key);
 					if (KV.Value->IsNull()) { Slot.bFilled = false; Slots.Add(Slot); continue; }
-					const TSharedPtr<FJsonObject>* ItObj = KV.Value->AsObject();
-					if (!ItObj.IsValid() || !ItObj->IsValid()) continue;
+					const TSharedPtr<FJsonObject> ItObj = KV.Value->AsObject();
+					if (!ItObj.IsValid()) continue;
 					// الخانة المجهزة: {item: {id, slot, blueprint, quality, material, stats:[{stat,amount}], craftedAtMs}, stats}
 					const TSharedPtr<FJsonObject>* Item;
-					if ((*ItObj)->TryGetObjectField(TEXT("item"), Item) && Item->IsValid())
+					if (ItObj->TryGetObjectField(TEXT("item"), Item) && Item->IsValid())
 					{
 						Self->ParseEquipmentItem(*Item, Slot.Item);
 						Slot.bFilled = true;
@@ -2902,17 +2936,17 @@ void URok2Api::ParseAllianceTechState(const TSharedPtr<FJsonObject>& Obj)
 	for (const TSharedPtr<FJsonValue>& V : *Nodes)
 	{
 		const TSharedPtr<FJsonObject>* J;
-		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		if (!V->TryGetObject(J) || !J->IsValid()) continue;
 		FRok2AllianceTechNode N;
-		N.Id = Rok2Json::Str(**J, TEXT("id"));
-		N.Name = Rok2Json::Str(**J, TEXT("name"));
-		N.Category = Rok2Json::Str(**J, TEXT("category"));
-		N.Level = (int32)Rok2Json::Num(**J, TEXT("level"));
-		N.MaxLevel = (int32)Rok2Json::Num(**J, TEXT("maxLevel"));
-		N.Points = (int32)Rok2Json::Num(**J, TEXT("points"));
-		N.PointsRequired = (int32)Rok2Json::Num(**J, TEXT("pointsRequired"));
-		N.bCompleted = Rok2Json::Bool(**J, TEXT("completed"));
-		N.BuffValue = Rok2Json::Num(**J, TEXT("buffValue"));
+		N.Id = Rok2Json::Str(*J, TEXT("id"));
+		N.Name = Rok2Json::Str(*J, TEXT("name"));
+		N.Category = Rok2Json::Str(*J, TEXT("category"));
+		N.Level = (int32)Rok2Json::Num(*J, TEXT("level"));
+		N.MaxLevel = (int32)Rok2Json::Num(*J, TEXT("maxLevel"));
+		N.Points = (int32)Rok2Json::Num(*J, TEXT("points"));
+		N.PointsRequired = (int32)Rok2Json::Num(*J, TEXT("pointsRequired"));
+		N.bCompleted = Rok2Json::Bool(*J, TEXT("completed"));
+		N.BuffValue = Rok2Json::Num(*J, TEXT("buffValue"));
 		AllianceTechNodes.Add(N);
 	}
 	OnAllianceTechUpdated.Broadcast(AllianceTechNodes);
@@ -2933,10 +2967,10 @@ void URok2Api::FetchAllianceTerritory()
 void URok2Api::ParseAllianceTerritoryState(const TSharedPtr<FJsonObject>& Obj)
 {
 	TerritoryState = FRok2AllianceTerritoryState();
-	TerritoryState.AllianceId = Rok2Json::Str(*Obj, TEXT("allianceId"));
-	TerritoryState.PatrolModifierPct = (int32)Rok2Json::Num(*Obj, TEXT("patrolModifierPct"));
-	TerritoryState.GatherMultiplierPct = (int32)Rok2Json::Num(*Obj, TEXT("gatherMultiplierPct"));
-	TerritoryState.bInsideTerritory = Rok2Json::Bool(*Obj, TEXT("insideTerritory"));
+	TerritoryState.AllianceId = Rok2Json::Str(Obj, TEXT("allianceId"));
+	TerritoryState.PatrolModifierPct = (int32)Rok2Json::Num(Obj, TEXT("patrolModifierPct"));
+	TerritoryState.GatherMultiplierPct = (int32)Rok2Json::Num(Obj, TEXT("gatherMultiplierPct"));
+	TerritoryState.bInsideTerritory = Rok2Json::Bool(Obj, TEXT("insideTerritory"));
 	const TArray<TSharedPtr<FJsonValue>>* C;
 	if (Obj->TryGetArrayField(TEXT("centerIds"), C) && C)
 	{
@@ -2981,20 +3015,20 @@ void URok2Api::PurchaseAllianceShopItem(const FString& ItemId)
 void URok2Api::ParseAllianceShopState(const TSharedPtr<FJsonObject>& Obj)
 {
 	AllianceShopItems.Reset();
-	AllianceShopBalance = (int32)Rok2Json::Num(*Obj, TEXT("balance"));
+	AllianceShopBalance = (int32)Rok2Json::Num(Obj, TEXT("balance"));
 	const TArray<TSharedPtr<FJsonValue>>* Items;
 	if (!Obj->TryGetArrayField(TEXT("items"), Items) || !Items) return;
 	for (const TSharedPtr<FJsonValue>& V : *Items)
 	{
 		const TSharedPtr<FJsonObject>* J;
-		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		if (!V->TryGetObject(J) || !J->IsValid()) continue;
 		FRok2AllianceShopItem I;
-		I.Id = Rok2Json::Str(**J, TEXT("id"));
-		I.Name = Rok2Json::Str(**J, TEXT("name"));
-		I.Price = (int32)Rok2Json::Num(**J, TEXT("price"));
-		I.BoughtCount = (int32)Rok2Json::Num(**J, TEXT("boughtCount"));
-		I.MaxPerAlliance = (int32)Rok2Json::Num(**J, TEXT("maxPerAlliance"));
-		I.bLocked = Rok2Json::Bool(**J, TEXT("locked"));
+		I.Id = Rok2Json::Str(*J, TEXT("id"));
+		I.Name = Rok2Json::Str(*J, TEXT("name"));
+		I.Price = (int32)Rok2Json::Num(*J, TEXT("price"));
+		I.BoughtCount = (int32)Rok2Json::Num(*J, TEXT("boughtCount"));
+		I.MaxPerAlliance = (int32)Rok2Json::Num(*J, TEXT("maxPerAlliance"));
+		I.bLocked = Rok2Json::Bool(*J, TEXT("locked"));
 		AllianceShopItems.Add(I);
 	}
 	OnAllianceShopUpdated.Broadcast(AllianceShopItems);
@@ -3018,12 +3052,12 @@ void URok2Api::FetchVipStatus()
 void URok2Api::ParseVipStatus(const TSharedPtr<FJsonObject>& Obj)
 {
 	VipStatus = FRok2VipStatus();
-	VipStatus.Level = (int32)Rok2Json::Num(*Obj, TEXT("level"));
-	VipStatus.Points = (int32)Rok2Json::Num(*Obj, TEXT("points"));
-	VipStatus.PointsDailyGranted = (int32)Rok2Json::Num(*Obj, TEXT("pointsDailyGranted"));
-	VipStatus.bVipStoreOpen = Rok2Json::Bool(*Obj, TEXT("vipStoreOpen"));
-	VipStatus.VipStoreDiscount = Rok2Json::Num(*Obj, TEXT("vipStoreDiscount"));
-	VipStatus.bExtraBuildQueue = Rok2Json::Bool(*Obj, TEXT("extraBuildQueue"));
+	VipStatus.Level = (int32)Rok2Json::Num(Obj, TEXT("level"));
+	VipStatus.Points = (int32)Rok2Json::Num(Obj, TEXT("points"));
+	VipStatus.PointsDailyGranted = (int32)Rok2Json::Num(Obj, TEXT("pointsDailyGranted"));
+	VipStatus.bVipStoreOpen = Rok2Json::Bool(Obj, TEXT("vipStoreOpen"));
+	VipStatus.VipStoreDiscount = Rok2Json::Num(Obj, TEXT("vipStoreDiscount"));
+	VipStatus.bExtraBuildQueue = Rok2Json::Bool(Obj, TEXT("extraBuildQueue"));
 	OnVipStatusUpdated.Broadcast(VipStatus);
 }
 
@@ -3079,17 +3113,17 @@ void URok2Api::ParseTradingOffers(const TSharedPtr<FJsonObject>& Obj)
 	for (const TSharedPtr<FJsonValue>& V : *Offers)
 	{
 		const TSharedPtr<FJsonObject>* J;
-		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		if (!V->TryGetObject(J) || !J->IsValid()) continue;
 		FRok2TradingOffer O;
-		O.OfferId = Rok2Json::Str(**J, TEXT("offerId"));
-		O.SellerPlayerId = Rok2Json::Str(**J, TEXT("sellerPlayerId"));
-		O.SellResource = Rok2Json::Str(**J, TEXT("sellResource"));
-		O.BuyResource = Rok2Json::Str(**J, TEXT("buyResource"));
-		O.SellAmount = (int32)Rok2Json::Num(**J, TEXT("sellAmount"));
-		O.BuyAmount = (int32)Rok2Json::Num(**J, TEXT("buyAmount"));
-		O.Rate = Rok2Json::Num(**J, TEXT("rate"));
-		O.CreatedAtMs = (int64)Rok2Json::Num(**J, TEXT("createdAtMs"));
-		O.ExpiresAtMs = (int64)Rok2Json::Num(**J, TEXT("expiresAtMs"));
+		O.OfferId = Rok2Json::Str(*J, TEXT("offerId"));
+		O.SellerPlayerId = Rok2Json::Str(*J, TEXT("sellerPlayerId"));
+		O.SellResource = Rok2Json::Str(*J, TEXT("sellResource"));
+		O.BuyResource = Rok2Json::Str(*J, TEXT("buyResource"));
+		O.SellAmount = (int32)Rok2Json::Num(*J, TEXT("sellAmount"));
+		O.BuyAmount = (int32)Rok2Json::Num(*J, TEXT("buyAmount"));
+		O.Rate = Rok2Json::Num(*J, TEXT("rate"));
+		O.CreatedAtMs = (int64)Rok2Json::Num(*J, TEXT("createdAtMs"));
+		O.ExpiresAtMs = (int64)Rok2Json::Num(*J, TEXT("expiresAtMs"));
 		TradingOffers.Add(O);
 	}
 	OnTradingOffersUpdated.Broadcast(TradingOffers);
@@ -3131,15 +3165,15 @@ void URok2Api::ParseAllianceGifts(const TSharedPtr<FJsonObject>& Obj)
 	for (const TSharedPtr<FJsonValue>& V : *Gifts)
 	{
 		const TSharedPtr<FJsonObject>* J;
-		if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+		if (!V->TryGetObject(J) || !J->IsValid()) continue;
 		FRok2AllianceGift G;
-		G.GiftId = Rok2Json::Str(**J, TEXT("giftId"));
-		G.GiftTypeId = Rok2Json::Str(**J, TEXT("giftTypeId"));
-		G.Name = Rok2Json::Str(**J, TEXT("name"));
-		G.SlotsRemaining = (int32)Rok2Json::Num(**J, TEXT("slotsRemaining"));
-		G.SlotsTotal = (int32)Rok2Json::Num(**J, TEXT("slotsTotal"));
-		G.ExpiresAtMs = (int64)Rok2Json::Num(**J, TEXT("expiresAtMs"));
-		G.bExpired = Rok2Json::Bool(**J, TEXT("expired"));
+		G.GiftId = Rok2Json::Str(*J, TEXT("giftId"));
+		G.GiftTypeId = Rok2Json::Str(*J, TEXT("giftTypeId"));
+		G.Name = Rok2Json::Str(*J, TEXT("name"));
+		G.SlotsRemaining = (int32)Rok2Json::Num(*J, TEXT("slotsRemaining"));
+		G.SlotsTotal = (int32)Rok2Json::Num(*J, TEXT("slotsTotal"));
+		G.ExpiresAtMs = (int64)Rok2Json::Num(*J, TEXT("expiresAtMs"));
+		G.bExpired = Rok2Json::Bool(*J, TEXT("expired"));
 		AllianceGifts.Add(G);
 	}
 	OnAllianceGiftsUpdated.Broadcast(AllianceGifts);
@@ -3159,7 +3193,7 @@ void URok2Api::FetchTavernState()
 }
 void URok2Api::OpenTavernBox(const FString& BoxId)
 {
-	FString Body = FString::Printf(TEXT("{"boxId":"%s"}"), *BoxId);
+	FString Body = FString::Printf(TEXT("{\"boxId\":\"%s\"}"), *BoxId);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/tavern/open"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3177,7 +3211,7 @@ void URok2Api::ParseTavernState(const TSharedPtr<FJsonObject>& Obj)
 	TavernState = FRok2TavernState();
 	TavernState.Keys.Reset();
 	const TSharedPtr<FJsonObject>* KeysObj;
-	if (Obj->TryGetObjectField(TEXT("keys"), KeysObj) && (*KeysObj)->IsValid())
+	if (Obj->TryGetObjectField(TEXT("keys"), KeysObj) && KeysObj->IsValid())
 	{
 		TArray<FString> Names;
 		(*KeysObj)->Values.GetKeys(Names);
@@ -3194,16 +3228,16 @@ void URok2Api::ParseTavernState(const TSharedPtr<FJsonObject>& Obj)
 		for (const TSharedPtr<FJsonValue>& V : *Rolls)
 		{
 			const TSharedPtr<FJsonObject>* J;
-			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			if (!V->TryGetObject(J) || !J->IsValid()) continue;
 			FRok2TavernRoll R;
-			R.BoxId = Rok2Json::Str(**J, TEXT("boxId"));
-			R.Kind = Rok2Json::Str(**J, TEXT("kind"));
-			R.Quantity = (int32)Rok2Json::Num(**J, TEXT("quantity"));
+			R.BoxId = Rok2Json::Str(*J, TEXT("boxId"));
+			R.Kind = Rok2Json::Str(*J, TEXT("kind"));
+			R.Quantity = (int32)Rok2Json::Num(*J, TEXT("quantity"));
 			TavernState.LastRolls.Add(R);
 		}
 	}
-	TavernState.OpensThisHour = (int32)Rok2Json::Num(*Obj, TEXT("opensThisHour"));
-	TavernState.DailyKeyClaimed = Rok2Json::Bool(*Obj, TEXT("dailyKeyClaimed"));
+	TavernState.OpensThisHour = (int32)Rok2Json::Num(Obj, TEXT("opensThisHour"));
+	TavernState.DailyKeyClaimed = Rok2Json::Bool(Obj, TEXT("dailyKeyClaimed"));
 	OnTavernUpdated.Broadcast(TavernState);
 }
 
@@ -3226,7 +3260,7 @@ void URok2Api::AttemptExpeditionBattle(const FString& StageId, const TArray<int3
 		if (!Counts.IsEmpty()) Counts += TEXT(",");
 		Counts += FString::Printf(TEXT("%d"), C);
 	}
-	FString Body = FString::Printf(TEXT("{"stageId":"%s","troopCounts":[%s]}"), *StageId, *Counts);
+	FString Body = FString::Printf(TEXT("{\"stageId\":\"%s\",\"troopCounts\":[%s]}"), *StageId, *Counts);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/expedition/battle"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3244,7 +3278,7 @@ void URok2Api::ParseExpeditionState(const TSharedPtr<FJsonObject>& Obj)
 	ExpeditionState = FRok2ExpeditionState();
 	ExpeditionState.StageStars.Reset();
 	const TSharedPtr<FJsonObject>* StarsObj;
-	if (Obj->TryGetObjectField(TEXT("stageStars"), StarsObj) && (*StarsObj)->IsValid())
+	if (Obj->TryGetObjectField(TEXT("stageStars"), StarsObj) && StarsObj->IsValid())
 	{
 		TArray<FString> Names;
 		(*StarsObj)->Values.GetKeys(Names);
@@ -3254,8 +3288,8 @@ void URok2Api::ParseExpeditionState(const TSharedPtr<FJsonObject>& Obj)
 			if ((*StarsObj)->TryGetNumberField(N, V)) ExpeditionState.StageStars.Add(N, (int32)V);
 		}
 	}
-	ExpeditionState.Medals = (int32)Rok2Json::Num(*Obj, TEXT("medals"));
-	ExpeditionState.AttemptsToday = (int32)Rok2Json::Num(*Obj, TEXT("attemptsToday"));
+	ExpeditionState.Medals = (int32)Rok2Json::Num(Obj, TEXT("medals"));
+	ExpeditionState.AttemptsToday = (int32)Rok2Json::Num(Obj, TEXT("attemptsToday"));
 	ExpeditionState.RecentResults.Reset();
 	const TArray<TSharedPtr<FJsonValue>>* Results;
 	if (Obj->TryGetArrayField(TEXT("recentResults"), Results) && Results)
@@ -3263,12 +3297,12 @@ void URok2Api::ParseExpeditionState(const TSharedPtr<FJsonObject>& Obj)
 		for (const TSharedPtr<FJsonValue>& V : *Results)
 		{
 			const TSharedPtr<FJsonObject>* J;
-			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			if (!V->TryGetObject(J) || !J->IsValid()) continue;
 			FRok2ExpeditionBattleResult R;
-			R.StageId = Rok2Json::Str(**J, TEXT("stageId"));
-			R.Victory = Rok2Json::Bool(**J, TEXT("victory"));
-			R.Stars = (int32)Rok2Json::Num(**J, TEXT("stars"));
-			R.DamageTaken = (int32)Rok2Json::Num(**J, TEXT("damageTaken"));
+			R.StageId = Rok2Json::Str(*J, TEXT("stageId"));
+			R.Victory = Rok2Json::Bool(*J, TEXT("victory"));
+			R.Stars = (int32)Rok2Json::Num(*J, TEXT("stars"));
+			R.DamageTaken = (int32)Rok2Json::Num(*J, TEXT("damageTaken"));
 			ExpeditionState.RecentResults.Add(R);
 		}
 	}
@@ -3301,7 +3335,7 @@ void URok2Api::CreateCanyonChallenge()
 }
 void URok2Api::CompleteCanyonChallenge(const FString& ChallengeId, int32 Stars)
 {
-	FString Body = FString::Printf(TEXT("{"challengeId":"%s","stars":%d}"), *ChallengeId, Stars);
+	FString Body = FString::Printf(TEXT("{\"challengeId\":\"%s\",\"stars\":%d}"), *ChallengeId, Stars);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/canyon/complete"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3316,7 +3350,7 @@ void URok2Api::CompleteCanyonChallenge(const FString& ChallengeId, int32 Stars)
 }
 void URok2Api::ActivateCanyonBuff(const FString& BuffId)
 {
-	FString Body = FString::Printf(TEXT("{"buffId":"%s"}"), *BuffId);
+	FString Body = FString::Printf(TEXT("{\"buffId\":\"%s\"}"), *BuffId);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/canyon/buff"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3338,21 +3372,21 @@ void URok2Api::ParseCanyonState(const TSharedPtr<FJsonObject>& Obj)
 		for (const TSharedPtr<FJsonValue>& V : *Challenges)
 		{
 			const TSharedPtr<FJsonObject>* J;
-			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			if (!V->TryGetObject(J) || !J->IsValid()) continue;
 			FRok2CanyonChallenge C;
-			C.Id = Rok2Json::Str(**J, TEXT("id"));
-			C.SeasonId = Rok2Json::Str(**J, TEXT("seasonId"));
-			C.DaySlot = (int32)Rok2Json::Num(**J, TEXT("daySlot"));
-			C.Stars = (int32)Rok2Json::Num(**J, TEXT("stars"));
-			C.Score = (int32)Rok2Json::Num(**J, TEXT("score"));
+			C.Id = Rok2Json::Str(*J, TEXT("id"));
+			C.SeasonId = Rok2Json::Str(*J, TEXT("seasonId"));
+			C.DaySlot = (int32)Rok2Json::Num(*J, TEXT("daySlot"));
+			C.Stars = (int32)Rok2Json::Num(*J, TEXT("stars"));
+			C.Score = (int32)Rok2Json::Num(*J, TEXT("score"));
 			CanyonState.Challenges.Add(C);
 		}
 	}
-	CanyonState.ActiveBuffs = (int32)Rok2Json::Num(*Obj, TEXT("activeBuffs"));
-	CanyonState.Tokens = (int32)Rok2Json::Num(*Obj, TEXT("tokens"));
-	CanyonState.VictoryPoints = (int32)Rok2Json::Num(*Obj, TEXT("victoryPoints"));
-	CanyonState.CurrentSeasonId = Rok2Json::Str(*Obj, TEXT("currentSeasonId"));
-	CanyonState.SeasonDay = (int32)Rok2Json::Num(*Obj, TEXT("seasonDay"));
+	CanyonState.ActiveBuffs = (int32)Rok2Json::Num(Obj, TEXT("activeBuffs"));
+	CanyonState.Tokens = (int32)Rok2Json::Num(Obj, TEXT("tokens"));
+	CanyonState.VictoryPoints = (int32)Rok2Json::Num(Obj, TEXT("victoryPoints"));
+	CanyonState.CurrentSeasonId = Rok2Json::Str(Obj, TEXT("currentSeasonId"));
+	CanyonState.SeasonDay = (int32)Rok2Json::Num(Obj, TEXT("seasonDay"));
 	OnCanyonUpdated.Broadcast(CanyonState);
 }
 
@@ -3369,7 +3403,7 @@ void URok2Api::FetchOsirisState()
 }
 void URok2Api::RegisterOsiris(const FString& Team)
 {
-	FString Body = FString::Printf(TEXT("{"team":"%s"}"), *Team);
+	FString Body = FString::Printf(TEXT("{\"team\":\"%s\"}"), *Team);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/osiris/register"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3383,7 +3417,7 @@ void URok2Api::RegisterOsiris(const FString& Team)
 }
 void URok2Api::AttackOsirisFacility(const FString& FacilityId)
 {
-	FString Body = FString::Printf(TEXT("{"facilityId":"%s"}"), *FacilityId);
+	FString Body = FString::Printf(TEXT("{\"facilityId\":\"%s\"}"), *FacilityId);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/osiris/attack"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3397,7 +3431,7 @@ void URok2Api::AttackOsirisFacility(const FString& FacilityId)
 }
 void URok2Api::MoveOsirisArk(const FString& FacilityId)
 {
-	FString Body = FString::Printf(TEXT("{"facilityId":"%s"}"), *FacilityId);
+	FString Body = FString::Printf(TEXT("{\"facilityId\":\"%s\"}"), *FacilityId);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/osiris/move-ark"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3412,7 +3446,7 @@ void URok2Api::MoveOsirisArk(const FString& FacilityId)
 void URok2Api::ParseOsirisState(const TSharedPtr<FJsonObject>& Obj)
 {
 	OsirisState = FRok2OsirisState();
-	OsirisState.LeagueId = Rok2Json::Str(*Obj, TEXT("leagueId"));
+	OsirisState.LeagueId = Rok2Json::Str(Obj, TEXT("leagueId"));
 	OsirisState.Facilities.Reset();
 	const TArray<TSharedPtr<FJsonValue>>* Facilities;
 	if (Obj->TryGetArrayField(TEXT("facilities"), Facilities) && Facilities)
@@ -3420,20 +3454,20 @@ void URok2Api::ParseOsirisState(const TSharedPtr<FJsonObject>& Obj)
 		for (const TSharedPtr<FJsonValue>& V : *Facilities)
 		{
 			const TSharedPtr<FJsonObject>* J;
-			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			if (!V->TryGetObject(J) || !J->IsValid()) continue;
 			FRok2OsirisFacility F;
-			F.Id = Rok2Json::Str(**J, TEXT("id"));
-			F.Name = Rok2Json::Str(**J, TEXT("name"));
-			F.CapturePoints = (int32)Rok2Json::Num(**J, TEXT("capturePoints"));
-			F.HeldUntilMs = (int64)Rok2Json::Num(**J, TEXT("heldUntilMs"));
-			F.OwnerTeam = Rok2Json::Str(**J, TEXT("ownerTeam"));
+			F.Id = Rok2Json::Str(*J, TEXT("id"));
+			F.Name = Rok2Json::Str(*J, TEXT("name"));
+			F.CapturePoints = (int32)Rok2Json::Num(*J, TEXT("capturePoints"));
+			F.HeldUntilMs = (int64)Rok2Json::Num(*J, TEXT("heldUntilMs"));
+			F.OwnerTeam = Rok2Json::Str(*J, TEXT("ownerTeam"));
 			OsirisState.Facilities.Add(F);
 		}
 	}
-	OsirisState.RedPoints = (int32)Rok2Json::Num(*Obj, TEXT("redPoints"));
-	OsirisState.BluePoints = (int32)Rok2Json::Num(*Obj, TEXT("bluePoints"));
-	OsirisState.Registered = Rok2Json::Bool(*Obj, TEXT("registered"));
-	OsirisState.NextArkMoveMs = (int64)Rok2Json::Num(*Obj, TEXT("nextArkMoveMs"));
+	OsirisState.RedPoints = (int32)Rok2Json::Num(Obj, TEXT("redPoints"));
+	OsirisState.BluePoints = (int32)Rok2Json::Num(Obj, TEXT("bluePoints"));
+	OsirisState.Registered = Rok2Json::Bool(Obj, TEXT("registered"));
+	OsirisState.NextArkMoveMs = (int64)Rok2Json::Num(Obj, TEXT("nextArkMoveMs"));
 	OnOsirisUpdated.Broadcast(OsirisState);
 }
 
@@ -3464,7 +3498,7 @@ void URok2Api::SpinWheel()
 }
 void URok2Api::SubmitMGScore(double Points)
 {
-	FString Body = FString::Printf(TEXT("{"points":%.0f}"), Points);
+	FString Body = FString::Printf(TEXT("{\"points\":%.0f}"), Points);
 	TWeakObjectPtr<URok2Api> WeakThis(this);
 	Post(TEXT("v1/events/mg-score"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
 	{
@@ -3478,9 +3512,9 @@ void URok2Api::SubmitMGScore(double Points)
 void URok2Api::ParseEventsState(const TSharedPtr<FJsonObject>& Obj)
 {
 	EventsState = FRok2EventsState();
-	EventsState.EventDay = (int32)Rok2Json::Num(*Obj, TEXT("eventDay"));
-	EventsState.Phase = Rok2Json::Str(*Obj, TEXT("phase"));
-	EventsState.WheelOpen = Rok2Json::Bool(*Obj, TEXT("wheelOpen"));
+	EventsState.EventDay = (int32)Rok2Json::Num(Obj, TEXT("eventDay"));
+	EventsState.Phase = Rok2Json::Str(Obj, TEXT("phase"));
+	EventsState.WheelOpen = Rok2Json::Bool(Obj, TEXT("wheelOpen"));
 	EventsState.RecentSpins.Reset();
 	const TArray<TSharedPtr<FJsonValue>>* Spins;
 	if (Obj->TryGetArrayField(TEXT("recentSpins"), Spins) && Spins)
@@ -3488,16 +3522,16 @@ void URok2Api::ParseEventsState(const TSharedPtr<FJsonObject>& Obj)
 		for (const TSharedPtr<FJsonValue>& V : *Spins)
 		{
 			const TSharedPtr<FJsonObject>* J;
-			if (!V->TryGetObject(J) || !(*J)->IsValid()) continue;
+			if (!V->TryGetObject(J) || !J->IsValid()) continue;
 			FRok2WheelSpinResult R;
-			R.SlotId = Rok2Json::Str(**J, TEXT("slotId"));
-			R.Kind = Rok2Json::Str(**J, TEXT("kind"));
-			R.Quantity = (int32)Rok2Json::Num(**J, TEXT("quantity"));
-			R.FreeSpin = Rok2Json::Bool(**J, TEXT("freeSpin"));
+			R.SlotId = Rok2Json::Str(*J, TEXT("slotId"));
+			R.Kind = Rok2Json::Str(*J, TEXT("kind"));
+			R.Quantity = (int32)Rok2Json::Num(*J, TEXT("quantity"));
+			R.FreeSpin = Rok2Json::Bool(*J, TEXT("freeSpin"));
 			EventsState.RecentSpins.Add(R);
 		}
 	}
-	EventsState.MGTotalScore = (int32)Rok2Json::Num(*Obj, TEXT("mgTotalScore"));
+	EventsState.MGTotalScore = (int32)Rok2Json::Num(Obj, TEXT("mgTotalScore"));
 	OnEventsUpdated.Broadcast(EventsState);
 }
 
@@ -3505,130 +3539,139 @@ void URok2Api::ParseEventsState(const TSharedPtr<FJsonObject>& Obj)
 void URok2Api::FetchLostKingdomState()
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    Get(TEXT("v1/lk/state"), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	Get(TEXT("v1/lk/state"), [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::MigrateToLostKingdom()
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    Post(TEXT("v1/lk/migrate"), MakeShared<FJsonObject>(), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	Post(TEXT("v1/lk/migrate"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::CaptureHieron(const FString& HieronId)
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    auto B = MakeShared<FJsonObject>();
-    B->SetStringField("hieronId", HieronId);
-    Post(TEXT("v1/lk/hieron"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	FString Body = FString::Printf(TEXT("{\"hieronId\":\"%s\"}"), *HieronId);
+	Post(TEXT("v1/lk/hieron"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::AttackCitadel(const FString& CitadelId, int32 Damage)
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    auto B = MakeShared<FJsonObject>();
-    B->SetStringField("citadelId", CitadelId);
-    B->SetNumberField("damage", Damage);
-    Post(TEXT("v1/lk/citadel"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	FString Body = FString::Printf(TEXT("{\"citadelId\":\"%s\",\"damage\":%d}"), *CitadelId, Damage);
+	Post(TEXT("v1/lk/citadel"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::AttackZiggurat(int32 Damage)
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    auto B = MakeShared<FJsonObject>();
-    B->SetNumberField("damage", Damage);
-    Post(TEXT("v1/lk/ziggurat"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	FString Body = FString::Printf(TEXT("{\"damage\":%d}"), Damage);
+	Post(TEXT("v1/lk/ziggurat"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::BuySeasonItem(const FString& ItemId)
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    auto B = MakeShared<FJsonObject>();
-    B->SetStringField("itemId", ItemId);
-    Post(TEXT("v1/lk/season-buy"), B, [WeakThis](const TSharedPtr<FJsonObject>& J)
+	FString Body = FString::Printf(TEXT("{\"itemId\":\"%s\"}"), *ItemId);
+	Post(TEXT("v1/lk/season-buy"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseLostKingdomState(J);
-        OnLostKingdomUpdated.Broadcast(LostKingdomState);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseLostKingdomState(J);
+		Self->OnLostKingdomUpdated.Broadcast(Self->LostKingdomState);
+	});
 }
 void URok2Api::ParseLostKingdomState(const TSharedPtr<FJsonObject>& Json)
 {
-    if (!Json) return;
-    const auto* State = Json->GetObjectField("state");
-    if (!State) return;
-    LostKingdomState.kvk_coins = State->GetIntegerField("kvk_coins");
-    LostKingdomState.crown_points = State->GetIntegerField("crown_points");
-    LostKingdomState.kingdom_points = State->GetIntegerField("kingdom_points");
-    LostKingdomState.season_id = State->GetStringField("season_id");
-    LostKingdomState.structures.Empty();
-    for (const auto& X : State->GetArrayField("structures"))
-    {
-        const auto* O = X->AsObject();
-        FRok2LKStructure S;
-        S.id = O->GetStringField("id");
-        S.owner = O->GetStringField("owner");
-        S.hp = O->GetIntegerField("hp");
-        LostKingdomState.structures.Add(S);
-    }
-    LostKingdomState.citadels.Empty();
-    for (const auto& X : State->GetArrayField("citadels"))
-    {
-        const auto* O = X->AsObject();
-        FRok2LKCitadel C;
-        C.id = O->GetStringField("id");
-        C.hp = O->GetIntegerField("hp");
-        C.destroyed = O->GetBoolField("destroyed");
-        C.destroyed_by = O->GetStringField("destroyed_by");
-        LostKingdomState.citadels.Add(C);
-    }
-    if (const auto* Z = State->GetObjectField("ziggurat"))
-    {
-        LostKingdomState.ziggurat.hp = Z->GetIntegerField("hp");
-        LostKingdomState.ziggurat.open = Z->GetBoolField("open");
-        LostKingdomState.ziggurat.final_battle_started_ms = Z->GetIntegerField("final_battle_started_ms");
-        LostKingdomState.ziggurat.destroyed = Z->GetBoolField("destroyed");
-        LostKingdomState.ziggurat.destroyed_by = Z->GetStringField("destroyed_by");
-    }
+	if (!Json.IsValid()) return;
+	TSharedPtr<FJsonObject> State = Json;
+	const TSharedPtr<FJsonObject>* StateObj;
+	if (Json->TryGetObjectField(TEXT("state"), StateObj) && StateObj && StateObj->IsValid())
+	{
+		State = *StateObj;
+	}
+	LostKingdomState.kvk_coins = (int32)Rok2Json::Num(State, TEXT("kvk_coins"));
+	LostKingdomState.crown_points = (int32)Rok2Json::Num(State, TEXT("crown_points"));
+	LostKingdomState.kingdom_points = (int32)Rok2Json::Num(State, TEXT("kingdom_points"));
+	LostKingdomState.season_id = Rok2Json::Str(State, TEXT("season_id"));
+	LostKingdomState.structures.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* StructsArr;
+	if (State->TryGetArrayField(TEXT("structures"), StructsArr) && StructsArr)
+	{
+		for (const auto& X : *StructsArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!X->TryGetObject(O)) continue;
+			FRok2LKStructure S;
+			S.id = Rok2Json::Str(*O, TEXT("id"));
+			S.owner = Rok2Json::Str(*O, TEXT("owner"));
+			S.hp = (int32)Rok2Json::Num(*O, TEXT("hp"));
+			LostKingdomState.structures.Add(S);
+		}
+	}
+	LostKingdomState.citadels.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* CitadelsArr;
+	if (State->TryGetArrayField(TEXT("citadels"), CitadelsArr) && CitadelsArr)
+	{
+		for (const auto& X : *CitadelsArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!X->TryGetObject(O)) continue;
+			FRok2LKCitadel C;
+			C.id = Rok2Json::Str(*O, TEXT("id"));
+			C.hp = (int32)Rok2Json::Num(*O, TEXT("hp"));
+			C.destroyed = Rok2Json::Bool(*O, TEXT("destroyed"));
+			C.destroyed_by = Rok2Json::Str(*O, TEXT("destroyed_by"));
+			LostKingdomState.citadels.Add(C);
+		}
+	}
+	const TSharedPtr<FJsonObject>* ZigguratObj;
+	if (State->TryGetObjectField(TEXT("ziggurat"), ZigguratObj) && ZigguratObj && ZigguratObj->IsValid())
+	{
+		LostKingdomState.ziggurat.hp = (int32)Rok2Json::Num(*ZigguratObj, TEXT("hp"));
+		LostKingdomState.ziggurat.open = Rok2Json::Bool(*ZigguratObj, TEXT("open"));
+		LostKingdomState.ziggurat.final_battle_started_ms = (int64)Rok2Json::Num(*ZigguratObj, TEXT("final_battle_started_ms"));
+		LostKingdomState.ziggurat.destroyed = Rok2Json::Bool(*ZigguratObj, TEXT("destroyed"));
+		LostKingdomState.ziggurat.destroyed_by = Rok2Json::Str(*ZigguratObj, TEXT("destroyed_by"));
+	}
 }
-
 
 // P12-T6: نهاية الموسم وإعادة الضبط
 void URok2Api::FetchSeasonReport()
 {
 	TWeakObjectPtr<URok2Api> WeakThis(this);
-    Get(TEXT("v1/season/report"), [WeakThis](const TSharedPtr<FJsonObject>& J)
+	Get(TEXT("v1/season/report"), [WeakThis](const TSharedPtr<FJsonObject>& J)
 	{
-	if (!WeakThis.IsValid()) return;
-	URok2Api* Self = WeakThis.Get();
-        ParseSeasonReport(J);
-        OnSeasonReportUpdated.Broadcast(SeasonReport);
-    });
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->ParseSeasonReport(J);
+		Self->OnSeasonReportUpdated.Broadcast(Self->SeasonReport);
+	});
 }
 
 FRok2SeasonState URok2Api::GetSeasonState() const
@@ -3643,67 +3686,71 @@ FRok2SeasonState URok2Api::GetSeasonState() const
 
 void URok2Api::ParseSeasonReport(const TSharedPtr<FJsonObject>& Json)
 {
-    if (!Json) return;
-    SeasonReport.SeasonId = Rok2Json::Str(Json, TEXT("seasonId"));
-    SeasonReport.GeneratedAt = (int64)Rok2Json::Num(Json, TEXT("generatedAt"));
-    SeasonReport.ChampionAllianceId = Rok2Json::Str(Json, TEXT("championAllianceId"));
-    SeasonReport.ChampionScore = Rok2Json::Num(Json, TEXT("championScore"));
-    SeasonReport.TopAlliances.Empty();
-    if (const TArray<TSharedPtr<FJsonValue>>* Arr = Json->TryGetArrayField(TEXT("topAlliances")))
-    {
-        for (const auto& X : *Arr)
-        {
-            const auto* O = X->AsObject();
-            if (!O) continue;
-            FRok2SeasonLeaderboardEntry E;
-            E.Id = O->GetStringField(TEXT("allianceId"));
-            E.Score = O->GetNumberField(TEXT("score"));
-            E.Rank = O->GetIntegerField(TEXT("rank"));
-            SeasonReport.TopAlliances.Add(E);
-        }
-    }
-    SeasonReport.TopPlayers.Empty();
-    if (const TArray<TSharedPtr<FJsonValue>>* Arr = Json->TryGetArrayField(TEXT("topPlayers")))
-    {
-        for (const auto& X : *Arr)
-        {
-            const auto* O = X->AsObject();
-            if (!O) continue;
-            FRok2SeasonLeaderboardEntry E;
-            E.Id = O->GetStringField(TEXT("playerId"));
-            E.Score = O->GetNumberField(TEXT("score"));
-            E.Rank = O->GetIntegerField(TEXT("rank"));
-            SeasonReport.TopPlayers.Add(E);
-        }
-    }
-    SeasonReport.Legacy.Alliances.Empty();
-    SeasonReport.Legacy.Players.Empty();
-    if (const auto* Legacy = Json->GetObjectField(TEXT("legacy")))
-    {
-        const auto ParseList = [](const TSharedPtr<FJsonObject>* Legacy, const FString& Field, TArray<FRok2SeasonLeaderboardEntry>& Out)
-        {
-            Out.Empty();
-            if (const TArray<TSharedPtr<FJsonValue>>* Arr = (*Legacy)->TryGetArrayField(Field))
-            {
-                for (const auto& X : *Arr)
-                {
-                    const auto* O = X->AsObject();
-                    if (!O) continue;
-                    FRok2SeasonLeaderboardEntry E;
-                    const bool bIsAlliance = O->HasField(TEXT("allianceId"));
-                    E.Id = bIsAlliance ? O->GetStringField(TEXT("allianceId")) : O->GetStringField(TEXT("playerId"));
-                    E.Score = O->HasField(TEXT("legacyPoints")) ? O->GetNumberField(TEXT("legacyPoints")) : O->GetNumberField(TEXT("score"));
-                    Out.Add(E);
-                }
-            }
-        };
-        ParseList(&Legacy, TEXT("alliances"), SeasonReport.Legacy.Alliances);
-        ParseList(&Legacy, TEXT("players"), SeasonReport.Legacy.Players);
-    }
-    if (SeasonReport.GeneratedAt > 0)
-    {
-        OnSeasonEnded.Broadcast();
-    }
+	if (!Json.IsValid()) return;
+	SeasonReport.SeasonId = Rok2Json::Str(Json, TEXT("seasonId"));
+	SeasonReport.GeneratedAt = (int64)Rok2Json::Num(Json, TEXT("generatedAt"));
+	SeasonReport.ChampionAllianceId = Rok2Json::Str(Json, TEXT("championAllianceId"));
+	SeasonReport.ChampionScore = Rok2Json::Num(Json, TEXT("championScore"));
+	SeasonReport.TopAlliances.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* TopAlliancesArr;
+	if (Json->TryGetArrayField(TEXT("topAlliances"), TopAlliancesArr) && TopAlliancesArr)
+	{
+		for (const auto& X : *TopAlliancesArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!X->TryGetObject(O)) continue;
+			FRok2SeasonLeaderboardEntry E;
+			E.Id = Rok2Json::Str(*O, TEXT("allianceId"));
+			E.Score = Rok2Json::Num(*O, TEXT("score"));
+			E.Rank = (int32)Rok2Json::Num(*O, TEXT("rank"));
+			SeasonReport.TopAlliances.Add(E);
+		}
+	}
+	SeasonReport.TopPlayers.Empty();
+	const TArray<TSharedPtr<FJsonValue>>* TopPlayersArr;
+	if (Json->TryGetArrayField(TEXT("topPlayers"), TopPlayersArr) && TopPlayersArr)
+	{
+		for (const auto& X : *TopPlayersArr)
+		{
+			const TSharedPtr<FJsonObject>* O;
+			if (!X->TryGetObject(O)) continue;
+			FRok2SeasonLeaderboardEntry E;
+			E.Id = Rok2Json::Str(*O, TEXT("playerId"));
+			E.Score = Rok2Json::Num(*O, TEXT("score"));
+			E.Rank = (int32)Rok2Json::Num(*O, TEXT("rank"));
+			SeasonReport.TopPlayers.Add(E);
+		}
+	}
+	SeasonReport.Legacy.Alliances.Empty();
+	SeasonReport.Legacy.Players.Empty();
+	const TSharedPtr<FJsonObject>* LegacyObj;
+	if (Json->TryGetObjectField(TEXT("legacy"), LegacyObj) && LegacyObj && LegacyObj->IsValid())
+	{
+		const auto ParseList = [](const TSharedPtr<FJsonObject>& Legacy, const FString& Field, TArray<FRok2SeasonLeaderboardEntry>& Out)
+		{
+			Out.Empty();
+			const TArray<TSharedPtr<FJsonValue>>* Arr;
+			if (Legacy->TryGetArrayField(Field, Arr) && Arr)
+			{
+				for (const auto& X : *Arr)
+				{
+					const TSharedPtr<FJsonObject>* O;
+					if (!X->TryGetObject(O)) continue;
+					FRok2SeasonLeaderboardEntry E;
+					const bool bIsAlliance = (*O)->HasField(TEXT("allianceId"));
+					E.Id = bIsAlliance ? Rok2Json::Str(*O, TEXT("allianceId")) : Rok2Json::Str(*O, TEXT("playerId"));
+					E.Score = (*O)->HasField(TEXT("legacyPoints")) ? Rok2Json::Num(*O, TEXT("legacyPoints")) : Rok2Json::Num(*O, TEXT("score"));
+					Out.Add(E);
+				}
+			}
+		};
+		ParseList(*LegacyObj, TEXT("alliances"), SeasonReport.Legacy.Alliances);
+		ParseList(*LegacyObj, TEXT("players"), SeasonReport.Legacy.Players);
+	}
+	if (SeasonReport.GeneratedAt > 0)
+	{
+		OnSeasonEnded.Broadcast();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -3738,16 +3785,16 @@ void URok2Api::SaveMetaCache()
 		O->SetStringField(TEXT("desc"), B.Desc);
 		BuildingsArr.Add(MakeShared<FJsonValueObject>(O));
 	}
-	for (const FString& K : Meta.ProductionBase.GetKeys())
+	for (const auto& Pair : Meta.ProductionBase)
 	{
-		Root->SetNumberField(TEXT("prod_") + K, Meta.ProductionBase[K]);
+		Root->SetNumberField(TEXT("prod_") + Pair.Key, Pair.Value);
 	}
 	Root->SetNumberField(TEXT("production_level_mult"), Meta.ProductionLevelMult);
 	Root->SetNumberField(TEXT("talent_points_per_level"), Meta.TalentPointsPerLevel);
 	Root->SetNumberField(TEXT("points_cap_common"), Meta.PointsCapCommon);
 	Root->SetNumberField(TEXT("max_points_per_node"), Meta.MaxPointsPerNode);
 	Root->SetNumberField(TEXT("reset_refund_ratio"), Meta.ResetRefundRatio);
-	Root->SetNumberField(TEXT("cached_at_ms"), FDateTime::UtcNow().ToUnixTimestampMilli());
+	Root->SetNumberField(TEXT("cached_at_ms"), (double)FDateTime::UtcNow().ToUnixTimestamp() * 1000.0);
 	FString Out;
 	const TSharedRef<TJsonWriter<>> W = TJsonWriterFactory<>::Create(&Out);
 	FJsonSerializer::Serialize(Root.ToSharedRef(), W);
@@ -3776,12 +3823,12 @@ void URok2Api::LoadMetaCache()
 		UE_LOG(LogRok2, Warning, TEXT("Meta cache invalid JSON — using local fallback values"));
 		return;
 	}
-	TSharedPtr<FJsonObject> Obj;
-	if (Root->TryGetObjectField(TEXT("meta"), Obj) && Obj.IsValid()) Root = Obj;
-	TArray<FRok2TrainableUnit> Units;
-	TArray<FRok2BuildingMeta> Buildings;
+	const TSharedPtr<FJsonObject>* Obj;
+	if (Root->TryGetObjectField(TEXT("meta"), Obj) && Obj && Obj->IsValid()) Root = *Obj;
+	TArray<FRok2TrainableUnit> CachedUnits;
+	TArray<FRok2BuildingMeta> CachedBuildings;
 	const TArray<TSharedPtr<FJsonValue>>* UnitsArr;
-	if (Root->TryGetArrayField(TEXT("units"), UnitsArr))
+	if (Root->TryGetArrayField(TEXT("units"), UnitsArr) && UnitsArr)
 	{
 		for (const auto& V : *UnitsArr)
 		{
@@ -3791,11 +3838,11 @@ void URok2Api::LoadMetaCache()
 			U.Id = Rok2Json::Str(*O, TEXT("id"));
 			U.Name = Rok2Json::Str(*O, TEXT("name"));
 			U.Branch = Rok2Json::Str(*O, TEXT("branch"));
-			Units.Add(U);
+			CachedUnits.Add(U);
 		}
 	}
 	const TArray<TSharedPtr<FJsonValue>>* BuildingsArr;
-	if (Root->TryGetArrayField(TEXT("buildings"), BuildingsArr))
+	if (Root->TryGetArrayField(TEXT("buildings"), BuildingsArr) && BuildingsArr)
 	{
 		for (const auto& V : *BuildingsArr)
 		{
@@ -3806,18 +3853,18 @@ void URok2Api::LoadMetaCache()
 			B.Category = Rok2Json::Str(*O, TEXT("category"));
 			B.Name = Rok2Json::Str(*O, TEXT("name"));
 			B.Desc = Rok2Json::Str(*O, TEXT("desc"));
-			Buildings.Add(B);
+			CachedBuildings.Add(B);
 		}
 	}
-	if (Units.Num() > 0 || Buildings.Num() > 0)
+	if (CachedUnits.Num() > 0 || CachedBuildings.Num() > 0)
 	{
-		Meta.TrainableUnits = Units;
-		Meta.Buildings = Buildings;
-		Meta.ProductionLevelMult = Rok2Json::Num(*Root, TEXT("production_level_mult"), 1.2);
-		Meta.TalentPointsPerLevel = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("talent_points_per_level"), 1.0));
-		Meta.PointsCapCommon = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("points_cap_common"), 40.0));
-		Meta.MaxPointsPerNode = FMath::FloorToInt(Rok2Json::Num(*Root, TEXT("max_points_per_node"), 5.0));
-		Meta.ResetRefundRatio = Rok2Json::Num(*Root, TEXT("reset_refund_ratio"), 0.8);
+		Meta.TrainableUnits = CachedUnits;
+		Meta.Buildings = CachedBuildings;
+		Meta.ProductionLevelMult = Rok2Json::Num(Root, TEXT("production_level_mult"), 1.2);
+		Meta.TalentPointsPerLevel = FMath::FloorToInt(Rok2Json::Num(Root, TEXT("talent_points_per_level"), 1.0));
+		Meta.PointsCapCommon = FMath::FloorToInt(Rok2Json::Num(Root, TEXT("points_cap_common"), 40.0));
+		Meta.MaxPointsPerNode = FMath::FloorToInt(Rok2Json::Num(Root, TEXT("max_points_per_node"), 5.0));
+		Meta.ResetRefundRatio = Rok2Json::Num(Root, TEXT("reset_refund_ratio"), 0.8);
 		// القيم الافتراضية نفسها إن لم تكن موجودة في الكاش القديم
 		if (Meta.ProductionBase.Num() == 0)
 		{

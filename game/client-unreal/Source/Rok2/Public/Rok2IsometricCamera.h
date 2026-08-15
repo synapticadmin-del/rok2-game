@@ -1,4 +1,4 @@
-// Copyright ROK2. Isometric / strategy camera actor.
+﻿// Copyright ROK2. Isometric / strategy camera actor.
 
 #pragma once
 
@@ -38,10 +38,13 @@ public:
 	float MaxZoom = 80000.f;
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
-	float Pitch = -50.f;
+	float Pitch = -42.f;
 
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float Yaw = 0.f;
+
+	UPROPERTY(EditAnywhere, Category = "Rok2")
+	float FieldOfView = 40.f;
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void AddPan(const FVector2D& Dir);

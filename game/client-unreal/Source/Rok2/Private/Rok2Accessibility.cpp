@@ -1,4 +1,4 @@
-// Copyright ROK2. مركز قابلية الوصول والتعريب (P7-T7) — implementation.
+﻿// Copyright ROK2. مركز قابلية الوصول والتعريب (P7-T7) — implementation.
 //
 // يتبع AGENTS.md: كل الإعدادات مقروءة من المحرك/الـ CVar ولا تعتمد على أصل غائب،
 // والألوان المعتمدة على التباين تحسب من WCAG AA (نسبة تباين ≥ 4.5:1 فوق #1A120B).
@@ -63,6 +63,11 @@ float URok2Accessibility::GetUiScale() const
 float URok2Accessibility::ScaledSize(float BaseSize) const
 {
 	return FMath::Clamp(BaseSize * UiScale, 12.f, 64.f);
+}
+
+float URok2Accessibility::GetScaledPx(float BasePx) const
+{
+	return BasePx * UiScale;
 }
 
 float URok2Accessibility::ScaledIconSize(float BaseSize) const

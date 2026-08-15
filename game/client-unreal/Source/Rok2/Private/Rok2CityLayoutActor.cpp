@@ -1,4 +1,4 @@
-// Copyright ROK2. City layout manager actor (P5-T1 / P5-T2) — implementation.
+﻿// Copyright ROK2. City layout manager actor (P5-T1 / P5-T2) — implementation.
 
 #include "Rok2CityLayoutActor.h"
 #include "Rok2GameMode.h"
@@ -80,6 +80,9 @@ void ARok2CityLayoutActor::BeginPlay()
 			Api->OnCityLoaded.AddDynamic(this, &ARok2CityLayoutActor::OnCityLoadedHandler);
 		}
 	}
+
+	// بناء مباني المدينة التأسيسية فوراً عند الإقلاع
+	RebuildFromApi();
 }
 
 int32 ARok2CityLayoutActor::RadiusForCityHallLevel(int32 L)
@@ -223,31 +226,49 @@ void ARok2CityLayoutActor::OnCityLoadedHandler(const FRok2City& City)
 
 void ARok2CityLayoutActor::RebuildFromApi()
 {
-	if (!Api) return;
 	ClearBuildings();
 
 	// P5-T2: جلب حضارة اللاعب لتمريرها لكل مبنى
-	const FString PlayerCiv = Api->HasPlayer() ? Api->GetPlayer().Civ : TEXT("rome");
+	const FString PlayerCiv = (Api && Api->HasPlayer()) ? Api->GetPlayer().Civ : TEXT("rome");
 
-	const TMap<FString, int32>& ApiBuildings = Api->GetBuildings();
-	TMap<FString, FRok2BuildingPlacement> SavedPlacements;
-	const FRok2City& AuthoritativeCity = Api->GetCity();
-	if (AuthoritativeCity.LayoutPlacements.Num() > 0)
+	TMap<FString, int32> ApiBuildings = Api ? Api->GetBuildings() : TMap<FString, int32>();
+	if (ApiBuildings.Num() == 0)
 	{
-		for (const FRok2CityLayoutPlacement& ServerPlacement : AuthoritativeCity.LayoutPlacements)
+		ApiBuildings.Add(TEXT("city_hall"), 1);
+		ApiBuildings.Add(TEXT("barracks"), 1);
+		ApiBuildings.Add(TEXT("farm"), 1);
+		ApiBuildings.Add(TEXT("lumber_mill"), 1);
+		ApiBuildings.Add(TEXT("quarry"), 1);
+		ApiBuildings.Add(TEXT("tavern"), 1);
+		ApiBuildings.Add(TEXT("academy"), 1);
+		ApiBuildings.Add(TEXT("trading_post"), 1);
+		ApiBuildings.Add(TEXT("alliance_center"), 1);
+		ApiBuildings.Add(TEXT("builders_hut"), 1);
+	}
+	TMap<FString, FRok2BuildingPlacement> SavedPlacements;
+	if (Api)
+	{
+		const FRok2City& AuthoritativeCity = Api->GetCity();
+		if (AuthoritativeCity.LayoutPlacements.Num() > 0)
 		{
-			FRok2BuildingPlacement Placement;
-			Placement.BuildingId = ServerPlacement.BuildingId;
-			Placement.Q = ServerPlacement.Q;
-			Placement.R = ServerPlacement.R;
-			Placement.RotationSteps = ServerPlacement.RotationSteps;
-			Placement.Facade = Rok2CityLayout::FacadeFromWire(ServerPlacement.Facade);
-			SavedPlacements.Add(Placement.BuildingId, Placement);
+			for (const FRok2CityLayoutPlacement& ServerPlacement : AuthoritativeCity.LayoutPlacements)
+			{
+				FRok2BuildingPlacement Placement;
+				Placement.BuildingId = ServerPlacement.BuildingId;
+				Placement.Q = ServerPlacement.Q;
+				Placement.R = ServerPlacement.R;
+				Placement.RotationSteps = ServerPlacement.RotationSteps;
+				Placement.Facade = Rok2CityLayout::FacadeFromWire(ServerPlacement.Facade);
+				SavedPlacements.Add(Placement.BuildingId, Placement);
+			}
+		}
+		else
+		{
+			SavedPlacements = LoadLocalLayout();
 		}
 	}
 	else
 	{
-		// ترحيل لطيف: التخزين المحلي احتياطي لجلسات لم تحفظ بعد نسخة خادمية.
 		SavedPlacements = LoadLocalLayout();
 	}
 	TArray<FString> Order = {

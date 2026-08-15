@@ -1,4 +1,4 @@
-// Copyright Rok2. Isometric camera impl.
+﻿// Copyright Rok2. Isometric camera impl.
 
 #include "Rok2IsometricCamera.h"
 #include "Components/SceneComponent.h"
@@ -13,6 +13,7 @@ ARok2IsometricCamera::ARok2IsometricCamera()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(Root);
+	Camera->FieldOfView = FieldOfView;
 	Camera->SetRelativeRotation(FRotator(Pitch, Yaw, 0.f));
 
 	TargetLocation = FVector(0, 0, 0);

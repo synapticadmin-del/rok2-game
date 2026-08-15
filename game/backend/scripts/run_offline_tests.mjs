@@ -23,7 +23,8 @@ const testScripts = [
   "troops_offline_test.mjs",
   "holy_sites_offline_test.mjs",
   "action_points_offline_test.mjs",
-  "daily_quests_offline_test.mjs"
+  "daily_quests_offline_test.mjs",
+  "p12_t4_license_audit_test.mjs"
 ];
 
 for (const script of testScripts) {

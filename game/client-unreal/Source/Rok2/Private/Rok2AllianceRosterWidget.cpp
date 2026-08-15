@@ -1,4 +1,4 @@
-// Copyright ROK2.
+﻿// Copyright ROK2.
 // P6-T1: زر المساعدة بأيقونة مصافحة إجرائية (بدل 🤝).
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على كل أزرار الكشف.
 
@@ -24,6 +24,20 @@
 #include "Components/Spacer.h"
 #include "Components/Image.h"
 
+
+TSharedRef<SWidget> URok2AllianceRosterWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2AllianceRosterWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -35,12 +49,12 @@ void URok2AllianceRosterWidget::NativeConstruct()
 
 	if (!WidgetTree->RootWidget)
 	{
+		URok2Accessibility* A11y = URok2Accessibility::Get();
 		UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
 		WidgetTree->RootWidget = RootCanvas;
 
 		UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-		// P6-T7: خلفية اللوحة بلون الحضارة
-		FLinearColor PanelColor = FLinearColor(0.05f, 0.05f, 0.05f, 0.9f);
+		FLinearColor PanelColor = FLinearColor(0.05f, 0.05f, 0.05f, 0.95f);
 		if (Api)
 		{
 			const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Api->GetPlayer().Civ);
@@ -51,45 +65,59 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		BorderSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-		BorderSlot->SetSize(FVector2D(600.f, 800.f));
+		BorderSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(480.f) : 480.f, A11y ? A11y->GetScaledPx(540.f) : 540.f));
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("VBox"));
 		MainBorder->AddChild(VBox);
-		URok2MotionLibrary::PlayScaleInCenter(MainBorder);	// P6-T3: تفتح من المركز
+		URok2MotionLibrary::PlayScaleInCenter(MainBorder);
+
+		// صف الرأس مع زر الإغلاق
+		UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HeaderRow"));
+		VBox->AddChildToVerticalBox(HeaderRow)->SetPadding(FMargin(16.f, 12.f, 16.f, 6.f));
 
 		UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-		TitleText->SetText(FText::FromString(TEXT("Alliance Roster")));
+		TitleText->SetText(FText::FromString(TEXT("سجل التحالف (Alliance)")));
 		TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.8f, 0.2f)));
-		URok2Typography::ApplyFont(TitleText, ERok2TextRole::Display);
-		UVerticalBoxSlot* TitleSlot = VBox->AddChildToVerticalBox(TitleText);
-		TitleSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 10.f));
-		TitleSlot->SetHorizontalAlignment(HAlign_Center);
+		URok2Typography::ApplyFont(TitleText, ERok2TextRole::TitleCompact);
+		HeaderRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 
-			UTextBlock* RallyTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyTitle"));
-			RallyTitle->SetText(FText::FromString(TEXT("الراليات النشطة")));
-			RallyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
-			URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Subtitle);
-			VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
+		USpacer* Sp = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
+		HeaderRow->AddChildToHorizontalBox(Sp)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-			RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
-			UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyVBox);
-			RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 4.f));
+		UButton* CloseBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseBtn"));
+		CloseBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::RemoveFromParent);
+		UTextBlock* XTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		XTxt->SetText(FText::FromString(TEXT("✕")));
+		XTxt->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
+		URok2Typography::ApplyFont(XTxt, ERok2TextRole::Caption);
+		CloseBtn->AddChild(XTxt);
+		HeaderRow->AddChildToHorizontalBox(CloseBtn)->SetVerticalAlignment(VAlign_Center);
 
-			RallyReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyReportsButton"));
-			RallyReportsButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.52f, 0.18f));
-			UTextBlock* RallyReportsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyReportsText"));
-			RallyReportsText->SetText(FText::FromString(TEXT("تقارير الراليات والقتال")));
-			RallyReportsText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-			URok2Typography::ApplyFont(RallyReportsText, ERok2TextRole::Button);
-			RallyReportsButton->AddChild(RallyReportsText);
-			RallyReportsButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnRallyReportsClicked);
-			URok2MotionLibrary::BindPress(RallyReportsButton);
-			VBox->AddChildToVerticalBox(RallyReportsButton)->SetPadding(FMargin(20.f, 2.f, 20.f, 8.f));
+		UTextBlock* RallyTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyTitle"));
+		RallyTitle->SetText(FText::FromString(TEXT("الراليات النشطة")));
+		RallyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
+		URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Subtitle);
+		VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
 
-			RosterVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RosterVBox"));
-			UVerticalBoxSlot* RosterSlot = VBox->AddChildToVerticalBox(RosterVBox);
-			RosterSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
-			RosterSlot->Size.SizeRule = ESlateSizeRule::Fill;
+		RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
+		UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyVBox);
+		RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 4.f));
+
+		RallyReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyReportsButton"));
+		RallyReportsButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.52f, 0.18f));
+		UTextBlock* RallyReportsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyReportsText"));
+		RallyReportsText->SetText(FText::FromString(TEXT("تقارير الراليات والقتال")));
+		RallyReportsText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		URok2Typography::ApplyFont(RallyReportsText, ERok2TextRole::Button);
+		RallyReportsButton->AddChild(RallyReportsText);
+		RallyReportsButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnRallyReportsClicked);
+		URok2MotionLibrary::BindPress(RallyReportsButton);
+		VBox->AddChildToVerticalBox(RallyReportsButton)->SetPadding(FMargin(20.f, 2.f, 20.f, 8.f));
+
+		RosterVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RosterVBox"));
+		UVerticalBoxSlot* RosterSlot = VBox->AddChildToVerticalBox(RosterVBox);
+		RosterSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
+		RosterSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
 		// Help Button
 		HelpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HelpButton"));
@@ -103,11 +131,10 @@ void URok2AllianceRosterWidget::NativeConstruct()
 			UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			HelpButton->AddChild(BtnBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("handshake"), 20.f, FLinearColor::White));
-				Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
-				// P7-T7: نص بديل لزر مساعدة التحالف
-				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("handshake")));
-				HelpButton->SetToolTipText(FText::FromString(TEXT("مساعدة التحالف")));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("handshake"), 20.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(20.f, 20.f));
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("handshake")));
+			HelpButton->SetToolTipText(FText::FromString(TEXT("مساعدة التحالف")));
 			UHorizontalBoxSlot* IcoSlot = BtnBox->AddChildToHorizontalBox(Ico);
 			IcoSlot->SetPadding(FMargin(8.f, 2.f, 5.f, 2.f));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -120,7 +147,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		}
 
 		HelpButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnHelpClicked);
-		URok2MotionLibrary::BindPress(HelpButton);	// P6-T3: ضغطة محسوسة
+		URok2MotionLibrary::BindPress(HelpButton);
 
 		PopulateRoster();
 	}
@@ -163,7 +190,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 		PromoteText->SetText(FText::FromString(TEXT("Promote")));
 		PromoteBtn->AddChild(PromoteText);
 		PromoteBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnPromoteClicked);
-		URok2MotionLibrary::BindPress(PromoteBtn);	// P6-T3: ضغطة محسوسة
+		URok2MotionLibrary::BindPress(PromoteBtn);
 		HBox->AddChildToHorizontalBox(PromoteBtn);
 
 		UButton* KickBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
@@ -171,7 +198,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 		KickText->SetText(FText::FromString(TEXT("Kick")));
 		KickBtn->AddChild(KickText);
 		KickBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnKickClicked);
-		URok2MotionLibrary::BindPress(KickBtn);	// P6-T3: ضغطة محسوسة
+		URok2MotionLibrary::BindPress(KickBtn);
 		HBox->AddChildToHorizontalBox(KickBtn);
 
 		UVerticalBoxSlot* RowSlot = RosterVBox->AddChildToVerticalBox(HBox);
@@ -184,7 +211,7 @@ void URok2AllianceRosterWidget::PopulateRoster()
 	InviteText->SetText(FText::FromString(TEXT("Invite")));
 	InviteBtn->AddChild(InviteText);
 	InviteBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnInviteClicked);
-	URok2MotionLibrary::BindPress(InviteBtn);	// P6-T3: ضغطة محسوسة
+	URok2MotionLibrary::BindPress(InviteBtn);
 	UVerticalBoxSlot* InviteSlot = RosterVBox->AddChildToVerticalBox(InviteBtn);
 	InviteSlot->SetPadding(FMargin(0, 10, 0, 0));
 }
@@ -242,15 +269,12 @@ void URok2AllianceRosterWidget::OnHelpClicked()
 
 void URok2AllianceRosterWidget::OnPromoteClicked()
 {
-	// stub
 }
 
 void URok2AllianceRosterWidget::OnKickClicked()
 {
-	// stub
 }
 
 void URok2AllianceRosterWidget::OnInviteClicked()
 {
-	// stub
 }

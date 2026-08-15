@@ -1,4 +1,4 @@
-// Copyright ROK2. مركز قابلية الوصول والتعريب (P7-T7) — header.
+﻿// Copyright ROK2. مركز قابلية الوصول والتعريب (P7-T7) — header.
 //
 // URok2Accessibility كائن singleton (CDO) يحتفظ بإعدادات العرض القابلة للضبط:
 //   1. **RTL عربي فعلي** — IsRtl() يوجّه ترتيب الودجات الأفقية في كل الشاشات.
@@ -36,6 +36,10 @@ public:
 	/** حجم خط معدّل بمقياس الواجهة — لكل أدوار URok2Typography */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")
 	float ScaledSize(float BaseSize) const;
+
+	/** حجم بكسل معدّل بمقياس الواجهة — لكل الأبعاد الثابتة (SetSize/SetPosition) */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")
+	float GetScaledPx(float BasePx) const;
 
 	/** حجم أيقونة معدّل بمقياس الواجهة — لا تقل عن الحد الأدنى المقروء */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")

@@ -1,12 +1,14 @@
-#include "Rok2ViewManager.h"
+﻿#include "Rok2ViewManager.h"
 #include "Rok2WorldRenderer.h"
 #include "Rok2CityBuilder.h"
+#include "Rok2CityLayoutActor.h"
+#include "Rok2HexWallActor.h"
 #include "Rok2IsometricCamera.h"
 
 ARok2ViewManager::ARok2ViewManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	bIsCityView = false;
+	bIsCityView = true;
 	LastMapZoomDistance = DefaultMapZoomDistance;
 }
 
@@ -14,13 +16,13 @@ void ARok2ViewManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// تبدأ التجربة على خريطة العالم، والمدينة لا تستمر في تحديث عناصرها وهي مخفية.
-	SetWorldVisibility(true);
-	SetCityVisibility(false);
+	// تبدأ التجربة داخل مدينة اللاعب
+	SetWorldVisibility(false);
+	SetCityVisibility(true);
 	if (IsoCamera)
 	{
-		IsoCamera->FocusOn(LastMapLocation);
-		IsoCamera->SetTargetZoomDistance(LastMapZoomDistance);
+		IsoCamera->FocusOn(CityViewLocation);
+		IsoCamera->SetTargetZoomDistance(CityViewZoomDistance);
 	}
 }
 
@@ -39,6 +41,23 @@ void ARok2ViewManager::SetCityVisibility(bool bVisible)
 	{
 		CityBuilder->SetActorHiddenInGame(!bVisible);
 		CityBuilder->SetActorTickEnabled(bVisible);
+		if (CityBuilder->Layout)
+		{
+			CityBuilder->Layout->SetActorHiddenInGame(!bVisible);
+			CityBuilder->Layout->SetActorTickEnabled(bVisible);
+			if (CityBuilder->Layout->Wall)
+			{
+				CityBuilder->Layout->Wall->SetActorHiddenInGame(!bVisible);
+			}
+			for (auto& KV : CityBuilder->Layout->Buildings)
+			{
+				if (KV.Value)
+				{
+					KV.Value->SetActorHiddenInGame(!bVisible);
+					KV.Value->SetActorTickEnabled(bVisible);
+				}
+			}
+		}
 	}
 }
 

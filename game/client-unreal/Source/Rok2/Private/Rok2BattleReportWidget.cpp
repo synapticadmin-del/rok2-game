@@ -1,4 +1,4 @@
-// Copyright ROK2. Battle Report Widget impl — P1-T4.
+﻿// Copyright ROK2. Battle Report Widget impl — P1-T4.
 // P6-T1: أيقونات النتائج والحالات إجرائية من URok2ArtAssets (بدل الإيموجي).
 // P6-T3: البطاقة تفتح من المركز + خلفية تتلاشى + ضغطات محسوسة (URok2MotionLibrary).
 
@@ -42,6 +42,19 @@ void URok2BattleReportWidget::Setup(URok2Api* InApi)
 	Api->FetchBattleReports();
 }
 
+TSharedRef<SWidget> URok2BattleReportWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2BattleReportWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -62,10 +75,11 @@ void URok2BattleReportWidget::NativeConstruct()
 		FString Civ;
 		if (Api) Civ = Api->GetPlayer().Civ;
 		Card->SetBrushColor(Rok2Panel(Civ));
+		URok2Accessibility* A11y = URok2Accessibility::Get();
 		UCanvasPanelSlot* CardSlot = RootCanvas->AddChildToCanvas(Card);
 		CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-		CardSlot->SetSize(FVector2D(760.f, 520.f));
+		CardSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(760.f) : 760.f, A11y ? A11y->GetScaledPx(520.f) : 520.f));
 
 		UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
 		Card->SetContent(MainVBox);
