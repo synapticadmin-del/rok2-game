@@ -13,12 +13,47 @@ ARok2IsometricCamera::ARok2IsometricCamera()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(Root);
-	Camera->FieldOfView = FieldOfView;
 	Camera->SetRelativeRotation(FRotator(Pitch, Yaw, 0.f));
+
+	ApplyProjectionSettings();
 
 	TargetLocation = FVector(0, 0, 0);
 	TargetDistance = 2200.f;
 	CurrentDistance = TargetDistance;
+}
+
+void ARok2IsometricCamera::BeginPlay()
+{
+	Super::BeginPlay();
+	// الخصائص قابلة للتعديل في المحرر، فنعيد تطبيقها عند التشغيل أيضاً.
+	ApplyProjectionSettings();
+}
+
+void ARok2IsometricCamera::ApplyProjectionSettings()
+{
+	if (!Camera)
+	{
+		return;
+	}
+
+	// إطار واحد على كل جهاز.
+	//
+	// FieldOfView في UE أفقي دائماً، ويُفسَّر على النسبة المرجعية في
+	// UCameraComponent::AspectRatio. مع قيد MaintainYFOV يحسب المحرك مجال
+	// الرؤية الرأسي = atan(tan(FOV/2) / AspectRatio) ويثبّته، ثم يمدّ الأفقي
+	// بمقدار عرض النافذة الفعلي (CameraStackTypes.cpp:281).
+	//
+	// أي أن ثبات الإطار يتحقق بشرطين فقط: القيد MaintainYFOV، وAspectRatio
+	// مضبوطة على النسبة التي ضُبطت عليها الزاوية والمسافة (16:9 نافذة المحرر).
+	// حينها يرى لاعب هاتف 19.5:9 نفس العمق الرأسي، والزيادة على الجانبين فقط.
+	// لا نحسب FOV يدوياً من نسبة النافذة: المحرك يفعل ذلك، وأي تصحيح إضافي
+	// يُضاعف الأثر فيتّسع المجال الرأسي على الشاشات العريضة — وهو بالضبط
+	// اختلاف الزاوية الذي نحاول منعه.
+	Camera->AspectRatio = FMath::Max(0.1f, ReferenceAspectRatio);
+	Camera->SetFieldOfView(FMath::Clamp(FieldOfView, 5.f, 170.f));
+	Camera->bConstrainAspectRatio = false; // لا أشرطة سوداء — نريد ملء الشاشة
+	Camera->bOverrideAspectRatioAxisConstraint = true;
+	Camera->AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainYFOV;
 }
 
 void ARok2IsometricCamera::Tick(float DeltaSeconds)

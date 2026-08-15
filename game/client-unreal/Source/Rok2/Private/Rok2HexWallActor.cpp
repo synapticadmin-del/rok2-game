@@ -1,7 +1,8 @@
-// Copyright ROK2. Hexagonal city wall actor (P5-T1 / P5-T2) — implementation.
+﻿// Copyright ROK2. Hexagonal city wall actor (P5-T1 / P5-T2) — implementation.
 
 #include "Rok2HexWallActor.h"
 #include "Rok2CivThemes.h"
+#include "Rok2ProceduralAssets.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
@@ -140,11 +141,9 @@ void ARok2HexWallActor::RebuildWall()
 
 void ARok2HexWallActor::ApplyTierMaterials()
 {
-	// لون السور حسب المرحلة — يُطبق عبر SetCustomData على الحالات (لو المادة تدعم) أو يُترك للمستوى.
-	// هنا نضبط خاصية عامة فقط؛ الألوان الفعلية تُدار من مادة الأصل في المحتوى.
-	// متانة منخفضة => ميل للاحمرار (مؤشر ضرر).
+	// الوسم يبقى ليتمكن المستوى/الاختبارات من قراءة المرحلة والضرر.
+	// التلوين الفعلي يجري في ApplyCivTheme التي تُنادى بعدها مباشرة.
 	const float Damage = 1.f - Durability01;
-	// ملاحظة: تلوين فعلي يحتاج مادة بـ Parameter؛ نتركه hook للمستوى عبر Tags.
 	Tags.Add(FName(*FString::Printf(TEXT("wall_tier_%d"), (int32)TierForLevel(WallLevel))));
 	Tags.Add(FName(*FString::Printf(TEXT("wall_damage_%d"), FMath::RoundToInt(Damage * 4.f))));
 }
@@ -154,32 +153,30 @@ void ARok2HexWallActor::ApplyCivTheme()
 	URok2CivThemes* Themes = URok2CivThemes::Get();
 	if (!Themes) return;
 
+	URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get();
+	if (!Mats) return;
+
 	const FRok2CivTheme& Theme = Themes->GetTheme(CivId);
 
 	// السور: لون الحضارة الأساسي (حجر/خشب)
 	// البوابة: لون الحضارة الثانوي (ذهب/زخارف)
 	// الأبراج: لون التمييز (Accent)
-
-	// نستخدم CreateAndSetMaterialInstanceDynamic على كل HISM
-	if (UMaterialInstanceDynamic* Dyn = WallSegments->CreateAndSetMaterialInstanceDynamic(0))
+	//
+	// المادة تُبنى فوق M_Rok2Base وهي مُعلَّمة used_with_instanced_static_meshes،
+	// وإلا استبدلها المحرك بـ DefaultMaterial على HISM في بناء مُطبَّق.
+	//
+	// الضرر يُقرأ بصرياً: كلما نقصت المتانة مال اللون إلى الأحمر الداكن، فيرى
+	// اللاعب حالة سوره من الخريطة قبل فتح أي لوحة.
+	const float Damage = FMath::Clamp(1.f - Durability01, 0.f, 1.f);
+	const FLinearColor DamageTint(0.42f, 0.13f, 0.10f);
+	auto Weathered = [&](const FLinearColor& C)
 	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
-	}
+		return FMath::Lerp(C, DamageTint, Damage * 0.65f);
+	};
 
-	if (UMaterialInstanceDynamic* Dyn = Gate->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Secondary);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Secondary);
-		// توهج خفيف للبوابة (تكون بارزة)
-		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Secondary * 0.3f);
-	}
-
-	if (UMaterialInstanceDynamic* Dyn = Towers->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Accent);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Accent);
-	}
+	Mats->MakeTintedMaterialOn(WallSegments, 0, Weathered(Theme.Primary));
+	Mats->MakeTintedMaterialOn(Gate, 0, Weathered(Theme.Secondary));
+	Mats->MakeTintedMaterialOn(Towers, 0, Weathered(Theme.Accent));
 }
 
 void ARok2HexWallActor::OnWallCellClicked(AActor* TouchedActor, FKey ButtonPressed)

@@ -1,4 +1,4 @@
-// Copyright ROK2. Procedural materials generated at runtime (no external textures needed for prototype).
+﻿// Copyright ROK2. Procedural materials generated at runtime (no external textures needed for prototype).
 
 #pragma once
 
@@ -21,6 +21,7 @@ enum class ERok2MaterialType : uint8
 
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
+class UMeshComponent;
 UCLASS()
 class ROK2_API URok2ProceduralAssets : public UObject
 {
@@ -30,6 +31,12 @@ public:
 	/** Creates or returns a shared instance of procedural materials. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	static URok2ProceduralAssets* Get();
+
+	/** مسار مادة المشروع المضاءة — تملك البارامترات Color/Roughness/Metallic/EmissiveColor. */
+	static const TCHAR* BaseMaterialPath();
+
+	/** مسار مادة Unlit — اللون على Emissive، يظهر بلا إضاءة. */
+	static const TCHAR* UnlitMaterialPath();
 
 	UPROPERTY(Transient)
 	UMaterialInstanceDynamic* GroundTileMat;
@@ -61,9 +68,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	UMaterialInstanceDynamic* CreateTintedMaterial(const FLinearColor& Color);
 
+	/** يضع على القناة المطلوبة نسخة ديناميكية من مادة المشروع ثم يعيدها.
+	 *
+	 *  الفرق الجوهري عن CreateAndSetMaterialInstanceDynamic: تلك الدالة تبني
+	 *  النسخة فوق المادة الموجودة على الميش — ومعظم أشكالنا مستوردة من
+	 *  /Engine/BasicShapes فتحمل WorldGridMaterial أو DefaultMaterial، وكلتاهما
+	 *  بلا أي VectorParameter. أي SetVectorParameterValue عليهما يُهمل بصمت
+	 *  فيبقى الجسم بلا لون. هنا نفرض والداً نملك بارامتراته فعلاً.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	UMaterialInstanceDynamic* MakeTintedMaterialOn(UMeshComponent* Component, int32 ElementIndex, const FLinearColor& Color);
+
+	/** يصبغ داخل مادة الأصل الحالية بدل استبدالها — للمجسمات المستوردة التي
+	 *  تحمل نسيجاً حقيقياً. يعيد nullptr إن لم تملك المادة بارامتر لون، فتبقى
+	 *  كما هي بدل أن تُمحى تفاصيلها بلون مسطّح. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	UMaterialInstanceDynamic* TintExistingMaterialOn(UMeshComponent* Component, int32 ElementIndex, const FLinearColor& Color);
+
+	/** يحوّل لون الحضارة إلى مُضاعِف آمن لأصل ذي نسيج: إيماءة لونية مع حدّ أدنى
+	 *  للسطوع، فلا يطفئ لونٌ داكن (مثل أساس اليابان #111111) المجسم كله. */
+	UFUNCTION(BlueprintPure, Category = "Rok2")
+	static FLinearColor SoftenTintForTexturedAsset(const FLinearColor& Color);
+
 protected:
 	UPROPERTY(Transient)
 	UMaterialInterface* BaseMaterial;
+
+	UPROPERTY(Transient)
+	UMaterialInterface* UnlitMaterial;
 
 	bool bInitialized = false;
 

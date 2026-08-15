@@ -1,4 +1,4 @@
-// Copyright ROK2. Art asset library (P2-T7) — implementation.
+﻿// Copyright ROK2. Art asset library (P2-T7) — implementation.
 
 #include "Rok2ArtAssets.h"
 #include "Rok2IconLibrary.h"
@@ -23,7 +23,34 @@ URok2ArtAssets* URok2ArtAssets::Get()
 
 FString URok2ArtAssets::EditorPackagePath(const FString& GlbFile)
 {
+	// الاسم كما هو في ملف الـ GLB — هذا ما ينتجه مستورد glTF فعلاً.
 	return FString::Printf(TEXT("/Game/Art/kaykit/%s.%s"), *GlbFile, *GlbFile);
+}
+
+FString URok2ArtAssets::ImportedMeshPackagePath(const FString& GlbFile)
+{
+	// شجرة فرعية تنتجها بعض إعدادات Interchange: <name>/StaticMeshes/<name>.
+	return FString::Printf(TEXT("/Game/Art/kaykit/%s/StaticMeshes/%s.%s"), *GlbFile, *GlbFile, *GlbFile);
+}
+
+TArray<FString> URok2ArtAssets::MeshPackageCandidates(const FString& GlbFile)
+{
+	// بعض ملفات KayKit تحتوي عدة عُقد، فيُسمّي المستورد الميش الرئيسي باسم
+	// العقدة لا باسم الملف: building_windmill.glb ينتج building_windmill_blue،
+	// وbuilding_tower_A ينتج building_tower_A_blue. لذلك نبحث في مرشحات
+	// مرتبة بدل مسار واحد، وإلا سقط المبنى إلى المكعب البديل بلا سبب ظاهر.
+	TArray<FString> Out;
+	Out.Add(EditorPackagePath(GlbFile));
+	Out.Add(ImportedMeshPackagePath(GlbFile));
+
+	static const TCHAR* NodeSuffixes[] = { TEXT("_blue"), TEXT("_red"), TEXT("_green"), TEXT("_yellow") };
+	for (const TCHAR* Suffix : NodeSuffixes)
+	{
+		const FString Variant = GlbFile + Suffix;
+		Out.Add(EditorPackagePath(Variant));
+		Out.Add(ImportedMeshPackagePath(Variant));
+	}
+	return Out;
 }
 
 FString URok2ArtAssets::DiskPath(const FString& GlbFile)
@@ -99,16 +126,22 @@ UStaticMesh* URok2ArtAssets::LoadMesh(const FString& Id)
 
 	UStaticMesh* Mesh = nullptr;
 
-#if WITH_EDITOR
-	// في المحرر: لو استُورد الـ GLB مسبقاً كأصل uasset يمكن تحميله مباشرة
-	Mesh = LoadObject<UStaticMesh>(nullptr, *EditorPackagePath(Entry->GlbFile));
-#endif
+	// كان التحميل محصوراً بـ #if WITH_EDITOR، فكان LoadMesh يعيد nullptr دائماً
+	// في بناء مُطبَّق (APK) ويبقى العميل على مكعبات placeholder أبد الدهر — حتى
+	// لو كانت الأصول مُستوردة ومحزَّمة. الأصول .uasset متاحة في وقت التشغيل
+	// تماماً كما في المحرر، فالحاجز كان خطأ لا احتياطاً.
+	for (const FString& Candidate : MeshPackageCandidates(Entry->GlbFile))
+	{
+		Mesh = LoadObject<UStaticMesh>(nullptr, *Candidate);
+		if (Mesh)
+		{
+			break;
+		}
+	}
 
-	// ملاحظة: التحميل من ملف .glb على القرص يتطلب موديول استيراد glTF (مثل glTFRuntime)
-	// — في غيابه نعيد nullptr ويبقى الراسم على الأشكال الهندسية الافتراضية (fallback).
 	if (!Mesh)
 	{
-		UE_LOG(LogRok2Art, Verbose, TEXT("Art mesh for '%s' not imported yet (%s) — geometric fallback stays active"),
+		UE_LOG(LogRok2Art, Warning, TEXT("Art mesh for '%s' not imported yet (%s) — geometric fallback stays active"),
 			*Id, *DiskPath(Entry->GlbFile));
 	}
 
@@ -128,11 +161,14 @@ FString URok2ArtAssets::GetImportedUiIconAssetPath(const FString& IconId)
 		CanonicalId = TEXT("reports");
 	}
 
+	// القائمة تطابق ما هو مستورد فعلاً في Content/Art/UIIcons (20 أيقونة).
+	// أي معرّف خارجها يعود إلى الراسم الإجرائي في URok2IconLibrary.
 	static const TSet<FString> ImportedIds = {
 		TEXT("build"), TEXT("upgrade"), TEXT("train"), TEXT("research"),
 		TEXT("alliance"), TEXT("map"), TEXT("reports"), TEXT("mail"),
 		TEXT("settings"), TEXT("food"), TEXT("wood"), TEXT("stone"),
-		TEXT("gold"), TEXT("gems"), TEXT("speedup"), TEXT("hospital")
+		TEXT("gold"), TEXT("gems"), TEXT("speedup"), TEXT("hospital"),
+		TEXT("bag"), TEXT("bell"), TEXT("heal"), TEXT("speed")
 	};
 	if (!ImportedIds.Contains(CanonicalId))
 	{
@@ -204,6 +240,52 @@ UTexture2D* URok2ArtAssets::LoadWorldMapIcon(const FString& IconId)
 bool URok2ArtAssets::HasWorldMapIcon(const FString& IconId)
 {
 	return WorldMapIconIds.Contains(IconId);
+}
+
+// ---------------------------------------------------------------------------
+// 2.5D Isometric Building PBR Textures
+// ---------------------------------------------------------------------------
+
+FString URok2ArtAssets::GetCityBuildingTextureAssetPath(const FString& BuildingId, const FString& MapType)
+{
+	return FString::Printf(TEXT("/Game/Art/CityBuildingIcons/T_%s_%s.T_%s_%s"), *BuildingId, *MapType, *BuildingId, *MapType);
+}
+
+UTexture2D* URok2ArtAssets::LoadCityBuildingTexture(const FString& BuildingId, const FString& MapType)
+{
+	static TMap<FString, UTexture2D*> CachedCityTextures;
+	const FString Key = FString::Printf(TEXT("%s_%s"), *BuildingId, *MapType);
+	UTexture2D** Found = CachedCityTextures.Find(Key);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	const FString Path = GetCityBuildingTextureAssetPath(BuildingId, MapType);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
+	CachedCityTextures.Add(Key, Texture);
+	return Texture;
+}
+
+FString URok2ArtAssets::GetWorldFeatureTextureAssetPath(const FString& FeatureId, const FString& MapType)
+{
+	return FString::Printf(TEXT("/Game/Art/WorldMapIcons/T_%s_%s.T_%s_%s"), *FeatureId, *MapType, *FeatureId, *MapType);
+}
+
+UTexture2D* URok2ArtAssets::LoadWorldFeatureTexture(const FString& FeatureId, const FString& MapType)
+{
+	static TMap<FString, UTexture2D*> CachedWorldTextures;
+	const FString Key = FString::Printf(TEXT("%s_%s"), *FeatureId, *MapType);
+	UTexture2D** Found = CachedWorldTextures.Find(Key);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	const FString Path = GetWorldFeatureTextureAssetPath(FeatureId, MapType);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
+	CachedWorldTextures.Add(Key, Texture);
+	return Texture;
 }
 
 // ---------------------------------------------------------------------------
@@ -304,8 +386,9 @@ FString URok2ArtAssets::GetHumanUnitId(const FString& Branch, int32 Tier, const 
 
 FString URok2ArtAssets::GetHumanUnitAssetPath(const FString& UnitId)
 {
-	BuildHumanUnitCatalog();
-	for (const FRok2ArtEntry& E : HumanUnitCatalog)
+	URok2ArtAssets* Assets = URok2ArtAssets::Get();
+	Assets->BuildHumanUnitCatalog();
+	for (const FRok2ArtEntry& E : Assets->HumanUnitCatalog)
 	{
 		if (E.Id == UnitId)
 		{
@@ -317,7 +400,8 @@ FString URok2ArtAssets::GetHumanUnitAssetPath(const FString& UnitId)
 
 UStaticMesh* URok2ArtAssets::LoadHumanUnitMesh(const FString& UnitId)
 {
-	BuildHumanUnitCatalog();
+	URok2ArtAssets* Assets = URok2ArtAssets::Get();
+	Assets->BuildHumanUnitCatalog();
 	static TMap<FString, UStaticMesh*> Cached;
 	UStaticMesh** Found = Cached.Find(UnitId);
 	if (Found)
@@ -336,10 +420,101 @@ UStaticMesh* URok2ArtAssets::LoadHumanUnitMesh(const FString& UnitId)
 
 bool URok2ArtAssets::HasHumanUnit(const FString& UnitId)
 {
-	BuildHumanUnitCatalog();
-	for (const FRok2ArtEntry& E : HumanUnitCatalog)
+	URok2ArtAssets* Assets = URok2ArtAssets::Get();
+	Assets->BuildHumanUnitCatalog();
+	for (const FRok2ArtEntry& E : Assets->HumanUnitCatalog)
 	{
 		if (E.Id == UnitId) return true;
 	}
 	return false;
 }
+
+// ---------------------------------------------------------------------------
+// P10-T7: أصول الحانة والصناديق والمفاتيح والمنحوتات والمواد ومخططات الحداد.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	static const TSet<FString> TavernMeshIds = {
+		TEXT("building_tavern"),
+		TEXT("chest_silver"),
+		TEXT("chest_gold"),
+		TEXT("chest_equipment")
+	};
+
+	static const TSet<FString> TavernIconIds = {
+		// 3 Chests
+		TEXT("chest_silver"),
+		TEXT("chest_gold"),
+		TEXT("chest_equipment"),
+		// 6 Keys
+		TEXT("key_silver"),
+		TEXT("key_gold"),
+		TEXT("key_equipment"),
+		TEXT("key_expedition"),
+		TEXT("key_canyon"),
+		TEXT("key_osiris"),
+		// 4 Sculptures
+		TEXT("sculpture_legendary"),
+		TEXT("sculpture_epic"),
+		TEXT("sculpture_elite"),
+		TEXT("sculpture_advanced"),
+		// 4 Materials
+		TEXT("material_leather"),
+		TEXT("material_iron"),
+		TEXT("material_ebony"),
+		TEXT("material_crystal"),
+		// 6 Blueprints
+		TEXT("blueprint_weapon"),
+		TEXT("blueprint_helm"),
+		TEXT("blueprint_chest"),
+		TEXT("blueprint_gloves"),
+		TEXT("blueprint_legs"),
+		TEXT("blueprint_boots")
+	};
+}
+
+FString URok2ArtAssets::GetTavernMeshAssetPath(const FString& MeshId)
+{
+	if (TavernMeshIds.Contains(MeshId))
+	{
+		return FString::Printf(TEXT("/Game/Art/Tavern/%s.%s"), *MeshId, *MeshId);
+	}
+	return FString();
+}
+
+FString URok2ArtAssets::GetTavernIconAssetPath(const FString& IconId)
+{
+	if (TavernIconIds.Contains(IconId))
+	{
+		return FString::Printf(TEXT("/Game/Art/Tavern/%s.%s"), *IconId, *IconId);
+	}
+	return FString();
+}
+
+UTexture2D* URok2ArtAssets::LoadTavernIcon(const FString& IconId)
+{
+	if (!TavernIconIds.Contains(IconId))
+	{
+		return nullptr;
+	}
+	static TMap<FString, UTexture2D*> Cached;
+	if (UTexture2D** Found = Cached.Find(IconId))
+	{
+		return *Found;
+	}
+	const FString AssetPath = GetTavernIconAssetPath(IconId);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *AssetPath);
+	if (!Texture)
+	{
+		UE_LOG(LogRok2Art, Verbose, TEXT("Tavern icon '%s' (%s) not found in cooked/editor package"), *IconId, *AssetPath);
+	}
+	Cached.Add(IconId, Texture);
+	return Texture;
+}
+
+bool URok2ArtAssets::HasTavernAsset(const FString& AssetId)
+{
+	return TavernMeshIds.Contains(AssetId) || TavernIconIds.Contains(AssetId);
+}
+

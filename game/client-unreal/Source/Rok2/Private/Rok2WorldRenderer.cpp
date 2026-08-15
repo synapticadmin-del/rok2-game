@@ -1,4 +1,4 @@
-// Copyright Rok2. World renderer impl.
+﻿// Copyright Rok2. World renderer impl.
 
 #include "Rok2WorldRenderer.h"
 #include "Rok2BuildingActor.h"
@@ -19,8 +19,6 @@
 #include "Engine/StaticMeshActor.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
-#include "HAL/UnrealString.h"
-
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
@@ -77,7 +75,7 @@ void ARok2WorldRenderer::BeginPlay()
 		if (Assets) GroundHISM->SetMaterial(0, Assets->GetMaterial(ERok2MaterialType::GroundTile));
 		GroundHISM->ClearInstances();
 		// Spawn ground plane centered at Z = -100 with scale Z = 0.1 to avoid Z-fighting
-		GroundHISM->AddInstance(FTransform(FRotator::ZeroRotator, FVector(60000.f, 60000.f, -100.f), FVector(1200.f, 1200.f, 0.1f)));
+		GroundHISM->AddInstance(FTransform(FRotator::ZeroRotator, FVector(0.f, 0.f, -50.f), FVector(5000.f, 5000.f, 0.1f)));
 	}
 
 	if (CityHISM && Assets) CityHISM->SetMaterial(0, Assets->GetMaterial(ERok2MaterialType::City));
@@ -339,10 +337,21 @@ AActor* ARok2WorldRenderer::SpawnMarkerActor(UStaticMesh* Mesh, const FVector& L
 	UStaticMeshComponent* MeshC = SM->GetStaticMeshComponent();
 	if (MeshC)
 	{
+		// الممثل يأتي من مسبح إعادة الاستخدام، وتجاوزات المواد لا تُمحى مع تغيير
+		// الميش — فلو حمل تجاوزاً من استخدام سابق لظهر الأصل الجديد بلون مسطّح
+		// غريب. نمحو التجاوزات أولاً ثم نلوّن.
+		MeshC->EmptyOverrideMaterials();
 		MeshC->SetStaticMesh(Mesh);
 		MeshC->SetMobility(EComponentMobility::Movable);
-		UMaterialInstanceDynamic* Dyn = MeshC->CreateAndSetMaterialInstanceDynamic(0);
-		if (Dyn) Dyn->SetVectorParameterValue(TEXT("Color"), Color);
+		if (URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get())
+		{
+			// الأصول المستوردة تحمل نسيجاً: نصبغ داخل مادتها. الأشكال البدائية
+			// من /Engine/BasicShapes بلا بارامترات، فتعيد nullptr ونستبدل المادة.
+			if (!Mats->TintExistingMaterialOn(MeshC, 0, Color))
+			{
+				Mats->MakeTintedMaterialOn(MeshC, 0, Color);
+			}
+		}
 	}
 	return SM;
 }
@@ -385,6 +394,10 @@ void ARok2WorldRenderer::RefreshFromApi()
 	// P8-T7: عرش الملك يُعاد بناؤه من اللقطة الجديدة (لا يعاد تعيين SpawnedMarches هنا — دورة منفصلة).
 	SpawnedThrone = nullptr;
 
+	// الخادم هو السلطة على العالم (AGENTS.md §3): لا نخترع عُقداً ولا ممرات
+	// محلياً. كانت هنا كتلة تضيف 6 عُقد وممرين وهميين عند فراغ اللقطة، فتظهر
+	// أهداف لا وجود لها على الخادم — يضغطها اللاعب فلا يحدث شيء. لقطة فارغة
+	// تعني «لم تصل بعد» أو «لا شيء في المدى»، والصواب أن تبقى الخريطة فارغة.
 	const FRok2WorldSnapshot& W = Api->GetWorldSnapshot();
 
 	FVector CamLoc = FVector::ZeroVector;
@@ -468,14 +481,14 @@ void ARok2WorldRenderer::RefreshFromApi()
 			{
 				// مدينتي: نستخدم SpawnMarker بلون الحضارة بدلاً من HISM العادي
 				AActor* CityActor = SpawnMarkerActor(CityMesh, Loc, FString::Printf(TEXT("City_%s"), *C.PlayerId), MyTheme.Primary);
-			if (CityActor)
-			{
-				// P5-T6: حركة كشف (fade-in) عند ظهور المدينة بعد ضباب
-				if (ARok2BuildingActor* BuildingActor = Cast<ARok2BuildingActor>(CityActor))
+				if (CityActor)
 				{
-					BuildingActor->PlayRevealAnimation();
+					// P5-T6: حركة كشف (fade-in) عند ظهور المدينة بعد ضباب
+					if (ARok2BuildingActor* BuildingActor = Cast<ARok2BuildingActor>(CityActor))
+					{
+						BuildingActor->PlayRevealAnimation();
+					}
 				}
-			}
 			}
 			else
 			{
@@ -694,7 +707,7 @@ void ARok2WorldRenderer::RefreshFromApi()
 			const int32 MarchTier = DeriveMarchTier(M.Troops);
 			if (MarchTier > 0)
 			{
-				const FString UnitId = URok2ArtAssets::GetHumanUnitId(M.Branch, MarchTier, M.Civ);
+				const FString UnitId = URok2ArtAssets::GetHumanUnitId(M.Branch, MarchTier);
 				if (!UnitId.IsEmpty())
 				{
 					if (UStaticMesh* UnitMesh = URok2ArtAssets::LoadHumanUnitMesh(UnitId))

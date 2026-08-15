@@ -45,6 +45,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")
 	float ScaledIconSize(float BaseSize) const;
 
+	/** حواف آمنة (نتوء الكاميرا/الزوايا المنحنية) بالبكسل: يسار/أعلى/يمين/أسفل.
+	 *  كل عنصر ملتصق بحد الشاشة يجب أن يزيح بهذه القيم، وإلا قُصّ على الهاتف. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")
+	static FMargin GetSafeAreaPadding();
+
 	/** وضع تباين عالٍ: خلفيات أعتق وألوان معيارية عالية التباين */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Accessibility")
 	bool IsHighContrast() const;

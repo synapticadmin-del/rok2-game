@@ -105,13 +105,17 @@ void URok2HudWidget::NativeConstruct()
 void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 {
 	URok2Accessibility* A11y = URok2Accessibility::Get();
+	const FMargin Safe = URok2Accessibility::GetSafeAreaPadding();
 	UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudTopBar"));
 	Bar->SetBrushColor(Rok2HudStyle::BarBg);
+	// الشريط يمتد بعرض الشاشة كاملاً (الخلفية تحت النتوء مقبولة)، لكن محتواه
+	// يُزاح بالحواف الآمنة حتى لا يقع اسم الحاكم أو الجرس تحت كاميرا الهاتف.
+	Bar->SetPadding(FMargin(Safe.Left, 0.f, Safe.Right, 0.f));
 	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(Bar);
 	PanelSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.f));
 	PanelSlot->SetAlignment(FVector2D(0.f, 0.f));
 	PanelSlot->SetPosition(FVector2D(0.f, 0.f));
-	PanelSlot->SetSize(FVector2D(0.f, A11y ? A11y->GetScaledPx(48.f) : 48.f));
+	PanelSlot->SetSize(FVector2D(0.f, (A11y ? A11y->GetScaledPx(48.f) : 48.f) + Safe.Top));
 
 	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudTopHBox"));
 	Bar->SetContent(H);
@@ -188,13 +192,6 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	SeasonText->SetText(FText::FromString(TEXT("يوم 0")));
 	SeasonText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
 	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(SeasonText)->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(16.f) : 16.f, 0));
 
 	ZoneTimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
@@ -236,11 +233,15 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 {
 	URok2Accessibility* A11y = URok2Accessibility::Get();
+	const FMargin Safe = URok2Accessibility::GetSafeAreaPadding();
 	UCanvasPanel* Cluster = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("HudActionCluster"));
 	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(Cluster);
 	PanelSlot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
 	PanelSlot->SetAlignment(FVector2D(1.f, 1.f));
-	PanelSlot->SetPosition(FVector2D(A11y ? A11y->GetScaledPx(-18.f) : -18.f, A11y ? A11y->GetScaledPx(-18.f) : -18.f));
+	// أزرار العمل هي أكثر ما يُلمس، فتُزاح داخل الحدود الآمنة قبل كل شيء آخر.
+	PanelSlot->SetPosition(FVector2D(
+		-((A11y ? A11y->GetScaledPx(18.f) : 18.f) + Safe.Right),
+		-((A11y ? A11y->GetScaledPx(18.f) : 18.f) + Safe.Bottom)));
 	PanelSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(220.f) : 220.f, A11y ? A11y->GetScaledPx(220.f) : 220.f));
 
 	// زر البناء الكبير
@@ -329,11 +330,14 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 {
 	URok2Accessibility* A11y = URok2Accessibility::Get();
+	const FMargin Safe = URok2Accessibility::GetSafeAreaPadding();
 	UHorizontalBox* H = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HudLeftCluster"));
 	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(H);
 	PanelSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
 	PanelSlot->SetAlignment(FVector2D(0.f, 1.f));
-	PanelSlot->SetPosition(FVector2D(A11y ? A11y->GetScaledPx(18.f) : 18.f, A11y ? A11y->GetScaledPx(-18.f) : -18.f));
+	PanelSlot->SetPosition(FVector2D(
+		(A11y ? A11y->GetScaledPx(18.f) : 18.f) + Safe.Left,
+		-((A11y ? A11y->GetScaledPx(18.f) : 18.f) + Safe.Bottom)));
 	PanelSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(470.f) : 470.f, A11y ? A11y->GetScaledPx(52.f) : 52.f));
 
 	auto MakePill = [&](const FString& IconId, const FString& Label, const FName Handler) -> UBorder* {
@@ -477,13 +481,6 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	Title->SetText(FText::FromString(TEXT("مركز الإشعارات")));
 	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
 	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
-	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
 	Header->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
 	USpacer* Sp = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
@@ -614,12 +611,6 @@ void URok2HudWidget::UpdateSeasonAndZones()
 			Next = TEXT("المناطق مفتوحة");
 			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
 	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
-	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
 		}
 		ZoneTimerText->SetText(FText::FromString(Next));
 	}
@@ -636,13 +627,6 @@ void URok2HudWidget::UpdateQueues()
 		UTextBlock* Empty = NewObject<UTextBlock>(this);
 		Empty->SetText(FText::FromString(TEXT("لا طوابير نشطة")));
 		Empty->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
-		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
 		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
 		QueuesBox->AddChildToVerticalBox(Empty);
 		return;

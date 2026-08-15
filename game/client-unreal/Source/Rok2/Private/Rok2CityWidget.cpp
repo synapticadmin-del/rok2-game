@@ -1,4 +1,4 @@
-// P6-T3: ضغطة محسوسة على أزرار المدينة والتسريع + تلاشي دخول الشاشة.
+﻿// P6-T3: ضغطة محسوسة على أزرار المدينة والتسريع + تلاشي دخول الشاشة.
 
 #include "Rok2CityWidget.h"
 #include "Rok2Accessibility.h"
@@ -96,6 +96,20 @@ void URok2CityWidget::Setup(URok2Api* InApi)
 	Refresh();
 }
 
+
+TSharedRef<SWidget> URok2CityWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2CityWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -109,12 +123,14 @@ void URok2CityWidget::NativeConstruct()
 		// 1. Top Bar Background (Full width across top)
 		UBorder* TopBarBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopBarBorder"));
 		TopBarBorder->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.12f, 0.92f));
+		TopBarBorder->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* TopSlot = RootCanvas->AddChildToCanvas(TopBarBorder);
 		TopSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 0.f));
 		TopSlot->SetAlignment(FVector2D(0.f, 0.f));
 		TopSlot->SetPosition(FVector2D(0.f, 0.f));
-		TopSlot->SetSize(FVector2D(0.f, 54.f));
+		URok2Accessibility* A11y = URok2Accessibility::Get();
+		TopSlot->SetSize(FVector2D(0.f, A11y ? A11y->GetScaledPx(54.f) : 54.f));
 
 		UHorizontalBox* TopHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TopHBox"));
 		TopBarBorder->SetContent(TopHBox);
@@ -227,6 +243,7 @@ void URok2CityWidget::NativeConstruct()
 			UTextBlock* Txt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			Txt->SetText(FText::FromString(Label));
 			Txt->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+			URok2Typography::ApplyFont(Txt, ERok2TextRole::Button);
 			BtnBox->AddChildToHorizontalBox(Txt)->SetVerticalAlignment(VAlign_Center);
 			UHorizontalBoxSlot* S = TopHBox->AddChildToHorizontalBox(OutBtn);
 			S->SetVerticalAlignment(VAlign_Center);
@@ -242,12 +259,13 @@ void URok2CityWidget::NativeConstruct()
 		// 2. Bottom Left Panel (Buildings)
 		UBorder* LeftPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanel"));
 		LeftPanel->SetBrushColor(FLinearColor(0.04f, 0.07f, 0.14f, 0.88f));
+		LeftPanel->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* LeftSlot = RootCanvas->AddChildToCanvas(LeftPanel);
 		LeftSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
 		LeftSlot->SetAlignment(FVector2D(0.f, 1.f));
 		LeftSlot->SetPosition(FVector2D(15.f, -15.f));
-		LeftSlot->SetSize(FVector2D(320.f, 260.f));
+		LeftSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(320.f) : 320.f, A11y ? A11y->GetScaledPx(260.f) : 260.f));
 
 		UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
 		LeftPanel->SetContent(LeftVBox);
@@ -266,6 +284,7 @@ void URok2CityWidget::NativeConstruct()
 			UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			T->SetText(FText::FromString(Label));
 			T->SetColorAndOpacity(FSlateColor(Color));
+			URok2Typography::ApplyFont(T, ERok2TextRole::TitleCompact);
 			Row->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		};
 
@@ -288,6 +307,7 @@ void URok2CityWidget::NativeConstruct()
 			UTextBlock* QueueTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("QueueTitle"));
 			QueueTitle->SetText(FText::FromString(TEXT("الطوابير النشطة (Active Queues)")));
 			QueueTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.8f, 1.0f)));
+			URok2Typography::ApplyFont(QueueTitle, ERok2TextRole::TitleCompact);
 			Row->AddChildToHorizontalBox(QueueTitle)->SetVerticalAlignment(VAlign_Center);
 		}
 
@@ -304,12 +324,13 @@ void URok2CityWidget::NativeConstruct()
 		// 3. Bottom Right Panel (Troops & Alliance)
 		UBorder* RightPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanel"));
 		RightPanel->SetBrushColor(FLinearColor(0.04f, 0.07f, 0.14f, 0.88f));
+		RightPanel->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* RightSlot = RootCanvas->AddChildToCanvas(RightPanel);
 		RightSlot->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
 		RightSlot->SetAlignment(FVector2D(1.f, 1.f));
 		RightSlot->SetPosition(FVector2D(-15.f, -15.f));
-		RightSlot->SetSize(FVector2D(360.f, 300.f));
+		RightSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(360.f) : 360.f, A11y ? A11y->GetScaledPx(300.f) : 300.f));
 
 		UVerticalBox* RightVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightVBox"));
 		RightPanel->SetContent(RightVBox);
@@ -339,6 +360,7 @@ void URok2CityWidget::NativeConstruct()
 			ApplyButtonSkin(TrainButton, TEXT("button_primary_gold"));
 			UTextBlock* TrnBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TrnBtnText"));
 		TrnBtnText->SetText(FText::FromString(TEXT("تدريب")));
+		URok2Typography::ApplyFont(TrnBtnText, ERok2TextRole::Button);
 		TrainButton->AddChild(TrnBtnText);
 		TrainHBox->AddChildToHorizontalBox(TrainButton);
 
@@ -360,6 +382,7 @@ void URok2CityWidget::NativeConstruct()
 			ApplyButtonSkin(CreateAllianceButton, TEXT("button_primary_gold"));
 			UTextBlock* AllBtnText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AllBtnText"));
 		AllBtnText->SetText(FText::FromString(TEXT("إنشاء")));
+		URok2Typography::ApplyFont(AllBtnText, ERok2TextRole::Button);
 		CreateAllianceButton->AddChild(AllBtnText);
 		AllHBox->AddChildToHorizontalBox(CreateAllianceButton);
 	}

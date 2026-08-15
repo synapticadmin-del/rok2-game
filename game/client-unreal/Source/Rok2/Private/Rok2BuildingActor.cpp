@@ -1,4 +1,4 @@
-// Copyright ROK2. Single city building actor (P5-T1 / P5-T2) — implementation.
+﻿// Copyright ROK2. Single city building actor (P5-T1 / P5-T2) — implementation.
 
 #include "Rok2BuildingActor.h"
 #include "Rok2CivThemes.h"
@@ -123,7 +123,7 @@ void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const 
 
 	// الموضع العالمي من الخلية
 	const FVector Loc = URok2HexGrid::HexToWorld(AnchorCell, HexSize);
-	SetActorLocation(Loc);
+	SetActorLocation(Loc + FVector(0.f, 0.f, 40.f));
 
 	// تطبيق ثيم الحضارة (لون + نمط)
 	ApplyCivTheme();
@@ -146,6 +146,15 @@ void ARok2BuildingActor::SetupWithCiv(const FString& InId, int32 InLevel, const 
 void ARok2BuildingActor::MarkUsingArtAsset()
 {
 	bUsingArtAsset = true;
+
+	// تجاوزات المواد لا تُمحى مع SetStaticMesh: المبنى مرّ أولاً بمسار placeholder
+	// فحمل نسخة لون مسطّح على القناة 0، وبقيت فوق الأصل الفني الجديد فمحت نسيجه.
+	// نمحوها هنا لتعود مادة الأصل المستوردة، ثم نصبغ داخلها في ApplyCivTheme.
+	if (Mesh)
+	{
+		Mesh->EmptyOverrideMaterials();
+	}
+
 	ApplyCivTheme();
 }
 
@@ -160,18 +169,16 @@ void ARok2BuildingActor::ApplyCivTheme()
 	URok2CivThemes* Themes = URok2CivThemes::Get();
 	if (!Themes) return;
 
+	URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get();
+	if (!Mats) return;
+
 	const FRok2CivTheme& Theme = Themes->GetTheme(CivId);
 
-	// لو نستخدم أصل فني حقيقي (GLB)، نكتفي بتلوين الجسم الرئيسي بلون خفيف
-	// وإلا نبني الشكل المركّب placeholder (جسم + سقف + زخارف + تمييز)
+	// لو نستخدم أصل فني حقيقي (GLB)، نصبغ داخل مادته المستوردة فقط — استبدالها
+	// بمادة لون مسطّح كان سيمحو نسيج KayKit كله.
 	if (bUsingArtAsset)
 	{
-		// تلوين خفيف للأصل الفني (لا نغطي التفاصيل)
-		if (UMaterialInstanceDynamic* Dyn = Mesh->CreateAndSetMaterialInstanceDynamic(0))
-		{
-			Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
-			Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
-		}
+		Mats->TintExistingMaterialOn(Mesh, 0, Theme.Primary);
 		ApplyFacadeStyle();
 		return;
 	}
@@ -181,29 +188,10 @@ void ARok2BuildingActor::ApplyCivTheme()
 	TrimMesh->SetVisibility(true);
 	AccentMesh->SetVisibility(true);
 
-	// الجسم الرئيسي بلون الحضارة الأساسي
-	if (UMaterialInstanceDynamic* Dyn = Mesh->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Primary);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Primary);
-		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Primary * 0.3f);
-	}
-
-	// شريط الزخارف/القاعدة بلون الحضارة الثانوي
-	if (UMaterialInstanceDynamic* Dyn = TrimMesh->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Secondary);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Secondary);
-		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Secondary * 0.4f);
-	}
-
-	// عنصر التمييز بلون الـ Accent (ذهب/نحاس...)
-	if (UMaterialInstanceDynamic* Dyn = AccentMesh->CreateAndSetMaterialInstanceDynamic(0))
-	{
-		Dyn->SetVectorParameterValue(TEXT("Color"), Theme.Accent);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), Theme.Accent);
-		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), Theme.Accent * 0.6f); // توهج خفيف للذهب
-	}
+	// الجسم الرئيسي بلون الحضارة الأساسي، والزخارف بالثانوي، والتمييز بالـAccent.
+	Mats->MakeTintedMaterialOn(Mesh, 0, Theme.Primary);
+	Mats->MakeTintedMaterialOn(TrimMesh, 0, Theme.Secondary);
+	Mats->MakeTintedMaterialOn(AccentMesh, 0, Theme.Accent);
 
 	// ضبط أشكال الأجزاء حسب نمط العمارة ثم طبقة الواجهة التجميلية.
 	ApplyArchStyleToRoof();
@@ -377,7 +365,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 	RoofMesh->SetRelativeLocation(RoofLoc);
 
 	// تلوين السقف بلون الحضارة الثانوي (أو Accent للقباب)
-	if (UMaterialInstanceDynamic* Dyn = RoofMesh->CreateAndSetMaterialInstanceDynamic(0))
+	if (URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get())
 	{
 		FLinearColor RoofColor = Theme.Secondary;
 		if (Theme.ArchStyle == ERok2ArchStyle::DomesArches)
@@ -392,9 +380,7 @@ void ARok2BuildingActor::ApplyArchStyleToRoof()
 		{
 			RoofColor = Theme.Primary; // خشب داكن
 		}
-		Dyn->SetVectorParameterValue(TEXT("Color"), RoofColor);
-		Dyn->SetVectorParameterValue(TEXT("BaseColor"), RoofColor);
-		Dyn->SetVectorParameterValue(TEXT("EmissiveColor"), RoofColor * 0.4f);
+		Mats->MakeTintedMaterialOn(RoofMesh, 0, RoofColor);
 	}
 }
 
@@ -430,9 +416,11 @@ void ARok2BuildingActor::SetVisualState(ERok2BuildingVisualState NewState)
 void ARok2BuildingActor::UpdateStatusIndicator()
 {
 	// مؤشر عائم فوق المبنى حسب الحالة (placeholder بمكعب صغير ملوّن بالمقياس)
-	const float S = FootprintWorldScale();
 	const float TopZ = (0.8f + Level * 0.1f) * 100.f + 40.f;
 	StatusIndicator->SetRelativeLocation(FVector(0.f, 0.f, TopZ));
+
+	// الشكل وحده لا يكفي للدلالة على الحالة؛ اللون يرافقه دائماً.
+	FLinearColor StateColor = FLinearColor::White;
 
 	switch (VisualState)
 	{
@@ -442,19 +430,31 @@ void ARok2BuildingActor::UpdateStatusIndicator()
 	case ERok2BuildingVisualState::Constructing:
 		StatusIndicator->SetVisibility(true);
 		StatusIndicator->SetWorldScale3D(FVector(0.5f, 0.5f, 0.1f));
+		StateColor = FLinearColor(0.23f, 0.44f, 0.60f); // أزرق: عمل جارٍ
 		break;
 	case ERok2BuildingVisualState::ReadyToCollect:
 		StatusIndicator->SetVisibility(true);
 		StatusIndicator->SetWorldScale3D(FVector(0.35f, 0.35f, 0.35f));
+		StateColor = FLinearColor(0.83f, 0.66f, 0.18f); // ذهبي: جاهز للجمع
 		break;
 	case ERok2BuildingVisualState::Training:
 		StatusIndicator->SetVisibility(true);
 		StatusIndicator->SetWorldScale3D(FVector(0.15f, 0.5f, 0.6f));
+		StateColor = FLinearColor(0.24f, 0.49f, 0.31f); // أخضر: تدريب
 		break;
 	case ERok2BuildingVisualState::HasWounded:
 		StatusIndicator->SetVisibility(true);
 		StatusIndicator->SetWorldScale3D(FVector(0.4f, 0.15f, 0.15f));
+		StateColor = FLinearColor(0.71f, 0.25f, 0.20f); // أحمر: جرحى
 		break;
+	}
+
+	if (StatusIndicator->IsVisible())
+	{
+		if (URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get())
+		{
+			Mats->MakeTintedMaterialOn(StatusIndicator, 0, StateColor);
+		}
 	}
 }
 

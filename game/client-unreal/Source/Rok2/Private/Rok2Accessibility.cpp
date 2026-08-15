@@ -4,6 +4,7 @@
 // والألوان المعتمدة على التباين تحسب من WCAG AA (نسبة تباين ≥ 4.5:1 فوق #1A120B).
 
 #include "Rok2Accessibility.h"
+#include "GenericPlatform/GenericApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2Accessibility, Log, All);
@@ -40,12 +41,39 @@ URok2Accessibility* URok2Accessibility::Get()
 	{
 		Instance = NewObject<URok2Accessibility>(GetTransientPackage());
 		Instance->AddToRoot();
-		// المقياس الأساسي يتبع إعدادات المحرك (GSlateApplication::Get().GetApplicationScale)
-		Instance->UiScale = FMath::Clamp(
-			FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.f, 10.f),
-			0.85f, 1.6f);
+		// المقياس يبدأ 1.0 ويبقى تفضيلاً للاعب لا قياساً للشاشة.
+		//
+		// كان يُبذر من FPlatformApplicationMisc::GetDPIScaleFactorAtPoint، وهذا
+		// خطأ مزدوج: المحرك يطبّق مقياس DPI أصلاً عبر UIScaleRule/UIScaleCurve في
+		// [/Script/Engine.UserInterfaceSettings]، فكان ضرب الأحجام مرة ثانية يكبّرها
+		// على شاشات ويندوز عالية الكثافة (125%/150%) بلا داعٍ؛ وعلى أندرويد تعيد
+		// الدالة 1.0 دائماً (تنفيذ GenericPlatform) فلم تكن تفعل شيئاً حيث تلزم.
+		Instance->UiScale = 1.0f;
 	}
 	return Instance;
+}
+
+FMargin URok2Accessibility::GetSafeAreaPadding()
+{
+	// حواف آمنة للهواتف ذات النتوء/الزوايا المنحنية. النظام يبلّغ عنها في
+	// FDisplayMetrics؛ نأخذ منها ما يلزم ونضمن حداً أدنى على الجانبين في الوضع
+	// الأفقي لأن الكاميرا الأمامية على هاتف أفقي تقع على أحد الجانبين.
+	FDisplayMetrics Metrics;
+	FDisplayMetrics::RebuildDisplayMetrics(Metrics);
+
+	const float Left = FMath::Max<float>(Metrics.TitleSafePaddingSize.X, 0.f);
+	const float Top = FMath::Max<float>(Metrics.TitleSafePaddingSize.Y, 0.f);
+	const float Right = FMath::Max<float>(Metrics.TitleSafePaddingSize.Z, 0.f);
+	const float Bottom = FMath::Max<float>(Metrics.TitleSafePaddingSize.W, 0.f);
+
+#if PLATFORM_ANDROID || PLATFORM_IOS
+	// حدّ أدنى 16 على الجانبين حتى على جهاز لا يبلّغ حافة آمنة: الزوايا المنحنية
+	// تقص أي عنصر ملتصق بالحد تماماً.
+	const float MinSide = 16.f;
+	return FMargin(FMath::Max(Left, MinSide), Top, FMath::Max(Right, MinSide), Bottom);
+#else
+	return FMargin(Left, Top, Right, Bottom);
+#endif
 }
 
 bool URok2Accessibility::IsRtl() const

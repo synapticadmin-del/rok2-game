@@ -1,4 +1,4 @@
-// Copyright ROK2. Art asset library (P2-T7) — KayKit CC0 GLB loader with graceful fallback.
+﻿// Copyright ROK2. Art asset library (P2-T7) — KayKit CC0 GLB loader with graceful fallback.
 //
 // يحمّل موديلات KayKit (GLB) من Content/Art/kaykit في المحرر أو عند توفر
 // موديول استيراد glTF؛ وإلا يعيد nullptr فيبقى الكود على الأشكال الهندسية الحالية.
@@ -62,8 +62,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	UStaticMesh* LoadMesh(const FString& Id);
 
-	/** مسار حزمة المحرر للأصل إن استُورد مسبقاً (Game/Art/kaykit/<file>.<file>) */
+	/** مسار الأصل المسطّح كما يسمّيه مستورد glTF (Game/Art/kaykit/<file>.<file>) */
 	static FString EditorPackagePath(const FString& GlbFile);
+
+	/** مسار الشجرة الفرعية (Game/Art/kaykit/<file>/StaticMeshes/<file>) */
+	static FString ImportedMeshPackagePath(const FString& GlbFile);
+
+	/** كل المسارات المحتملة لميش أصل واحد، بالترتيب. ملفات KayKit متعددة العقد
+	 *  تنتج اسماً بلاحقة لون (building_windmill_blue) لا اسم الملف. */
+	static TArray<FString> MeshPackageCandidates(const FString& GlbFile);
 
 	/** مسار الملف على القرص داخل المحتوى */
 	static FString DiskPath(const FString& GlbFile);
@@ -117,6 +124,26 @@ public:
 	static bool HasWorldMapIcon(const FString& IconId);
 
 	// -------------------------------------------------------------------
+	// 2.5D Isometric Building PBR Textures (Albedo, Normal, Emissive)
+	// -------------------------------------------------------------------
+
+	/** مسار أصل Texture2D لمبنى 2.5D (MapType: "D" للون، "N" للعمق، "E" للإضاءة) */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
+	static FString GetCityBuildingTextureAssetPath(const FString& BuildingId, const FString& MapType = TEXT("D"));
+
+	/** يحمّل Texture2D لمبنى 2.5D مع التخزين المؤقت */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
+	static UTexture2D* LoadCityBuildingTexture(const FString& BuildingId, const FString& MapType = TEXT("D"));
+
+	/** مسار أصل Texture2D لمعالم خريطة العالم 2.5D */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
+	static FString GetWorldFeatureTextureAssetPath(const FString& FeatureId, const FString& MapType = TEXT("D"));
+
+	/** يحمّل Texture2D لمعلم خريطة العالم 2.5D مع التخزين المؤقت */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
+	static UTexture2D* LoadWorldFeatureTexture(const FString& FeatureId, const FString& MapType = TEXT("D"));
+
+	// -------------------------------------------------------------------
 	// P6-T8: فهرس أصوات الواجهة (أصول WAV مشتركة + همس حضاري عند الفتح).
 	// يقتصر على المسارات؛ التشغيل يتولاه مالك الواجهة/مدير الصوت عند الربط.
 	// -------------------------------------------------------------------
@@ -147,7 +174,7 @@ public:
 	 * Branches: infantry/archer/cavalry/siege؛ Tier: 1–5.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
-	static FString GetHumanUnitId(const FString& Branch, int32 Tier, const FString& CivId = FString());
+	static FString GetHumanUnitId(const FString& Branch, int32 Tier, const FString& CivId = TEXT(""));
 
 	/** مسار أصل المحرر لشبكة وحدة بشرية إن استُوردت (/Game/Art/HumanUnits/{id}.{id}). */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
@@ -160,6 +187,27 @@ public:
 	/** يتحقق من أن المعرّف يطابق وحدة بشرية معروفة في الحزمة. */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Units")
 	static bool HasHumanUnit(const FString& UnitId);
+
+	// -------------------------------------------------------------------
+	// P10-T7: أصول الحانة والصناديق والمفاتيح والمنحوتات والمواد والمخططات
+	// (Content/Art/Tavern + Content/Audio/sfx)
+	// -------------------------------------------------------------------
+
+	/** مسار شبكة الحانة أو الصناديق 3D (/Game/Art/Tavern/{AssetId}.{AssetId}) */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Tavern")
+	static FString GetTavernMeshAssetPath(const FString& MeshId);
+
+	/** مسار أيقونة 2D لحزمة الحانة (/Game/Art/Tavern/{IconId}.{IconId}) */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Tavern")
+	static FString GetTavernIconAssetPath(const FString& IconId);
+
+	/** يحمّل Texture2D لأصل من أصول الحانة/الصناديق/المفاتيح/المنحوتات/المواد */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Tavern")
+	static UTexture2D* LoadTavernIcon(const FString& IconId);
+
+	/** هل المعرّف يطابق أصلاً مسجلاً في حزمة الحانة؟ */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Tavern")
+	static bool HasTavernAsset(const FString& AssetId);
 
 protected:
 	UPROPERTY(Transient)

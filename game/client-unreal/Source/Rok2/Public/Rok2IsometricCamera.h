@@ -43,8 +43,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float Yaw = 0.f;
 
+	/** مجال الرؤية الأفقي، مقيس على ReferenceAspectRatio.
+	 *  المحرك يستنتج منه المجال الرأسي ويثبّته على كل الشاشات. */
 	UPROPERTY(EditAnywhere, Category = "Rok2")
 	float FieldOfView = 40.f;
+
+	/** النسبة التي ضُبطت عليها الزاوية والمسافة (16:9 — نافذة المحرر وPIE).
+	 *  تُسند إلى UCameraComponent::AspectRatio، فيحسب المحرك المجال الرأسي
+	 *  عليها ويبقيه ثابتاً على هاتف 19.5:9 أو 21:9. */
+	UPROPERTY(EditAnywhere, Category = "Rok2")
+	float ReferenceAspectRatio = 16.f / 9.f;
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void AddPan(const FVector2D& Dir);
@@ -105,5 +113,10 @@ public:
 	FVector CurrentVelocity = FVector::ZeroVector;
 
 protected:
+	virtual void BeginPlay() override;
+
 	void UpdateCameraTransform(float DeltaSeconds);
+
+	/** يضبط FOV والنسبة المرجعية وقيد المحور على مكوّن الكاميرا. */
+	void ApplyProjectionSettings();
 };

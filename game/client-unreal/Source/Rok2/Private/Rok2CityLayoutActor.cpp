@@ -7,6 +7,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2CivThemes.h"
 #include "Rok2CityLayoutSaveGame.h"
+#include "Rok2ProceduralAssets.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
@@ -67,7 +68,25 @@ void ARok2CityLayoutActor::BeginPlay()
 	}
 	GroundHexes->SetCastShadow(false);
 	HighlightHexes->SetCastShadow(false);
-	if (GroundMaterial) GroundHexes->SetMaterial(0, GroundMaterial);
+
+	// أرضية المدينة والإبراز يحتاجان مادة تملك البارامتر "Color"؛ مادة الأسطوانة
+	// الافتراضية من /Engine/BasicShapes لا تملك أي بارامتر فتظهر رمادية.
+	if (URok2ProceduralAssets* Mats = URok2ProceduralAssets::Get())
+	{
+		if (GroundMaterial)
+		{
+			GroundHexes->SetMaterial(0, GroundMaterial);
+		}
+		else
+		{
+			Mats->MakeTintedMaterialOn(GroundHexes, 0, FLinearColor(0.24f, 0.40f, 0.20f)); // عشب المدينة
+		}
+		Mats->MakeTintedMaterialOn(HighlightHexes, 0, FLinearColor(0.35f, 0.78f, 0.42f)); // خلايا صالحة للوضع
+	}
+	else if (GroundMaterial)
+	{
+		GroundHexes->SetMaterial(0, GroundMaterial);
+	}
 
 	BuildGround();
 	SpawnWall();

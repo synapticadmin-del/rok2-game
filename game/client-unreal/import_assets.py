@@ -30,11 +30,23 @@ CONTENT = os.path.join(SCRIPT_DIR, "Content")
 MAGIC = {".glb": b"glTF", ".wav": b"RIFF", ".png": b"\x89PNG"}
 
 # (مجلد المصدر النسبي, وجهة /Game, هل نحافظ على الشجرة الفرعية؟)
+#
+# ملاحظة صيانة 2026-08-15: كانت القائمة تحتوي kaykit/Commanders/WorldMapIcons/Audio
+# فقط، فبقيت 94 صورة واجهة (أيقونات، جلود أزرار، صور مباني، شعارات وخلفيات
+# الحضارات) بصيغة PNG على القرص بلا .uasset — أي غير موجودة للعبة. النتيجة:
+# GetIconBrush يسقط إلى الراسم الإجرائي 32×32، وApplyButtonSkin يعود بلا جلد
+# فتظهر أزرار Slate الرمادية الافتراضية. هذه أهم أسباب رداءة الواجهة.
 JOBS = [
-    ("Art/kaykit",         "/Game/Art/kaykit",         False),
-    ("Art/Commanders",     "/Game/Art/Commanders",     False),
-    ("Art/WorldMapIcons",  "/Game/Art/WorldMapIcons",  False),  # P7-T10: أيقونات خريطة العالم (14 PNG)
-    ("Audio",              "/Game/Audio",              True),   # لازم: <civ>/music
+    ("Art/kaykit",            "/Game/Art/kaykit",            False),
+    ("Art/Commanders",        "/Game/Art/Commanders",        False),
+    ("Art/WorldMapIcons",     "/Game/Art/WorldMapIcons",     False),  # P7-T10: أيقونات خريطة العالم
+    ("Art/UIIcons",           "/Game/Art/UIIcons",           False),  # أيقونات الواجهة (20)
+    ("Art/UIButtons",         "/Game/Art/UIButtons",         False),  # جلود الأزرار (4)
+    ("Art/CityBuildingIcons", "/Game/Art/CityBuildingIcons", False),  # صور المباني (58)
+    ("Art/CivIcons",          "/Game/Art/CivIcons",          False),  # شعارات الحضارات (6)
+    ("Art/CivBackgrounds",    "/Game/Art/CivBackgrounds",    False),  # خلفيات الحضارات (6)
+    ("Art/Tavern",            "/Game/Art/Tavern",            False),  # P10-T7: الحانة والصناديق
+    ("Audio",                 "/Game/Audio",                 True),   # لازم: <civ>/music
 ]
 
 log = unreal.log
@@ -77,6 +89,29 @@ def is_valid_binary(path, ext):
         return False
 
 
+def already_imported(dest, name, src_path, ext):
+    """هل الأصل موجود فعلاً؟ يفحص المسار المسطّح والشجرة التي ينتجها مستورد glTF.
+
+    مستورد Interchange لملفات .glb لا ينتج أصلاً واحداً باسم الملف، بل مجلداً
+    فيه StaticMeshes/ و Materials/ و Textures/. الفحص القديم كان يسأل عن
+    /Game/Art/kaykit/building_castle.building_castle فلا يجده أبداً، فيعيد
+    استيراد كل ملفات GLB في كل تشغيل — وهذا ما كان يُسقط المحرك بـ
+    `Assertion failed: IsValid()` داخل AssetTools ويوقف بقية الاستيراد.
+    """
+    if unreal.EditorAssetLibrary.does_asset_exist("%s/%s.%s" % (dest, name, name)):
+        return True
+
+    if ext == ".glb":
+        nested = "%s/%s/StaticMeshes/%s.%s" % (dest, name, name, name)
+        if unreal.EditorAssetLibrary.does_asset_exist(nested):
+            return True
+        # حتى لو تغيّر اسم الميش داخل الملف، وجود المجلد يكفي دليلاً
+        if unreal.EditorAssetLibrary.does_directory_exist("%s/%s" % (dest, name)):
+            return True
+
+    return False
+
+
 def collect(src_rel, dst_root, keep_tree):
     src_root = os.path.join(CONTENT, src_rel)
     if not os.path.isdir(src_root):
@@ -105,7 +140,7 @@ def collect(src_rel, dst_root, keep_tree):
                 if rel not in (".", ""):
                     dest = dst_root + "/" + rel.replace("\\", "/")
 
-            if unreal.EditorAssetLibrary.does_asset_exist("%s/%s.%s" % (dest, name, name)):
+            if already_imported(dest, name, src, ext):
                 continue
 
             t = unreal.AssetImportTask()
@@ -126,7 +161,17 @@ def main():
 
     tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-    for src_rel, dst_root, keep_tree in JOBS:
+    # ROK2_JOB يقصر التشغيل على وجهة واحدة. ImportAssets.bat يستدعي السكربت
+    # مرة لكل مجلد لأن استيراد كل شيء في جلسة واحدة كان يُسقط المحرك بـ
+    # `Assertion failed: IsValid()` داخل AssetTools بعد عدة مئات من الملفات؛
+    # كل مجلد على حدة ينجح، والجلسة الجديدة تبدأ من حالة نظيفة.
+    only = os.environ.get("ROK2_JOB", "").strip()
+    jobs = [j for j in JOBS if not only or j[0] == only]
+    if only and not jobs:
+        err("[ROK2] ROK2_JOB=%s لا يطابق أي مهمة معروفة." % only)
+        sys.exit(2)
+
+    for src_rel, dst_root, keep_tree in jobs:
         tasks, skipped = collect(src_rel, dst_root, keep_tree)
         all_skipped += skipped
         if not tasks:
@@ -134,19 +179,26 @@ def main():
             continue
 
         log("[ROK2] %s: استيراد %d ملف -> %s" % (src_rel, len(tasks), dst_root))
-        # دفعة واحدة أسرع بكثير من ملف-ملف
-        tools.import_asset_tasks(tasks)
 
         for t in tasks:
+            fname = os.path.basename(t.filename)
+            try:
+                tools.import_asset_tasks([t])
+            except Exception as exc:
+                total_fail += 1
+                err("[ROK2] استثناء أثناء استيراد %s — %s" % (fname, exc))
+                continue
+
             created = list(t.get_editor_property("imported_object_paths") or [])
             if created:
                 total_ok += 1
             else:
                 total_fail += 1
-                err("[ROK2] فشل استيراد: %s" % t.filename)
+                err("[ROK2] فشل استيراد: %s" % fname)
 
-    unreal.EditorAssetLibrary.save_directory("/Game/Art", False, True)
-    unreal.EditorAssetLibrary.save_directory("/Game/Audio", False, True)
+    for save_root in ("/Game/Art", "/Game/Audio"):
+        if unreal.EditorAssetLibrary.does_directory_exist(save_root):
+            unreal.EditorAssetLibrary.save_directory(save_root, False, True)
 
     log("=" * 58)
     log("[ROK2] نجح: %d   فشل: %d   متخطّى: %d" % (total_ok, total_fail, len(all_skipped)))

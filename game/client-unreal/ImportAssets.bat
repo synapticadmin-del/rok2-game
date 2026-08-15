@@ -13,6 +13,7 @@ REM ============================================================
 if not defined UE_ROOT set "UE_ROOT=C:\Program Files\Epic Games\UE_5.4"
 set "PROJECT=%~dp0Rok2.uproject"
 set "SCRIPT=%~dp0import_assets.py"
+set "MATERIALS=%~dp0create_materials.py"
 
 set "CMD_EXE=%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 if not exist "%CMD_EXE%" (
@@ -22,21 +23,63 @@ if not exist "%CMD_EXE%" (
 )
 
 echo.
-echo ==== ROK2 :: Importing raw assets (headless, no GPU) ====
+echo ==== ROK2 :: Creating project materials (M_Rok2Base / M_Rok2Unlit) ====
 echo.
 
+REM مواد المشروع أولاً: مواد المحرك بلا أي VectorParameter، فبدون هاتين
+REM المادتين لا يجد الكود بارامتر "Color" وتظهر القلعة والسور والمباني رمادية.
 "%CMD_EXE%" "%PROJECT%" ^
   -run=pythonscript ^
-  -script="%SCRIPT%" ^
+  -script="%MATERIALS%" ^
   -nullrhi ^
   -unattended ^
   -nosplash ^
   -nopause ^
   -stdout ^
-  -utf8output ^
-  -FullStdOutLogOutput
+  -utf8output
 
-set "RC=%ERRORLEVEL%"
+if not "%ERRORLEVEL%"=="0" (
+  echo [!] فشل توليد المواد — لا تكمل، الألوان لن تظهر.
+  pause & exit /b 1
+)
+
+echo.
+echo ==== ROK2 :: Importing raw assets (headless, no GPU) ====
+echo.
+
+REM مجلد لكل جلسة محرر: استيراد كل المجلدات في جلسة واحدة كان يُسقط المحرك
+REM بـ `Assertion failed: IsValid()` داخل AssetTools بعد عدة مئات من الملفات.
+set "RC=0"
+for %%J in (
+  "Art/kaykit"
+  "Art/Commanders"
+  "Art/WorldMapIcons"
+  "Art/UIIcons"
+  "Art/UIButtons"
+  "Art/CityBuildingIcons"
+  "Art/CivIcons"
+  "Art/CivBackgrounds"
+  "Art/Tavern"
+  "Audio"
+) do (
+  echo --- %%~J ---
+  set "ROK2_JOB=%%~J"
+  "%CMD_EXE%" "%PROJECT%" ^
+    -run=pythonscript ^
+    -script="%SCRIPT%" ^
+    -nullrhi ^
+    -unattended ^
+    -nosplash ^
+    -nopause ^
+    -stdout ^
+    -utf8output
+  if errorlevel 1 (
+    echo [!] فشل استيراد %%~J
+    set "RC=1"
+  )
+)
+set "ROK2_JOB="
+
 echo.
 if "%RC%"=="0" (
   echo ==== SUCCESS ====

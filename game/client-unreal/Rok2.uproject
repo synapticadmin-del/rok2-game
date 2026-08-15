@@ -12,6 +12,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
 			"Name": "WebSocketNetworking",
 			"Enabled": true
 		},
@@ -22,6 +26,20 @@
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "Interchange",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
+			"Name": "InterchangeEditor",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
 		}
 	],
 	"TargetPlatforms": [
@@ -35,6 +53,12 @@
 		},
 		{
 			"Name": "EditorScriptingUtilities"
+		},
+		{
+			"Name": "Interchange"
+		},
+		{
+			"Name": "InterchangeEditor"
 		}
 	]
 }
