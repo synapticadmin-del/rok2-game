@@ -18,6 +18,9 @@ const files = {
   prepare: path.join(scriptDir, 'Prepare-AndroidDevelopment.ps1'),
   acceptance: path.join(clientRoot, 'Docs', 'PIE_TWO_CLIENTS_ANDROID_ACCEPTANCE.md'),
   engine: path.join(clientRoot, 'Config', 'DefaultEngine.ini'),
+  // إعدادات التحزيم تُقرأ من DefaultGame.ini وحده: ProjectPackagingSettings
+  // معلَّنة UCLASS(config=Game)، فوجودها في DefaultEngine.ini لا يُقرأ (P16-T3).
+  game: path.join(clientRoot, 'Config', 'DefaultGame.ini'),
   package: backendPackage,
 };
 
@@ -32,7 +35,8 @@ const checks = [
   ['Preparation script requires explicit install opt-in', text.prepare.includes('[switch]$InstallSdk') && text.prepare.includes("'-Command=InstallSDK'")],
   ['Project Android settings target SDK 34', text.engine.includes('TargetSDKVersion=34')],
   ['Project Android settings target Vulkan', text.engine.includes('bSupportsVulkan=True')],
-  ['Project packages Development builds', text.engine.includes('BuildConfiguration=PPBC_Development')],
+  ['Project packages Development builds', text.game.includes('BuildConfiguration=PPBC_Development')],
+  ['Packaging settings live in the config file Unreal actually reads', !text.engine.includes('[/Script/UnrealEd.ProjectPackagingSettings]')],
   ['Acceptance guide covers two independent clients', text.acceptance.includes('T3-PIE-01') && text.acceptance.includes('T3-PIE-06')],
   ['Acceptance guide requires real Android evidence', text.acceptance.includes('stat unit') && text.acceptance.includes('stat RHI') && text.acceptance.includes('stat memory')],
   ['Acceptance guide distinguishes preparation from device measurement', text.acceptance.includes('لا يفي نجاح `Prepare-AndroidDevelopment.ps1` أو بناء APK وحده بشرط القياس')],

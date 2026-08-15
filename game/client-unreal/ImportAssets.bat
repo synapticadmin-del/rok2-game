@@ -81,6 +81,30 @@ for %%J in (
 set "ROK2_JOB="
 
 echo.
+echo ==== ROK2 :: Reparenting glTF materials away from Interchange plugin content ====
+echo.
+
+REM مستورد glTF يربط المادة المستوردة بوالد داخل ملحق Interchange
+REM (/Interchange/gltf/MaterialInstances/MI_Default_Opaque)، وذلك الملحق معلن
+REM SupportedTargetPlatforms = Win64/Linux/Mac فقط، فيفشل كوك أندرويد بـ
+REM "Content is missing from cook" وتسقط كل مجسمات KayKit من الـ APK.
+REM لذلك تُعاد المواد المستوردة إلى مادة المشروع M_Rok2Gltf بعد كل استيراد.
+"%CMD_EXE%" "%PROJECT%" ^
+  -run=pythonscript ^
+  -script="%~dp0scripts\reparent_gltf_materials.py" ^
+  -nullrhi ^
+  -unattended ^
+  -nosplash ^
+  -nopause ^
+  -stdout ^
+  -utf8output
+
+if not "%ERRORLEVEL%"=="0" (
+  echo [!] فشل فك ارتباط مواد glTF — كوك اندرويد سيفشل.
+  set "RC=1"
+)
+
+echo.
 if "%RC%"=="0" (
   echo ==== SUCCESS ====
   echo الأصول استُوردت إلى Content\Art و Content\Audio كـ .uasset

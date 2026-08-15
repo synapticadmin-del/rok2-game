@@ -122,6 +122,17 @@ if ($Platform -eq 'Android') {
         $env:PATH = "$Jdk17\bin;$env:PATH"
         Write-Host "[ROK2] JAVA_HOME redirected to JDK 17 for Gradle compatibility" -ForegroundColor DarkGray
     }
+    $AndroidSdk = 'C:\Users\kayf\AppData\Local\Android\Sdk'
+    $AndroidNdk = 'C:\Users\kayf\AppData\Local\Android\Sdk\ndk\25.1.8937393'
+    if (Test-Path $AndroidSdk) {
+        $env:ANDROID_HOME = $AndroidSdk
+        $env:ANDROID_SDK_ROOT = $AndroidSdk
+    }
+    if (Test-Path $AndroidNdk) {
+        $env:ANDROID_NDK_ROOT = $AndroidNdk
+        $env:NDKROOT = $AndroidNdk
+        $env:NDK_ROOT = $AndroidNdk
+    }
 }
 
 Write-Host "[ROK2] Engine: UE 5.4.4 — $ResolvedEngineRoot" -ForegroundColor Cyan
@@ -157,6 +168,10 @@ if ($Platform -eq 'Android') {
         Copy-Item -Recurse -Force $StubSrc $StubDest
         Write-Host "[ROK2] Copied vrpermissionstub to Intermediate JavaLibs" -ForegroundColor DarkGray
     }
+    $GradleBase = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle'
+    if (Test-Path $GradleBase) {
+        Remove-Item -Recurse -Force (Join-Path $GradleBase 'app\build'), (Join-Path $GradleBase 'downloader_library\build'), (Join-Path $GradleBase 'vrpermissionstub\build'), (Join-Path $GradleBase '.gradle') -ErrorAction SilentlyContinue
+    }
 }
 
 Invoke-UnrealBatchFile -FilePath $BuildBat -Arguments $BuildArguments -LogPath $BuildLog
@@ -173,55 +188,97 @@ if ($Package) {
     # Keep each supported UAT platform explicit: Win64 remains the established
     # desktop contract while Android uses the same Development/Shipping flow.
     $UatPlatformArgument = if ($Platform -eq 'Win64') { '-platform=Win64' } else { '-platform=Android' }
+    $PackagingFlags = if ($Platform -eq 'Win64') {
+        @('-build', '-cook', '-cookall', '-stage', '-pak', '-iostore', '-archive')
+    } else {
+        @('-build', '-cook', '-cookall', '-stage', '-pak', '-archive')
+    }
     $UatArguments = @(
         'BuildCookRun',
         "-project=$ProjectFile",
         '-noP4',
         $UatPlatformArgument,
         "-clientconfig=$Target",
-        '-cookflavor=ASTC',
-        '-build', '-cook', '-cookall', '-stage', '-pak', '-iostore', '-archive',
-        "-archivedirectory=$ResolvedOutputDirectory"
-    )
+        '-cookflavor=ASTC'
+    ) + $PackagingFlags + @("-archivedirectory=$ResolvedOutputDirectory")
     Invoke-UnrealBatchFile -FilePath $RunUatBat -Arguments $UatArguments -LogPath $PackageLog
     Write-Host "[ROK2] Package completed: $ResolvedOutputDirectory" -ForegroundColor Green
     Write-Host "[ROK2] Package log: $PackageLog" -ForegroundColor Green
 
-    # P7-T12 build fix: UE 5.4's Android automation does not copy the cooked
-    # pak/ucas/utoc into the gradle assets/ directory on its own. We do it
-    # here so gradle packages them into the APK and the game can find assets
-    # at runtime (otherwise PreInit fails with "Engine Preinit Failed").
+    # P7-T12 build fix: UE 5.4's Android automation requires embedded main.obb.png
+    # and uncompressed assets for in-APK data mounting. We automate this here so
+    # gradle packages them into the APK and the game runs out-of-the-box.
     if ($Platform -eq 'Android') {
-        $StagedPaks = Join-Path $ProjectRoot 'Saved\StagedBuilds\Android_ASTC\Rok2\Content\Paks'
-        $GradleAssets = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle\app\src\main\assets\Rok2\Content\Paks'
-        if (Test-Path $StagedPaks) {
-            New-Item -ItemType Directory -Force -Path $GradleAssets | Out-Null
-            Get-ChildItem -Path $StagedPaks -Filter 'Rok2-Android_ASTC*' -ErrorAction SilentlyContinue | ForEach-Object {
-                $TargetName = $_.Name -replace '_ASTC', ''
-                $TargetPath = Join-Path $GradleAssets $TargetName
-                Copy-Item -Path $_.FullName -Destination $TargetPath -Force
-            }
-            Get-ChildItem -Path $StagedPaks -Filter 'global*' -ErrorAction SilentlyContinue | ForEach-Object {
-                $TargetPath = Join-Path $GradleAssets $_.Name
-                Copy-Item -Path $_.FullName -Destination $TargetPath -Force
-            }
-            Write-Host "[ROK2] Copied staged paks to gradle assets" -ForegroundColor DarkGray
+        $StagedRoot = Join-Path $ProjectRoot 'Saved\StagedBuilds\Android_ASTC'
+        $GradleAssets = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle\app\src\main\assets'
+        if (Test-Path $StagedRoot) {
+            # Update commandline to enforce Vulkan and cvar settings
+            $CmdLineFile = Join-Path $StagedRoot 'UECommandLine.txt'
+            Set-Content -Path $CmdLineFile -Value '-project="../../../Rok2/Rok2.uproject" -vulkan -cvars="r.Android.DisableVulkanSupport=0,r.Android.DisableVulkanSM5Support=0,r.Android.DisableOpenGLES31Support=0"' -Encoding UTF8
+            
+            # Copy Config inis into StagedBuilds
+            $StagedConfig = Join-Path $StagedRoot 'Rok2\Config'
+            New-Item -ItemType Directory -Force -Path $StagedConfig | Out-Null
+            Copy-Item -Path (Join-Path $ProjectRoot 'Config\DefaultEngine.ini') -Destination (Join-Path $StagedConfig 'DefaultEngine.ini') -Force
+            Copy-Item -Path (Join-Path $ProjectRoot 'Config\DefaultDeviceProfiles.ini') -Destination (Join-Path $StagedConfig 'DefaultDeviceProfiles.ini') -Force
+            
+            # Create uncompressed main.obb.png archive for embedded APK mounting
+            $ObbScript = Join-Path $ProjectRoot 'scripts\create_obb_zip.js'
+            & node $ObbScript $StagedRoot (Join-Path $GradleAssets 'main.obb.png')
+            Write-Host "[ROK2] Created embedded main.obb.png archive" -ForegroundColor DarkGray
 
             # Re-run gradle assembleDebug so the APK picks up the new assets
             $GradleDir = Join-Path $ProjectRoot 'Intermediate\Android\arm64\gradle'
             $Env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot'
             $Env:PATH = "$Env:JAVA_HOME\bin;$Env:PATH"
+
+            # Ensure aaptOptions noCompress is applied to gradle so pak/ucas/utoc can be memory-mapped
+            $BuildAdditions = Join-Path $GradleDir 'app\buildAdditions.gradle'
+            if (Test-Path $BuildAdditions) {
+                # لا بد أن يكون كل بلوك على سطر مستقل: Groovy يقرأ
+                # `androidResources { } aaptOptions { }` على سطر واحد كسلسلة أوامر
+                # أي androidResources(...).aaptOptions(...) فيفشل بـ
+                # "Cannot invoke method aaptOptions() on null object".
+                $NoCompressMarker = '// ROK2 noCompress'
+                $NoCompressList = "'pak', 'ucas', 'utoc', 'cas', 'toc', 'uproject', 'bin', 'png', 'ini', 'txt', 'json', ''"
+                $NoCompressBlock = @"
+
+$NoCompressMarker
+android {
+    androidResources {
+        noCompress $NoCompressList
+    }
+}
+"@
+                $AdditionsContent = Get-Content $BuildAdditions -Raw
+                if (-not $AdditionsContent.Contains($NoCompressMarker)) {
+                    # أسطر noCompress من تشغيل أقدم (بصياغة السطر الواحد المعطوبة) تُزال أولاً.
+                    $Cleaned = ($AdditionsContent -split "`r?`n" | Where-Object { $_ -notmatch 'noCompress' }) -join [Environment]::NewLine
+                    # بلا BOM: Set-Content -Encoding UTF8 في PowerShell 5.1 يكتب BOM،
+                    # وGroovy يقرأه محرفاً غير متوقع في العمود الأول فيفشل تحميل السكربت.
+                    $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                    [System.IO.File]::WriteAllText($BuildAdditions, $Cleaned + $NoCompressBlock + [Environment]::NewLine, $Utf8NoBom)
+                }
+            }
             Push-Location $GradleDir
-            & cmd.exe /c "gradlew.bat assembleDebug --no-daemon -x lint -x lintAnalyzeDebug -x lintReportDebug" 2>&1 | Out-Host
+            $PrevErrorAction = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            & cmd.exe /c "gradlew.bat assembleDebug --no-daemon -x lint -x lintAnalyzeDebug -x lintReportDebug"
+            $GradleExit = $LASTEXITCODE
+            $ErrorActionPreference = $PrevErrorAction
             Pop-Location
-            Write-Host "[ROK2] Gradle assembleDebug completed (exit=$LASTEXITCODE)" -ForegroundColor DarkGray
+            if ($GradleExit -ne 0) {
+                throw "Gradle assembleDebug failed (exit: $GradleExit)"
+            }
+            Write-Host "[ROK2] Gradle assembleDebug completed (exit=$GradleExit)" -ForegroundColor DarkGray
 
             # Copy final APK to output directory
             $BuiltApk = Join-Path $GradleDir 'app\build\outputs\apk\debug\app-debug.apk'
             $OutputApk = Join-Path $ResolvedOutputDirectory 'Rok2-arm64.apk'
             if (Test-Path $BuiltApk) {
+                New-Item -ItemType Directory -Force -Path $ResolvedOutputDirectory | Out-Null
                 Copy-Item -Path $BuiltApk -Destination $OutputApk -Force
-                Write-Host "[ROK2] Copied final APK to $OutputApk" -ForegroundColor DarkGray
+                Write-Host "[ROK2] Copied final APK to $OutputApk" -ForegroundColor Green
             }
         }
     }
