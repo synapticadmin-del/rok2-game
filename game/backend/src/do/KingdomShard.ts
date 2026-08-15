@@ -9,6 +9,7 @@ const OPS_CONSTANTS = {
   commandErrorWindowMs: (opsData as any).constants.command_error_window_ms as number,
   tickStaleThresholdMs: (opsData as any).constants.tick_stale_threshold_ms as number,
   queueStuckThreshold: (opsData as any).constants.queue_stuck_threshold as number,
+  queueStuckAgeMs: (opsData as any).constants.queue_stuck_age_ms as number,
   commandAlertThreshold: (opsData as any).constants.command_alert_threshold as number,
   errorLogLimit: (opsData as any).constants.error_log_limit as number,
 };
@@ -26,6 +27,7 @@ const ALLIANCE_TECH_WINDOW_MS = ALLIANCE_TECH_CFG.window_seconds * 1000;
 const TICK_STALE_THRESHOLD_MS = OPS_CONSTANTS.tickStaleThresholdMs;
 const COMMAND_OPS_WINDOW_MS = OPS_CONSTANTS.commandErrorWindowMs;
 const QUEUE_STUCK_THRESHOLD = OPS_CONSTANTS.queueStuckThreshold;
+const QUEUE_STUCK_AGE_MS = OPS_CONSTANTS.queueStuckAgeMs;
 const COMMAND_ALERT_THRESHOLD = OPS_CONSTANTS.commandAlertThreshold;
 import { assertAdminKey } from "../lib/secrets";
 import { resolveCombat, totalTroops, troopPower, scaleTroops, type CombatResult } from "./sim/combat";
@@ -5571,8 +5573,10 @@ export class KingdomShard extends DurableObject<Env> {
     }
   }
 
-  // P7-T15: لقطه مؤشرات التشغيل — أخطاء نافذة الساعة + آخر tick + عمق الطوابير + الانتهاكات.
+  // P7-T15/P7-T8: لقطة مؤشرات التشغيل — صحة الشارد، أخطاء الأوامر، tick والطوابير.
   private opsSnapshot(): {
+    healthStatus: "starting" | "healthy" | "degraded";
+    checkedAtMs: number;
     seasonDay: number;
     seasonStartMs: number;
     lastTickMs: number;
@@ -5585,6 +5589,7 @@ export class KingdomShard extends DurableObject<Env> {
     commandErrorWindowMs: number;
     queuesTotal: number;
     queuesByKind: Record<string, number>;
+    queuesStuck: number;
     marchesActive: number;
     violationsTotal: number;
     alerts: string[];
@@ -5596,7 +5601,9 @@ export class KingdomShard extends DurableObject<Env> {
       if (entry.lastMs >= windowStart) commandErrors.push({ code, ...entry });
     }
     commandErrors.sort((a, b) => b.n - a.n);
-    const queuesTotal = [...this.queues.values()].filter((q) => q.state === "running").length;
+    const runningQueues = [...this.queues.values()].filter((q) => q.state === "running");
+    const queuesTotal = runningQueues.length;
+    const queuesStuck = runningQueues.filter((q) => q.etaMs + QUEUE_STUCK_AGE_MS < now).length;
     const queuesByKind: Record<string, number> = {};
     for (const q of this.queues.values()) {
       if (q.state === "running") queuesByKind[q.type] = (queuesByKind[q.type] || 0) + 1;
@@ -5609,9 +5616,15 @@ export class KingdomShard extends DurableObject<Env> {
     if (queuesTotal > QUEUE_STUCK_THRESHOLD) {
       alerts.push("queue_pressure");
     }
+    if (queuesStuck > 0) {
+      alerts.push("queue_stuck");
+    }
     const topErrors = commandErrors.filter((e) => e.n >= COMMAND_ALERT_THRESHOLD).map((e) => `command_error_${e.code}`);
     alerts.push(...topErrors);
+    const healthStatus = this.lastTickMs <= 0 ? "starting" : alerts.length > 0 ? "degraded" : "healthy";
     return {
+      healthStatus,
+      checkedAtMs: now,
       seasonDay: this.seasonDay,
       seasonStartMs: this.seasonStartMs,
       lastTickMs: this.lastTickMs,
@@ -5624,6 +5637,7 @@ export class KingdomShard extends DurableObject<Env> {
       commandErrorWindowMs: COMMAND_OPS_WINDOW_MS,
       queuesTotal,
       queuesByKind,
+      queuesStuck,
       marchesActive,
       violationsTotal: this.antiCheatViolations.length,
       alerts,

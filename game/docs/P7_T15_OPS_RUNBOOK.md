@@ -21,18 +21,21 @@
 | `command_error_window_ms` | `3600000` | نافذة الساعة المنزلقة لحصر أخطاء كل رمز خطأ |
 | `tick_stale_threshold_ms` | `30000` | متى يعتبر tick متعثرًا (30 ثانية بدون تحديث) |
 | `queue_stuck_threshold` | `40` | عدد الطوابير النشطة الذي يُعتبر ضغطًا |
+| `queue_stuck_age_ms` | `120000` | مدة تجاوز `etaMs` التي تجعل الطابور متعثرًا (دقيقتان) |
 | `command_alert_threshold` | `5` | عدد التكرارات داخل النافذة الذي يولّد تنبيه `command_error_X` |
 | `error_log_limit` | `200` | سقف سجل أخطاء الأوامر في ذاكرة الـ shard (اُستبعد الأقدم) |
 
 ## 2. المؤشرات التي يرصدها `opsSnapshot()`
 
-1. **`seasonDay` / `lastTickMs` / `tickStaleMs`** — يوم الموسم وزمن آخر دورة tick ناجحة (محدَّث بعد INSERT `world_meta` في نهاية كل tick).
-2. **`commandErrors`** — أخطاء أوامر اللاعبين خلال نافذة الساعة المنزلقة، مجمعة بالرمز، مرتبة تنازليًا، أعلى 10. تشمل: `city_not_found`, `bad_flag_coords`, `bad_structure_coords`, `unknown_structure_kind`, `alliance_structure_cap_reached`, `structure_kind_cap_reached`, `structure_too_close`, `structure_requires_alliance_territory`, `not_your_alliance`, `invalid_seconds`, `queue_not_found`, `not_your_queue`, `player_identity_mismatch`, `alliance_and_builder_required`.
-3. **`lastTickDurationMs` / `avgTickDurationMs` / `maxTickDurationMs` / `tickCount`** — زمن تنفيذ آخر دورة، ومتوسطها، وأطولها، وعدد الدورات المقاسة منذ إنشاء الشارد. تقيس هذه الحقول جسم الدورة، بينما يقيس `tickStaleMs` الزمن منذ اكتمال آخر دورة.
-4. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
-5. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
-6. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
-7. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
+1. **`healthStatus` / `checkedAtMs`** — حالة الشارد (`starting` قبل أول tick، `healthy` بلا تنبيهات، `degraded` عند وجود تنبيه) ووقت إنشاء اللقطة.
+2. **`seasonDay` / `lastTickMs` / `tickStaleMs`** — يوم الموسم وزمن آخر دورة tick ناجحة (محدَّث بعد INSERT `world_meta` في نهاية كل tick).
+3. **`commandErrors`** — أخطاء أوامر اللاعبين خلال نافذة الساعة المنزلقة، مجمعة بالرمز، مرتبة تنازليًا، أعلى 10. تشمل: `city_not_found`, `bad_flag_coords`, `bad_structure_coords`, `unknown_structure_kind`, `alliance_structure_cap_reached`, `structure_kind_cap_reached`, `structure_too_close`, `structure_requires_alliance_territory`, `not_your_alliance`, `invalid_seconds`, `queue_not_found`, `not_your_queue`, `player_identity_mismatch`, `alliance_and_builder_required`.
+4. **`lastTickDurationMs` / `avgTickDurationMs` / `maxTickDurationMs` / `tickCount`** — زمن تنفيذ آخر دورة، ومتوسطها، وأطولها، وعدد الدورات المقاسة منذ إنشاء الشارد. تقيس هذه الحقول جسم الدورة، بينما يقيس `tickStaleMs` الزمن منذ اكتمال آخر دورة.
+5. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
+6. **`queuesStuck`** — عدد الطوابير التي بقيت `running` وتجاوزت `etaMs` بأكثر من `queue_stuck_age_ms`.
+7. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
+8. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
+9. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
 
 لا تُسجل أخطاء البنية الإدارية (`auth_required`, `admin_unauthorized`, `unknown_action`, `not_found`) كأخطاء أوامر لاعب — فهي ليست مؤشرًا على سلوك اللاعبين أو على خلل في منطق اللعبة.
 
@@ -72,7 +75,13 @@
 2. قارن مع `tick_stale`: إن كان التنبيهان معًا فالسبب غالبًا tick متعثر؛ عالج `tick_stale` أولًا.
 3. إن كان الأمر نمط استغلال، راجع سجلات anti-cheat (`/v1/admin/anticheat`) واعمل على حد معدل إضافي أو مراجعة المنطق.
 
-### 3.4 `command_error_<code>`
+### 3.4 `queue_stuck`
+
+**المعنى:** يوجد طابور بحالة `running` تجاوز موعده `etaMs` بأكثر من `queue_stuck_age_ms` (افتراضيًا دقيقتان).
+
+**الإجراء:** افحص `queuesStuck` و`queuesByKind`، ثم نفّذ tick إداريًا مرة واحدة. إذا بقي العدد، راجع D1 وسجلات Worker لمسار إكمال النوع المتأثر.
+
+### 3.5 `command_error_<code>`
 
 **المعنى:** رمز خطأ محدد تكرر ≥ `command_alert_threshold` (افتراضيًا 5) مرات خلال نافذة `command_error_window_ms` (افتراضيًا ساعة).
 
