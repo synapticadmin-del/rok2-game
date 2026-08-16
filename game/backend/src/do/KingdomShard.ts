@@ -8,6 +8,7 @@ const OPS_CONSTANTS = {
   enabled: (opsData as any).constants.enabled as boolean,
   commandErrorWindowMs: (opsData as any).constants.command_error_window_ms as number,
   tickStaleThresholdMs: (opsData as any).constants.tick_stale_threshold_ms as number,
+  tickSlowThresholdMs: (opsData as any).constants.tick_slow_threshold_ms as number,
   queueStuckThreshold: (opsData as any).constants.queue_stuck_threshold as number,
   queueStuckAgeMs: (opsData as any).constants.queue_stuck_age_ms as number,
   commandAlertThreshold: (opsData as any).constants.command_alert_threshold as number,
@@ -25,6 +26,7 @@ const lkJson = getLostKingdomJson();
 // P9-T1: نافذة تبرع واحدة بالملّي ثانية (من alliance_tech.json)
 const ALLIANCE_TECH_WINDOW_MS = ALLIANCE_TECH_CFG.window_seconds * 1000;
 const TICK_STALE_THRESHOLD_MS = OPS_CONSTANTS.tickStaleThresholdMs;
+const TICK_SLOW_THRESHOLD_MS = OPS_CONSTANTS.tickSlowThresholdMs;
 const COMMAND_OPS_WINDOW_MS = OPS_CONSTANTS.commandErrorWindowMs;
 const QUEUE_STUCK_THRESHOLD = OPS_CONSTANTS.queueStuckThreshold;
 const QUEUE_STUCK_AGE_MS = OPS_CONSTANTS.queueStuckAgeMs;
@@ -5585,11 +5587,15 @@ export class KingdomShard extends DurableObject<Env> {
     avgTickDurationMs: number;
     maxTickDurationMs: number;
     tickCount: number;
+    tickSlowThresholdMs: number;
+    commandErrorsTotal: number;
     commandErrors: Array<{ code: string; n: number; firstMs: number; lastMs: number }>;
     commandErrorWindowMs: number;
     queuesTotal: number;
     queuesByKind: Record<string, number>;
     queuesStuck: number;
+    oldestQueueAgeMs: number;
+    oldestQueue: { id: string; type: string; etaMs: number } | null;
     marchesActive: number;
     violationsTotal: number;
     alerts: string[];
@@ -5604,6 +5610,9 @@ export class KingdomShard extends DurableObject<Env> {
     const runningQueues = [...this.queues.values()].filter((q) => q.state === "running");
     const queuesTotal = runningQueues.length;
     const queuesStuck = runningQueues.filter((q) => q.etaMs + QUEUE_STUCK_AGE_MS < now).length;
+    const oldestQueue = runningQueues.reduce<QueueEntity | null>((oldest, q) => !oldest || q.etaMs < oldest.etaMs ? q : oldest, null);
+    const oldestQueueAgeMs = oldestQueue ? Math.max(0, now - oldestQueue.etaMs) : 0;
+    const commandErrorsTotal = commandErrors.reduce((sum, entry) => sum + entry.n, 0);
     const queuesByKind: Record<string, number> = {};
     for (const q of this.queues.values()) {
       if (q.state === "running") queuesByKind[q.type] = (queuesByKind[q.type] || 0) + 1;
@@ -5612,6 +5621,9 @@ export class KingdomShard extends DurableObject<Env> {
     const alerts: string[] = [];
     if (this.lastTickMs > 0 && now - this.lastTickMs > TICK_STALE_THRESHOLD_MS) {
       alerts.push("tick_stale");
+    }
+    if (this.lastTickDurationMs >= TICK_SLOW_THRESHOLD_MS) {
+      alerts.push("tick_slow");
     }
     if (queuesTotal > QUEUE_STUCK_THRESHOLD) {
       alerts.push("queue_pressure");
@@ -5633,11 +5645,15 @@ export class KingdomShard extends DurableObject<Env> {
       avgTickDurationMs: this.tickCount > 0 ? Math.round((this.totalTickDurationMs / this.tickCount) * 100) / 100 : 0,
       maxTickDurationMs: this.maxTickDurationMs,
       tickCount: this.tickCount,
+      tickSlowThresholdMs: TICK_SLOW_THRESHOLD_MS,
+      commandErrorsTotal,
       commandErrors: commandErrors.slice(0, 10),
       commandErrorWindowMs: COMMAND_OPS_WINDOW_MS,
       queuesTotal,
       queuesByKind,
       queuesStuck,
+      oldestQueueAgeMs,
+      oldestQueue: oldestQueue ? { id: oldestQueue.id, type: oldestQueue.type, etaMs: oldestQueue.etaMs } : null,
       marchesActive,
       violationsTotal: this.antiCheatViolations.length,
       alerts,

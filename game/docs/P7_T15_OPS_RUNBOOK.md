@@ -1,6 +1,6 @@
 # P7-T15 — تشغيل الممالك وإدارة الحوادث (Ops Runbook)
 
-هذا المستند يرافق بند **P7-T15** من `PLAN.md`. يغطي مراقبة صحة الـ Durable Object الخاص بالمملكة (`KingdomShard`)، ومؤشرات أخطاء أوامر اللاعبين، وزمن دورة `tick`، والطوابير المتعثرة، مع إجراءات الاستجابة لكل تنبيه.
+هذا المستند يرافق بندي **P7-T15 وP7-T8** من `PLAN.md`. يغطي مراقبة صحة الـ Durable Object الخاص بالمملكة (`KingdomShard`)، ومؤشرات أخطاء أوامر اللاعبين، وزمن دورة `tick`، والطوابير المتعثرة، مع إجراءات الاستجابة لكل تنبيه.
 
 ## 1. البنية
 
@@ -20,6 +20,7 @@
 | `enabled` | `true` | تفعيل/تعطيل تسجيل أخطاء الأوامر ككل |
 | `command_error_window_ms` | `3600000` | نافذة الساعة المنزلقة لحصر أخطاء كل رمز خطأ |
 | `tick_stale_threshold_ms` | `30000` | متى يعتبر tick متعثرًا (30 ثانية بدون تحديث) |
+| `tick_slow_threshold_ms` | `1000` | متى يعتبر جسم tick بطيئًا (تنبيه `tick_slow`) |
 | `queue_stuck_threshold` | `40` | عدد الطوابير النشطة الذي يُعتبر ضغطًا |
 | `queue_stuck_age_ms` | `120000` | مدة تجاوز `etaMs` التي تجعل الطابور متعثرًا (دقيقتان) |
 | `command_alert_threshold` | `5` | عدد التكرارات داخل النافذة الذي يولّد تنبيه `command_error_X` |
@@ -30,12 +31,13 @@
 1. **`healthStatus` / `checkedAtMs`** — حالة الشارد (`starting` قبل أول tick، `healthy` بلا تنبيهات، `degraded` عند وجود تنبيه) ووقت إنشاء اللقطة.
 2. **`seasonDay` / `lastTickMs` / `tickStaleMs`** — يوم الموسم وزمن آخر دورة tick ناجحة (محدَّث بعد INSERT `world_meta` في نهاية كل tick).
 3. **`commandErrors`** — أخطاء أوامر اللاعبين خلال نافذة الساعة المنزلقة، مجمعة بالرمز، مرتبة تنازليًا، أعلى 10. تشمل: `city_not_found`, `bad_flag_coords`, `bad_structure_coords`, `unknown_structure_kind`, `alliance_structure_cap_reached`, `structure_kind_cap_reached`, `structure_too_close`, `structure_requires_alliance_territory`, `not_your_alliance`, `invalid_seconds`, `queue_not_found`, `not_your_queue`, `player_identity_mismatch`, `alliance_and_builder_required`.
-4. **`lastTickDurationMs` / `avgTickDurationMs` / `maxTickDurationMs` / `tickCount`** — زمن تنفيذ آخر دورة، ومتوسطها، وأطولها، وعدد الدورات المقاسة منذ إنشاء الشارد. تقيس هذه الحقول جسم الدورة، بينما يقيس `tickStaleMs` الزمن منذ اكتمال آخر دورة.
-5. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
-6. **`queuesStuck`** — عدد الطوابير التي بقيت `running` وتجاوزت `etaMs` بأكثر من `queue_stuck_age_ms`.
-7. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
-8. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
-9. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
+4. **`lastTickDurationMs` / `avgTickDurationMs` / `maxTickDurationMs` / `tickCount` / `tickSlowThresholdMs`** — زمن تنفيذ آخر دورة، ومتوسطها، وأطولها، وعدد الدورات المقاسة منذ إنشاء الشارد، والحد الذي يولّد `tick_slow`. تقيس هذه الحقول جسم الدورة، بينما يقيس `tickStaleMs` الزمن منذ اكتمال آخر دورة.
+5. **`commandErrorsTotal`** — مجموع أحداث أخطاء الأوامر المرئية داخل نافذة `command_error_window_ms`؛ يفصل العدد الإجمالي عن قائمة أعلى 10 رموز.
+6. **`queuesTotal` / `queuesByKind`** — عدد الطوابير النشطة (build/train/heal/research) موزعة بالنوع.
+7. **`queuesStuck` / `oldestQueueAgeMs` / `oldestQueue`** — عدد الطوابير المتعثرة، وعمر أقدم موعد ETA متجاوز، وهوية/نوع أقدم طابور (أو `null` عند عدم وجود طوابير).
+8. **`marchesActive`** — المسيرات المتحركة/الراجعة النشطة.
+9. **`violationsTotal` + آخر 10 انتهاكات anti-cheat** — للفحص الإداري.
+10. **`alerts`** — قائمة التنبيهات المشتقة (انظر القسم 3).
 
 لا تُسجل أخطاء البنية الإدارية (`auth_required`, `admin_unauthorized`, `unknown_action`, `not_found`) كأخطاء أوامر لاعب — فهي ليست مؤشرًا على سلوك اللاعبين أو على خلل في منطق اللعبة.
 
@@ -62,7 +64,13 @@
 
 **الإجراء:** عند ظهور بطء، سجّل الحقول الأربعة ثم قارنها بـ`queuesTotal` و`marchesActive`. راجع عمليات D1 داخل معالجة الطوابير والمسيرات إذا ارتفع المتوسط أو الحد الأقصى بصورة مستمرة.
 
-### 3.3 `queue_pressure`
+### 3.3 `tick_slow`
+
+**المعنى:** استغرق جسم آخر دورة tick مدة مساوية أو أكبر من `tick_slow_threshold_ms` (افتراضيًا ثانية واحدة). هذا يختلف عن `tick_stale`: الأول يقيس العمل داخل الدورة، والثاني يقيس الزمن منذ آخر دورة مكتملة.
+
+**الإجراء:** سجّل `lastTickDurationMs` و`avgTickDurationMs` و`maxTickDurationMs`، ثم قارن `oldestQueueAgeMs` و`marchesActive`. إذا استمر التنبيه، راجع عمليات D1 داخل tick وحجم الشارد قبل رفع العتبة.
+
+### 3.4 `queue_pressure`
 
 **المعنى:** عدد الطوابير النشطة (`build`/`train`/`research`/`heal`) تجاوز `queue_stuck_threshold` (افتراضيًا 40).
 
@@ -75,13 +83,13 @@
 2. قارن مع `tick_stale`: إن كان التنبيهان معًا فالسبب غالبًا tick متعثر؛ عالج `tick_stale` أولًا.
 3. إن كان الأمر نمط استغلال، راجع سجلات anti-cheat (`/v1/admin/anticheat`) واعمل على حد معدل إضافي أو مراجعة المنطق.
 
-### 3.4 `queue_stuck`
+### 3.5 `queue_stuck`
 
 **المعنى:** يوجد طابور بحالة `running` تجاوز موعده `etaMs` بأكثر من `queue_stuck_age_ms` (افتراضيًا دقيقتان).
 
 **الإجراء:** افحص `queuesStuck` و`queuesByKind`، ثم نفّذ tick إداريًا مرة واحدة. إذا بقي العدد، راجع D1 وسجلات Worker لمسار إكمال النوع المتأثر.
 
-### 3.5 `command_error_<code>`
+### 3.6 `command_error_<code>`
 
 **المعنى:** رمز خطأ محدد تكرر ≥ `command_alert_threshold` (افتراضيًا 5) مرات خلال نافذة `command_error_window_ms` (افتراضيًا ساعة).
 
