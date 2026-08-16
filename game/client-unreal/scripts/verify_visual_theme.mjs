@@ -18,6 +18,11 @@ const content = Object.fromEntries(
   await Promise.all(Object.entries(files).map(async ([name, filename]) => [name, await readFile(filename, 'utf8')]))
 );
 
+// P17: صار السطح (خلفية/بطاقة/ورقة) يأتي من `Rok2Surface`، وهي مبنية على
+// `Rok2Visual` — فالعقد نفسه محفوظ عبر طبقة واحدة إضافية. لذلك تقبل الفحوص
+// أدناه أيّ المسارين: نداء الرمز مباشرة، أو مصنع السطح الذي يستهلكه.
+// ما يبقى ممنوعاً هو اللوحة المحلية والقيمة الخام — وهذا ما تفحصه `forbidden`
+// هنا و`verify_p17_design_system.mjs` بتوسّع.
 const required = [
   ['themeHeader', /namespace Rok2Visual/, 'مساحة أسماء رموز الواجهة'],
   ['themeHeader', /FLinearColor\s*&\s*Gold\s*\(/, 'رمز الذهب'],
@@ -25,9 +30,9 @@ const required = [
   ['themeHeader', /FLinearColor\s+CivilizationAccent\s*\(/, 'رمز لهجة الحضارة'],
   ['themeSource', /CivilizationAccent/, 'تنفيذ لهجة الحضارة'],
   ['buildMenu', /#include "Rok2VisualTheme\.h"/, 'ربط قائمة البناء بالهوية'],
-  ['buildMenu', /Rok2Visual::Panel\(\)/, 'خلفية قائمة البناء الموحدة'],
+  ['buildMenu', /Rok2Visual::(Panel|Scrim)\(\)|Rok2Surface::Sheet\(\)/, 'خلفية قائمة البناء الموحدة'],
   ['buildMenu', /Rok2Visual::Gold\(\)/, 'لهجة قائمة البناء الموحدة'],
-  ['buildMenu', /Rok2Visual::Card\(\)/, 'بطاقات البناء الموحدة'],
+  ['buildMenu', /Rok2Visual::Card\(\)|Rok2Surface::Card\(\)/, 'بطاقات البناء الموحدة'],
   ['buildingDetail', /#include "Rok2VisualTheme\.h"/, 'ربط تفاصيل المبنى بالهوية'],
   ['buildingDetail', /Rok2Visual::PrimaryAction\(\)/, 'زر الترقية الموحد'],
   ['buildingDetail', /Rok2Visual::Success\(\)/, 'حالة الموارد الموحدة'],

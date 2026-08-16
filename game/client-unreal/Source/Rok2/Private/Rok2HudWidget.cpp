@@ -8,7 +8,9 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2DelegateBind.h"
 #include "Rok2Onboarding.h"
 #include "Components/TextBlock.h"
@@ -26,20 +28,18 @@
 #include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
 
-// لوحة الألوان من ui-ux-design-system.md §1
+// الألوان كلها من Rok2Visual — كانت هنا لوحة محلية `Rok2HudStyle` تعيد كتابة
+// الذهب والعاج والصامت بنفس القيم، وتعرّف Danger/Success أدكن من رموز المشروع.
 namespace Rok2HudStyle
 {
-	static const FLinearColor PanelBg(0.10f, 0.07f, 0.04f, 0.92f);      // #1A120B شبه شفاف
-	static const FLinearColor BarBg(0.08f, 0.05f, 0.03f, 0.96f);
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);                 // #C9A227
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);                // #F5E9D0
-	static const FLinearColor Danger(0.66f, 0.20f, 0.15f);               // #A93226
-	static const FLinearColor Success(0.24f, 0.49f, 0.31f);              // #3E7C4F
-	static const FLinearColor ResGreen(0.5f, 0.95f, 0.55f);
-	static const FLinearColor GemsCyan(0.45f, 0.85f, 1.0f);
-	static const FLinearColor ApPurple(0.75f, 0.55f, 1.0f);
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.9f);
-	static const FLinearColor InfoBlue(0.4f, 0.75f, 1.0f);
+	static const FLinearColor& PanelBg() { return Rok2Visual::Panel(); }
+	static const FLinearColor& BarBg()   { return Rok2Visual::Bar(); }
+	static const FLinearColor& Gold()    { return Rok2Visual::GoldText(); }
+	static const FLinearColor& Ivory()   { return Rok2Visual::Ivory(); }
+	static const FLinearColor& Danger()  { return Rok2Visual::DangerText(); }
+	static const FLinearColor& Success() { return Rok2Visual::SuccessText(); }
+	static const FLinearColor& Muted()   { return Rok2Visual::Muted(); }
+	static const FLinearColor& InfoBlue(){ return Rok2Visual::InformationText(); }
 }
 
 // P6-T1: مُنشئ UImage لأيقونة إجرائية بحجم ولون
@@ -107,7 +107,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	URok2Accessibility* A11y = URok2Accessibility::Get();
 	const FMargin Safe = URok2Accessibility::GetSafeAreaPadding();
 	UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudTopBar"));
-	Bar->SetBrushColor(Rok2HudStyle::BarBg);
+	Bar->SetBrush(Rok2Surface::TopBar());
 	// الشريط يمتد بعرض الشاشة كاملاً (الخلفية تحت النتوء مقبولة)، لكن محتواه
 	// يُزاح بالحواف الآمنة حتى لا يقع اسم الحاكم أو الجرس تحت كاميرا الهاتف.
 	Bar->SetPadding(FMargin(Safe.Left, 0.f, Safe.Right, 0.f));
@@ -122,7 +122,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 
 	// معلومات الحاكم والقوة (Avatar + Name + Power)
 	{
-		UImage* GovIcon = Rok2Icon(WidgetTree, TEXT("crown"), 20.f, Rok2HudStyle::Gold);
+		UImage* GovIcon = Rok2Icon(WidgetTree, TEXT("crown"), 20.f, Rok2HudStyle::Gold());
 		UHorizontalBoxSlot* GovIcoSlot = H->AddChildToHorizontalBox(GovIcon);
 		GovIcoSlot->SetPadding(FMargin(A11y ? A11y->GetScaledPx(12.f) : 12.f, 0, A11y ? A11y->GetScaledPx(4.f) : 4.f, 0));
 		GovIcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -130,13 +130,13 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 
 		GovernorNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GovernorNameText"));
 		GovernorNameText->SetText(FText::FromString(TEXT("الحاكم")));
-		GovernorNameText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		GovernorNameText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
 		URok2Typography::ApplyFont(GovernorNameText, ERok2TextRole::Subtitle);
 		UHorizontalBoxSlot* NameSlot = H->AddChildToHorizontalBox(GovernorNameText);
 		NameSlot->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(8.f) : 8.f, 0));
 		NameSlot->SetVerticalAlignment(VAlign_Center);
 
-		UImage* SwordIcon = Rok2Icon(WidgetTree, TEXT("sword"), 16.f, Rok2HudStyle::Gold);
+		UImage* SwordIcon = Rok2Icon(WidgetTree, TEXT("sword"), 16.f, Rok2HudStyle::Gold());
 		UHorizontalBoxSlot* SwordIcoSlot = H->AddChildToHorizontalBox(SwordIcon);
 		SwordIcoSlot->SetPadding(FMargin(A11y ? A11y->GetScaledPx(4.f) : 4.f, 0, A11y ? A11y->GetScaledPx(2.f) : 2.f, 0));
 		SwordIcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -144,7 +144,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 
 		GovernorPowerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GovernorPowerText"));
 		GovernorPowerText->SetText(FText::FromString(TEXT("1,500")));
-		GovernorPowerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		GovernorPowerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 		URok2Typography::ApplyFont(GovernorPowerText, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* PowerSlot = H->AddChildToHorizontalBox(GovernorPowerText);
 		PowerSlot->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(16.f) : 16.f, 0));
@@ -168,12 +168,12 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
 	};
 
-	AddRes(ResFoodText, TEXT("food"), Rok2HudStyle::ResGreen);
-	AddRes(ResWoodText, TEXT("wood"), FLinearColor(0.85f, 0.65f, 0.4f));
-	AddRes(ResStoneText, TEXT("stone"), FLinearColor(0.75f, 0.75f, 0.78f));
-	AddRes(ResGoldText, TEXT("gold"), Rok2HudStyle::Gold);
-	AddRes(ResGemsText, TEXT("gems"), Rok2HudStyle::GemsCyan);
-	AddRes(ResApText, TEXT("ap"), Rok2HudStyle::ApPurple);
+	AddRes(ResFoodText, TEXT("food"), Rok2Visual::ResourceFood());
+	AddRes(ResWoodText, TEXT("wood"), Rok2Visual::ResourceWood());
+	AddRes(ResStoneText, TEXT("stone"), Rok2Visual::ResourceStone());
+	AddRes(ResGoldText, TEXT("gold"), Rok2HudStyle::Gold());
+	AddRes(ResGemsText, TEXT("gems"), Rok2Visual::ResourceGems());
+	AddRes(ResApText, TEXT("ap"), Rok2Visual::ResourceActionPoints());
 
 	// فاصل
 	USpacer* Sp1 = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
@@ -182,7 +182,7 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 
 	// يوم الموسم
 	{
-		UImage* Ico = Rok2Icon(WidgetTree, TEXT("calendar"), 16.f, Rok2HudStyle::Gold);
+		UImage* Ico = Rok2Icon(WidgetTree, TEXT("calendar"), 16.f, Rok2HudStyle::Gold());
 		UHorizontalBoxSlot* IcoSlot = H->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -190,18 +190,18 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	}
 	SeasonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	SeasonText->SetText(FText::FromString(TEXT("يوم 0")));
-	SeasonText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+	SeasonText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 	URok2Typography::ApplyFont(SeasonText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(SeasonText)->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(16.f) : 16.f, 0));
 
 	ZoneTimerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	ZoneTimerText->SetText(FText::FromString(TEXT("المناطق مفتوحة")));
-	ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue));
+	ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue()));
 	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(ZoneTimerText)->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(16.f) : 16.f, 0));
 
 	// شارة الاتصال
-	ConnIcon = Rok2Icon(WidgetTree, TEXT("conn"), 14.f, Rok2HudStyle::Success);
+	ConnIcon = Rok2Icon(WidgetTree, TEXT("conn"), 14.f, Rok2HudStyle::Success());
 	{
 		UHorizontalBoxSlot* IcoSlot = H->AddChildToHorizontalBox(ConnIcon);
 		IcoSlot->SetPadding(FMargin(0, 0, 4, 0));
@@ -210,15 +210,16 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	}
 	ConnStateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	ConnStateText->SetText(FText::FromString(TEXT("متصل")));
-	ConnStateText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Success));
+	ConnStateText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Success()));
 	URok2Typography::ApplyFont(ConnStateText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(ConnStateText)->SetPadding(FMargin(0, 0, A11y ? A11y->GetScaledPx(10.f) : 10.f, 0));
 
 	UButton* BellBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	BellBtn->SetStyle(Rok2Surface::GhostButton());
 	BellBtn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBellClicked);
-	BellIcon = Rok2Icon(WidgetTree, TEXT("bell"), 18.f, Rok2HudStyle::Muted);
+	BellIcon = Rok2Icon(WidgetTree, TEXT("bell"), 18.f, Rok2HudStyle::Muted());
 	BellBtn->AddChild(BellIcon);
-	H->AddChildToHorizontalBox(BellBtn)->SetPadding(FMargin(0, 4, 4, 4));
+	H->AddChildToHorizontalBox(BellBtn)->SetPadding(FMargin(Rok2Space::None, Rok2Space::XS, Rok2Space::XS, Rok2Space::XS));
 
 	BellBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	BellBadgeText->SetText(FText::FromString(TEXT("")));
@@ -247,7 +248,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 	// زر البناء الكبير
 	{
 		UBorder* Circle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BuildCircle"));
-		Circle->SetBrushColor(FLinearColor(0.16f, 0.11f, 0.05f, 0.95f));
+		Circle->SetBrush(Rok2Surface::Circle(Rok2Visual::PrimaryAction()));
 		UCanvasPanelSlot* S = Cluster->AddChildToCanvas(Circle);
 		S->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
 		S->SetAlignment(FVector2D(1.f, 1.f));
@@ -256,9 +257,7 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 		S->SetSize(FVector2D(BuildSize, BuildSize));
 
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("BuildBtn"));
-		Btn->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.f));
-		Btn->WidgetStyle.Hovered.TintColor = FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.1f));
-		Btn->WidgetStyle.Pressed.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.2f));
+		Btn->SetStyle(Rok2Surface::GhostButton());
 		Circle->SetContent(Btn);
 		Btn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBuildClickedHandler);
 		URok2MotionLibrary::BindPress(Btn, Circle);
@@ -267,11 +266,11 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
-		UImage* Ico = Rok2Icon(WidgetTree, TEXT("build"), 40.f, Rok2HudStyle::Ivory);
+		UImage* Ico = Rok2Icon(WidgetTree, TEXT("build"), 40.f, Rok2HudStyle::Ivory());
 		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Lbl->SetText(FText::FromString(TEXT("بناء")));
-		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 		URok2Typography::ApplyFont(Lbl, ERok2TextRole::Micro);
 		Lbl->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
@@ -289,28 +288,26 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 
 	auto SpawnSmall = [&](const FString& IconId, const FString& Label, const FName Handler) {
 		UBorder* Circle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Circle->SetBrushColor(Rok2HudStyle::PanelBg);
+		Circle->SetBrush(Rok2Surface::Circle(Rok2Visual::Panel()));
 		UCanvasPanelSlot* S = Cluster->AddChildToCanvas(Circle);
 		S->SetAnchors(FAnchors(1.f, 1.f, 1.f, 1.f));
 		S->SetAlignment(FVector2D(1.f, 1.f));
-		S->SetPosition(StartPos + FVector2D(-i * (SmallD + (A11y ? A11y->GetScaledPx(8.f) : 8.f)), 0.f));
+		S->SetPosition(StartPos + FVector2D(-i * (SmallD + (A11y ? A11y->GetScaledPx(Rok2Space::S) : Rok2Space::S)), 0.f));
 		S->SetSize(FVector2D(SmallD, SmallD));
 
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-		Btn->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.f));
-		Btn->WidgetStyle.Hovered.TintColor = FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.1f));
-		Btn->WidgetStyle.Pressed.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.2f));
+		Btn->SetStyle(Rok2Surface::GhostButton());
 		Circle->SetContent(Btn);
 		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn, Circle);
 
 		UVerticalBox* V = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Btn->AddChild(V);
-		UImage* Ico = Rok2Icon(WidgetTree, IconId, 24.f, Rok2HudStyle::Ivory);
+		UImage* Ico = Rok2Icon(WidgetTree, IconId, 24.f, Rok2HudStyle::Ivory());
 		V->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 		UTextBlock* Lbl = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Lbl->SetText(FText::FromString(Label));
-		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		Lbl->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 		URok2Typography::ApplyFont(Lbl, ERok2TextRole::Micro);
 		Lbl->SetJustification(ETextJustify::Center);
 		V->AddChildToVerticalBox(Lbl)->SetHorizontalAlignment(HAlign_Center);
@@ -342,31 +339,29 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 
 	auto MakePill = [&](const FString& IconId, const FString& Label, const FName Handler) -> UBorder* {
 		UBorder* Pill = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Pill->SetBrushColor(Rok2HudStyle::PanelBg);
+		Pill->SetBrush(Rok2Surface::OutlinedPill(Rok2Visual::Panel(), Rok2Visual::Edge()));
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-		Btn->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.f));
-		Btn->WidgetStyle.Hovered.TintColor = FSlateColor(FLinearColor(1.f, 1.f, 1.f, 0.1f));
-		Btn->WidgetStyle.Pressed.TintColor = FSlateColor(FLinearColor(0.f, 0.f, 0.f, 0.2f));
+		Btn->SetStyle(Rok2Surface::GhostButton());
 		Pill->SetContent(Btn);
 		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn, Pill);
 		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Btn->AddChild(PillBox);
-		UImage* Ico = Rok2Icon(WidgetTree, IconId, 16.f, Rok2HudStyle::Ivory);
+		UImage* Ico = Rok2Icon(WidgetTree, IconId, 16.f, Rok2HudStyle::Ivory());
 		Ico->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
 		Btn->SetToolTipText(FText::FromString(Label));
 		UHorizontalBoxSlot* IcoSlot = PillBox->AddChildToHorizontalBox(Ico);
-		IcoSlot->SetPadding(FMargin(4, 2, 4, 2));
+		IcoSlot->SetPadding(FMargin(Rok2Space::S, Rok2Space::Hair, Rok2Space::XS, Rok2Space::Hair));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(Label));
-		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
 		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
 		UHorizontalBoxSlot* TxtSlot = PillBox->AddChildToHorizontalBox(T);
-		TxtSlot->SetPadding(FMargin(2, 0, 6, 0));
+		TxtSlot->SetPadding(FMargin(Rok2Space::Hair, Rok2Space::None, Rok2Space::S, Rok2Space::None));
 		TxtSlot->SetVerticalAlignment(VAlign_Center);
-		H->AddChildToHorizontalBox(Pill)->SetPadding(FMargin(0, 0, 10, 0));
+		H->AddChildToHorizontalBox(Pill)->SetPadding(FMargin(Rok2Space::None, Rok2Space::None, Rok2Space::M, Rok2Space::None));
 		return Pill;
 	};
 
@@ -378,17 +373,19 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	// زر الدردشة الحية
 	{
 		ChatButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ChatPill"));
-		ChatButton->WidgetStyle.SetNormal(FSlateNoResource());
+		// كان `SetNormal(FSlateNoResource())` وحده: حشو معدوم وبلا تحويم ولا ضغط،
+		// بينما جيرانه الأربعة في الصف نفسه تحصل على رد فعل. الآن حبّة كاملة.
+		ChatButton->SetStyle(Rok2Surface::TintedButton(Rok2Visual::Panel()));
 		UHorizontalBox* PillBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		ChatButton->AddChild(PillBox);
-		ChatIcon = Rok2Icon(WidgetTree, TEXT("bell"), 14.f, FLinearColor(0.4f, 0.7f, 1.0f));
+		ChatIcon = Rok2Icon(WidgetTree, TEXT("bell"), 14.f, Rok2Visual::InformationText());
 		UHorizontalBoxSlot* IcoSlot = PillBox->AddChildToHorizontalBox(ChatIcon);
 		IcoSlot->SetPadding(FMargin(6, 0, 4, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(TEXT("الدردشة")));
-		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		T->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
 		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
 		PillBox->AddChildToHorizontalBox(T)->SetPadding(FMargin(2, 0, 6, 0));
 		ChatBadgeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
@@ -413,7 +410,7 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 {
 	URok2Accessibility* A11y = URok2Accessibility::Get();
 	QueuesPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudQueuesPanel"));
-	QueuesPanel->SetBrushColor(Rok2HudStyle::PanelBg);
+	QueuesPanel->SetBrush(Rok2Surface::Panel());
 	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(QueuesPanel);
 	PanelSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
 	PanelSlot->SetAlignment(FVector2D(1.f, 0.f));
@@ -426,7 +423,7 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 	UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	V->AddChildToVerticalBox(TitleRow)->SetPadding(FMargin(10, 8, 10, 4));
 	{
-		UImage* Ico = Rok2Icon(WidgetTree, TEXT("hourglass"), 15.f, Rok2HudStyle::Gold);
+		UImage* Ico = Rok2Icon(WidgetTree, TEXT("hourglass"), 15.f, Rok2HudStyle::Gold());
 		UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -434,7 +431,7 @@ void URok2HudWidget::BuildQueuesPanel(UCanvasPanel* RootCanvas)
 	}
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("الطوابير")));
-	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
 	TitleRow->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
@@ -457,7 +454,7 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 {
 	URok2Accessibility* A11y = URok2Accessibility::Get();
 	NotifCenterPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HudNotifCenter"));
-	NotifCenterPanel->SetBrushColor(Rok2HudStyle::PanelBg);
+	NotifCenterPanel->SetBrush(Rok2Surface::Panel());
 	NotifCenterPanel->SetVisibility(ESlateVisibility::Collapsed);
 	UCanvasPanelSlot* PanelSlot = RootCanvas->AddChildToCanvas(NotifCenterPanel);
 	PanelSlot->SetAnchors(FAnchors(1.f, 0.f, 1.f, 0.f));
@@ -471,7 +468,7 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	UHorizontalBox* Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	V->AddChildToVerticalBox(Header)->SetPadding(FMargin(12, 10, 12, 6));
 	{
-		UImage* Ico = Rok2Icon(WidgetTree, TEXT("bell"), 16.f, Rok2HudStyle::Gold);
+		UImage* Ico = Rok2Icon(WidgetTree, TEXT("bell"), 16.f, Rok2HudStyle::Gold());
 		UHorizontalBoxSlot* IcoSlot = Header->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 6, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
@@ -479,7 +476,7 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	}
 	UTextBlock* Title = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	Title->SetText(FText::FromString(TEXT("مركز الإشعارات")));
-	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+	Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 	URok2Typography::ApplyFont(Title, ERok2TextRole::TitleCompact);
 	Header->AddChildToHorizontalBox(Title)->SetVerticalAlignment(VAlign_Center);
 
@@ -487,10 +484,11 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 	Header->AddChildToHorizontalBox(Sp)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	UButton* CloseBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+	CloseBtn->SetStyle(Rok2Surface::GhostButton());
 	CloseBtn->OnClicked.AddDynamic(this, &URok2HudWidget::OnBellClicked);
 	UTextBlock* X = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	X->SetText(FText::FromString(TEXT("✕")));
-	X->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+	X->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted()));
 	URok2Typography::ApplyFont(X, ERok2TextRole::Caption);
 	CloseBtn->AddChild(X);
 	Header->AddChildToHorizontalBox(CloseBtn)->SetVerticalAlignment(VAlign_Center);
@@ -604,12 +602,12 @@ void URok2HudWidget::UpdateSeasonAndZones()
 		if (BestDay != MAX_int32)
 		{
 			Next = FString::Printf(TEXT("Zone %d يوم %d"), BestZone, BestDay);
-			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue));
+			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::InfoBlue()));
 		}
 		else
 		{
 			Next = TEXT("المناطق مفتوحة");
-			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+			ZoneTimerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted()));
 	URok2Typography::ApplyFont(ZoneTimerText, ERok2TextRole::Caption);
 		}
 		ZoneTimerText->SetText(FText::FromString(Next));
@@ -626,7 +624,7 @@ void URok2HudWidget::UpdateQueues()
 	{
 		UTextBlock* Empty = NewObject<UTextBlock>(this);
 		Empty->SetText(FText::FromString(TEXT("لا طوابير نشطة")));
-		Empty->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted));
+		Empty->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Muted()));
 		URok2Typography::ApplyFont(Empty, ERok2TextRole::Caption);
 		QueuesBox->AddChildToVerticalBox(Empty);
 		return;
@@ -642,7 +640,7 @@ void URok2HudWidget::UpdateQueues()
 		UHorizontalBox* ItemRow = NewObject<UHorizontalBox>(this);
 		const TCHAR* IconId = Q.Type == TEXT("build") ? TEXT("build") : Q.Type == TEXT("research") ? TEXT("flask") : Q.Type == TEXT("heal") ? TEXT("cross") : TEXT("sword");
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, Rok2HudStyle::Ivory));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, Rok2HudStyle::Ivory()));
 		Ico->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
 		UHorizontalBoxSlot* IcoSlot = ItemRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
@@ -655,7 +653,7 @@ void URok2HudWidget::UpdateQueues()
 		UTextBlock* Label = NewObject<UTextBlock>(this);
 		const double RemainSec = FMath::Max(0.0, (double)(Q.EndMs - NowMs) / 1000.0);
 		Label->SetText(FText::FromString(FString::Printf(TEXT("%s Lv%d — %.0fث"), *Q.RefId, Q.Level, RemainSec)));
-		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
 		URok2Typography::ApplyFont(Label, ERok2TextRole::Micro);
 		Item->AddChildToVerticalBox(Label);
 
@@ -663,8 +661,15 @@ void URok2HudWidget::UpdateQueues()
 		const double Total = FMath::Max(1.0, (double)(Q.EndMs - Q.StartMs));
 		const float Pct = (float)FMath::Clamp((double)(NowMs - Q.StartMs) / Total, 0.0, 1.0);
 		Bar->SetPercent(Pct);
-		Bar->SetFillColorAndOpacity(Rok2HudStyle::Gold);
-		Item->AddChildToVerticalBox(Bar)->SetPadding(FMargin(0, 2, 0, 6));
+
+		// مسار حجري مستدير بدل الشريط المستطيل الافتراضي — من §4 في وثيقة الهوية.
+		FProgressBarStyle BarStyle;
+		BarStyle.SetBackgroundImage(Rok2Surface::ProgressTrack());
+		BarStyle.SetFillImage(Rok2Surface::ProgressFill(Rok2Visual::Gold()));
+		Bar->SetWidgetStyle(BarStyle);
+		Bar->SetFillColorAndOpacity(FLinearColor::White);
+
+		Item->AddChildToVerticalBox(Bar)->SetPadding(FMargin(Rok2Space::None, Rok2Space::Hair, Rok2Space::None, Rok2Space::S));
 
 		QueuesBox->AddChildToVerticalBox(ItemRow);
 	}
@@ -699,19 +704,19 @@ void URok2HudWidget::UpdateNotifications()
 	for (const FRok2HudNotification& Item : Items)
 	{
 		UBorder* Card = NewObject<UBorder>(this);
-		Card->SetBrushColor(Rok2HudStyle::PanelBg);
+		Card->SetBrush(Rok2Surface::Card());
 		Card->SetPadding(FMargin(8));
 
 		UVerticalBox* V = NewObject<UVerticalBox>(this);
 		UTextBlock* Title = NewObject<UTextBlock>(this);
 		Title->SetText(FText::FromString(Item.Title));
-		Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold));
+		Title->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 		URok2Typography::ApplyFont(Title, ERok2TextRole::Caption);
 		V->AddChildToVerticalBox(Title);
 
 		UTextBlock* Body = NewObject<UTextBlock>(this);
 		Body->SetText(FText::FromString(Item.Body));
-		Body->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory));
+		Body->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
 		URok2Typography::ApplyFont(Body, ERok2TextRole::Micro);
 		Body->SetAutoWrapText(true);
 		V->AddChildToVerticalBox(Body);
@@ -729,7 +734,7 @@ void URok2HudWidget::UpdateBellBadge()
 	if (BellIcon)
 	{
 		BellIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("bell"), 18.f,
-			Unread > 0 ? Rok2HudStyle::Gold : Rok2HudStyle::Muted));
+			Unread > 0 ? Rok2HudStyle::Gold() : Rok2HudStyle::Muted()));
 	}
 }
 

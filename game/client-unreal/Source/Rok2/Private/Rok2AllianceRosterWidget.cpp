@@ -6,10 +6,11 @@
 #include "Rok2Accessibility.h"
 #include "Rok2AllianceRallyWidget.h"
 #include "Rok2BattleReportWidget.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
-#include "Rok2CivThemes.h"
 #include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
@@ -54,13 +55,16 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		WidgetTree->RootWidget = RootCanvas;
 
 		UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-		FLinearColor PanelColor = FLinearColor(0.05f, 0.05f, 0.05f, 0.95f);
+		// اللوح من مصنع الأسطح المشترك (زوايا + حافة ذهبية)، والحافة تحمل لون
+		// الحضارة بدل صبغ الخلفية كلها — فيبقى النص مقروءاً على كل الحضارات.
 		if (Api)
 		{
-			const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Api->GetPlayer().Civ);
-			PanelColor = Theme.PanelBg;
+			MainBorder->SetBrush(Rok2Surface::AccentCard(Rok2Visual::CivilizationAccent(Api->GetPlayer().Civ)));
 		}
-		MainBorder->SetBrushColor(PanelColor);
+		else
+		{
+			MainBorder->SetBrush(Rok2Surface::Panel());
+		}
 		
 		UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
@@ -77,7 +81,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 
 		UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
 		TitleText->SetText(FText::FromString(TEXT("سجل التحالف (Alliance)")));
-		TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.8f, 0.2f)));
+		TitleText->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 		URok2Typography::ApplyFont(TitleText, ERok2TextRole::TitleCompact);
 		HeaderRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 
@@ -88,14 +92,14 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		CloseBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::RemoveFromParent);
 		UTextBlock* XTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		XTxt->SetText(FText::FromString(TEXT("✕")));
-		XTxt->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
+		XTxt->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 		URok2Typography::ApplyFont(XTxt, ERok2TextRole::Caption);
 		CloseBtn->AddChild(XTxt);
 		HeaderRow->AddChildToHorizontalBox(CloseBtn)->SetVerticalAlignment(VAlign_Center);
 
 		UTextBlock* RallyTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyTitle"));
 		RallyTitle->SetText(FText::FromString(TEXT("الراليات النشطة")));
-		RallyTitle->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
+		RallyTitle->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 		URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Subtitle);
 		VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
 
@@ -104,7 +108,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 4.f));
 
 		RallyReportsButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyReportsButton"));
-		RallyReportsButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.52f, 0.18f));
+		RallyReportsButton->SetStyle(Rok2Surface::PrimaryButton());
 		UTextBlock* RallyReportsText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RallyReportsText"));
 		RallyReportsText->SetText(FText::FromString(TEXT("تقارير الراليات والقتال")));
 		RallyReportsText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
@@ -121,7 +125,7 @@ void URok2AllianceRosterWidget::NativeConstruct()
 
 		// Help Button
 		HelpButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("HelpButton"));
-		HelpButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.8f, 0.2f));
+		HelpButton->SetStyle(Rok2Surface::SuccessButton());
 		UVerticalBoxSlot* BtnSlot = VBox->AddChildToVerticalBox(HelpButton);
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
 		BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
@@ -224,7 +228,7 @@ void URok2AllianceRosterWidget::PopulateRallies(const TArray<FRok2AllianceRally>
 	{
 		UTextBlock* EmptyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EmptyRallies"));
 		EmptyText->SetText(FText::FromString(TEXT("لا توجد راليات قيد التجميع حالياً.")));
-		EmptyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.70f, 0.75f, 0.82f)));
+		EmptyText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 		URok2Typography::ApplyFont(EmptyText, ERok2TextRole::Body);
 		RallyVBox->AddChildToVerticalBox(EmptyText)->SetPadding(FMargin(2.f, 2.f, 2.f, 8.f));
 		return;

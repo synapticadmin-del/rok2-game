@@ -1,9 +1,11 @@
-// Copyright ROK2. First-minute onboarding — guidance overlay (P6-T4).
+﻿// Copyright ROK2. First-minute onboarding — guidance overlay (P6-T4).
 
 #include "Rok2OnboardingWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 
@@ -30,10 +32,13 @@ DEFINE_LOG_CATEGORY_STATIC(LogRok2FtueUI, Log, All);
 // فلا أُمركزها هنا استطراداً.
 namespace Rok2FtueStyle
 {
-	static const FLinearColor PanelBg(0.10f, 0.07f, 0.04f, 0.94f);  // #1A120B
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);             // #C9A227
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);            // #F5E9D0
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.95f);
+	// القيم من Rok2Visual: كانت هنا نسخة رابعة من الذهب والعاج والصامت بنفس
+	// الأرقام تقريباً، فأي تعديل على الهوية كان يتطلب تعديل ستة ملفات.
+	// الأبعاد والتوقيتات أدناه تبقى محلية — فهي سلوك هذه الطبقة لا هوية المشروع.
+	static const FLinearColor PanelBg = Rok2Visual::Panel();
+	static const FLinearColor Gold = Rok2Visual::Gold();
+	static const FLinearColor Ivory = Rok2Visual::Ivory();
+	static const FLinearColor Muted = Rok2Visual::Muted();
 
 	/** عرض البطاقة — تكفي لسطرَي حكاية عربية دون أن تزحم عرض الهاتف */
 	static constexpr float CardWidth = 340.f;
@@ -56,6 +61,20 @@ namespace Rok2FtueStyle
 
 	/** دورية إعادة النبضة: 0.40s حركة + سكون يجعلها نبضاً لا رجفة */
 	static constexpr float PulseInterval = 1.1f;
+}
+
+
+TSharedRef<SWidget> URok2OnboardingWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
 }
 
 void URok2OnboardingWidget::NativeConstruct()
@@ -105,7 +124,7 @@ void URok2OnboardingWidget::BuildRing()
 	for (const FBarSpec& Spec : Bars)
 	{
 		UBorder* Bar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Bar->SetBrushColor(Rok2FtueStyle::Gold);
+		Bar->SetBrush(Rok2Surface::Pill(Rok2FtueStyle::Gold));
 		Bar->SetVisibility(ESlateVisibility::HitTestInvisible);
 
 		UCanvasPanelSlot* BarSlot = Ring->AddChildToCanvas(Bar);
@@ -210,7 +229,7 @@ void URok2OnboardingWidget::BuildCard()
 	if (!RootCanvas) return;
 
 	Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("FtueCard"));
-	Card->SetBrushColor(Rok2FtueStyle::PanelBg);
+	Card->SetBrush(Rok2Surface::Panel());
 	Card->SetPadding(FMargin(12.f, 10.f, 12.f, 12.f));
 	Card->SetVisibility(ESlateVisibility::HitTestInvisible);
 

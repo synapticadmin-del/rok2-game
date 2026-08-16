@@ -6,7 +6,9 @@
 #include "Rok2BattleReportWidget.h"
 #include "Rok2BlueprintLibrary.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2Onboarding.h"
 #include "Components/TextBlock.h"
@@ -122,7 +124,7 @@ void URok2CityWidget::NativeConstruct()
 
 		// 1. Top Bar Background (Full width across top)
 		UBorder* TopBarBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopBarBorder"));
-		TopBarBorder->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.12f, 0.92f));
+		TopBarBorder->SetBrush(Rok2Surface::TopBar());
 		TopBarBorder->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* TopSlot = RootCanvas->AddChildToCanvas(TopBarBorder);
@@ -138,7 +140,7 @@ void URok2CityWidget::NativeConstruct()
 		// Player Info — P6-T1: أيقونة حاكم إجرائية + نص
 		{
 			UImage* GovIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("GovIcon"));
-			GovIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("governor"), 18.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+			GovIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("governor"), 18.f, Rok2Visual::GoldText()));
 			GovIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
 			// P7-T7: نص بديل لأيقونة الحاكم
 			GovIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("governor")));
@@ -149,7 +151,7 @@ void URok2CityWidget::NativeConstruct()
 		}
 		PlayerInfoText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PlayerInfoText"));
 		PlayerInfoText->SetText(FText::FromString(TEXT("Governor | Power: 0")));
-		PlayerInfoText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
+		PlayerInfoText->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 		URok2Typography::ApplyFont(PlayerInfoText, ERok2TextRole::Body);
 		UHorizontalBoxSlot* InfoSlot = TopHBox->AddChildToHorizontalBox(PlayerInfoText);
 		InfoSlot->SetVerticalAlignment(VAlign_Center);
@@ -178,13 +180,13 @@ void URok2CityWidget::NativeConstruct()
 			ResWoodVal = AddResPair(TEXT("wood"), ResColor);
 			ResStoneVal = AddResPair(TEXT("stone"), ResColor);
 			ResGoldVal = AddResPair(TEXT("gold"), ResColor);
-			ResGemsVal = AddResPair(TEXT("gems"), FLinearColor(0.65f, 0.45f, 1.0f));
+			ResGemsVal = AddResPair(TEXT("gems"), Rok2Visual::ResourceActionPoints());
 			ResourcesText = ResFoodVal; // توافق خلفي — لم يعد سطراً واحداً
 		}
 
 		// Connection status badge (P1-T2) — P6-T1: أيقونة دائرة إجرائية + نص
 		ConnIcon = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("ConnIcon"));
-		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f, FLinearColor(0.4f, 1.0f, 0.5f)));
+		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f, Rok2Visual::SuccessText()));
 		ConnIcon->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
 		// P7-T7: نص بديل لأيقونة الاتصال
 		ConnIcon->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("conn")));
@@ -196,35 +198,23 @@ void URok2CityWidget::NativeConstruct()
 		}
 		ConnectionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConnectionText"));
 		ConnectionText->SetText(FText::FromString(TEXT("متصل")));
-		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
+		ConnectionText->SetColorAndOpacity(FSlateColor(Rok2Visual::SuccessText()));
 		URok2Typography::ApplyFont(ConnectionText, ERok2TextRole::Caption);
 		UHorizontalBoxSlot* ConnSlot = TopHBox->AddChildToHorizontalBox(ConnectionText);
 		ConnSlot->SetVerticalAlignment(VAlign_Center);
 		ConnSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-			// P7-T9: جلود أزرار مستوردة؛ إن لم تستورد Texture2D بعد يبقى نمط Unreal الافتراضي.
+			// P7-T9: جلود أزرار مستوردة؛ وإن غاب النسيج يسقط الزر إلى نمط المشروع.
+			// كان بناء الفرشاة ومضاعفات الحالات مكتوباً هنا، فصار في Rok2Surface
+			// كي لا تتفرّق أرقام التحويم والضغط على الملفات.
 			auto ApplyButtonSkin = [](UButton* Button, const TCHAR* SkinId) {
 				if (!Button) return;
 				const FString AssetPath = FString::Printf(TEXT("/Game/Art/UIButtons/%s.%s"), SkinId, SkinId);
 				UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *AssetPath);
-				if (!Texture) return;
-
-				auto MakeBrush = [Texture](const FLinearColor& Tint) {
-					FSlateBrush Brush;
-					Brush.SetResourceObject(Texture);
-					Brush.DrawAs = ESlateBrushDrawType::Box;
-					Brush.Margin = FMargin(0.25f);
-					Brush.ImageSize = FVector2D(128.f, 48.f);
-					Brush.TintColor = Tint;
-					return Brush;
-				};
-
-				FButtonStyle Style = Button->GetStyle();
-				Style.Normal = MakeBrush(FLinearColor::White);
-				Style.Hovered = MakeBrush(FLinearColor(1.12f, 1.12f, 1.12f, 1.f));
-				Style.Pressed = MakeBrush(FLinearColor(0.78f, 0.78f, 0.78f, 1.f));
-				Style.Disabled = MakeBrush(FLinearColor(0.42f, 0.42f, 0.42f, 0.7f));
-				Button->SetStyle(Style);
+				// عند غياب النسيج كان يعود صامتاً فيبقى الزر بنمط Unreal الرمادي —
+				// وهذا ما كان يظهر فعلاً لأن الجلود لم تكن مستوردة أصلاً.
+				// TexturedSkinButton يسقط إلى SecondaryButton عند nullptr.
+				Button->SetStyle(Rok2Surface::TexturedSkinButton(Texture));
 			};
 
 			// P6-T1: منشئ زر بأيقونة إجرائية + نص
@@ -258,7 +248,7 @@ void URok2CityWidget::NativeConstruct()
 
 		// 2. Bottom Left Panel (Buildings)
 		UBorder* LeftPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanel"));
-		LeftPanel->SetBrushColor(FLinearColor(0.04f, 0.07f, 0.14f, 0.88f));
+		LeftPanel->SetBrush(Rok2Surface::Panel());
 		LeftPanel->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* LeftSlot = RootCanvas->AddChildToCanvas(LeftPanel);
@@ -288,7 +278,7 @@ void URok2CityWidget::NativeConstruct()
 			Row->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		};
 
-		MakePanelTitle(LeftVBox, TEXT("castle"), TEXT("مباني المدينة (City Buildings)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
+		MakePanelTitle(LeftVBox, TEXT("castle"), TEXT("مباني المدينة (City Buildings)"), Rok2Visual::GoldText(), FMargin(10, 10, 10, 5));
 
 		UScrollBox* BldScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("BldScroll"));
 		LeftVBox->AddChildToVerticalBox(BldScroll)->SetPadding(FMargin(10, 0, 10, 10));
@@ -298,7 +288,7 @@ void URok2CityWidget::NativeConstruct()
 			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			BldScroll->AddChild(Row);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("hourglass"), 15.f, FLinearColor(0.2f, 0.8f, 1.0f)));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("hourglass"), 15.f, Rok2Visual::InformationText()));
 			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
 			UHorizontalBoxSlot* IcoSlot = Row->AddChildToHorizontalBox(Ico);
 			IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
@@ -306,7 +296,7 @@ void URok2CityWidget::NativeConstruct()
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* QueueTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("QueueTitle"));
 			QueueTitle->SetText(FText::FromString(TEXT("الطوابير النشطة (Active Queues)")));
-			QueueTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.8f, 1.0f)));
+			QueueTitle->SetColorAndOpacity(FSlateColor(Rok2Visual::InformationText()));
 			URok2Typography::ApplyFont(QueueTitle, ERok2TextRole::TitleCompact);
 			Row->AddChildToHorizontalBox(QueueTitle)->SetVerticalAlignment(VAlign_Center);
 		}
@@ -323,7 +313,7 @@ void URok2CityWidget::NativeConstruct()
 
 		// 3. Bottom Right Panel (Troops & Alliance)
 		UBorder* RightPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanel"));
-		RightPanel->SetBrushColor(FLinearColor(0.04f, 0.07f, 0.14f, 0.88f));
+		RightPanel->SetBrush(Rok2Surface::Panel());
 		RightPanel->SetVisibility(ESlateVisibility::Collapsed);
 
 		UCanvasPanelSlot* RightSlot = RootCanvas->AddChildToCanvas(RightPanel);
@@ -336,7 +326,7 @@ void URok2CityWidget::NativeConstruct()
 		RightPanel->SetContent(RightVBox);
 
 		// Troop Section — P6-T1: عنوان بأيقونة سيف
-		MakePanelTitle(RightVBox, TEXT("sword"), TEXT("الجيش والتدريب (Troops & Training)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
+		MakePanelTitle(RightVBox, TEXT("sword"), TEXT("الجيش والتدريب (Troops & Training)"), Rok2Visual::GoldText(), FMargin(10, 10, 10, 5));
 
 		UScrollBox* TrpScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("TrpScroll"));
 		RightVBox->AddChildToVerticalBox(TrpScroll)->SetPadding(FMargin(10, 0, 10, 5));
@@ -365,7 +355,7 @@ void URok2CityWidget::NativeConstruct()
 		TrainHBox->AddChildToHorizontalBox(TrainButton);
 
 		// Alliance Section — P6-T1: عنوان بأيقونة درع
-		MakePanelTitle(RightVBox, TEXT("shield"), TEXT("التحالف (Alliance)"), FLinearColor(1.0f, 0.84f, 0.2f), FMargin(10, 10, 10, 5));
+		MakePanelTitle(RightVBox, TEXT("shield"), TEXT("التحالف (Alliance)"), Rok2Visual::GoldText(), FMargin(10, 10, 10, 5));
 
 		UHorizontalBox* AllHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("AllHBox"));
 		RightVBox->AddChildToVerticalBox(AllHBox)->SetPadding(FMargin(10, 0, 10, 10));
@@ -444,7 +434,7 @@ void URok2CityWidget::Refresh()
 				}
 				else
 				{
-					BuildingImage->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("castle"), 24.f, FLinearColor(1.0f, 0.84f, 0.2f)));
+					BuildingImage->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("castle"), 24.f, Rok2Visual::GoldText()));
 				}
 				BuildingImage->SetDesiredSizeOverride(FVector2D(28.f, 28.f));
 				UHorizontalBoxSlot* ImageSlot = BuildingRow->AddChildToHorizontalBox(BuildingImage);
@@ -457,7 +447,7 @@ void URok2CityWidget::Refresh()
 			if (Txt)
 			{
 				Txt->SetText(FText::FromString(FString::Printf(TEXT("%s: Lv %d"), *KV.Key, KV.Value)));
-				Txt->SetColorAndOpacity(FSlateColor(FLinearColor(0.88f, 0.92f, 1.0f)));
+				Txt->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 				URok2Typography::ApplyFont(Txt, ERok2TextRole::Caption);
 				UHorizontalBoxSlot* TextSlot = BuildingRow->AddChildToHorizontalBox(Txt);
 				TextSlot->SetVerticalAlignment(VAlign_Center);
@@ -482,9 +472,9 @@ void URok2CityWidget::Refresh()
 				const bool bHealQueue = Q.Type == TEXT("healing") || Q.Type == TEXT("heal");
 				const bool bResearchQueue = Q.Type == TEXT("research");
 				const TCHAR* IconId = bBuildQueue ? TEXT("build") : (bTrainQueue ? TEXT("sword") : TEXT("hourglass"));
-				const FLinearColor QueueColor = bBuildQueue ? FLinearColor(0.20f, 0.80f, 1.00f)
-					: (bTrainQueue ? FLinearColor(1.00f, 0.70f, 0.20f)
-					: (bHealQueue ? FLinearColor(0.30f, 0.90f, 0.45f) : FLinearColor(0.72f, 0.50f, 1.00f)));
+				const FLinearColor QueueColor = bBuildQueue ? Rok2Visual::InformationText()
+					: (bTrainQueue ? Rok2Visual::GoldText()
+					: (bHealQueue ? Rok2Visual::SuccessText() : Rok2Visual::ResourceActionPoints()));
 				UImage* QIco = NewObject<UImage>(this);
 				QIco->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, QueueColor));
 				// P7-T7: نص بديل لأيقونة الطابور
@@ -668,18 +658,18 @@ void URok2CityWidget::OnConnectionState(bool bOnline, const FString& StatusMessa
 	if (ConnIcon)
 	{
 		ConnIcon->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("conn"), 14.f,
-			bOnline ? FLinearColor(0.4f, 1.0f, 0.5f) : FLinearColor(1.0f, 0.5f, 0.4f)));
+			bOnline ? Rok2Visual::SuccessText() : Rok2Visual::DangerText()));
 	}
 	if (!ConnectionText) return;
 	if (bOnline)
 	{
 		ConnectionText->SetText(FText::FromString(TEXT("متصل")));
-		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 1.0f, 0.5f)));
+		ConnectionText->SetColorAndOpacity(FSlateColor(Rok2Visual::SuccessText()));
 	}
 	else
 	{
 		ConnectionText->SetText(FText::FromString(StatusMessage));
-		ConnectionText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.5f, 0.4f)));
+		ConnectionText->SetColorAndOpacity(FSlateColor(Rok2Visual::DangerText()));
 	}
 }
 

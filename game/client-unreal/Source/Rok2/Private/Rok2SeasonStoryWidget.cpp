@@ -1,4 +1,4 @@
-// Copyright ROK2. P6-T10 — Kingdom Story season finale.
+﻿// Copyright ROK2. P6-T10 — Kingdom Story season finale.
 
 #include "Rok2SeasonStoryWidget.h"
 #include "Rok2Typography.h"
@@ -15,17 +15,33 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "Rok2Surface.h"
+#include "Rok2VisualTheme.h"
 
 namespace Rok2SeasonStory
 {
-	static const FLinearColor Ink(0.06f, 0.10f, 0.16f, 0.98f);
-	static const FLinearColor Paper(0.95f, 0.91f, 0.78f, 1.f);
-	// P7-T7: ألوان WCAG AA مقروءة فوق خلفية داكنة (الخلفية ~#0B1220):
-	// Gold يُفتح (1,0.76,0.22 يعطي تباين ~7.5:1)، Crimson وAzure وJade تُفتح لتجاوز 4.5:1
-	static const FLinearColor Gold(1.f, 0.80f, 0.34f, 1.f);
-	static const FLinearColor Azure(0.52f, 0.78f, 1.0f, 1.f);
-	static const FLinearColor Crimson(0.95f, 0.42f, 0.36f, 1.f);
-	static const FLinearColor Jade(0.40f, 0.85f, 0.58f, 1.f);
+	// نسخ النص المفتّحة (WCAG AA فوق خلفية داكنة) صارت طبقة رسمية في Rok2Visual.
+	// كانت هذه اللوحة أول من احتاجها فعرّفها محلياً، ثم كرّرها الباقون بقيم مختلفة.
+	static const FLinearColor Ink = Rok2Visual::Ink();
+	static const FLinearColor Paper = Rok2Visual::Ivory();
+	static const FLinearColor Gold = Rok2Visual::GoldText();
+	static const FLinearColor Azure = Rok2Visual::InformationText();
+	static const FLinearColor Crimson = Rok2Visual::DangerText();
+	static const FLinearColor Jade = Rok2Visual::SuccessText();
+}
+
+
+TSharedRef<SWidget> URok2SeasonStoryWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
 }
 
 void URok2SeasonStoryWidget::NativeConstruct()
@@ -40,12 +56,12 @@ void URok2SeasonStoryWidget::NativeConstruct()
 	WidgetTree->RootWidget = Root;
 
 	UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StoryBackdrop"));
-	Backdrop->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.68f));
+	Backdrop->SetBrush(Rok2Surface::Scrim());
 	UCanvasPanelSlot* BackdropSlot = Root->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 
 	UBorder* Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StoryCard"));
-	Card->SetBrushColor(Rok2SeasonStory::Ink);
+	Card->SetBrush(Rok2Surface::Panel());
 	UCanvasPanelSlot* CardSlot = Root->AddChildToCanvas(Card);
 	CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 	CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
@@ -73,7 +89,7 @@ void URok2SeasonStoryWidget::NativeConstruct()
 	Header->AddChildToHorizontalBox(Close)->SetVerticalAlignment(VAlign_Center);
 
 	ChampionCard = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ChampionCard"));
-	ChampionCard->SetBrushColor(FLinearColor(0.23f, 0.16f, 0.04f, 1.f));
+	ChampionCard->SetBrush(Rok2Surface::AccentCard(Rok2Visual::Gold()));
 	Main->AddChildToVerticalBox(ChampionCard)->SetPadding(FMargin(18.f, 4.f, 18.f, 10.f));
 	UVerticalBox* ChampionContent = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ChampionContent"));
 	ChampionCard->SetContent(ChampionContent);
@@ -160,7 +176,7 @@ void URok2SeasonStoryWidget::RebuildTimeline()
 		UTextBlock* Empty = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		Empty->SetText(FText::FromString(TEXT("لم تبدأ حكاية المملكة بعد — ستظهر هنا المناطق المفتوحة وفتوحات الممرات ومعارك العرش.")));
 		Empty->SetAutoWrapText(true);
-		Empty->SetColorAndOpacity(FSlateColor(FLinearColor(0.65f, 0.70f, 0.78f)));
+		Empty->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 		Timeline->AddChildToVerticalBox(Empty)->SetPadding(FMargin(24.f, 20.f));
 		return;
 	}
@@ -169,7 +185,7 @@ void URok2SeasonStoryWidget::RebuildTimeline()
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Timeline->AddChildToVerticalBox(Row)->SetPadding(FMargin(18.f, 5.f));
 		UBorder* Dot = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Dot->SetBrushColor(ColorFor(Event));
+		Dot->SetBrush(Rok2Surface::Pill(ColorFor(Event)));
 		Row->AddChildToHorizontalBox(Dot)->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UHorizontalBoxSlot* DotSlot = Cast<UHorizontalBoxSlot>(Dot->Slot);
 		if (DotSlot) { DotSlot->SetPadding(FMargin(0.f, 8.f, 10.f, 8.f)); DotSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic)); }

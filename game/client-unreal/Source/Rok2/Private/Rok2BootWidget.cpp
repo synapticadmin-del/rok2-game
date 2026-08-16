@@ -1,9 +1,11 @@
-// P6-T3: بطاقة الدخول تظهر بتلاشٍ + ضغطة محسوسة على أزرار الدخول والبدء.
+﻿// P6-T3: بطاقة الدخول تظهر بتلاشٍ + ضغطة محسوسة على أزرار الدخول والبدء.
 // P6-T5: نبذة الحضارة الأدبية تظهر تحت القائمة وتتبدّل مع كل اختيار.
 
 #include "Rok2BootWidget.h"
 #include "Rok2Accessibility.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2CivLore.h"
@@ -29,15 +31,16 @@
 // Rok2FtueStyle/Rok2HudStyle (الألوان بقيت مسؤولية كل ودجة في P6-T2).
 namespace Rok2BootLoreStyle
 {
-	static const FLinearColor PanelBg(0.10f, 0.07f, 0.04f, 0.92f);	// #1A120B
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);				// #C9A227
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);			// #F5E9D0
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.95f);
+	// الألوان من Rok2Visual — كانت هنا نسخة ثالثة بنفس الأرقام تقريباً.
+	static const FLinearColor PanelBg = Rok2Visual::Panel();
+	static const FLinearColor Gold = Rok2Visual::GoldText();
+	static const FLinearColor Ivory = Rok2Visual::Ivory();
+	static const FLinearColor Muted = Rok2Visual::Muted();
 
 	/** عرض النبذة داخل بطاقة الدخول (760px ناقص هامشَي 30) */
 	static constexpr float StoryWidth = 680.f;
-	static const FLinearColor ShowcaseFallback(0.05f, 0.08f, 0.13f, 1.0f);
-	static const FLinearColor ShowcaseVeil(0.02f, 0.03f, 0.06f, 0.68f);
+	static const FLinearColor ShowcaseFallback = Rok2Visual::Ink();
+	static const FLinearColor ShowcaseVeil = Rok2Visual::Scrim();
 
 	/** يحمل Texture2D مستورداً؛ يبقى التخطيط صالحاً مع لون احتياطي إن لم يُستورد المصدر بعد. */
 	static UTexture2D* LoadImportedVisual(const FString& Folder, const FString& AssetName)
@@ -62,55 +65,54 @@ void URok2BootWidget::Setup(URok2Api* InApi)
 	Api->OnPlayerLoaded.AddDynamic(this, &URok2BootWidget::OnPlayerLoaded);
 	Api->OnApiError.AddDynamic(this, &URok2BootWidget::OnApiError);
 	Api->OnConnectionState.AddDynamic(this, &URok2BootWidget::OnConnectionState);
-	// P6-T5: حمولة /v1/meta/all تصل بعد Setup عادةً، وهي التي تحمل نصّ الخادم.
 	Api->OnMetaLoaded.AddDynamic(this, &URok2BootWidget::OnMetaLoaded);
 
 	if (EnterButton)
 	{
+		EnterButton->OnClicked.RemoveAll(this);
 		EnterButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnEnterClicked);
-		URok2MotionLibrary::BindPress(EnterButton);	// P6-T3: ضغطة محسوسة
+		URok2MotionLibrary::BindPress(EnterButton);
 	}
 	if (StartButton)
 	{
+		StartButton->OnClicked.RemoveAll(this);
 		StartButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnStartClicked);
-		URok2MotionLibrary::BindPress(StartButton);	// P6-T3: ضغطة محسوسة
+		URok2MotionLibrary::BindPress(StartButton);
 	}
 	if (PreviousCivButton)
 	{
+		PreviousCivButton->OnClicked.RemoveAll(this);
 		PreviousCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnPreviousCivClicked);
 		URok2MotionLibrary::BindPress(PreviousCivButton);
 	}
 	if (NextCivButton)
 	{
+		NextCivButton->OnClicked.RemoveAll(this);
 		NextCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnNextCivClicked);
 		URok2MotionLibrary::BindPress(NextCivButton);
 	}
-
-	// Populate civ combo — P6-T5: القائمة من البيانات، والنبذة تتبع الاختيار
 	if (CivCombo)
 	{
+		CivCombo->OnSelectionChanged.RemoveAll(this);
 		CivCombo->OnSelectionChanged.AddDynamic(this, &URok2BootWidget::OnCivSelectionChanged);
-		PopulateCivCombo(FString());
+		PopulateCivCombo(TEXT("rome"));
 	}
 
-	if (Api->IsLoggedIn())
+	ShowCivVisuals(TEXT("rome"));
+	ShowLoreFor(TEXT("rome"));
+}
+
+TSharedRef<SWidget> URok2BootWidget::RebuildWidget()
+{
+	if (!WidgetTree)
 	{
-		// try direct resume
-		SetLoading(true, TEXT("جاري استعادة الجلسة"));
-		if (Api->HasPlayer())
-		{
-			OnPlayerLoaded(Api->GetPlayer());
-		}
-		else
-		{
-			Api->LoadCity();
-		}
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
 	}
-	else
+	if (!WidgetTree->RootWidget)
 	{
-		// دخول تلقائي كضيف بدأ للتو من GameMode — أظهر التحميل
-		SetLoading(true, TEXT("جاري الاتصال بالخادم"));
+		NativeConstruct();
 	}
+	return Super::RebuildWidget();
 }
 
 void URok2BootWidget::NativeConstruct()
@@ -123,34 +125,34 @@ void URok2BootWidget::NativeConstruct()
 		WidgetTree->RootWidget = RootCanvas;
 
 		UBorder* CardBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CardBorder"));
-		CardBorder->SetBrushColor(FLinearColor(0.04f, 0.07f, 0.14f, 0.94f));
+		CardBorder->SetBrush(Rok2Surface::Panel());
 
 		UCanvasPanelSlot* CardSlot = RootCanvas->AddChildToCanvas(CardBorder);
 		CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 		CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-			CardSlot->SetSize(FVector2D(800.f, 780.f));
+		URok2Accessibility* A11y = URok2Accessibility::Get();
+		CardSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(840.f) : 840.f, A11y ? A11y->GetScaledPx(680.f) : 680.f));
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
 		CardBorder->SetContent(VBox);
 
-		// Title — P6-T1: تاج إجرائي + عنوان اللعبة
+		// Title
 		{
 			UHorizontalBox* TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			UVerticalBoxSlot* TitleRowSlot = VBox->AddChildToVerticalBox(TitleRow);
 			TitleRowSlot->SetHorizontalAlignment(HAlign_Center);
-			TitleRowSlot->SetPadding(FMargin(0, 15, 0, 5));
+			TitleRowSlot->SetPadding(FMargin(0, 10, 0, 4));
 			UImage* CrownIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				CrownIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 26.f, FLinearColor(1.0f, 0.84f, 0.2f)));
-				CrownIco->SetDesiredSizeOverride(FVector2D(26.f, 26.f));
-				// P7-T7: نص بديل لأيقونة التاج
-				CrownIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("crown")));
+			CrownIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("crown"), 26.f, Rok2Visual::GoldText()));
+			CrownIco->SetDesiredSizeOverride(FVector2D(26.f, 26.f));
+			CrownIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("crown")));
 			UHorizontalBoxSlot* IcoSlot = TitleRow->AddChildToHorizontalBox(CrownIco);
 			IcoSlot->SetPadding(FMargin(0, 0, 8, 0));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
 			TitleText->SetText(FText::FromString(TEXT("ROK2 : RISE OF KINGDOMS 2")));
-			TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.2f)));
+			TitleText->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 			URok2Typography::ApplyFont(TitleText, ERok2TextRole::Display);
 			TitleRow->AddChildToHorizontalBox(TitleText)->SetVerticalAlignment(VAlign_Center);
 		}
@@ -158,24 +160,25 @@ void URok2BootWidget::NativeConstruct()
 		// Subtitle
 		UTextBlock* SubtitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubtitleText"));
 		SubtitleText->SetText(FText::FromString(TEXT("مرحباً بك يا حاكم — اختر اسمك وحضارتك لإنشاء المملكة")));
-		SubtitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.85f, 0.9f)));
+		SubtitleText->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
+		URok2Typography::ApplyFont(SubtitleText, ERok2TextRole::BodySmall);
 		UVerticalBoxSlot* SubSlot = VBox->AddChildToVerticalBox(SubtitleText);
 		SubSlot->SetHorizontalAlignment(HAlign_Center);
-		SubSlot->SetPadding(FMargin(0, 0, 0, 20));
+		SubSlot->SetPadding(FMargin(0, 0, 0, 6));
 
-		// Enter Button (Guest login) — P6-T1: أيقونة برق إجرائية + نص
+		// Enter Button (Guest login)
 		EnterButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("EnterButton"));
+		EnterButton->SetStyle(Rok2Surface::PrimaryButton());
 		{
 			UHorizontalBox* EnterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			EnterButton->AddChild(EnterBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("ap"), 16.f, FLinearColor::White));
-				Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
-				// P7-T7: نص بديل لزر الدخول السريع
-				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("ap")));
-				EnterButton->SetToolTipText(FText::FromString(TEXT("دخول سريع كضيف")));
-				UHorizontalBoxSlot* IcoSlot = EnterBox->AddChildToHorizontalBox(Ico);
-				IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("ap"), 16.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("ap")));
+			EnterButton->SetToolTipText(FText::FromString(TEXT("دخول سريع كضيف")));
+			UHorizontalBoxSlot* IcoSlot = EnterBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* EnterText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EnterText"));
@@ -186,38 +189,35 @@ void URok2BootWidget::NativeConstruct()
 		}
 
 		UVerticalBoxSlot* EnterSlot = VBox->AddChildToVerticalBox(EnterButton);
-		EnterSlot->SetPadding(FMargin(30, 10, 30, 15));
+		EnterSlot->SetPadding(FMargin(30, 4, 30, 8));
 
 		// Name Input
 		NameInput = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("NameInput"));
 		NameInput->SetHintText(FText::FromString(TEXT("اسم الحاكم (Governor Name)...")));
 		NameInput->SetText(FText::FromString(TEXT("Governor")));
 		UVerticalBoxSlot* NameSlot = VBox->AddChildToVerticalBox(NameInput);
-		NameSlot->SetPadding(FMargin(30, 5, 30, 10));
+		NameSlot->SetPadding(FMargin(30, 2, 30, 6));
 
-			// CivCombo يبقى مصدر المعرّف المتوافق مع API، لكن الاختيار الفعلي يتم
-			// من الكاروسيل البصري أدناه؛ لا نعرض Dropdown نصياً للاعب.
-			CivCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("CivCombo"));
-			UVerticalBoxSlot* CivSlot = VBox->AddChildToVerticalBox(CivCombo);
-			CivSlot->SetPadding(FMargin(0.f));
+		CivCombo = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("CivCombo"));
+		UVerticalBoxSlot* CivSlot = VBox->AddChildToVerticalBox(CivCombo);
+		CivSlot->SetPadding(FMargin(0.f));
 
-			// P7-T3: البطاقة المرئية أولاً، ثم الحكاية الأدبية التي تشرح الاختيار.
-			BuildCivShowcase(VBox);
-			BuildLorePanel(VBox);
+		BuildCivShowcase(VBox);
+		BuildLorePanel(VBox);
 
-		// Start Journey Button — P6-T1: أيقونة سيف إجرائية + نص
+		// Start Journey Button
 		StartButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartButton"));
+		StartButton->SetStyle(Rok2Surface::PrimaryButton());
 		{
 			UHorizontalBox* StartBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 			StartButton->AddChild(StartBox);
 			UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-				Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 16.f, FLinearColor::White));
-				Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
-				// P7-T7: نص بديل لزر بدء الرحلة
-				Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
-				StartButton->SetToolTipText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد")));
-				UHorizontalBoxSlot* IcoSlot = StartBox->AddChildToHorizontalBox(Ico);
-				IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 16.f, FLinearColor::White));
+			Ico->SetDesiredSizeOverride(FVector2D(16.f, 16.f));
+			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
+			StartButton->SetToolTipText(FText::FromString(TEXT("ابدأ رحلة التوسع والمجد")));
+			UHorizontalBoxSlot* IcoSlot = StartBox->AddChildToHorizontalBox(Ico);
+			IcoSlot->SetPadding(FMargin(8, 2, 5, 2));
 			IcoSlot->SetVerticalAlignment(VAlign_Center);
 			IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 			UTextBlock* StartText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartText"));
@@ -228,53 +228,78 @@ void URok2BootWidget::NativeConstruct()
 		}
 
 		UVerticalBoxSlot* StartBtnSlot = VBox->AddChildToVerticalBox(StartButton);
-		StartBtnSlot->SetPadding(FMargin(30, 5, 30, 15));
+		StartBtnSlot->SetPadding(FMargin(30, 4, 30, 10));
 
-		// --- شاشة التحميل: لوحة سفلية بنص متحرك ---
+		// Loading panel
 		LoadingPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LoadingPanel"));
-		LoadingPanel->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.10f, 1.0f));
+		LoadingPanel->SetBrush(Rok2Surface::Pill(Rok2Visual::Card()));
 		LoadingText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LoadingText"));
-		LoadingText->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.85f, 1.0f)));
+		LoadingText->SetColorAndOpacity(FSlateColor(Rok2Visual::InformationText()));
 		URok2Typography::ApplyFont(LoadingText, ERok2TextRole::BodySmall);
 		LoadingText->SetJustification(ETextJustify::Center);
 		LoadingPanel->SetContent(LoadingText);
-		LoadingPanel->SetPadding(FMargin(0, 10, 0, 10));
+		LoadingPanel->SetPadding(FMargin(0, 8, 0, 8));
 		UVerticalBoxSlot* LoadSlot = VBox->AddChildToVerticalBox(LoadingPanel);
-		LoadSlot->SetPadding(FMargin(30, 5, 30, 5));
+		LoadSlot->SetPadding(FMargin(30, 2, 30, 4));
 
-		// --- نص حالة الاتصال (أخطاء/إعادة محاولة) ---
+		// Status text
 		StatusText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusText"));
-		StatusText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.55f, 0.4f)));
+		StatusText->SetColorAndOpacity(FSlateColor(Rok2Visual::DangerText()));
 		URok2Typography::ApplyFont(StatusText, ERok2TextRole::Caption);
 		StatusText->SetJustification(ETextJustify::Center);
 		UVerticalBoxSlot* StatusSlot = VBox->AddChildToVerticalBox(StatusText);
-		StatusSlot->SetPadding(FMargin(30, 2, 30, 12));
+		StatusSlot->SetPadding(FMargin(30, 2, 30, 8));
+
+		// Bind buttons immediately upon creation
+		if (EnterButton)
+		{
+			EnterButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnEnterClicked);
+			URok2MotionLibrary::BindPress(EnterButton);
+		}
+		if (StartButton)
+		{
+			StartButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnStartClicked);
+			URok2MotionLibrary::BindPress(StartButton);
+		}
+		if (PreviousCivButton)
+		{
+			PreviousCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnPreviousCivClicked);
+			URok2MotionLibrary::BindPress(PreviousCivButton);
+		}
+		if (NextCivButton)
+		{
+			NextCivButton->OnClicked.AddDynamic(this, &URok2BootWidget::OnNextCivClicked);
+			URok2MotionLibrary::BindPress(NextCivButton);
+		}
+		if (CivCombo)
+		{
+			CivCombo->OnSelectionChanged.AddDynamic(this, &URok2BootWidget::OnCivSelectionChanged);
+		}
 
 		// Initial visibility
-		NameInput->SetVisibility(ESlateVisibility::Collapsed);
+		EnterButton->SetVisibility(ESlateVisibility::Collapsed);
+		NameInput->SetVisibility(ESlateVisibility::Visible);
 		CivCombo->SetVisibility(ESlateVisibility::Collapsed);
-		StartButton->SetVisibility(ESlateVisibility::Collapsed);
+		StartButton->SetVisibility(ESlateVisibility::Visible);
 		LoadingPanel->SetVisibility(ESlateVisibility::Collapsed);
 		StatusText->SetText(FText::GetEmpty());
-		// النبذة تُطوى مع القائمة: قبل تسجيل الدخول لا اختيار فلا نبذة
-			if (LorePanel) LorePanel->SetVisibility(ESlateVisibility::Collapsed);
-			if (CivShowcasePanel) CivShowcasePanel->SetVisibility(ESlateVisibility::Collapsed);
+		if (CivShowcasePanel) CivShowcasePanel->SetVisibility(ESlateVisibility::Visible);
+		if (LorePanel) LorePanel->SetVisibility(ESlateVisibility::Visible);
 
-		// P6-T3: أول شاشة يراها اللاعب تظهر بتلاشٍ هادئ لا ظهور مفاجئ
+		PopulateCivCombo(TEXT("rome"));
+		ShowCivVisuals(TEXT("rome"));
+		ShowLoreFor(TEXT("rome"));
+
 		URok2MotionLibrary::PlayFadeIn(CardBorder);
 	}
 }
-
-// ---------------------------------------------------------------------------
-// P7-T3: كاروسيل الحضارة — الفن يكشف الهوية، والنص يحافظ على مصدر بيانات واحد.
-// ---------------------------------------------------------------------------
 
 void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 {
 	if (!VBox || !WidgetTree) return;
 
 	CivShowcasePanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivShowcasePanel"));
-	CivShowcasePanel->SetBrushColor(Rok2BootLoreStyle::ShowcaseFallback);
+	CivShowcasePanel->SetBrush(Rok2Surface::Card());
 	CivShowcasePanel->SetPadding(FMargin(16.f));
 	VBox->AddChildToVerticalBox(CivShowcasePanel)->SetPadding(FMargin(30.f, 4.f, 30.f, 10.f));
 
@@ -286,7 +311,7 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	Layers->AddChildToOverlay(CivBackdropImage);
 
 	UBorder* Veil = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivShowcaseVeil"));
-	Veil->SetBrushColor(Rok2BootLoreStyle::ShowcaseVeil);
+	Veil->SetBrush(Rok2Surface::Scrim());
 	Layers->AddChildToOverlay(Veil);
 
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CivShowcaseContent"));
@@ -337,6 +362,7 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	NavSlot->SetHorizontalAlignment(HAlign_Center);
 	NavSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
 	PreviousCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("PreviousCivButton"));
+	PreviousCivButton->SetStyle(Rok2Surface::SecondaryButton());
 	UTextBlock* PreviousLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("PreviousCivLabel"));
 	PreviousLabel->SetText(FText::FromString(TEXT("الحضارة السابقة")));
 	URok2Typography::ApplyFont(PreviousLabel, ERok2TextRole::Button);
@@ -349,6 +375,7 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	CivNav->AddChildToHorizontalBox(CivCounterText)->SetPadding(FMargin(12.f, 6.f));
 
 	NextCivButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("NextCivButton"));
+	NextCivButton->SetStyle(Rok2Surface::SecondaryButton());
 	UTextBlock* NextLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NextCivLabel"));
 	NextLabel->SetText(FText::FromString(TEXT("الحضارة التالية")));
 	URok2Typography::ApplyFont(NextLabel, ERok2TextRole::Button);
@@ -365,7 +392,7 @@ void URok2BootWidget::BuildLorePanel(UVerticalBox* VBox)
 	if (!VBox || !WidgetTree) return;
 
 	LorePanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LorePanel"));
-	LorePanel->SetBrushColor(Rok2BootLoreStyle::PanelBg);
+	LorePanel->SetBrush(Rok2Surface::Card());
 	LorePanel->SetPadding(FMargin(12.f, 10.f, 12.f, 10.f));
 
 	UVerticalBoxSlot* PanelSlot = VBox->AddChildToVerticalBox(LorePanel);

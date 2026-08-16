@@ -1,9 +1,11 @@
-// Copyright ROK2. Commander screen widget (P5-T4) — implementation.
+﻿// Copyright ROK2. Commander screen widget (P5-T4) — implementation.
 // P6-T1: أيقونات المهارات والمعدات والأزرار إجرائية من URok2ArtAssets (بدل الإيموجي).
 // P6-T3: انتقال دخول الشاشة (تلاشٍ) + ضغطة محسوسة على أزرار الإجراءات والبطاقات.
 
 #include "Rok2CommanderWidget.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2Api.h"
 #include "Rok2CivThemes.h"
 #include "Rok2ArtAssets.h"
@@ -62,17 +64,32 @@ static UImage* MakePortraitImage(UWidgetTree* Tree, UTexture2D* Tex, float Size)
 // ---------------------------------------------------------------------------
 // ألوان الندرة (RoK)
 // ---------------------------------------------------------------------------
-static const FLinearColor COLOR_ADVANCED(0.2f, 0.7f, 0.3f);    // أخضر
-static const FLinearColor COLOR_ELITE(0.2f, 0.5f, 0.9f);       // أزرق
-static const FLinearColor COLOR_EPIC(0.6f, 0.3f, 0.8f);        // بنفسجي
-static const FLinearColor COLOR_LEGENDARY(0.95f, 0.6f, 0.1f);  // برتقالي
-static const FLinearColor COLOR_GOLD(0.79f, 0.63f, 0.15f);     // ذهبي
-static const FLinearColor COLOR_IVORY(0.96f, 0.91f, 0.82f);    // عاجي
-static const FLinearColor COLOR_BRONZE_BG(0.1f, 0.07f, 0.04f); // برونز داكن
+// سلم النُدرة والذهب والعاج من Rok2Visual. كانت هنا نسخة سادسة بقيم تختلف عن
+// بقية الشاشات بمقدار 0.01، فيبدو القائد الأسطوري بلون لا يطابق وسمه في الحانة.
+static const FLinearColor COLOR_ADVANCED = Rok2Visual::RarityTier(1);
+static const FLinearColor COLOR_ELITE = Rok2Visual::RarityTier(2);
+static const FLinearColor COLOR_EPIC = Rok2Visual::RarityTier(3);
+static const FLinearColor COLOR_LEGENDARY = Rok2Visual::RarityTier(4);
+static const FLinearColor COLOR_GOLD = Rok2Visual::GoldText();
+static const FLinearColor COLOR_IVORY = Rok2Visual::Ivory();
 
 // ---------------------------------------------------------------------------
 // NativeConstruct — يبني الهيكل الأساسي للشاشة
 // ---------------------------------------------------------------------------
+
+TSharedRef<SWidget> URok2CommanderWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2CommanderWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -95,51 +112,27 @@ void URok2CommanderWidget::BuildUI()
 
 	// P6-T7: خلفية معتمة بألوان الحضارة (تتغير حسب حضارة اللاعب)
 	UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Backdrop"));
-	Backdrop->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.5f));
+	Backdrop->SetBrush(Rok2Surface::Scrim());
 	UCanvasPanelSlot* BackdropSlot = RootPanel->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	BackdropSlot->SetOffsets(FMargin(0.f));
 
 	// اللوحة الرئيسية — خلفية حضارية بدل اللون الموحد
 	UBorder* MainSheet = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainSheet"));
-	// P6-T7: استخراج لون الخلفية من ثيم الحضارة
-	FLinearColor PanelBg = FLinearColor(0.06f, 0.05f, 0.04f, 0.92f); // افتراضي
-	if (Api)
-	{
-		const FString Civ = Api->GetPlayer().Civ;
-		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
-		PanelBg = Theme.PanelBg;
-	}
-	MainSheet->SetBrushColor(PanelBg);
+	// لوح واحد بحافة تحمل لون الحضارة. كانت ثلاث طبقات UBorder متداخلة
+	// (خلفية + إطار + خلفية داخلية) تحاكي الحافة يدوياً لأن الفرشاة المستديرة
+	// لم تكن مستعملة في الوحدة؛ الآن الحافة خاصية في الفرشاة نفسها.
+	const FString SheetCiv = Api ? Api->GetPlayer().Civ : FString();
+	MainSheet->SetBrush(Rok2Surface::AccentCard(Rok2Visual::CivilizationAccent(SheetCiv)));
 	UCanvasPanelSlot* SheetSlot = RootPanel->AddChildToCanvas(MainSheet);
 	SheetSlot->SetAnchors(FAnchors(0.05f, 0.08f, 0.95f, 0.95f));
 	SheetSlot->SetOffsets(FMargin(0.f));
 
-	// P6-T7: إطار بلون الحضارة بدل الذهب الموحد
-	MainSheet->SetPadding(FMargin(2.f));
-	UBorder* GoldFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("GoldFrame"));
-	FLinearColor FrameColor = FLinearColor(0.79f, 0.63f, 0.15f, 0.6f); // ذهبي افتراضي
-	if (Api)
-	{
-		const FString Civ = Api->GetPlayer().Civ;
-		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
-		FrameColor = Theme.PanelFrame;
-	}
-	GoldFrame->SetBrushColor(FrameColor);
-	MainSheet->SetContent(GoldFrame);
-	GoldFrame->SetPadding(FMargin(3.f));
-
-	// المحتوى الداخلي
+	MainSheet->SetPadding(FMargin(Rok2Space::M));
 	UBorder* InnerBg = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InnerBg"));
-	FLinearColor InnerBgColor = FLinearColor(0.06f, 0.05f, 0.04f, 0.95f);
-	if (Api)
-	{
-		const FString Civ = Api->GetPlayer().Civ;
-		const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
-		InnerBgColor = Theme.PanelBgAlt;
-	}
-	InnerBg->SetBrushColor(InnerBgColor);
-	GoldFrame->SetContent(InnerBg);
+	InnerBg->SetBrush(Rok2Surface::Card());
+	InnerBg->SetPadding(FMargin(Rok2Space::M));
+	MainSheet->SetContent(InnerBg);
 
 	// تقسيم أفقي: قائمة القادة (يمين) | تفاصيل القائد (يسار)
 	UHorizontalBox* MainHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MainHBox"));
@@ -239,8 +232,8 @@ void URok2CommanderWidget::BuildUI()
 	DetailXpBar->SetPercent(0.3f);
 	DetailXpBar->SetFillColorAndOpacity(COLOR_GOLD);
 	DetailXpBar->SetWidgetStyle(FProgressBarStyle()
-		.SetBackgroundImage(FSlateColorBrush(FLinearColor(0.2f, 0.2f, 0.2f, 0.5f)))
-		.SetFillImage(FSlateColorBrush(COLOR_GOLD))
+		.SetBackgroundImage(Rok2Surface::ProgressTrack())
+		.SetFillImage(Rok2Surface::ProgressFill(Rok2Visual::Gold()))
 	);
 	UVerticalBoxSlot* XpSlot = InfoBox->AddChildToVerticalBox(DetailXpBar);
 	XpSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
@@ -302,6 +295,7 @@ void URok2CommanderWidget::BuildUI()
 
 	auto MakeActionBtn = [&](const FString& IconId, const FString& Label, const FName Handler, bool bPadRight) {
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+		Btn->SetStyle(Rok2Surface::SecondaryButton());
 		Rok2BindClickByName(Btn, this, Handler);
 		URok2MotionLibrary::BindPress(Btn);	// P6-T3: ضغطة محسوسة
 		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -395,7 +389,7 @@ void URok2CommanderWidget::RefreshCommanderList()
 UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 {
 	UBorder* CardBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	CardBorder->SetBrushColor(FLinearColor(0.15f, 0.12f, 0.08f, 0.8f));
+	CardBorder->SetBrush(Rok2Surface::Card());
 	CardBorder->SetPadding(FMargin(8.f));
 
 	UHorizontalBox* CardBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -455,7 +449,8 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 
 	// الزر هو الحاوية الفعلية للبطاقة، لذلك تصل النقرة بدلاً من أن تبقى على عنصر معزول.
 	UButton* CardBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-	CardBtn->SetBackgroundColor(FLinearColor(1.f, 1.f, 1.f, 0.f));
+	// البطاقة تحته تحمل السطح؛ الزر يضيف التحويم والضغط والحالة المعطّلة.
+	CardBtn->SetStyle(Rok2Surface::GhostButton());
 	CardBtn->SetContent(CardBorder);
 	URok2MotionLibrary::BindPress(CardBtn);
 
@@ -474,7 +469,7 @@ UWidget* URok2CommanderWidget::BuildCommanderCard(const FRok2Commander& Cmd)
 UWidget* URok2CommanderWidget::BuildPortraitPlaceholder(const FString& CommanderName, const FString& Nation, float Size)
 {
 	// لون الحضارة من URok2CivThemes
-	FLinearColor CivColor = FLinearColor(0.5f, 0.5f, 0.5f);
+	FLinearColor CivColor = Rok2Visual::Muted();
 	if (URok2CivThemes* Themes = URok2CivThemes::Get())
 	{
 		const FRok2CivTheme& Theme = Themes->GetTheme(Nation);
@@ -482,18 +477,18 @@ UWidget* URok2CommanderWidget::BuildPortraitPlaceholder(const FString& Commander
 	}
 
 	UBorder* PortraitBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	PortraitBorder->SetBrushColor(CivColor);
+	PortraitBorder->SetBrush(Rok2Surface::Circle(CivColor));
 	PortraitBorder->SetPadding(FMargin(2.f));
 
 	// إطار ذهبي داخلي
 	UBorder* GoldInner = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	GoldInner->SetBrushColor(FLinearColor(COLOR_GOLD.R, COLOR_GOLD.G, COLOR_GOLD.B, 0.4f));
+	GoldInner->SetBrush(Rok2Surface::Pill(FLinearColor(COLOR_GOLD.R, COLOR_GOLD.G, COLOR_GOLD.B, 0.4f)));
 	PortraitBorder->SetContent(GoldInner);
 	GoldInner->SetPadding(FMargin(2.f));
 
 	// خلفية داكنة للنص
 	UBorder* DarkBg = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	DarkBg->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.1f, 0.9f));
+	DarkBg->SetBrush(Rok2Surface::Pill(Rok2Visual::Ink()));
 	GoldInner->SetContent(DarkBg);
 	DarkBg->SetPadding(FMargin(0.f));
 
@@ -631,7 +626,7 @@ void URok2CommanderWidget::PopulateDetailPanel(const FRok2CommanderDetailData& D
 UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skill, int32 SlotIndex)
 {
 	UBorder* SkillBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	SkillBorder->SetBrushColor(FLinearColor(0.12f, 0.1f, 0.06f, 0.7f));
+	SkillBorder->SetBrush(Rok2Surface::Card());
 	SkillBorder->SetPadding(FMargin(8.f));
 
 	UHorizontalBox* RowBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -643,17 +638,17 @@ UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skil
 	if (Skill.Type == TEXT("attack"))
 	{
 		TypeIconId = TEXT("sword");
-		TypeColor = FLinearColor(0.9f, 0.3f, 0.2f);
+		TypeColor = Rok2Visual::DangerText();
 	}
 	else if (Skill.Type == TEXT("defense"))
 	{
 		TypeIconId = TEXT("shield");
-		TypeColor = FLinearColor(0.2f, 0.5f, 0.9f);
+		TypeColor = Rok2Visual::InformationText();
 	}
 	else
 	{
 		TypeIconId = TEXT("sparkle");
-		TypeColor = FLinearColor(0.9f, 0.7f, 0.2f);
+		TypeColor = Rok2Visual::GoldText();
 	}
 
 	UImage* IconImg = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -679,7 +674,7 @@ UWidget* URok2CommanderWidget::BuildSkillRow(const FRok2CommanderSkillData& Skil
 	// وصف
 	UTextBlock* DescText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	DescText->SetText(FText::FromString(Skill.Description));
-	DescText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
+	DescText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 	URok2Typography::ApplyFont(DescText, ERok2TextRole::Caption);
 	SkillInfo->AddChildToVerticalBox(DescText);
 
@@ -696,15 +691,15 @@ UWidget* URok2CommanderWidget::BuildTalentTreeStub()
 	// 3 فروع: قتال (سيف)، دعم (درع)، حركة (أثر قدم) — P6-T1: أيقونات إجرائية
 	struct FTalentBranch { const TCHAR* Name; const TCHAR* IconId; FLinearColor Color; };
 	const TArray<FTalentBranch> Branches = {
-		{TEXT("قتال"), TEXT("sword"), FLinearColor(0.8f, 0.2f, 0.2f)},
-		{TEXT("دعم"), TEXT("shield"), FLinearColor(0.9f, 0.7f, 0.1f)},
-		{TEXT("حركة"), TEXT("move"), FLinearColor(0.2f, 0.5f, 0.9f)}
+		{TEXT("قتال"), TEXT("sword"), Rok2Visual::DangerText()},
+		{TEXT("دعم"), TEXT("shield"), Rok2Visual::GoldText()},
+		{TEXT("حركة"), TEXT("move"), Rok2Visual::InformationText()}
 	};
 
 	for (const FTalentBranch& Branch : Branches)
 	{
 		UBorder* BranchBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		BranchBorder->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.1f, 0.6f));
+		BranchBorder->SetBrush(Rok2Surface::Card());
 		BranchBorder->SetPadding(FMargin(8.f));
 		UHorizontalBoxSlot* BranchSlot = TreeBox->AddChildToHorizontalBox(BranchBorder);
 		BranchSlot->SetPadding(FMargin(0.f, 0.f, 8.f, 0.f));
@@ -760,7 +755,7 @@ UWidget* URok2CommanderWidget::BuildEquipmentSlots()
 	for (const FEquipSlot& SlotDef : SlotDefs)
 	{
 		UBorder* SlotBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		SlotBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.15f, 0.7f));
+		SlotBorder->SetBrush(Rok2Surface::Card());
 		SlotBorder->SetPadding(FMargin(6.f));
 		UHorizontalBoxSlot* SlotSlot = SlotsBox->AddChildToHorizontalBox(SlotBorder);
 		SlotSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
@@ -769,13 +764,13 @@ UWidget* URok2CommanderWidget::BuildEquipmentSlots()
 		SlotBorder->SetContent(SlotBox);
 
 		UImage* Ico = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(SlotDef.IconId, 24.f, FLinearColor(0.7f, 0.7f, 0.72f)));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(SlotDef.IconId, 24.f, Rok2Visual::Muted()));
 		Ico->SetDesiredSizeOverride(FVector2D(24.f, 24.f));
 		SlotBox->AddChildToVerticalBox(Ico)->SetHorizontalAlignment(HAlign_Center);
 
 		UTextBlock* SlotText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		SlotText->SetText(FText::FromString(SlotDef.Name));
-		SlotText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+		SlotText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 		URok2Typography::ApplyFont(SlotText, ERok2TextRole::Micro);
 		SlotText->SetJustification(ETextJustify::Center);
 		SlotBox->AddChildToVerticalBox(SlotText);

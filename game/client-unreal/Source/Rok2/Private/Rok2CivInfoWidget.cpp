@@ -1,10 +1,12 @@
-// Copyright ROK2. Civilization identity screen (P6-T5) — implementation.
+﻿// Copyright ROK2. Civilization identity screen (P6-T5) — implementation.
 
 #include "Rok2CivInfoWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2CivLore.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 
@@ -23,15 +25,15 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2CivInfo, Log, All);
 
-// ألوان الهوية من ui-ux-design-system.md §1 — محلية للملف على اصطلاح
-// Rok2CardStyle/Rok2FtueStyle.
+// الألوان من Rok2Visual؛ الأبعاد وحدها تبقى محلية. كانت هنا نسخة خامسة من
+// الذهب والعاج بنفس القيم، فتعديل الهوية كان يعني تعديل ستة ملفات.
 namespace Rok2CivInfoStyle
 {
-	static const FLinearColor SheetBg(0.10f, 0.07f, 0.04f, 0.97f);	// #1A120B
-	static const FLinearColor Gold(0.79f, 0.64f, 0.15f);				// #C9A227
-	static const FLinearColor Ivory(0.96f, 0.91f, 0.81f);			// #F5E9D0
-	static const FLinearColor Muted(0.72f, 0.68f, 0.60f, 0.92f);
-	static const FLinearColor Backdrop(0.f, 0.f, 0.f, 0.45f);
+	static const FLinearColor SheetBg = Rok2Visual::Panel();
+	static const FLinearColor Gold = Rok2Visual::GoldText();
+	static const FLinearColor Ivory = Rok2Visual::Ivory();
+	static const FLinearColor Muted = Rok2Visual::Muted();
+	static const FLinearColor Backdrop = Rok2Visual::Scrim();
 
 	/** ارتفاع اللوحة: ترويسة + 4 أسطر حكاية + تحية + 3 تلميحات */
 	static constexpr float SheetHeight = 400.f;
@@ -39,6 +41,20 @@ namespace Rok2CivInfoStyle
 	/** سماكة مقبض السحب العلوي */
 	static constexpr float HandleHeight = 4.f;
 	static constexpr float HandleWidth = 60.f;
+}
+
+
+TSharedRef<SWidget> URok2CivInfoWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
 }
 
 void URok2CivInfoWidget::NativeConstruct()
@@ -58,7 +74,7 @@ void URok2CivInfoWidget::BuildSheet(UCanvasPanel* RootCanvas)
 
 	// خلفية معتمة تُلمس للإغلاق — نفس اصطلاح بطاقة المبنى، فالإغلاق يُتعلَّم مرة
 	UButton* Backdrop = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CivInfoBackdrop"));
-	Backdrop->SetColorAndOpacity(Rok2CivInfoStyle::Backdrop);
+	Backdrop->SetColorAndOpacity(Rok2Visual::Scrim());
 	UCanvasPanelSlot* BackdropSlot = RootCanvas->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	BackdropSlot->SetSize(FVector2D(0.f, 0.f));
@@ -66,7 +82,7 @@ void URok2CivInfoWidget::BuildSheet(UCanvasPanel* RootCanvas)
 
 	// اللوحة السفلية بعرض كامل (§1 Bottom Sheet)
 	SheetBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivInfoSheet"));
-	SheetBorder->SetBrushColor(Rok2CivInfoStyle::SheetBg);
+	SheetBorder->SetBrush(Rok2Surface::Sheet());
 	SheetBorder->SetPadding(FMargin(20.f, 10.f, 20.f, 16.f));
 	UCanvasPanelSlot* SheetSlot = RootCanvas->AddChildToCanvas(SheetBorder);
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
@@ -82,7 +98,7 @@ void URok2CivInfoWidget::BuildSheet(UCanvasPanel* RootCanvas)
 	// محتوى ذي حجم يصير المقبض شريطاً بلا ارتفاع أي غير مرئي.
 	{
 		UBorder* Handle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivInfoHandle"));
-		Handle->SetBrushColor(Rok2CivInfoStyle::Gold);
+		Handle->SetBrush(Rok2Surface::SheetHandle());
 		USpacer* HandleSize = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
 		HandleSize->SetSize(FVector2D(Rok2CivInfoStyle::HandleWidth, Rok2CivInfoStyle::HandleHeight));
 		Handle->SetContent(HandleSize);

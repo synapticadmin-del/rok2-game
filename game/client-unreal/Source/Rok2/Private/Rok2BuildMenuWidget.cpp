@@ -1,4 +1,4 @@
-// Copyright ROK2. Build menu widget (P5-T3) — implementation.
+﻿// Copyright ROK2. Build menu widget (P5-T3) — implementation.
 // P6-T1: أيقونات المباني إجرائية من URok2ArtAssets (بدل الإيموجي).
 // P6-T3: الورقة تنزلق من الأسفل + ضغطة محسوسة على التبويبات وبطاقات المباني.
 
@@ -9,6 +9,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2DelegateBind.h"
+#include "Rok2Surface.h"
 #include "Rok2VisualTheme.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
@@ -59,6 +60,20 @@ void URok2BuildMenuWidget::BuildCatalog()
 	};
 }
 
+
+TSharedRef<SWidget> URok2BuildMenuWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2BuildMenuWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -71,14 +86,14 @@ void URok2BuildMenuWidget::NativeConstruct()
 
 	// خلفية معتمة للإغلاق
 	UButton* Backdrop = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-	Backdrop->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.45f));
+	Backdrop->SetColorAndOpacity(Rok2Visual::Scrim());
 	UCanvasPanelSlot* BackdropSlot = RootCanvas->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	Backdrop->OnClicked.AddDynamic(this, &URok2BuildMenuWidget::OnCloseClicked);
 
 	// الورقة السفلية
 	UBorder* Sheet = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Sheet->SetBrushColor(Rok2Visual::Panel());
+	Sheet->SetBrush(Rok2Surface::Sheet());
 	UCanvasPanelSlot* SheetSlot = RootCanvas->AddChildToCanvas(Sheet);
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
 	SheetSlot->SetAlignment(FVector2D(0.5f, 1.f));
@@ -173,7 +188,7 @@ void URok2BuildMenuWidget::FillGrid(const FString& Category)
 		if (E.Cat != Category) continue;
 
 		UBorder* Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Card->SetBrushColor(Rok2Visual::Card());
+		Card->SetBrush(Rok2Surface::Card());
 
 		UButton* Btn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		Card->SetContent(Btn);

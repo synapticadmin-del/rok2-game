@@ -1,9 +1,10 @@
-// P6-T3: تلاشي دخول الشاشة + ضغطة محسوسة على زر البحث.
+﻿// P6-T3: تلاشي دخول الشاشة + ضغطة محسوسة على زر البحث.
 
 #include "Rok2ResearchWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Surface.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -15,6 +16,20 @@
 #include "Components/Image.h"
 
 #include "Rok2Api.h"
+
+
+TSharedRef<SWidget> URok2ResearchWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
 
 void URok2ResearchWidget::NativeConstruct()
 {
@@ -37,6 +52,7 @@ void URok2ResearchWidget::NativeConstruct()
 
         // Economy Tab
         UButton* EconomyTab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("EconomyTab"));
+        EconomyTab->SetStyle(Rok2Surface::TabButton(true));
         UTextBlock* EconomyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EconomyText"));
         EconomyText->SetText(FText::FromString(TEXT("Economy")));
         EconomyTab->AddChild(EconomyText);
@@ -44,6 +60,7 @@ void URok2ResearchWidget::NativeConstruct()
 
         // Military Tab
         UButton* MilitaryTab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("MilitaryTab"));
+        MilitaryTab->SetStyle(Rok2Surface::TabButton(false));
         UTextBlock* MilitaryText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("MilitaryText"));
         MilitaryText->SetText(FText::FromString(TEXT("Military")));
         MilitaryTab->AddChild(MilitaryText);
@@ -51,6 +68,7 @@ void URok2ResearchWidget::NativeConstruct()
 
         // Defense Tab
         UButton* DefenseTab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DefenseTab"));
+        DefenseTab->SetStyle(Rok2Surface::TabButton(false));
         UTextBlock* DefenseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DefenseText"));
         DefenseText->SetText(FText::FromString(TEXT("Defense")));
         DefenseTab->AddChild(DefenseText);
@@ -69,6 +87,7 @@ void URok2ResearchWidget::NativeConstruct()
         TechItem->AddChildToHorizontalBox(TechInfo);
 
         UButton* ResearchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ResearchButton"));
+        ResearchButton->SetStyle(Rok2Surface::PrimaryButton());
         // P6-T1: زر بحث بأيقونة قارورة إجرائية + نص (بدل 🔬)
         {
             UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());

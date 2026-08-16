@@ -1,9 +1,11 @@
-// Copyright ROK2.
+﻿// Copyright ROK2.
 
 #include "Rok2AllianceRallyWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -21,6 +23,20 @@ void URok2AllianceRallyWidget::Setup(URok2Api* InApi, const FRok2AllianceRally& 
 	{
 		RefreshDisplay();
 	}
+}
+
+
+TSharedRef<SWidget> URok2AllianceRallyWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
 }
 
 void URok2AllianceRallyWidget::NativeConstruct()
@@ -47,7 +63,7 @@ void URok2AllianceRallyWidget::BuildCard()
 
 	TargetText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TargetText"));
 	TargetText->SetText(FText::FromString(FString::Printf(TEXT("رالي %s: %s"), *Rally.TargetType.ToUpper(), *Rally.TargetId)));
-	TargetText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.78f, 0.24f)));
+	TargetText->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 	URok2Typography::ApplyFont(TargetText, ERok2TextRole::Subtitle);
 	Box->AddChildToVerticalBox(TargetText)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
 
@@ -56,12 +72,12 @@ void URok2AllianceRallyWidget::BuildCard()
 	Box->AddChildToVerticalBox(StatusText)->SetPadding(FMargin(0.f, 0.f, 0.f, 2.f));
 
 	CountdownText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CountdownText"));
-	CountdownText->SetColorAndOpacity(FSlateColor(FLinearColor(0.80f, 0.88f, 0.96f)));
+	CountdownText->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 	URok2Typography::ApplyFont(CountdownText, ERok2TextRole::Body);
 	Box->AddChildToVerticalBox(CountdownText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 
 	JoinButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("JoinRallyButton"));
-	JoinButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.18f, 0.55f, 0.30f));
+	JoinButton->SetStyle(Rok2Surface::SuccessButton());
 	UTextBlock* JoinText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JoinText"));
 	JoinText->SetText(FText::FromString(TEXT("الانضمام بقوات منزلية")));
 	JoinText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
@@ -85,13 +101,14 @@ void URok2AllianceRallyWidget::RefreshDisplay()
 	StatusText->SetText(FText::FromString(State));
 	// P7-T7: لا اعتماد على اللون فقط — بادئة شكلية + ألوان WCAG AA
 	const FLinearColor StatusColor = Rally.bIsJoined
-		? FLinearColor(0.45f, 1.0f, 0.62f)   // أخضر AA فوق #0A1020
-		: (bForming ? FLinearColor(1.0f, 0.85f, 0.35f) : FLinearColor(0.72f, 0.82f, 0.95f));
+		? Rok2Visual::SuccessText()
+		: (bForming ? Rok2Visual::GoldText() : Rok2Visual::Ivory());
 	StatusText->SetColorAndOpacity(FSlateColor(StatusColor));
 	JoinButton->SetIsEnabled(bCanJoin);
 	if (CardBorder)
 	{
-		CardBorder->SetBrushColor(bForming ? FLinearColor(0.10f, 0.075f, 0.035f, 0.96f) : FLinearColor(0.06f, 0.10f, 0.15f, 0.96f));
+		// الرالي قيد التجميع يحمل حافة ذهبية تدعو للانضمام؛ المنطلق يعود بطاقة عادية.
+		CardBorder->SetBrush(bForming ? Rok2Surface::AccentCard(Rok2Visual::Gold()) : Rok2Surface::Card());
 	}
 }
 

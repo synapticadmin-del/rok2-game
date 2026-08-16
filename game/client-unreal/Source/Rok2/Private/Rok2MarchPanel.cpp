@@ -1,4 +1,4 @@
-// Copyright ROK2.
+﻿// Copyright ROK2.
 // P6-T1: أيقونات إجرائية من URok2ArtAssets في أزرار الكشافة والإرسال (بدل الإيموجي).
 // P6-T3: اللوحة تفتح من المركز + ضغطة محسوسة على الكشافة والإرسال.
 
@@ -7,6 +7,8 @@
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
+#include "Rok2Surface.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2Typography.h"
 #include "Rok2WorldRenderer.h"
 #include "Kismet/GameplayStatics.h"
@@ -25,6 +27,20 @@
 #include "Components/Image.h"
 #include "Components/ComboBoxString.h"
 
+
+TSharedRef<SWidget> URok2MarchPanel::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2MarchPanel::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -40,7 +56,7 @@ void URok2MarchPanel::NativeConstruct()
 		WidgetTree->RootWidget = RootCanvas;
 
 		UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-		MainBorder->SetBrushColor(FLinearColor(0.05f, 0.05f, 0.05f, 0.9f));
+		MainBorder->SetBrush(Rok2Surface::Panel());
 		
 		UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 		BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
@@ -53,7 +69,7 @@ void URok2MarchPanel::NativeConstruct()
 		// Title
 		TargetNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TargetNameText"));
 		TargetNameText->SetText(FText::FromString(TargetName.IsEmpty() ? TargetType : TargetName));
-		TargetNameText->SetColorAndOpacity(FSlateColor(FLinearColor(1.f, 0.8f, 0.2f)));
+		TargetNameText->SetColorAndOpacity(FSlateColor(Rok2Visual::GoldText()));
 		URok2Typography::ApplyFont(TargetNameText, ERok2TextRole::Display);
 		UVerticalBoxSlot* TitleSlot = VBox->AddChildToVerticalBox(TargetNameText);
 		TitleSlot->SetPadding(FMargin(20.f, 20.f, 20.f, 10.f));
@@ -81,7 +97,7 @@ void URok2MarchPanel::NativeConstruct()
 			MarchAvailabilityText->SetText(FText::FromString(bCanDispatch
 				? FString::Printf(TEXT("المسيرات: %d / %d · تكبير تكتيكي جاهز"), ActiveMarches, MarchCapacity)
 				: FString::Printf(TEXT("المسيرات: %d / %d · قرّب الخريطة أو حرّر مسيرة"), ActiveMarches, MarchCapacity)));
-			MarchAvailabilityText->SetColorAndOpacity(FSlateColor(bCanDispatch ? FLinearColor(0.35f, 0.95f, 0.55f) : FLinearColor(1.0f, 0.65f, 0.25f)));
+			MarchAvailabilityText->SetColorAndOpacity(FSlateColor(bCanDispatch ? Rok2Visual::SuccessText() : Rok2Visual::GoldText()));
 			UVerticalBoxSlot* AvailabilitySlot = VBox->AddChildToVerticalBox(MarchAvailabilityText);
 			AvailabilitySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 14.f));
 			AvailabilitySlot->SetHorizontalAlignment(HAlign_Center);
@@ -141,7 +157,7 @@ void URok2MarchPanel::NativeConstruct()
 			// إعادة التوجيه تختار مسيرة شخصية حية فقط؛ الخادم يعيد التحقق عند التنفيذ.
 			UTextBlock* RedirectLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectLabel"));
 			RedirectLabel->SetText(FText::FromString(TEXT("إعادة توجيه جيش متحرك")));
-			RedirectLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.82f, 1.f)));
+			RedirectLabel->SetColorAndOpacity(FSlateColor(Rok2Visual::InformationText()));
 			URok2Typography::ApplyFont(RedirectLabel, ERok2TextRole::Subtitle);
 			UVerticalBoxSlot* RedirectLabelSlot = VBox->AddChildToVerticalBox(RedirectLabel);
 			RedirectLabelSlot->SetPadding(FMargin(20.f, 12.f, 20.f, 4.f));
@@ -177,7 +193,7 @@ void URok2MarchPanel::NativeConstruct()
 
 		// P5-T5: زر استكشاف (يرسل كشافة بدون قوات) — P6-T1: أيقونة منظار إجرائية
 		UButton* ScoutButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ScoutButton"));
-		ScoutButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.5f, 0.8f));
+		ScoutButton->SetStyle(Rok2Surface::TintedButton(Rok2Visual::Information()));
 		UVerticalBoxSlot* ScoutSlot = VBox->AddChildToVerticalBox(ScoutButton);
 		ScoutSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 10.f));
 
@@ -207,7 +223,7 @@ void URok2MarchPanel::NativeConstruct()
 			if (bRallyTarget)
 			{
 				RallyButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RallyButton"));
-				RallyButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.72f, 0.42f, 0.10f));
+				RallyButton->SetStyle(Rok2Surface::PrimaryButton());
 				UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyButton);
 				RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 10.f));
 				UHorizontalBox* RallyBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -229,7 +245,7 @@ void URok2MarchPanel::NativeConstruct()
 			}
 
 				RedirectButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("RedirectButton"));
-				RedirectButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.15f, 0.47f, 0.72f));
+				RedirectButton->SetStyle(Rok2Surface::TintedButton(Rok2Visual::Information()));
 				UVerticalBoxSlot* RedirectButtonSlot = VBox->AddChildToVerticalBox(RedirectButton);
 				RedirectButtonSlot->SetPadding(FMargin(20.f, 0.f, 20.f, 8.f));
 				UTextBlock* RedirectText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("RedirectText"));
@@ -241,7 +257,7 @@ void URok2MarchPanel::NativeConstruct()
 			RedirectButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("redirect")));
 
 				DispatchButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DispatchButton"));
-		DispatchButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f));
+		DispatchButton->SetStyle(Rok2Surface::DangerButton());
 		UVerticalBoxSlot* BtnSlot = VBox->AddChildToVerticalBox(DispatchButton);
 		BtnSlot->SetPadding(FMargin(20.f, 10.f, 20.f, 20.f));
 		BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));

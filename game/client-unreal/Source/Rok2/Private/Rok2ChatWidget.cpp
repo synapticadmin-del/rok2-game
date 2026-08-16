@@ -1,10 +1,12 @@
-// Copyright ROK2. P6-T6: دردشة حية — قناتا المملكة والتحالف.
+﻿// Copyright ROK2. P6-T6: دردشة حية — قناتا المملكة والتحالف.
 // الودجة تُبنى بالكامل في الكود (لا Blueprint assets) — نفس نمط HUD و AllianceRoster.
 
 #include "Rok2ChatWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
+#include "Rok2Surface.h"
 #include "Rok2Typography.h"
+#include "Rok2VisualTheme.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -22,16 +24,26 @@
 #include "Components/Image.h"
 #include "Components/Spacer.h"
 
-// ألوان الحضارات الست
+// لون الحضارة من رمز المشروع المشترك. كانت هنا لوحة سابعة بقيم لا تطابق
+// Rok2Visual::CivilizationAccent، فيظهر اسم اللاعب في الدردشة بلون مختلف عن
+// لون حضارته في كل شاشة أخرى.
 FLinearColor URok2ChatWidget::GetCivColor(const FString& Civ)
 {
-	if (Civ == TEXT("rome"))       return FLinearColor(0.9f, 0.2f, 0.2f);
-	if (Civ == TEXT("china"))      return FLinearColor(1.0f, 0.85f, 0.0f);
-	if (Civ == TEXT("arabia"))     return FLinearColor(0.1f, 0.8f, 0.3f);
-	if (Civ == TEXT("egypt"))      return FLinearColor(0.9f, 0.7f, 0.1f);
-	if (Civ == TEXT("vikings"))    return FLinearColor(0.4f, 0.6f, 0.9f);
-	if (Civ == TEXT("japan"))      return FLinearColor(0.9f, 0.3f, 0.5f);
-	return FLinearColor(0.7f, 0.7f, 0.7f);
+	return Rok2Visual::CivilizationAccent(Civ);
+}
+
+
+TSharedRef<SWidget> URok2ChatWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
 }
 
 void URok2ChatWidget::NativeConstruct()
@@ -66,7 +78,7 @@ void URok2ChatWidget::BuildWidgetTree()
 
 	// اللوحة الرئيسية — شبه شفافة في أسفل اليسار
 	UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-	MainBorder->SetBrushColor(FLinearColor(0.03f, 0.03f, 0.08f, 0.92f));
+	MainBorder->SetBrush(Rok2Surface::Panel());
 	UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
 	BorderSlot->SetAnchors(FAnchors(0.f, 1.f, 0.f, 1.f));
 	BorderSlot->SetAlignment(FVector2D(0.f, 1.f));
@@ -82,7 +94,7 @@ void URok2ChatWidget::BuildWidgetTree()
 	HeaderSlot->SetPadding(FMargin(6.f, 4.f, 6.f, 2.f));
 
 	KingdomTab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("KingdomTab"));
-	KingdomTab->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.6f, 0.9f));
+	KingdomTab->SetStyle(Rok2Surface::TabButton(true));
 	{
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(TEXT("المملكة")));
@@ -96,7 +108,7 @@ void URok2ChatWidget::BuildWidgetTree()
 	KTabSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	AllianceTab = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AllianceTab"));
-	AllianceTab->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.4f, 0.4f, 0.4f));
+	AllianceTab->SetStyle(Rok2Surface::TabButton(false));
 	{
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(TEXT("التحالف")));
@@ -111,18 +123,16 @@ void URok2ChatWidget::BuildWidgetTree()
 
 	UnreadBadge = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UnreadBadge"));
 	UnreadBadge->SetText(FText::FromString(TEXT("")));
-	UnreadBadge->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.45f, 0.40f))); // AA فوق الخلفية الداكنة
+	UnreadBadge->SetColorAndOpacity(FSlateColor(Rok2Visual::DangerText()));
 	URok2Typography::ApplyFont(UnreadBadge, ERok2TextRole::Button);
-	// P7-T7: نص بديل للأيقونات التفاعلية
-	MinimizeButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("minimize")));
-	SendButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("send")));
 	UHorizontalBoxSlot* BadgeSlot = HeaderBox->AddChildToHorizontalBox(UnreadBadge);
-	BadgeSlot->SetPadding(FMargin(4.f, 0.f));
+	BadgeSlot->SetPadding(FMargin(Rok2Space::XS, Rok2Space::None));
 	BadgeSlot->SetVerticalAlignment(VAlign_Center);
 	BadgeSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 	MinimizeButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("MinimizeButton"));
-	MinimizeButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.3f, 0.3f, 0.3f));
+	MinimizeButton->SetStyle(Rok2Surface::SecondaryButton());
+	MinimizeButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("minimize")));
 	{
 		UTextBlock* T = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		T->SetText(FText::FromString(TEXT("_")));
@@ -150,14 +160,16 @@ void URok2ChatWidget::BuildWidgetTree()
 
 	InputField = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("InputField"));
 	InputField->SetHintText(FText::FromString(TEXT("اكتب رسالة...")));
-	InputField->WidgetStyle.BackgroundColor = FSlateColor(FLinearColor(0.15f, 0.15f, 0.2f));
+	InputField->WidgetStyle.SetBackgroundImageNormal(Rok2Surface::Card());
+	InputField->WidgetStyle.SetForegroundColor(Rok2Visual::Ivory());
 	InputField->OnTextCommitted.AddDynamic(this, &URok2ChatWidget::OnInputTextCommitted);
 	UHorizontalBoxSlot* FieldSlot = InputBar->AddChildToHorizontalBox(InputField);
 	FieldSlot->SetPadding(FMargin(2.f));
 	FieldSlot->Size.SizeRule = ESlateSizeRule::Fill;
 
 	SendButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SendButton"));
-	SendButton->WidgetStyle.Normal.TintColor = FSlateColor(FLinearColor(0.2f, 0.7f, 0.3f));
+	SendButton->SetStyle(Rok2Surface::SuccessButton());
+	SendButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("send")));
 	{
 		// أيقونة سهم إجرائية
 		UImage* Arrow = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
@@ -211,10 +223,10 @@ void URok2ChatWidget::OnMinimizeClicked()
 void URok2ChatWidget::SwitchChannel(const FString& NewChannel)
 {
 	ActiveChannel = NewChannel;
-	if (KingdomTab) KingdomTab->WidgetStyle.Normal.TintColor = FSlateColor(
-		NewChannel == TEXT("kingdom") ? FLinearColor(0.2f, 0.6f, 0.9f) : FLinearColor(0.4f, 0.4f, 0.4f));
-	if (AllianceTab) AllianceTab->WidgetStyle.Normal.TintColor = FSlateColor(
-		NewChannel == TEXT("alliance") ? FLinearColor(0.2f, 0.6f, 0.9f) : FLinearColor(0.4f, 0.4f, 0.4f));
+	// النمط الكامل (أربع حالات) لا لون Normal وحده — التبويب الخامل كان يفقد
+	// رد فعل التحويم والضغط لأن ضبط TintColor يمسّ الحالة العادية فقط.
+	if (KingdomTab) KingdomTab->SetStyle(Rok2Surface::TabButton(NewChannel == TEXT("kingdom")));
+	if (AllianceTab) AllianceTab->SetStyle(Rok2Surface::TabButton(NewChannel == TEXT("alliance")));
 
 	// إعادة بناء القائمة للقناة الجديدة
 	if (MessageVBox) MessageVBox->ClearChildren();
@@ -238,7 +250,7 @@ void URok2ChatWidget::AddMessageBubble(const FRok2ChatMessage& Msg)
 	if (!MessageVBox || !WidgetTree) return;
 
 	UBorder* Bubble = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Bubble->SetBrushColor(FLinearColor(0.12f, 0.12f, 0.18f, 0.8f));
+	Bubble->SetBrush(Rok2Surface::Card());
 
 	UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Bubble->AddChild(VBox);
@@ -255,7 +267,7 @@ void URok2ChatWidget::AddMessageBubble(const FRok2ChatMessage& Msg)
 	// نص الرسالة
 	UTextBlock* BodyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	BodyText->SetText(FText::FromString(Msg.Text));
-	BodyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.9f, 0.9f)));
+	BodyText->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
 	BodyText->SetAutoWrapText(true);
 	URok2Typography::ApplyFont(BodyText, ERok2TextRole::Body);
 	UVerticalBoxSlot* BodySlot = VBox->AddChildToVerticalBox(BodyText);
@@ -265,7 +277,7 @@ void URok2ChatWidget::AddMessageBubble(const FRok2ChatMessage& Msg)
 	UTextBlock* TimeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 	FDateTime MsgTime = FDateTime::FromUnixTimestamp(Msg.TimestampMs / 1000);
 	TimeText->SetText(FText::FromString(MsgTime.ToString(TEXT("%H:%M"))));
-	TimeText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f)));
+	TimeText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 	URok2Typography::ApplyFont(TimeText, ERok2TextRole::Caption);
 	UVerticalBoxSlot* TimeSlot = VBox->AddChildToVerticalBox(TimeText);
 	TimeSlot->SetPadding(FMargin(8.f, 0.f, 8.f, 4.f));

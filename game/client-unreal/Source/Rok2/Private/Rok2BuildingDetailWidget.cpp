@@ -1,4 +1,4 @@
-// Copyright ROK2. Building card — Bottom Sheet implementation (P5-T3).
+﻿// Copyright ROK2. Building card — Bottom Sheet implementation (P5-T3).
 // P6-T1: أيقونات إجرائية من URok2ArtAssets بدل الإيموجي في العناوين والأزرار.
 // P6-T3: حركة الدخول والضغطات من URok2MotionLibrary (بدل انزلاق محلي في Tick).
 
@@ -9,6 +9,7 @@
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2DelegateBind.h"
+#include "Rok2Surface.h"
 #include "Rok2VisualTheme.h"
 #include "Rok2CityLayoutActor.h"
 #include "Rok2BuildingActor.h"
@@ -129,6 +130,20 @@ FString URok2BuildingDetailWidget::ActionIconForBuilding(const FString& Id) cons
 	return TEXT("");
 }
 
+
+TSharedRef<SWidget> URok2BuildingDetailWidget::RebuildWidget()
+{
+	if (!WidgetTree)
+	{
+		WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+	}
+	if (!WidgetTree->RootWidget)
+	{
+		NativeConstruct();
+	}
+	return Super::RebuildWidget();
+}
+
 void URok2BuildingDetailWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -139,7 +154,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	// خلفية معتمة خفيفة خلف البطاقة (تلمس للإغلاق)
 	UButton* Backdrop = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("Backdrop"));
-	Backdrop->SetColorAndOpacity(FLinearColor(0.f, 0.f, 0.f, 0.45f));
+	Backdrop->SetColorAndOpacity(Rok2Visual::Scrim());
 	UCanvasPanelSlot* BackdropSlot = RootCanvas->AddChildToCanvas(Backdrop);
 	BackdropSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 	BackdropSlot->SetSize(FVector2D(0.f, 0.f));
@@ -147,7 +162,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	// البطاقة — Bottom Sheet بعرض كامل أسفل الشاشة
 	SheetBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SheetBorder"));
-	SheetBorder->SetBrushColor(Rok2Visual::Panel());
+	SheetBorder->SetBrush(Rok2Surface::Sheet());
 	UCanvasPanelSlot* SheetSlot = RootCanvas->AddChildToCanvas(SheetBorder);
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
 	SheetSlot->SetAlignment(FVector2D(0.5f, 1.f));
@@ -159,7 +174,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 
 	// مقبض السحب العلوي (شريط صغير)
 	UBorder* Handle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Handle->SetBrushColor(Rok2Visual::Gold());
+	Handle->SetBrush(Rok2Surface::SheetHandle());
 	UVerticalBoxSlot* HandleSlot = VBox->AddChildToVerticalBox(Handle);
 	HandleSlot->SetHorizontalAlignment(HAlign_Center);
 	HandleSlot->SetPadding(FMargin(0, 8, 0, 4));
@@ -241,7 +256,7 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	// P6-T1: كل زر = أيقونة إجرائية + نص
 	auto MakeBtn = [&](UButton*& OutBtn, UTextBlock*& OutTxt, UImage*& OutIco, const FString& IconId, const FString& Label, FLinearColor Bg, const FName Handler) {
 		UBorder* B = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		B->SetBrushColor(Bg);
+		B->SetBrush(Rok2Surface::Pill(Bg));
 		OutBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
 		B->SetContent(OutBtn);
 		UHorizontalBox* BtnBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());

@@ -21,14 +21,13 @@
 #include "Components/ScrollBox.h"
 #include "Components/Image.h"
 #include "Blueprint/WidgetTree.h"
+#include "Rok2Surface.h"
+#include "Rok2VisualTheme.h"
 
-static FLinearColor Rok2Gold() { return FLinearColor(1.0f, 0.84f, 0.2f); }
-// P6-T7: ألوان اللوحة تختلف حسب الحضارة
-static FLinearColor Rok2Panel(const FString& Civ = TEXT(""))
-{
-	const FRok2CivTheme& Theme = URok2CivThemes::Get()->GetTheme(Civ);
-	return Theme.PanelBg;
-}
+// الذهب النصّي من رمز المشروع. كان هنا `Rok2Gold()` محلياً بقيمة ثالثة لا
+// تطابق Rok2Visual، و`Rok2Panel()` يصبغ خلفية اللوحة بلون الحضارة فيهبط تباين
+// النص على الحضارات الداكنة — صار لون الحضارة على الحافة لا على الخلفية.
+static FLinearColor Rok2Gold() { return Rok2Visual::GoldText(); }
 
 void URok2BattleReportWidget::Setup(URok2Api* InApi)
 {
@@ -66,7 +65,7 @@ void URok2BattleReportWidget::NativeConstruct()
 
 		// خلفية شبه شفافة تغطي الشاشة
 		UBorder* Backdrop = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Backdrop"));
-		Backdrop->SetBrushColor(FLinearColor(0.f, 0.f, 0.f, 0.55f));
+		Backdrop->SetBrush(Rok2Surface::Scrim());
 		UCanvasPanelSlot* BdSlot = RootCanvas->AddChildToCanvas(Backdrop);
 		BdSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
 
@@ -74,7 +73,7 @@ void URok2BattleReportWidget::NativeConstruct()
 		UBorder* Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Card"));
 		FString Civ;
 		if (Api) Civ = Api->GetPlayer().Civ;
-		Card->SetBrushColor(Rok2Panel(Civ));
+		Card->SetBrush(Rok2Surface::AccentCard(Rok2Visual::CivilizationAccent(Civ)));
 		URok2Accessibility* A11y = URok2Accessibility::Get();
 		UCanvasPanelSlot* CardSlot = RootCanvas->AddChildToCanvas(Card);
 		CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
@@ -109,6 +108,7 @@ void URok2BattleReportWidget::NativeConstruct()
 		TitleSlot->SetVerticalAlignment(VAlign_Center);
 
 		UButton* CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+		CloseButton->SetStyle(Rok2Surface::SecondaryButton());
 		// P6-T1: زر إغلاق بأيقونة × إجرائية + نص
 		{
 			UHorizontalBox* CloseBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -149,7 +149,7 @@ void URok2BattleReportWidget::NativeConstruct()
 
 		// لوحة التفاصيل (شمال)
 		UBorder* DetailBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DetailBorder"));
-		DetailBorder->SetBrushColor(FLinearColor(0.02f, 0.05f, 0.10f, 1.0f));
+		DetailBorder->SetBrush(Rok2Surface::Card());
 		UHorizontalBoxSlot* DetailSlot = BodyHBox->AddChildToHorizontalBox(DetailBorder);
 		DetailSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
@@ -161,7 +161,7 @@ void URok2BattleReportWidget::NativeConstruct()
 
 		UTextBlock* Hint = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
 		Hint->SetText(FText::FromString(TEXT("اختر تقريراً من القائمة لعرض تفاصيل الخسائر")));
-		Hint->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.65f, 0.7f)));
+		Hint->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 		DetailPanel->AddChildToVerticalBox(Hint)->SetPadding(FMargin(12, 12, 12, 0));
 
 		// P6-T3: النافذة تفتح من المركز، والخلفية المعتمة تتلاشى معها
@@ -186,7 +186,7 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 	{
 		UTextBlock* Empty = NewObject<UTextBlock>(this);
 		Empty->SetText(FText::FromString(TEXT("لا توجد تقارير قتال بعد — هاجم ممراً أو معسكر برابرة لتبدأ سجل المعارك")));
-		Empty->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.65f, 0.7f)));
+		Empty->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
 		Empty->SetAutoWrapText(true);
 		ReportList->AddChildToVerticalBox(Empty)->SetPadding(FMargin(6, 6, 6, 6));
 		return;
@@ -205,22 +205,24 @@ void URok2BattleReportWidget::RebuildList(const TArray<FRok2BattleReport>& Repor
 		if (R.Winner == TEXT("draw"))
 		{
 			ResultIconId = TEXT("handshake");
-			ResultColor = FLinearColor(0.9f, 0.8f, 0.3f);
+			ResultColor = Rok2Visual::GoldText();
 		}
 		else if ((R.Winner == TEXT("attacker")) == bMine)
 		{
 			ResultIconId = TEXT("trophy");
-			ResultColor = FLinearColor(0.3f, 0.9f, 0.4f);
+			ResultColor = Rok2Visual::SuccessText();
 		}
 		else
 		{
 			ResultIconId = TEXT("skull");
-			ResultColor = FLinearColor(0.95f, 0.35f, 0.3f);
+			ResultColor = Rok2Visual::DangerText();
 		}
 
 		const FDateTime Dt = FDateTime::FromUnixTimestamp(R.CreatedAt / 1000);
 
 		UButton* Row = NewObject<UButton>(this);
+		// صف القائمة زر: بلا نمط كان يورث Slate الرمادي فلا يُقرأ كصف قابل للنقر.
+		Row->SetStyle(Rok2Surface::GhostButton());
 		UHorizontalBox* RowBox = NewObject<UHorizontalBox>(this);
 		Row->AddChild(RowBox);
 
@@ -314,13 +316,13 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	// القوة قبل المعركة
 	AddLine(FString::Printf(TEXT("القوة قبل المعركة — مهاجم: %d · مدافع: %d"),
 		R.Attacker.PowerBefore, R.Defender.PowerBefore),
-		FLinearColor(0.8f, 0.85f, 0.9f), ERok2TextRole::BodySmall, FMargin(12, 8, 12, 0));
+		Rok2Visual::Ivory(), ERok2TextRole::BodySmall, FMargin(Rok2Space::M, Rok2Space::S, Rok2Space::M, Rok2Space::None));
 
 	// المهاجم (أيقونة سيف حمراء)
 	{
 		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 15.f, FLinearColor(0.95f, 0.45f, 0.4f)));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("sword"), 15.f, Rok2Visual::DangerText()));
 			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
 			// P7-T7: نص بديل لأيقونة المهاجم
 			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("sword")));
@@ -330,7 +332,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(TEXT("المهاجم")));
-		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.45f, 0.4f)));
+		T->SetColorAndOpacity(FSlateColor(Rok2Visual::DangerText()));
 		URok2Typography::ApplyFont(T, ERok2TextRole::Subtitle);
 		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
@@ -341,7 +343,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	{
 		UHorizontalBox* SideRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("shield"), 15.f, FLinearColor(0.45f, 0.65f, 1.0f)));
+			Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("shield"), 15.f, Rok2Visual::InformationText()));
 			Ico->SetDesiredSizeOverride(FVector2D(15.f, 15.f));
 			// P7-T7: نص بديل لأيقونة المدافع
 			Ico->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("shield")));
@@ -351,7 +353,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(TEXT("المدافع")));
-		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.45f, 0.65f, 1.0f)));
+		T->SetColorAndOpacity(FSlateColor(Rok2Visual::InformationText()));
 		URok2Typography::ApplyFont(T, ERok2TextRole::Subtitle);
 		SideRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);
 		DetailPanel->AddChildToVerticalBox(SideRow)->SetPadding(FMargin(12, 14, 12, 2));
@@ -362,7 +364,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	if (!R.RallyId.IsEmpty())
 	{
 		AddLine(FString::Printf(TEXT("نتيجة رالي التحالف · %d مشاركين"), R.RallyParticipants.Num()),
-			FLinearColor(0.95f, 0.78f, 0.30f), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
+			Rok2Visual::GoldText(), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
 		const FString MyId = Api ? Api->GetPlayer().Id : FString();
 		auto TotalOf = [](const TArray<FRok2TroopLoss>& Units)
 		{
@@ -378,20 +380,20 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 			AddLine(FString::Printf(TEXT("%s — أرسل %d · عاد %d · خسر %d · قتلى %d · مستشفى %d"),
 				*MemberName, TotalOf(Participant.Committed), TotalOf(Participant.Remaining),
 				TotalOf(Participant.Losses), TotalOf(Participant.Dead), HospitalTotal),
-				bIsMe ? FLinearColor(0.45f, 0.9f, 0.75f) : FLinearColor(0.82f, 0.85f, 0.9f),
+				bIsMe ? Rok2Visual::SuccessText() : Rok2Visual::Ivory(),
 				ERok2TextRole::Caption, FMargin(16, 3, 12, 0));
 		}
 	}
 
 	if (R.Rewards.Num() > 0)
 	{
-		AddLine(TEXT("المكافآت السلطوية"), FLinearColor(0.95f, 0.78f, 0.30f), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
+		AddLine(TEXT("المكافآت السلطوية"), Rok2Visual::GoldText(), ERok2TextRole::Subtitle, FMargin(12, 16, 12, 2));
 		for (const FRok2BattleReward& Reward : R.Rewards)
 		{
 			const FString RewardLabel = Reward.Kind == TEXT("season_points") ? TEXT("نقاط الموسم")
 				: Reward.Kind == TEXT("barbarian_event_points") ? TEXT("نقاط حدث البرابرة") : Reward.Kind;
 			AddLine(FString::Printf(TEXT("%s: +%d"), *RewardLabel, Reward.Amount),
-				FLinearColor(0.95f, 0.84f, 0.35f), ERok2TextRole::Caption, FMargin(16, 3, 12, 0));
+				Rok2Visual::GoldText(), ERok2TextRole::Caption, FMargin(16, 3, 12, 0));
 		}
 	}
 
@@ -402,7 +404,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 	{
 		UHorizontalBox* HospRow = NewObject<UHorizontalBox>(this);
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("cross"), 14.f, FLinearColor(0.4f, 0.9f, 0.7f)));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("cross"), 14.f, Rok2Visual::SuccessText()));
 		Ico->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
 		UHorizontalBoxSlot* IcoSlot = HospRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
@@ -410,7 +412,7 @@ void URok2BattleReportWidget::ShowReport(const FRok2BattleReport& R)
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 		UTextBlock* T = NewObject<UTextBlock>(this);
 		T->SetText(FText::FromString(FString::Printf(TEXT("%d جريح خطير يحتاجون مستشفى للشفاء"), SevTotal)));
-		T->SetColorAndOpacity(FSlateColor(FLinearColor(0.4f, 0.9f, 0.7f)));
+		T->SetColorAndOpacity(FSlateColor(Rok2Visual::SuccessText()));
 		URok2Typography::ApplyFont(T, ERok2TextRole::Caption);
 		T->SetAutoWrapText(true);
 		HospRow->AddChildToHorizontalBox(T)->SetVerticalAlignment(VAlign_Center);

@@ -1,6 +1,7 @@
-// Copyright ROK2. Blueprint Helper Library Implementation for Unreal Engine 5.8.
+﻿// Copyright ROK2. Blueprint Helper Library Implementation for Unreal Engine 5.8.
 
 #include "Rok2BlueprintLibrary.h"
+#include "Rok2Accessibility.h"
 #include "Rok2CivLore.h"
 
 // ---------------------------------------------------------------------------
@@ -129,5 +130,27 @@ UUserWidget* URok2BlueprintLibrary::CreateRok2Widget(UObject* WorldContextObject
 	if (!WorldContextObject || !WidgetClass) return nullptr;
 	UWorld* World = WorldContextObject->GetWorld();
 	if (!World) return nullptr;
-	return CreateWidget<UUserWidget>(World, WidgetClass);
+
+	UUserWidget* Widget = CreateWidget<UUserWidget>(World, WidgetClass);
+	if (!Widget) return nullptr;
+
+	// اتجاه التدفّق مرة واحدة عند الإنشاء.
+	//
+	// `URok2Accessibility::IsRtl()` كانت موجودة منذ P7-T7 وترجع true دائماً،
+	// و**لا يقرأها أي ودجت** — فوصفها في الهيدر («يوجّه ترتيب الودجات الأفقية
+	// في كل الشاشات») لم يكن صحيحاً. الترتيب العربي كان يُحقَّق يدوياً في كل
+	// ملف بترتيب استدعاءات AddChildToHorizontalBox، فأي صف جديد يُكتب بترتيب
+	// لاتيني بالسهو.
+	//
+	// ضبطه على الجذر يجعل Slate يقلب كل الصفوف الأفقية تحته، فالترتيب المنطقي
+	// في الكود (الأول = الأهم) يُرسم من اليمين تلقائياً. الودجات المتداخلة ترث
+	// القيمة (Inherit هو الافتراضي) فلا حاجة لتكرارها.
+	if (URok2Accessibility* A11y = URok2Accessibility::Get())
+	{
+		Widget->SetFlowDirectionPreference(A11y->IsRtl()
+			? EFlowDirectionPreference::RightToLeft
+			: EFlowDirectionPreference::LeftToRight);
+	}
+
+	return Widget;
 }

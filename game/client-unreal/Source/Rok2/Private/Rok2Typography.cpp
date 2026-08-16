@@ -184,7 +184,18 @@ FSlateFontInfo URok2Typography::Font(ERok2TextRole Role)
 		return FSlateFontInfo(Face, Size, Weight);
 	}
 
-	// fallback: خط المحرك بنفس الحجم والوزن — السلم البصري يعمل بلا أصول
+	// الخط الاحتياطي هو خط المحرك المركّب (FCoreStyle::GetDefaultFont)، وليس
+	// Roboto وحده كما قد يبدو: `FLegacySlateFontInfoCache` يسجّل فيه وجهاً
+	// فرعياً للعربية على `NotoNaskhArabicUI-Regular.ttf` يغطي نطاقات Arabic
+	// وArabicPresentationForms* بلا شرط ثقافة (Arabic ليست داخل `if (GIsEditor)`
+	// كما اليابانية). فالنص العربي يُرسم بمحارف حقيقية مع تشكيل HarfBuzz، ولا
+	// تظهر مربّعات — والملف مُحزَّم في APK فعلاً (تحقّقت من
+	// Manifest_UFSFiles_Android.txt).
+	//
+	// ما يفقده هذا المسار هو الطابع فقط: Naskh وجه واحد بوزن Regular، فلا فرق
+	// بصري بين Display وBody غير الحجم، ولا خط عربي «فخم» كما تطلب وثيقة الهوية.
+	// إسقاط الخطوط الموثقة في Content/Fonts/README.md يفعّل الأوجه الثلاثة بلا
+	// تعديل كود.
 	return FCoreStyle::GetDefaultFontStyle(ClampWeightForEngineFont(Weight), Size);
 }
 
