@@ -36,7 +36,7 @@ const __dirname = path.dirname(__filename);
 const BACKEND = path.resolve(__dirname, "..");
 const PORT = 8793;
 const BASE = process.env.E2E_LIVE === "1" && process.env.BASE_URL ? process.env.BASE_URL : `http://127.0.0.1:${PORT}`;
-const ADMIN = process.env.ADMIN_KEY;
+const ADMIN = process.env.ADMIN_KEY || (process.env.E2E_LIVE === "1" ? "" : "e2e_dev_admin_key_32_bytes_fixture_rok2");
 const WAIT_FOR_RALLY = process.env.WAIT_FOR_RALLY === "1" || process.env.E2E_FULL === "1";
 
 if (!ADMIN) {
@@ -127,9 +127,25 @@ async function withSandboxedServer(body) {
       } catch { /* ignore restore errors */ }
     });
   }
-  const dev = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0", "--persist-to", sandboxDb], {
+  // الهجرات قبل تشغيل خادم التطوير: على ويندوز يقفل workerd ملف SQLite
+  // حصرياً فموت apply أثناء عمل dev يفشل بصمت بعد بانر التنفيذ (يعمل على
+  // لينكس حيث القفل متساهل) — الترتيب الآمن على النظامين: إنشاء القاعدة أولاً.
+  const apply = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local", "--persist-to", sandboxDb], {
     cwd: BACKEND,
     env: process.env,
+    shell: process.platform === "win32",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  await new Promise((resolve, reject) => {
+    let out = "";
+    apply.stdout.on("data", (c) => { out += c.toString(); });
+    apply.stderr.on("data", (c) => { out += c.toString(); });
+    apply.on("exit", (code) => { code === 0 ? resolve() : reject(new Error(out.slice(-600))); });
+  });
+  const dev = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0", "--persist-to", sandboxDb], {
+    cwd: BACKEND,
+    env: process.env,
+    shell: process.platform === "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });
   teardowns.push(() => { dev.kill(); });
@@ -143,17 +159,6 @@ async function withSandboxedServer(body) {
     if (dev.exitCode !== null) { fs.writeFileSync(DEVLOG, devOutput); throw new Error(`wrangler dev exited early: ${devOutput.slice(-800)}`); }
   }
   if (!started) { fs.writeFileSync(DEVLOG, devOutput); throw new Error(`wrangler dev did not start: ${devOutput.slice(-1200)}`); }
-  const apply = spawn("npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local", "--persist-to", sandboxDb], {
-    cwd: BACKEND,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  await new Promise((resolve, reject) => {
-    let out = "";
-    apply.stdout.on("data", (c) => { out += c.toString(); });
-    apply.stderr.on("data", (c) => { out += c.toString(); });
-    apply.on("exit", (code) => { code === 0 ? resolve() : reject(new Error(out.slice(-600))); });
-  });
   try {
     return await body();
   } finally {

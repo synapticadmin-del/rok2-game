@@ -91,8 +91,8 @@
 
 | البند | العمل | معيار القبول |
 |---|---|---|
-| P18-T1 | إحياء `Rok2ResearchWidget` كشجرة تقنيات بصرية (فرعا economy/military من `research.json` عبر `FetchMeta`، متطلبات ومدد ومستويات) + دالة `StartResearch()` في `URok2Api` على `/v1/city/research` + فتح من بطاقة الأكاديمية | من مدينة حية: أكاديمية ← شاشة البحث ← بدء تقنية ← يظهر طابور research في HUD ← حدث `tech_researched` يرفع المستوى؛ حارس بنيوي في `npm run check` |
-| P18-T2 | اشتراك `ARok2GameMode` على `OnBuildingAction`: ثكنة/إسطبل/ميدان ← تدريب لمسي، مستشفى ← `HealWounded`، أكاديمية ← P18-T1، تافرنا ← P19-T4 المؤقت أو إشعار مؤجل | كل زر ثانوي في بطاقة المبنى يفتح مساره الصحيح؛ لا بث بلا مشترك |
+| P18-T1 | إحياء `Rok2ResearchWidget` كشجرة تقنيات بصرية (فرعا economy/military من `research.json` عبر `FetchMeta`، متطلبات ومدد ومستويات) + دالة `StartResearch()` في `URok2Api` على `/v1/city/research` + فتح من بطاقة الأكاديمية | ✅ تم 2026-08-16: `FetchResearch/StartResearch/GetResearchState` + `OnResearchLoaded` + شاشة كاملة بحالات خماسية، تفتح من بطاقة الأكاديمية عبر GameMode |
+| P18-T2 | اشتراك `ARok2GameMode` على `OnBuildingAction`: ثكنة/إسطبل/ميدان ← تدريب لمسي، مستشفى ← `HealWounded`، أكاديمية ← P18-T1، تافرنا ← P19-T4 المؤقت أو إشعار مؤجل | ✅ تم 2026-08-16: `HandleBuildingAction` يربطه CityBuilder؛ ورقة `Rok2TrainHealSheetWidget` للتدريب (عدّاد −/+) والشفاء (كل/وحدة)؛ التافرنا توست صادق حتى P19-T4 |
 | P18-T3 | تفعيل التوستات: ملء `ToastsBox` من `Api->OnToast` + `Rok2MotionLibrary::PlayToastIn` + صوت `notification` (سقف 3 متراكمة) | كل حدث خادمي (اكتمال بناء/تدريب/بحث/معركة/منطقة) يُظهر توست غير حاجب |
 | P18-T4 | أرقام سلطوية في HUD: جواهر/AP من حالة اللاعب (`FetchShopCatalog`/`FetchVipStatus` أو حقل city موسع)، وحذف قيم الموارد الوهمية (عرض 0 الحقيقي) | لا قيمة ثابتة في `UpdateResources`؛ تطابق القيم المعروضة الخادم |
 | P18-T5 | ملء `OnEscape` + ربط Android Back: إغلاق اللوحة العليا ← عودة للمدينة ← تأكيد خروج (بطاقة مواد مشروع) | زر الرجوع في أندرويد لا يترك الشاشة عالقة أبداً |

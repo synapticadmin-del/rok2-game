@@ -51,6 +51,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCivInfoAction;
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnChatAction;
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season Story") FOnHudAction OnSeasonStoryAction;
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Research") FOnHudAction OnResearchAction;
 
 protected:
 	UPROPERTY(Transient)
@@ -113,6 +114,7 @@ protected:
 	UFUNCTION() void OnEditCityClickedHandler();
 	UFUNCTION() void OnChatClickedHandler();
 	UFUNCTION() void OnSeasonStoryClickedHandler();
+	UFUNCTION() void OnResearchClickedHandler();
 	UFUNCTION() void OnBellClicked();
 
 	UFUNCTION() void OnNotification(const FRok2HudNotification& N);

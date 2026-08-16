@@ -14,7 +14,10 @@
 #include "Rok2OnboardingWidget.h"
 #include "Rok2CivInfoWidget.h"
 #include "Rok2ChatWidget.h"
+#include "Rok2ResearchWidget.h"
 #include "Rok2SeasonStoryWidget.h"
+#include "Rok2ResearchWidget.h"
+#include "Rok2TrainHealSheetWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2BlueprintLibrary.h"
@@ -187,6 +190,7 @@ void ARok2GameMode::BindHudEvents()
 	HudWidget->OnCivInfoAction.AddDynamic(this, &ARok2GameMode::HandleCivInfoAction);
 	HudWidget->OnChatAction.AddDynamic(this, &ARok2GameMode::HandleChatAction);
 	HudWidget->OnSeasonStoryAction.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryAction);
+	HudWidget->OnResearchAction.AddDynamic(this, &ARok2GameMode::HandleResearchAction);
 }
 
 void ARok2GameMode::EnsureViewManager()
@@ -300,6 +304,60 @@ void ARok2GameMode::HandleAllianceAction()
 	Api->FetchAllianceRallies();
 }
 
+// ---------------------------------------------------------------------------
+// P18-T2: مسار أزرار المباني الثانوية. كان بطاقة المبنى تبث OnBuildingAction
+// بلا أي مشترك فأزرار (تدريب/شفاء/بحث/صناديق) تفتح لا شيء. المسارات:
+//   research → شاشة البحث (P18-T1) | train/heal → ورقة لمسية (P18-T2)
+//   chests → شاشة الحانة (P19-T4) — حتى بنائها يُعلم اللاعب بصدق لا بصمت.
+// ---------------------------------------------------------------------------
+void ARok2GameMode::HandleBuildingAction(const FString& BuildingId, const FString& ActionKind)
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (ActionKind == TEXT("research"))
+	{
+		OpenResearchScreen();
+	}
+	else if (ActionKind == TEXT("train") || ActionKind == TEXT("heal"))
+	{
+		if (URok2TrainHealSheetWidget* Sheet = Cast<URok2TrainHealSheetWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2TrainHealSheetWidget::StaticClass())))
+		{
+			Sheet->Setup(Api, ActionKind, BuildingId);
+			Sheet->AddToViewport(150);
+		}
+	}
+	else if (ActionKind == TEXT("chests"))
+	{
+		Api->EmitToast(TEXT("الحانة تُفتح من شاشة الأحداث قريباً (P19-T4)"));
+	}
+}
+
+// P18-T1: إنشاء كسول كنمط بقية اللوحات — تُنشأ مرة وتبقى متزامنة عبر Setup.
+void ARok2GameMode::OpenResearchScreen()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!ResearchWidget)
+	{
+		ResearchWidget = Cast<URok2ResearchWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2ResearchWidget::StaticClass()));
+		if (ResearchWidget)
+		{
+			ResearchWidget->Setup(Api);
+		}
+	}
+	if (ResearchWidget && !ResearchWidget->IsInViewport())
+	{
+		ResearchWidget->AddToViewport(50);
+		// لقطة حديثة عند كل فتح — المستويات والتكاليف قد تغيّرت منذ الزيارة السابقة.
+		Api->FetchResearch();
+	}
+}
+
+
 void ARok2GameMode::HandleItemsAction()
 {
 	// الحقيبة — غير منفذة بعد (متجر/VIP). نعرض إشعاراً مؤقتاً.
@@ -376,6 +434,32 @@ void ARok2GameMode::HandleCivInfoAction()
 		// تُعاد القراءة عند كل فتح: اللوحة تُنشأ مرة وتُعاد للعرض مراراً، ولو
 		// اعتمدنا على Setup وحده لبقيت على حضارة أول حمولة وصلت.
 		CivInfoWidget->RefreshFromPlayer();
+	}
+}
+
+// P18-T1: شاشة البحث — كانت موجودة منذ P2-3 ولا يفتحها أي زر في اللعبة.
+void ARok2GameMode::HandleResearchAction()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!ResearchWidget)
+	{
+		ResearchWidget = Cast<URok2ResearchWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2ResearchWidget::StaticClass()));
+		if (ResearchWidget)
+		{
+			ResearchWidget->Setup(Api);
+		}
+	}
+	if (ResearchWidget && !ResearchWidget->IsInViewport())
+	{
+		// نفس طبقة اللوحات: فوق الـHUD وتحت طبقة الإرشاد.
+		ResearchWidget->AddToViewport(50);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+		}
 	}
 }
 

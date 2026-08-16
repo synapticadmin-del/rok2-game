@@ -9,10 +9,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const scriptDir = path.dirname(new URL(import.meta.url).pathname);
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const clientRoot = path.resolve(scriptDir, '..');
-const repoRoot = path.resolve(clientRoot, '..', '..', '..');
+const repoRoot = path.resolve(clientRoot, '..', '..');
 const civs = ['rome', 'china', 'arabia', 'egypt', 'vikings', 'japan'];
 const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 let failures = 0;

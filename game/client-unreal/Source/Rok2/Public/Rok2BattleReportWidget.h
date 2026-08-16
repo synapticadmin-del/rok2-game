@@ -24,6 +24,7 @@ public:
 
 	/** يبني الواجهة كاملة برمجياً (بدون Blueprint assets) */
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	/** زر الإغلاق — يزيل الواجهة من الشاشة */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Battle")

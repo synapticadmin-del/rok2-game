@@ -319,6 +319,8 @@ void URok2HudWidget::BuildActionCluster(UCanvasPanel* RootCanvas)
 	SpawnSmall(TEXT("bag"), TEXT("حقيبة"), FName(TEXT("OnItemsClickedHandler")));
 	SpawnSmall(TEXT("banner"), TEXT("أحداث"), FName(TEXT("OnEventsClickedHandler")));
 	SpawnSmall(TEXT("crown"), TEXT("حضارتي"), FName(TEXT("OnCivInfoClickedHandler")));
+	// البحث العلمي: كانت شاشته موجودة ولا يفتحها شيء — SpawnSmall سادسة.
+	SpawnSmall(TEXT("research"), TEXT("بحث"), FName(TEXT("OnResearchClickedHandler")));
 }
 
 // ---------------------------------------------------------------------------
@@ -517,6 +519,7 @@ void URok2HudWidget::OnReportsBtnClickedHandler() { OnReportsAction.Broadcast();
 void URok2HudWidget::OnEditCityClickedHandler() { OnEditCityAction.Broadcast(); }
 void URok2HudWidget::OnChatClickedHandler() { OnChatAction.Broadcast(); }
 void URok2HudWidget::OnSeasonStoryClickedHandler() { OnSeasonStoryAction.Broadcast(); }
+void URok2HudWidget::OnResearchClickedHandler() { OnResearchAction.Broadcast(); }
 
 void URok2HudWidget::OnBellClicked()
 {

@@ -110,6 +110,12 @@ void ARok2CityBuilder::OnBuildingPickedHandler(const FString& BuildingId)
 		if (URok2BuildingDetailWidget* DetailWidget = Cast<URok2BuildingDetailWidget>(URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2BuildingDetailWidget::StaticClass())))
 		{
 			DetailWidget->SetupBuilding(Api, BuildingId, Level);
+			// P18-T2: الزر الثانوي (بحث/تدريب/شفاء/صناديق) كان يُبث بلا مشترك —
+			// المسار الوحيد الآن: GameMode يجيب الحدث ويفتح الشاشة الصحيحة.
+			if (ARok2GameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<ARok2GameMode>() : nullptr)
+			{
+				DetailWidget->OnBuildingAction.AddDynamic(GM, &ARok2GameMode::HandleBuildingAction);
+			}
 			DetailWidget->AddToViewport(200);
 		}
 	}

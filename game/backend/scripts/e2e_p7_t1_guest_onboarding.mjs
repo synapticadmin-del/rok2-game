@@ -101,9 +101,26 @@ async function withSandboxedServer(body) {
   fs.writeFileSync(devVars, `AUTH_SECRET="${crypto.randomBytes(32).toString("hex")}"\nADMIN_KEY="${ADMIN}"\n`);
   teardowns.push(() => { try { fs.unlinkSync(devVars); } catch { /* ignore */ } });
 
-  const dev = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0"], {
+  // الهجرات قبل تشغيل الخادم + --persist-to بدل متغيرات البيئة التي لم يعد
+  // wrangler 4 يحترمها (سجل P9-T2): على ويندوز يقفل workerd ملف SQLite حصرياً
+  // فيفشل apply أثناء عمل dev — والترتيب المعكوس كان يعزل عبر متغيرات ميتة.
+  const apply = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local", "--persist-to", sandboxDb], {
     cwd: BACKEND,
-    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb, WRANGLER_DO_STATE_PATH: sandboxDb },
+    env: process.env,
+    shell: process.platform === "win32",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  await new Promise((resolve, reject) => {
+    let out = "";
+    apply.stdout.on("data", (c) => { out += c.toString(); });
+    apply.stderr.on("data", (c) => { out += c.toString(); });
+    apply.on("exit", (code) => { code === 0 ? resolve() : reject(new Error(out.slice(-600))); });
+  });
+
+  const dev = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", "dev", "--port", String(PORT), "--inspector-port", "0", "--persist-to", sandboxDb], {
+    cwd: BACKEND,
+    env: process.env,
+    shell: process.platform === "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });
   teardowns.push(() => { dev.kill(); });
@@ -118,19 +135,6 @@ async function withSandboxedServer(body) {
     if (dev.exitCode !== null) throw new Error(`wrangler dev exited early: ${devOutput.slice(-800)}`);
   }
   if (!started) throw new Error(`wrangler dev did not start: ${devOutput.slice(-1200)}`);
-
-  // قاعدة بيانات محلية جديدة نظيفة + تطبيق كل الهجرات
-  const apply = spawn("npx", ["wrangler", "d1", "migrations", "apply", "rok2-db", "--local"], {
-    cwd: BACKEND,
-    env: { ...process.env, WRANGLER_D1_STATE_PATH: sandboxDb },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  await new Promise((resolve, reject) => {
-    let out = "";
-    apply.stdout.on("data", (c) => { out += c.toString(); });
-    apply.stderr.on("data", (c) => { out += c.toString(); });
-    apply.on("exit", (code) => { code === 0 ? resolve() : reject(new Error(out.slice(-600))); });
-  });
 
   try {
     return await body();

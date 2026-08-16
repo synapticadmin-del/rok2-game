@@ -35,6 +35,7 @@ class URok2AllianceRosterWidget : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	URok2Api* Api;

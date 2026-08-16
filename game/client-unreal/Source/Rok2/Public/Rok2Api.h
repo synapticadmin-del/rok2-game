@@ -37,6 +37,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMetaLoaded, bool, bFromServer);
 /** يُبث عند اكتمال مزامنة القادة المملوكين من الخادم. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandersLoaded);
 
+/** يُبث عند وصول شجرة البحث من الخادم (P18-T1). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnResearchLoaded);
+
 /** يُبث عند تحديث حالة المناطق (فتح/قفل) — P2-T4/P2-T6 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZonesUpdated, const TArray<FRok2ZoneStatus>&, Zones);
 
@@ -74,6 +77,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnExpeditionUpdated, const FRok2Exp
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCanyonUpdated, const FRok2CanyonState&, State);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOsirisUpdated, const FRok2OsirisState&, State);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEventsUpdated, const FRok2EventsState&, State);
+// P11-T6: delegates لـ Lost Kingdom
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLostKingdomUpdated, const FRok2LostKingdomState&, State);
+// P12-T6: نهاية الموسم
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSeasonReportUpdated, const FRok2SeasonReport&, Report);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSeasonEnded);
 
 UCLASS(BlueprintType, Blueprintable)
 class URok2Api : public UObject
@@ -104,6 +112,24 @@ public:
 	/** يسحب القادة المملوكين ومستوياتهم من الخادم السلطوي. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void FetchCommanders();
+
+	/** يسحب شجرة البحث كاملة: المستويات الحالية والتكاليف والمتطلبات — كلها
+	 *  محسوبة على الخادم. يبثّ OnResearchLoaded عند الوصول. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Research")
+	void FetchResearch();
+
+	/** يبدأ بحث المستوى التالي لتقنية. الخادم يفرض الأكاديمية والمتطلبات
+	 *  والتكلفة ويضيف الطابور؛ العميل لا يخصم مورداً ولا يقدّر مدة. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Research")
+	void StartResearch(const FString& TechId);
+
+	/** آخر حالة بحث وصلت من الخادم. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Research")
+	const FRok2ResearchState& GetResearchState() const { return ResearchState; }
+
+	/** يبثّ رسالة قصيرة لكل مستمعي OnToast — عام لأن GameMode يستخدمه
+	 *  لإعلانات الواجهة (مثل توجيه التافرنا إلى شاشة P19-T4). */
+	void EmitToast(const FString& Msg) { OnToast.Broadcast(Msg); }
 
 	/** يستهلك تومات خبرة لرفع مستوى قائد مملوك؛ الخادم يتحقق من كل القيم. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
@@ -502,6 +528,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnCommandersLoaded OnCommandersLoaded;
 
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Research")
+	FOnResearchLoaded OnResearchLoaded;
+
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnZonesUpdated OnZonesUpdated;
 
@@ -585,6 +614,7 @@ protected:
 	TArray<FRok2TroopEntry> Troops;
 	TMap<FString, int32> Buildings;
 	TArray<FRok2Commander> Commanders;
+	FRok2ResearchState ResearchState;
 	TArray<FRok2BattleReport> BattleReports;
 	TArray<FRok2AllianceRally> AllianceRallies;
 	FRok2GameMeta Meta;
@@ -797,7 +827,6 @@ protected:
 
 	FString AuthHeader() const;
 	FString BuildUrl(const FString& Path) const;
-	void EmitToast(const FString& Msg) { OnToast.Broadcast(Msg); }
 	void EmitError(const FString& Msg) { OnApiError.Broadcast(Msg); }
 	// P11-T6: Lost Kingdom / KvK
 	UFUNCTION(BlueprintCallable, Category = "Rok2|KvK")
@@ -837,8 +866,3 @@ protected:
 	// P12-T6
 	void ParseSeasonReport(const TSharedPtr<FJsonObject>& Json);
 };
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLostKingdomUpdated, FRok2LostKingdomState, State);
-	// P12-T6: نهاية الموسم
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSeasonReportUpdated, FRok2SeasonReport, Report);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSeasonEnded);

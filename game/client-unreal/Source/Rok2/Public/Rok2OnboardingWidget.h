@@ -85,6 +85,7 @@ protected:
 	UPROPERTY(Transient) UCanvasPanel* Ring;
 
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void BuildCard();

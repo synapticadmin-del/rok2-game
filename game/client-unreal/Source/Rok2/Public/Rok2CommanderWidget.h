@@ -130,6 +130,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	// ---- البناء الديناميكي للواجهة ----
 	void BuildUI();

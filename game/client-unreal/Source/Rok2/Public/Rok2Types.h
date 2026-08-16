@@ -108,6 +108,16 @@ struct FRok2City
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2QueueEntry> ActiveQueues;
+
+	/** جرحى المستشفى الخطيرون (unit_id ← عدد) من /v1/city — مصدر شاشة الشفاء (P18-T2). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TMap<FString, int32> Wounded;
+	/** سعة المستشفى وشغلها الحالي من /v1/city (hospital{capacity,used}). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 HospitalCapacity = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 HospitalUsed = 0;
+
 	/** تخطيط القلعة المعتمد على الخادم؛ فارغ عند أول دخول أو تعذر القراءة. */
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2|City Layout")
 	TArray<FRok2CityLayoutPlacement> LayoutPlacements;
@@ -382,6 +392,184 @@ struct FRok2AllianceRally
 	int32 Participants = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	bool bIsJoined = false;
+};
+
+// ---------------------------------------------------------------------------
+// P8-T7: تعريفات المواهب والمعدات والحماية والملك (مُصرَّحة قبل WorldSnapshot/GameMeta)
+// ---------------------------------------------------------------------------
+
+/** عقدة في شجرة مواهب القائد (من /v1/commanders/talents). */
+USTRUCT(BlueprintType)
+struct FRok2TalentNode
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Tree; // war | development | leadership
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Level = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 MaxLevel = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FString> Prerequisites;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TMap<FString, double> StatMods; // atk_def/atk_cav/hp_infantry/...
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 PowerCost = 1;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bUnlocked = false;
+};
+
+/** شجرة مواهب كاملة (troop_type أو role) من GET /v1/meta/talents. */
+USTRUCT(BlueprintType)
+struct FRok2TalentTree
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TalentNode> Nodes;
+};
+
+/** قالب قطعة من GET /v1/meta/equipment (blueprints by slot). */
+USTRUCT(BlueprintType)
+struct FRok2EquipmentBlueprint
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Slot;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 CraftGoldBase = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double CraftGoldQualityMult = 1.0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FString> StatPool;
+};
+
+/** قطعة معدات للقائد (من /v1/blacksmith/items). */
+USTRUCT(BlueprintType)
+struct FRok2EquipmentItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Slot; // weapon / helm / chest / gloves / legs / boots
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Name;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Rarity; // common / uncommon / rare / epic / legendary
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Material; // iron / steel / mithril / dragonsteel / adamantite
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TMap<FString, double> StatMods;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FString> SetParts;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Level = 1;
+};
+
+/** خانة معدات مرفوع فيها قطعة (من /v1/blacksmith/equip). */
+USTRUCT(BlueprintType)
+struct FRok2EquipmentSlot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Slot; // weapon / helm / chest / gloves / legs / boots
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bFilled = false;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FRok2EquipmentItem Item;
+};
+
+/** حالة مواهب قائد كامل (مستلمة من /v1/commanders/talents). */
+USTRUCT(BlueprintType)
+struct FRok2CommanderTalents
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString CommanderId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TalentNode> Nodes;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 PointsAvailable = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 PointsSpent = 0;
+};
+
+/** خيار درع حماية للمدينة (من GET /v1/ap/state). */
+USTRUCT(BlueprintType)
+struct FRok2ShieldOption
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Id; // 8h / 24h / 3d
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 DurationMinutes = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Gems = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Ap = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bAvailable = true;
+};
+
+/** حالة نقاط العمل والحماية للمدينة (من GET /v1/ap/state). */
+USTRUCT(BlueprintType)
+struct FRok2ActionPointState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Ap = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 ApCap = 1000;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 ShieldUntilMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 WarFrenzyUntilMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 LastRelocationMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2ShieldOption> ShieldOptions;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 NowMs = 0;
+};
+
+/** موقع الملك الحالي على خريطة العالم (من snapshot وGET /v1/meta/all). */
+USTRUCT(BlueprintType)
+struct FRok2KingMarker
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PlayerId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString PlayerName;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString AllianceId;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double X = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	double Y = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 CrownedAtMs = 0;
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int64 ExpiresAtMs = 0;
 };
 
 USTRUCT(BlueprintType)
@@ -703,6 +891,46 @@ struct FRok2TechNode
 	int32 TimeSeconds = 0;
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FString> Prerequisites;
+
+	// ── ما يرسله /v1/research فعلاً ولم يكن للعميل حقل يحفظه فيه ──
+
+	/** وصف الباف من data/research.json. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FString Description;
+
+	/** مستوى اللاعب الحالي في هذه التقنية (0 = لم تُبحث بعد). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 Level = 0;
+
+	/** هل يوجد مستوى تالٍ؟ false عند بلوغ السقف، فلا زر بحث. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	bool bHasNextLevel = false;
+
+	/** تكلفة المستوى التالي — يحسبها الخادم ولا يشتقّها العميل (AGENTS.md §3). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	FRok2Resources NextCost;
+
+	/** مدة المستوى التالي بالثواني بعد بافات البحث وVIP. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 NextDurationSeconds = 0;
+
+	/** مستوى الأكاديمية المطلوب للمستوى التالي. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 NextAcademyRequirement = 0;
+};
+
+/** حالة شجرة البحث كاملة من /v1/research. */
+USTRUCT(BlueprintType)
+struct FRok2ResearchState
+{
+	GENERATED_BODY()
+
+	/** مستوى الأكاديمية الحالي — يحدّ ما يمكن بحثه. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	int32 AcademyLevel = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
+	TArray<FRok2TechNode> Technologies;
 };
 
 /** إشعار HUD لحظي — يُعرض كبطاقة ثم يتلاشى (P2-T6) */
@@ -737,157 +965,9 @@ struct FRok2HudNotification
 // و`data/action_points.json` و`data/daily_quests.json` وKingdomShard.
 // ---------------------------------------------------------------------------
 
-/** شجرة مواهب كاملة (troop_type أو role) من GET /v1/meta/talents. */
-USTRUCT(BlueprintType)
-struct FRok2TalentTree
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Id;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Name;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FRok2TalentNode> Nodes;
-};
-
-/** قالب قطعة من GET /v1/meta/equipment (blueprints by slot). */
-USTRUCT(BlueprintType)
-struct FRok2EquipmentBlueprint
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Id;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Slot;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 CraftGoldBase = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	double CraftGoldQualityMult = 1.0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FString> StatPool;
-};
-
-/** عقدة في شجرة مواهب القائد (من /v1/commanders/talents). */
-USTRUCT(BlueprintType)
-struct FRok2TalentNode
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Id;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Name;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Tree; // war | development | leadership
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 Level = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 MaxLevel = 1;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FString> Prerequisites;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TMap<FString, double> StatMods; // atk_def/atk_cav/hp_infantry/...
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 PowerCost = 1;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	bool bUnlocked = false;
-};
-
-/** حالة مواهب قائد كامل (مستلمة من /v1/commanders/talents). */
-USTRUCT(BlueprintType)
-struct FRok2CommanderTalents
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString CommanderId;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FRok2TalentNode> Nodes;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 PointsAvailable = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 PointsSpent = 0;
-};
-
-/** قطعة معدات للقائد (من /v1/blacksmith/items). */
-USTRUCT(BlueprintType)
-struct FRok2EquipmentItem
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Id;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Slot; // weapon / helm / chest / gloves / legs / boots
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Name;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Rarity; // common / uncommon / rare / epic / legendary
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Material; // iron / steel / mithril / dragonsteel / adamantite
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TMap<FString, double> StatMods;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FString> SetParts;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 Level = 1;
-};
-
-/** خانة معدات مرفوع فيها قطعة (من /v1/blacksmith/equip). */
-USTRUCT(BlueprintType)
-struct FRok2EquipmentSlot
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Slot; // weapon / helm / chest / gloves / legs / boots
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	bool bFilled = false;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FRok2EquipmentItem Item;
-};
-
-/** خيار درع حماية للمدينة (من GET /v1/ap/state). */
-USTRUCT(BlueprintType)
-struct FRok2ShieldOption
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString Id; // 8h / 24h / 3d
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 DurationMinutes = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 Gems = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 Ap = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	bool bAvailable = true;
-};
-
-/** حالة نقاط العمل والحماية للمدينة (من GET /v1/ap/state). */
-USTRUCT(BlueprintType)
-struct FRok2ActionPointState
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 Ap = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int32 ApCap = 1000;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 ShieldUntilMs = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 WarFrenzyUntilMs = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 LastRelocationMs = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	TArray<FRok2ShieldOption> ShieldOptions;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 NowMs = 0;
-};
+// ---------------------------------------------------------------------------
+// P8-T7: المهام اليومية (Daily Quests)
+// ---------------------------------------------------------------------------
 
 /** مهمة يومية/أسبوعية (من GET /v1/quests). */
 USTRUCT(BlueprintType)
@@ -1096,27 +1176,7 @@ struct FRok2AllianceGift
 	bool bExpired = false;
 };
 
-/** موقع الملك الحالي على خريطة العالم (من snapshot وGET /v1/meta/all). */
-USTRUCT(BlueprintType)
-struct FRok2KingMarker
-{
-	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString PlayerId;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString PlayerName;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	FString AllianceId;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	double X = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	double Y = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 CrownedAtMs = 0;
-	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
-	int64 ExpiresAtMs = 0;
-};
 
 // P10-T6: أوضاع اللعب المتكررة — الحانة، Expedition، Sunset Canyon، Ark of Osiris، الأحداث الكبرى.
 USTRUCT(BlueprintType)

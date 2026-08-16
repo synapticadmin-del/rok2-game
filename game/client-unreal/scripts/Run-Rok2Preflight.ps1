@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   فحص جاهزية شامل قبل بناء ROK2 أو تشغيله على Windows — تقرير واحد بلا بناء.
 
@@ -61,34 +61,39 @@ foreach ($Tool in @('Engine\Build\BatchFiles\Build.bat', 'Engine\Build\BatchFile
 }
 
 # 3 — ملفات المشروع الأساسية.
-Add-Check 'Rok2.uproject' 'موجود في جذر المشروع' $ProjectFile (if (Test-Path $ProjectFile) { 'PASS' } else { 'FAIL' })
+$ProjectStatus = if (Test-Path $ProjectFile) { 'PASS' } else { 'FAIL' }
+Add-Check 'Rok2.uproject' 'موجود في جذر المشروع' $ProjectFile $ProjectStatus
 $MapPath = Join-Path $ProjectRoot 'Content\Maps\Rok2Main.umap'
-Add-Check 'Rok2Main.umap' 'خريطة البدء في Content\Maps' $MapPath (if (Test-Path $MapPath) { 'PASS' } else { 'FAIL' })
+$MapStatus = if (Test-Path $MapPath) { 'PASS' } else { 'FAIL' }
+Add-Check 'Rok2Main.umap' 'خريطة البدء في Content\Maps' $MapPath $MapStatus
 
 $Project = Get-Content -Path $ProjectFile -Raw | ConvertFrom-Json
 $HasModule = $Project.Modules -and ($Project.Modules | Where-Object { $_.Name -eq 'Rok2' })
-Add-Check 'وحدة Rok2' 'Module باسم Rok2 في uproject' ($HasModule.ToString()) (if ($HasModule) { 'PASS' } else { 'FAIL' })
+$ModuleStatus = if ($HasModule) { 'PASS' } else { 'FAIL' }
+Add-Check 'وحدة Rok2' 'Module باسم Rok2 في uproject' ($HasModule.ToString()) $ModuleStatus
 
 # 4 — إعدادات العرض وخريطة البدء.
 $EngineIni = Join-Path $ProjectRoot 'Config\DefaultEngine.ini'
 $DefaultMap = Select-String -Path $EngineIni -Pattern 'GameDefaultMap=/Game/Maps/Rok2Main' -SimpleMatch | Select-Object -First 1
 $DefaultMapStatus = if ($DefaultMap) { 'نعم' } else { 'لا' }
-Add-Check 'GameDefaultMap' 'Rok2Main في DefaultEngine.ini' $DefaultMapStatus (if ($DefaultMap) { 'PASS' } else { 'FAIL' })
+$MapConfigStatus = if ($DefaultMap) { 'PASS' } else { 'FAIL' }
+Add-Check 'GameDefaultMap' 'Rok2Main في DefaultEngine.ini' $DefaultMapStatus $MapConfigStatus
 $SplashDisabled = (Get-Content -Path $EngineIni -Raw) -match 'bSplashScreen=False'
-Add-Check 'Splash معطل (P7-T12)' 'bSplashScreen=False' ($SplashDisabled.ToString()) (if ($SplashDisabled) { 'PASS' } else { 'FAIL' })
+$SplashStatus = if ($SplashDisabled) { 'PASS' } else { 'FAIL' }
+Add-Check 'Splash معطل (P7-T12)' 'bSplashScreen=False' ($SplashDisabled.ToString()) $SplashStatus
 
 # 5 — سلسلة أدوات Visual Studio (vswhere).
 $VsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (-not (Test-Path $VsWhere)) {
     Add-Check 'Visual Studio 2022 17.8+' 'vswhere + MSVC 14.38+ وWindows SDK 10.0.22621+' 'vswhere غير موجود' 'WARN' 'ثبّت VS 2022 workload: Game development with C++'
 } else {
-    $VcVars = & $VsWhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+    $VcVars = & $VsWhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
     if ([string]::IsNullOrEmpty($VcVars)) {
         Add-Check 'Visual Studio 2022 17.8+' 'MSBuild/MSVC 14.38+' 'غير قابل للاكتشاف' 'FAIL' 'شغّل مثبت VS وأضف Game development with C++'
     } else {
         Add-Check 'Visual Studio 2022 17.8+' 'MSBuild/MSVC 14.38+ قابل للاكتشاف' (Split-Path $VcVars -Parent) 'PASS'
     }
-    $Sdk = & $VsWhere -latest -find 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt' | Select-Object -First 1
+    $Sdk = & $VsWhere -latest -products * -find 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt' | Select-Object -First 1
     if ([string]::IsNullOrEmpty($Sdk)) {
         Add-Check 'Windows SDK' '10.0.22621.0+' 'غير قابل للاكتشاف' 'WARN' 'ثبّت Windows 11 SDK (10.0.22621+)'
     } else {
@@ -116,7 +121,7 @@ Add-Check 'سجل آخر بناء المحرر' 'build-Editor-*.log في Saved\B
 $Pad = ($Results.Name | Measure-Object -Property Length -Maximum).Maximum
 $Results | Format-Table -AutoSize -Wrap -Property Name, Expected, Status, Note | Out-String | Write-Host
 
-$Failed = ($Results | Where-Object { $_.Status -eq 'FAIL' }).Count
+$Failed = @($Results | Where-Object { $_.Status -eq 'FAIL' }).Count
 if ($Failed -gt 0) {
     Write-Host "[ROK2] Preflight: $Failed failure(s). أصلح FAIL قبل Build-Rok2.ps1." -ForegroundColor Red
     exit 1

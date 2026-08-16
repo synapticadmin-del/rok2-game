@@ -9,8 +9,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "../../..");
-const apiHSrc = fs.readFileSync(`${ROOT}/game/client-unreal/Source/Rok2/Public/Rok2Api.h`, "utf8");
-const apiCppSrc = fs.readFileSync(`${ROOT}/game/client-unreal/Source/Rok2/Private/Rok2Api.cpp`, "utf8");
+const apiHSrc = fs.readFileSync(`${ROOT}/game/client-unreal/Source/Rok2/Public/Rok2Api.h`, "utf8").replace(/\r\n/g, "\n");
+const apiCppSrc = fs.readFileSync(`${ROOT}/game/client-unreal/Source/Rok2/Private/Rok2Api.cpp`, "utf8").replace(/\r\n/g, "\n");
 let fails = 0, checks = 0;
 function check(name, cond) { checks++; if (!cond) { console.log("FAIL:", name); fails++; } else { console.log("PASS:", name); } }
 // ---- P13-T1: صندوق واردات WebSocket ----

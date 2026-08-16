@@ -82,6 +82,7 @@ protected:
 	UVerticalBox* HintsBox;
 
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	/** يبني اللوحة السفلية وأقسامها */
 	void BuildSheet(UCanvasPanel* RootCanvas);

@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const clientRoot = resolve(import.meta.dirname, '..');
-const read = (relativePath) => readFileSync(resolve(clientRoot, relativePath), 'utf8');
+const read = (relativePath) => readFileSync(resolve(clientRoot, relativePath), 'utf8').replace(/\r\n/g, '\n');
 const header = read('Source/Rok2/Public/Rok2Api.h');
 const source = read('Source/Rok2/Private/Rok2Api.cpp');
 const rendererSource = read('Source/Rok2/Private/Rok2WorldRenderer.cpp');

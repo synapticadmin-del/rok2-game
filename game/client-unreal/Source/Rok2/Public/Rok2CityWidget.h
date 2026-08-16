@@ -102,6 +102,7 @@ protected:
 	URok2Api* Api;
 
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	/** تحديث نص الموارد فقط (يُستدعى من الـ Tick للعدّاد الحي — P1-T5) */

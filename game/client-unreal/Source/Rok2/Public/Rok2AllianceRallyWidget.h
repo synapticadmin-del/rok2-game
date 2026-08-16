@@ -20,6 +20,7 @@ class ROK2_API URok2AllianceRallyWidget : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	/** يضبط البطاقة قبل إضافتها إلى قائمة التحالف. */
 	void Setup(URok2Api* InApi, const FRok2AllianceRally& InRally);

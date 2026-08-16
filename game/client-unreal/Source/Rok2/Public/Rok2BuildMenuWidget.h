@@ -48,6 +48,7 @@ public:
 
 protected:
 	virtual void NativeConstruct() override;
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 	UPROPERTY(Transient)
 	URok2Api* Api;

@@ -7,8 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const scriptDir = path.dirname(new URL(import.meta.url).pathname);
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const clientRoot = path.resolve(scriptDir, '..');
 const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 // قائمة UIIcons الكاملة = الحارس السابق + المعرفات التي يتوقعها URok2ArtAssets::ImportedIds
@@ -89,7 +90,9 @@ requireText('Source/Rok2/Private/Rok2ArtAssets.cpp', [
 ]);
 requireText('Source/Rok2/Private/Rok2CityWidget.cpp', [
   'ApplyButtonSkin', '/Game/Art/UIButtons/%s.%s', 'button_primary_gold',
-  'button_secondary_blue', 'SetStyle(Style)', 'ResolveCityBuildingArtId',
+  // P17-T4: جلود الأزرار صارت عبر Rok2Surface::TexturedSkinButton التي تسقط
+  // إلى SecondaryButton عند غياب الجلد — لا SetStyle(Style) اليدوية القديمة.
+  'button_secondary_blue', 'TexturedSkinButton', 'ResolveCityBuildingArtId',
   '/Game/Art/CityBuildingIcons/building_%s.building_%s', 'LoadObject<UTexture2D>',
 ]);
 requireText('../docs/CITY_MAP_UI_ASSET_BRIEF.md', [

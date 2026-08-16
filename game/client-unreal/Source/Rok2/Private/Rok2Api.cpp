@@ -1,4 +1,4 @@
-﻿// Copyright ROK2. Cloudflare API + WebSocket client impl.
+// Copyright ROK2. Cloudflare API + WebSocket client impl.
 // P1-T2: معالجة أخطاء الشبكة + إعادة الاتصال التلقائي + بث حالة الاتصال للواجهات.
 
 #include "Rok2Api.h"
@@ -594,6 +594,30 @@ void URok2Api::ParseCity(const TSharedPtr<FJsonObject>& Obj)
 			Entry.Count = (int32)KV.Value->AsNumber();
 			Troops.Add(Entry);
 		}
+	}
+
+	// جرحى المستشفى الخطيرون + سعته — /v1/city يبعث wounded كخريطة وhospital ككائن.
+	// شاشة الشفاء (P18-T2) تقرأهما من هنا؛ لا تطلب شيئاً بنفسها.
+	City.Wounded.Empty();
+	const TSharedPtr<FJsonObject>* WObj;
+	if (Obj->TryGetObjectField(TEXT("wounded"), WObj) && WObj->IsValid())
+	{
+		for (const auto& KV : (*WObj)->Values)
+		{
+			const int32 Count = (int32)KV.Value->AsNumber();
+			if (Count > 0)
+			{
+				City.Wounded.Add(FString(KV.Key), Count);
+			}
+		}
+	}
+	City.HospitalCapacity = 0;
+	City.HospitalUsed = 0;
+	const TSharedPtr<FJsonObject>* HObj;
+	if (Obj->TryGetObjectField(TEXT("hospital"), HObj) && HObj->IsValid())
+	{
+		City.HospitalCapacity = (int32)Rok2Json::Num(*HObj, TEXT("capacity"));
+		City.HospitalUsed = (int32)Rok2Json::Num(*HObj, TEXT("used"));
 	}
 
 	// التخطيط السلطوي للقلعة — يظل فارغاً في الحسابات القديمة التي لم تحفظ نسخة بعد.
@@ -1290,6 +1314,122 @@ void URok2Api::SaveCityLayout(const TArray<FRok2CityLayoutPlacement>& Placements
 void URok2Api::FetchCommanders()
 {
 	FetchCommandersInternal(nullptr);
+}
+
+// ---------------------------------------------------------------------------
+// P18-T1: شجرة البحث. كل قيمة — المستوى والتكلفة والمدة ومتطلب الأكاديمية —
+// تأتي من /v1/research؛ العميل لا يشتقّ شيئاً (AGENTS.md §3).
+// ---------------------------------------------------------------------------
+void URok2Api::FetchResearch()
+{
+	// نفس حارس القادة: /v1/research يتطلب لاعباً مؤسساً، فلا نُطلق 401 في شاشة الدخول.
+	if (!HasPlayer() || !IsLoggedIn())
+	{
+		return;
+	}
+
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/research"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+
+		FRok2ResearchState State;
+		State.AcademyLevel = (int32)Rok2Json::Num(Obj, TEXT("academyLevel"));
+
+		const TArray<TSharedPtr<FJsonValue>>* TechArr = nullptr;
+		if (Obj->TryGetArrayField(TEXT("technologies"), TechArr))
+		{
+			for (const TSharedPtr<FJsonValue>& Value : *TechArr)
+			{
+				const TSharedPtr<FJsonObject> TechObj = Value->AsObject();
+				if (!TechObj.IsValid()) continue;
+
+				FRok2TechNode Node;
+				Node.Id = Rok2Json::Str(TechObj, TEXT("id"));
+				Node.Name = Rok2Json::Str(TechObj, TEXT("name"));
+				Node.Category = Rok2Json::Str(TechObj, TEXT("branch"));
+				Node.Description = Rok2Json::Str(TechObj, TEXT("description"));
+				Node.MaxLevel = (int32)Rok2Json::Num(TechObj, TEXT("maxLevel"), 5);
+				Node.Level = (int32)Rok2Json::Num(TechObj, TEXT("level"));
+
+				const TArray<TSharedPtr<FJsonValue>>* PrereqArr = nullptr;
+				if (TechObj->TryGetArrayField(TEXT("prerequisites"), PrereqArr))
+				{
+					for (const TSharedPtr<FJsonValue>& Prereq : *PrereqArr)
+					{
+						// الخادم يرسل المتطلبات كائنات {id, level} من research.json
+						// لا نصوصاً — AsString() على كائن تعيد "" فكانت القائمة
+						// تُملأ فراغاً وتعجز الشاشة عن إظهار «متطلب ناقص» أبداً.
+						const TSharedPtr<FJsonObject> PrereqObj = Prereq.IsValid() ? Prereq->AsObject() : nullptr;
+						if (!PrereqObj.IsValid()) continue;
+						const FString PrereqId = Rok2Json::Str(PrereqObj, TEXT("id"));
+						if (!PrereqId.IsEmpty())
+						{
+							Node.Prerequisites.Add(PrereqId);
+						}
+					}
+				}
+
+				// nextLevel = null عند بلوغ السقف، فالحقل غائب لا صفر.
+				const TSharedPtr<FJsonObject>* NextObj = nullptr;
+				if (TechObj->TryGetObjectField(TEXT("nextLevel"), NextObj) && NextObj && (*NextObj).IsValid())
+				{
+					Node.bHasNextLevel = true;
+					Node.NextDurationSeconds = (int32)Rok2Json::Num(*NextObj, TEXT("durationSec"));
+					Node.NextAcademyRequirement = (int32)Rok2Json::Num(*NextObj, TEXT("academyReq"));
+					Node.TimeSeconds = Node.NextDurationSeconds;
+
+					const TSharedPtr<FJsonObject>* CostObj = nullptr;
+					if ((*NextObj)->TryGetObjectField(TEXT("cost"), CostObj) && CostObj && (*CostObj).IsValid())
+					{
+						Node.NextCost.Food = Rok2Json::Num(*CostObj, TEXT("food"));
+						Node.NextCost.Wood = Rok2Json::Num(*CostObj, TEXT("wood"));
+						Node.NextCost.Stone = Rok2Json::Num(*CostObj, TEXT("stone"));
+						Node.NextCost.Gold = Rok2Json::Num(*CostObj, TEXT("gold"));
+					}
+				}
+
+				State.Technologies.Add(Node);
+			}
+		}
+
+		Self->ResearchState = State;
+		Self->OnResearchLoaded.Broadcast();
+	});
+}
+
+void URok2Api::StartResearch(const FString& TechId)
+{
+	if (TechId.IsEmpty())
+	{
+		return;
+	}
+
+	const FString Body = FString::Printf(TEXT("{\"techId\":\"%s\"}"), *TechId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/city/research"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+
+		// الرد يحمل المدينة بعد الخصم وطابور البحث، فنحدّث من المصدر السلطوي
+		// بدل تعديل محلي متفائل.
+		const TSharedPtr<FJsonObject>* CityObj = nullptr;
+		if (Obj->TryGetObjectField(TEXT("city"), CityObj) && CityObj && (*CityObj).IsValid())
+		{
+			Self->ParseCity(*CityObj);
+		}
+
+		Self->EmitToast(TEXT("بدأ البحث"));
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::Upgrade);
+		}
+
+		// الشجرة تحمل الآن مستوى أعلى وتكلفة جديدة — تُعاد قراءتها من الخادم.
+		Self->FetchResearch();
+	});
 }
 
 void URok2Api::FetchCommandersInternal(TFunction<void()> OnFinished)

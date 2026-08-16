@@ -19,6 +19,8 @@ class URok2OnboardingWidget;
 class URok2CivInfoWidget;
 class URok2ChatWidget;
 class URok2SeasonStoryWidget;
+class URok2ResearchWidget;
+class URok2TrainHealSheetWidget;
 class ARok2ViewManager;
 class ARok2CityBuilder;
 
@@ -95,6 +97,19 @@ public:
 	UPROPERTY(Transient)
 	URok2SeasonStoryWidget* SeasonStoryWidget;
 
+	// P18-T1: شاشة البحث العلمي — تُنشأ عند الطلب (من الأكاديمية أو بطاقة المبنى).
+	UPROPERTY(Transient)
+	URok2ResearchWidget* ResearchWidget;
+
+	/** P18-T2: مسار الزر الثانوي لبطاقة المبنى (research/train/heal/chests) —
+	 *  عام لأن CityBuilder يربطه عبر AddDynamic عند إنشاء البطاقة؛ كان
+	 *  الحدث يُبث بلا أي مشترك فأزرار (تدريب/شفاء/بحث/صناديق) تفتح لا شيء. */
+	UFUNCTION()
+	void HandleBuildingAction(const FString& BuildingId, const FString& ActionKind);
+
+	/** P18-T1: فتح شاشة البحث (إنشاء كسول + إحضار الشجرة من الخادم). */
+	void OpenResearchScreen();
+
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")
 	float TickIntervalSeconds;
@@ -114,6 +129,7 @@ protected:
 	UFUNCTION() void HandleCivInfoAction();
 	UFUNCTION() void HandleChatAction();
 	UFUNCTION() void HandleSeasonStoryAction();
+	UFUNCTION() void HandleResearchAction();
 	UFUNCTION() void HandleSeasonStoryEvent(const FRok2SeasonStoryEntry& Event);
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   يشغّل ROK2 كتجربة Standalone قصيرة للتحقق من إقلاع المحرك وتحميل الخريطة.
 
@@ -39,7 +39,7 @@ function Resolve-UnrealEditor {
     $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
     $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
     if ($ActualVersion -ne '5.4.4') {
-        throw "يتطلب دخان تشغيل ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
+        throw "يتطلب دخان تشغيل ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $($ActualVersion): $Candidate"
     }
     return (Resolve-Path $Editor).Path
 }
@@ -87,7 +87,7 @@ $FatalSignatures = @(
     'Unhandled Exception:',
     'LogWindows: Error:'
 )
-$Failures = $FatalSignatures | Where-Object { $Log.Contains($_) }
+$Failures = @($FatalSignatures | Where-Object { $Log.Contains($_) })
 if ($Failures.Count -gt 0) {
     throw "فشل اختبار التشغيل: وُجدت بصمات خطأ قاتل ($($Failures -join ', ')). راجع $LogPath"
 }
