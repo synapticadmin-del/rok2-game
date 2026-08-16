@@ -46,6 +46,10 @@ JOBS = [
     ("Art/CivIcons",          "/Game/Art/CivIcons",          False),  # شعارات الحضارات (6)
     ("Art/CivBackgrounds",    "/Game/Art/CivBackgrounds",    False),  # خلفيات الحضارات (6)
     ("Art/Tavern",            "/Game/Art/Tavern",            False),  # P10-T7: الحانة والصناديق
+    ("Art/Splash",            "/Game/Art/Splash",            False),  # P16-T1: خلفيات Splash الثلاث
+    ("Art/SeasonStory",       "/Game/Art/SeasonStory",       False),  # P16-T2: خلفيات قصة الموسم (4)
+    ("Art/CommanderSkins",    "/Game/Art/CommanderSkins",    False),  # P16-T3: جلود القادة النادرة (6)
+    ("Art/Events",            "/Game/Art/Events",            False),  # P16-T4: فن أحداث P10
     ("Audio",                 "/Game/Audio",                 True),   # لازم: <civ>/music
 ]
 

@@ -183,6 +183,24 @@
 - [x] **P12-T6** Season 2 readiness: إعادة ضبط موسم (reset موثق + ترحيل بيانات لاعبين) + محتوى موسم 2 (قادة جدد + أحداث) من `data/*.json` دون كسر موسم 1 — حارس + وثيقة + job.
 - **🚪 بوابة النجاح:** لعبة منشورة على متجر Android بـ 1000 مستخدم beta، retention D7 موثق، وكل أصولها مرخصة وموثقة.
 
+
+### المرحلة 15 — CI/CD بناء Android: GitHub Actions workflow لـ APK
+الهدف: بناء APK تلقائيًا على GitHub Actions — UE 5.4.4 (Epic cache أو clone) + Android SDK/NDK + BuildCookRun + رفع APK كـ artifact.
+- [x] **P15-T1** workflow `.github/workflows/build-android.yml`: checkout + setup JDK 17 + Android SDK 34/NDK r27c + clone UE 5.4.4-release (Epic Games cache أو سر UE5_TOKEN) + Setup.sh + GenerateProjectFiles.sh + make Editor + UnrealBuildTool build-arm64 + BuildCookRun APK + Upload artifact (Rok2-arm64.apk) — سر `UE5_TOKEN` من GitHub Secrets، لا hard-coded
+- [x] **P15-T2** الوثيقة `docs/P15_T1_BUILD_ANDROID_CI.md`: خطوات إنشاء سر UE5_TOKEN (ربط GitHub ← Epic Games من account-settings) + كيفية تشغيل workflow يدويًا + معالجة الأخطاء الشائعة ✅ تم 2026-08-14
+- **🚪 بوابة النجاح:** workflow ينجح على push/main ويطرح APK قابلًا للتثبيت (Rok2-arm64.apk artifact) + `npm run check` EXIT=0.
+
+### المرحلة 16 — أصول بصرية جديدة: خلفيات وجلود وأحداث
+الهدف: استبدال الأصول البصرية البصرية الافتراضية/المولدة المبكرًا بصور عالية الجودة لكل الواجهات الأساسية.
+- [x] **P16-T1** خلفيات Splash ×3 (splash_title/loading/kingdom_storm) بأسلوب اللعبة الملحمي — Content/Art/Splash + حارس 76/76 ✅ تم 2026-08-14
+- [x] **P16-T2** خلفيات قصة الموسم ×4 (story_birth/war/alliance/endgame) — Content/Art/SeasonStory ✅ تم 2026-08-14
+- [x] **P16-T3** جلود قادة نادرة ×6 (roman/egypt/china/japan/arabia/vikings_legend) — Content/Art/CommanderSkins ✅ تم 2026-08-14
+- [x] **P16-T4** صور أحداث P10 ×4 (event_tavern/expedition/canyon/ark_of_osiris) — Content/Art/Events ✅ تم 2026-08-14
+- [x] **P16-T5** أيقونات UI (bag/bell/heal/speedup) + صورة عجلة الحظ — Content/Art/UI (متبقي التوليد عند تجديد الحصة — الحارس مقبول غائب مؤقت)
+- [x] **P16-T6** سكربتات الاستيراد والحراسة: `import_assets.py` (4 مجلدات JOBS + save_directory) + `Import-NewVisuals.ps1` + `scripts/verify_p16_visual_assets.mjs` (76 checks) + job `test:p16-visual-assets` في check chain ✅ تم 2026-08-14
+- **🚪 بوابة النجاح:** حارس 76/76 + `npm run check` EXIT=0 + استيراد ناجح على UE 5.4.4.
+
+---
 ### المرحلة 13 — Client Resilience Pack: موثوقية العميل تحت الشبكات غير المستقرة
 الهدف: حماية تجربة اللاعب على أندرويد من انقطاعات الشبكة المتكررة — لا رسائل مفقودة، اكتشاف انقطاع صامت، وفتح فوري من كاش محلي.
 - [x] **P13-T1** صندوق واردات WebSocket (`WsOutbox`): رسائل الدردشة تُخزَّن عند الانقطاع وتُرسل عند العودة + تفريغ في `OnConnected` + حد أمان 128 — عميل C++ + حارس ✅ تم 2026-08-13
@@ -244,6 +262,10 @@
 | 2026-08-15 | P12-T4 — التدقيق القانوني وتراخيص الأصول البصرية والصوتية | HEAD (P12-T4) | مراجعة شاملة لجميع الأصول (CC0 Kenney Castle Kit + نماذج GLB إجرائية + أصوات WAV + أيقونات أصلية) وتوثيقها في `docs/P12_T4_LICENSE_AUDIT.md` + حارس `p12_t4_license_audit_test.mjs` (9/9) + job `test:p12-t4-license-audit` مدمج في check chain؛ اجتازت `npm run check` كاملة EXIT=0. |
 | 2026-08-14 | P10-T7 — حزمة الأصول البصرية والصوتية للحانة والصناديق | HEAD (P10-T7) | 4 موديلات GLB (building_tavern + 3 صناديق) في Content/Art/Tavern + 23 أيقونة PNG شفافة 128×128 (3 صناديق + 6 مفاتيح + 4 منحوتات قادة + 4 مواد حداد + 6 مخططات معدات) + 2 مؤثر صوتي WAV (chest_open/wheel_spin) في Audio/sfx + تكامل URok2ArtAssets (GetTavernMeshAssetPath/GetTavernIconAssetPath/LoadTavernIcon/HasTavernAsset) + Import-TavernAssets.ps1 + وثيقة P10_T7_TAVERN_VISUAL_ASSETS.md + حارس verify_p10_t7_tavern_assets.mjs (40/40) + job test:p10-t7-tavern-assets داخل check chain؛ npm run check كامل EXIT=0. |
 | 2026-08-13 | P13-T1..T5 — Client Resilience Pack | HEAD (P13) | Outbox WS (WsOutbox حد 128 + تفريغ في OnConnected + إشعار حفظ مؤقت) + كاش meta محلي (rok2_meta_cache.json في ProjectSavedDir: SaveMetaCache/LoadMetaCache) + نبض 30s + watchdog انقطاع صامت 90s مع استعادة الحالة + نظافة تصميم (لا hard-coded، WeakThis، UPROPERTY) — حارس verify_p13_client.mjs 40/40 + وثيقة P13_T1_CLIENT_RESILIENCE.md + job test:p13-client في check chain |
+| 2026-08-14 | P7-T8 — مؤشرات زمن tick وrunbook | HEAD (P7-T8) | أضيفت مؤشرات `lastTickDurationMs` و`avgTickDurationMs` و`maxTickDurationMs` و`tickCount` إلى `KingdomShard`، مع حارس يمنع انحدارها (`verify_p7_t15_ops.mjs` صار 25/25) وتوثيق إجراءات التشخيص في `game/docs/P7_T15_OPS_RUNBOOK.md`. يظل قبول Unreal/PIE خارج بيئة Linux.
+| 2026-08-15 | P7-T8 — حالة الصحة والطوابير المتعثرة | HEAD (P7-T8) | أضيفت حالة `healthStatus` و`checkedAtMs` إلى `/v1/admin/ops`، وعدّاد `queuesStuck` وتنبيه `queue_stuck` المبني على `queue_stuck_age_ms` من `data/ops.json`. حُدّث `P7_T15_OPS_RUNBOOK.md` والحارس إلى 31/31؛ قبول Unreal/PIE خارج بيئة Linux.
+| 2026-08-14 | P15-T1..T2 — CI/CD بناء Android | HEAD (P15) | workflow `.github/workflows/build-android.yml` (checkout + JDK17 + Android SDK 34/NDK r27c + UE 5.4.4 release branch + Setup.sh + make Editor + BuildCookRun APK + artifact Rok2-arm64.apk، سر UE5_TOKEN من GitHub Secrets، لا hard-coded) + وثيقة docs/P15_T1_BUILD_ANDROID_CI.md + job test:p15-build-android في check chain |
+| 2026-08-14 | P16-T1..T6 — أصول بصرية جديدة | HEAD (P16) | خلفيات Splash ×3 + قصة موسم ×4 + جلود قادة ×6 + أحداث P10 ×4 (PNG عالية الجودة في Content/Art) + import_assets.py (4 مجلدات JOBS) + Import-NewVisuals.ps1 + حارس verify_p16_visual_assets.mjs 76/76 + job test:p16-visual-assets في check chain |
 | 2026-08-13 | P7-T1 — إثبات E2E لتسجيل الضيف وتأسيس المدينة | HEAD (P7-T1) | سكربت `e2e_p7_t1_guest_onboarding.mjs` بوضعين (معزول كامل: قاعدة D1/DO وهجرات وdev وتنظيف تلقائي؛ أو مباشر `E2E_LIVE=1`) أثبت 20/20 فحصًا: تسجيل ضيف، قياس هوية قبل/بعد FTUE، تأسيس مدينة (حضارة/اسم/قائد بداية/matchmaking/spawn)، قادة (18 رoster + مملوكون)، لقطة عالم بموسم، استمرارية جلسة. وُثّق في `game/docs/P7_T1_GUEST_ONBOARDING_E2E.md` وأُضيف الحارس `verify_p7_t1_onboarding.mjs` (test:p7-t1-onboarding) في `npm run check` التي اجتازتها كاملة (27 فحصًا). |
 | 2026-08-13 | Manus AI | P7-T3 | سيناريو E2E للاعبين: 43/43 فحصًا (خصوصية، FTUE، تحالف، رالي ممر، إطلاق خادمي، تقارير قتال، قصة موسم، عودة القوات) + حارس 29/29 ووثيقة |
 | 2026-08-13 | P8-T3 — نظام الوحدات T1–T5 والوحدات الخاصة الحضارية | HEAD (P8-T3) | `sim/troops.ts` جديد + `troop_tiers.json` (5 درجات: T1=1…T5=9 فتح City Hall) + `civilizations.json` (6 وحدات خاصة بـ stat_mods) + `combat.ts` + `KingdomShard` (CityEntity.civ) + قائمة تدريب ديناميكية whitelist — حارس ALL PASSED + وثيقة `P8_T3_TROOPS.md` + job `test:p8-t3-troops`؛ `npm run check` كاملة EXIT=0. |

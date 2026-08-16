@@ -17,7 +17,7 @@ function check(name, cond, detail = "") {
 const opsPath = join(root, "game/backend/src/data/ops.json");
 check("ops.json exists", existsSync(opsPath));
 const ops = existsSync(opsPath) ? JSON.parse(readFileSync(opsPath, "utf8")) : {};
-const requiredKeys = ["enabled", "command_error_window_ms", "tick_stale_threshold_ms", "queue_stuck_threshold", "command_alert_threshold", "error_log_limit"];
+const requiredKeys = ["enabled", "command_error_window_ms", "tick_stale_threshold_ms", "queue_stuck_threshold", "queue_stuck_age_ms", "command_alert_threshold", "error_log_limit"];
 for (const k of requiredKeys) check(`ops.json constants.${k}`, typeof ops.constants?.[k] === "number" || typeof ops.constants?.[k] === "boolean");
 
 // 2. KingdomShard reads constants from the JSON file (no hardcoded thresholds)
@@ -29,12 +29,19 @@ check("KingdomShard has recordCommandError()", shardSrc.includes("recordCommandE
 check("KingdomShard has /ops endpoint", shardSrc.includes('path === "/ops"'));
 check("KingdomShard emits tick_stale alert", shardSrc.includes('"tick_stale"'));
 check("KingdomShard emits queue_pressure alert", shardSrc.includes('"queue_pressure"'));
+check("KingdomShard emits queue_stuck alert", shardSrc.includes('"queue_stuck"'));
+check("opsSnapshot exposes health status", shardSrc.includes('healthStatus: "starting" | "healthy" | "degraded"') && shardSrc.includes("const healthStatus"));
+check("opsSnapshot exposes checkedAtMs", shardSrc.includes("checkedAtMs"));
+check("opsSnapshot exposes queuesStuck", shardSrc.includes("queuesStuck") && shardSrc.includes("QUEUE_STUCK_AGE_MS"));
 check("KingdomShard emits command_error_X alerts", /command_error_\$\{e\.code\}/.test(shardSrc));
 check("KingdomShard updates lastTickMs in tick", /lastTickMs\s*=\s*now/.test(shardSrc));
+check("KingdomShard records tick duration", shardSrc.includes("lastTickDurationMs") && shardSrc.includes("totalTickDurationMs"));
+check("opsSnapshot exposes tick duration metrics", /avgTickDurationMs[\s\S]*maxTickDurationMs[\s\S]*tickCount/.test(shardSrc));
 check("KingdomShard tracks commandErrorCounts Map", shardSrc.includes("commandErrorCounts = new Map<string,"));
 // No hardcoded thresholds — numeric literals must come from constants
 check("No hardcoded 3600000 literal", !shardSrc.includes("3600000"));
 check("No hardcoded 30000 literal", !/\b30000\b/.test(shardSrc));
+check("No hardcoded queue stuck age literal", !/\b120000\b/.test(shardSrc));
 check("No hardcoded window 60*60 pattern for thresholds", !/3600\s*\*\s*1000/.test(shardSrc));
 
 // 3. Router exposes admin ops endpoint behind requireAdmin
