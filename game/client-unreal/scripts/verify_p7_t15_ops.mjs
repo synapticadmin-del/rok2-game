@@ -5,7 +5,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// script lives in game/client-unreal/scripts — repo root is four levels up (scripts→client-unreal→game→repo)
+// script lives in game/client-unreal/scripts — join starts at the file path, so four parent segments reach repo root.
 const root = join(fileURLToPath(import.meta.url), "..", "..", "..", "..");
 let pass = 0, fail = 0;
 function check(name, cond, detail = "") {
@@ -17,7 +17,7 @@ function check(name, cond, detail = "") {
 const opsPath = join(root, "game/backend/src/data/ops.json");
 check("ops.json exists", existsSync(opsPath));
 const ops = existsSync(opsPath) ? JSON.parse(readFileSync(opsPath, "utf8")) : {};
-const requiredKeys = ["enabled", "command_error_window_ms", "tick_stale_threshold_ms", "queue_stuck_threshold", "queue_stuck_age_ms", "command_alert_threshold", "error_log_limit"];
+const requiredKeys = ["enabled", "command_error_window_ms", "tick_stale_threshold_ms", "tick_slow_threshold_ms", "queue_stuck_threshold", "queue_stuck_age_ms", "command_alert_threshold", "error_log_limit"];
 for (const k of requiredKeys) check(`ops.json constants.${k}`, typeof ops.constants?.[k] === "number" || typeof ops.constants?.[k] === "boolean");
 
 // 2. KingdomShard reads constants from the JSON file (no hardcoded thresholds)
@@ -28,6 +28,7 @@ check("KingdomShard has opsSnapshot()", shardSrc.includes("opsSnapshot()"));
 check("KingdomShard has recordCommandError()", shardSrc.includes("recordCommandError("));
 check("KingdomShard has /ops endpoint", shardSrc.includes('path === "/ops"'));
 check("KingdomShard emits tick_stale alert", shardSrc.includes('"tick_stale"'));
+check("KingdomShard emits tick_slow alert", shardSrc.includes('"tick_slow"') && shardSrc.includes("TICK_SLOW_THRESHOLD_MS"));
 check("KingdomShard emits queue_pressure alert", shardSrc.includes('"queue_pressure"'));
 check("KingdomShard emits queue_stuck alert", shardSrc.includes('"queue_stuck"'));
 check("opsSnapshot exposes health status", shardSrc.includes('healthStatus: "starting" | "healthy" | "degraded"') && shardSrc.includes("const healthStatus"));
@@ -37,6 +38,9 @@ check("KingdomShard emits command_error_X alerts", /command_error_\$\{e\.code\}/
 check("KingdomShard updates lastTickMs in tick", /lastTickMs\s*=\s*now/.test(shardSrc));
 check("KingdomShard records tick duration", shardSrc.includes("lastTickDurationMs") && shardSrc.includes("totalTickDurationMs"));
 check("opsSnapshot exposes tick duration metrics", /avgTickDurationMs[\s\S]*maxTickDurationMs[\s\S]*tickCount/.test(shardSrc));
+check("opsSnapshot exposes tick slow threshold", shardSrc.includes("tickSlowThresholdMs") && shardSrc.includes("tick_slow_threshold_ms"));
+check("opsSnapshot exposes command error total", shardSrc.includes("commandErrorsTotal") && shardSrc.includes("commandErrors.reduce"));
+check("opsSnapshot exposes oldest queue", shardSrc.includes("oldestQueueAgeMs") && shardSrc.includes("oldestQueue"));
 check("KingdomShard tracks commandErrorCounts Map", shardSrc.includes("commandErrorCounts = new Map<string,"));
 // No hardcoded thresholds — numeric literals must come from constants
 check("No hardcoded 3600000 literal", !shardSrc.includes("3600000"));
