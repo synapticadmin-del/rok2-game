@@ -1,4 +1,6 @@
 // Copyright ROK2. ورقة التدريب والشفاء اللمسية (P18-T2) — implementation.
+// P6-T3: الحركة كلها من `URok2MotionLibrary` — دخول بتلاشٍ، وضغطة محسوسة على
+// كل زر (`BindPress`)، وتسريح بـ`PlayFadeOut` لا إزالة مفاجئة. لا توين محلي.
 
 #include "Rok2TrainHealSheetWidget.h"
 #include "Rok2Accessibility.h"

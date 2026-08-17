@@ -243,8 +243,13 @@ check('proxy has UFUNCTION HandlePressed', /UFUNCTION\(\)\s*void HandlePressed/.
 check('proxy has UFUNCTION HandleReleased', /UFUNCTION\(\)\s*void HandleReleased/.test(mh));
 check('binds UButton::OnPressed', mc.includes('Button->OnPressed.AddDynamic'));
 check('binds UButton::OnReleased', mc.includes('Button->OnReleased.AddDynamic'));
-check('press plays ButtonClick sfx',
-  mc.includes('ERok2AudioType::ButtonClick'));
+// P7-T1 وحّد أصوات الواجهة على فهرس أصول P6-T8، فصار نوع الضغطة
+// `UiButtonClick` بدل `ButtonClick` القديم — وكلاهما يشير إلى الملف نفسه في
+// `Rok2AudioManager::BuildAudioPaths` (`ButtonClick` أُبقي للتوافق فقط). الفحص
+// كان يبحث عن الاسم القديم حرفياً فيفشل على كود سليم، والقبول هنا لأي من
+// الاسمين يحرس السلوك (صوت نقرة عند الضغط) لا التسمية.
+check('press plays a click sfx (ButtonClick أو UiButtonClick الموحّد)',
+  mc.includes('ERok2AudioType::UiButtonClick') || mc.includes('ERok2AudioType::ButtonClick'));
 check('includes AudioManager for the click', mc.includes('#include "Rok2AudioManager.h"'));
 check('proxies kept from GC (UPROPERTY array)',
   /UPROPERTY\(Transient\)\s*TArray<UObject\*> PressProxies/.test(mh));

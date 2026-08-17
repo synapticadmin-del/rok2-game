@@ -517,6 +517,12 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 void URok2HudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// P18-T3: أعمار بطاقات الإشعارات تُحدَّث بالـDelta الحقيقي **قبل** بوابة
+	// الربع ثانية. لو مرّت عبرها لكانت المدة تُخصم بقفزات 0.25s فتنحرف مدة
+	// العرض عن ثانيتها المعلنة، وكان الخروج يتأخر إلى أول دورة تحديث.
+	TickToasts(InDeltaTime);
+
 	HudRefreshAccumulator += InDeltaTime;
 	if (HudRefreshAccumulator < 0.25f) return;
 	HudRefreshAccumulator = 0.f;
@@ -832,15 +838,42 @@ void URok2HudWidget::UpdateBuildBadge()
 void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 {
 	UpdateBellBadge();
+
+	// P18-T3: وميض ذهبي على الجرس عند وصول إشعار.
+	//
+	// `PlayGoldFlash` كانت معرّفة في المكتبة منذ P6-T3 بلا مستدعٍ واحد، فقاعدة
+	// §1 «كل تأكيد له وميض ذهبي» لم تكن مطبَّقة في أي موضع. الجرس هدف صحيح:
+	// وصول إشعار قد لا يُنتج توستاً (نوع `combat`/`zone`/`rally` يذهب لمركز
+	// الإشعارات)، فبلا وميض كان الرقم يتغيّر في زاوية الشاشة بلا ما يجذب النظر.
+	//
+	// الهدف `UImage` لا `UBorder`: المكتبة تصبغ `ColorAndOpacity` للصور فيظهر
+	// الذهب فعلاً، أما غير المعروف فتُعطى نبضة شفافية باهتة.
+	if (BellIcon)
+	{
+		URok2MotionLibrary::PlayGoldFlash(BellIcon);
+	}
 }
 
 void URok2HudWidget::OnToast(const FString& Message)
 {
 	if (!ToastsBox || Message.IsEmpty()) return;
-	while (ToastsBox->GetChildrenCount() >= 3)
+
+	// P18-T3: السقف يُطبَّق على البطاقات الحيّة لا على أطفال الصندوق.
+	// `GetChildrenCount()` كان يشمل بطاقةً في منتصف حركة خروجها، فيتقلّص السقف
+	// الفعلي بلا سبب؛ والأهم أن `RemoveChildAt(0)` كانت إزالة مفاجئة تُقصّ
+	// البطاقة من الشاشة (§1 «لا قفزات جامدة»).
+	int32 Live = 0;
+	for (const FToastEntry& Entry : ActiveToasts)
 	{
-		ToastsBox->RemoveChildAt(0);
+		if (!Entry.bExiting) ++Live;
 	}
+	for (int32 i = 0; i < ActiveToasts.Num() && Live >= MaxVisibleToasts; ++i)
+	{
+		if (ActiveToasts[i].bExiting) continue;
+		BeginToastExit(ActiveToasts[i]);
+		--Live;
+	}
+
 	UBorder* Card = NewObject<UBorder>(this);
 	Card->SetBrush(Rok2Surface::AccentCard(Rok2Visual::Gold()));
 	Card->SetPadding(FMargin(Rok2Space::M, Rok2Space::S));
@@ -851,9 +884,80 @@ void URok2HudWidget::OnToast(const FString& Message)
 	URok2Typography::ApplyFont(Text, ERok2TextRole::Body);
 	Card->SetContent(Text);
 	ToastsBox->AddChildToVerticalBox(Card)->SetPadding(FMargin(0.f, Rok2Space::XS));
+
+	// P18-T3: `PlayToastIn` كانت معرّفة في المكتبة منذ P6-T3 **بلا أي مستدعٍ في
+	// المشروع** — فالبطاقة كانت تظهر فجأة مكتملة الشفافية، وهو نقيض §7 «بطاقة
+	// تنزلق … + تتلاشى».
+	URok2MotionLibrary::PlayToastIn(Card);
+
+	FToastEntry Entry;
+	Entry.Card = Card;
+	Entry.Remaining = ToastLifetimeSeconds;
+	ActiveToasts.Add(Entry);
+	ToastCardRefs.Add(Card);
+
 	if (URok2AudioManager* Audio = URok2AudioManager::Get())
 	{
 		Audio->PlaySfx(ERok2AudioType::Notification);
+	}
+}
+
+void URok2HudWidget::BeginToastExit(FToastEntry& Entry)
+{
+	// الحارس هو جوهر البند: بلا `bExiting` كان `NativeTick` يُطلق حركة الخروج
+	// في **كل إطار** بعد نفاد المدة، فتُعاد الحركة من بدايتها كل 16ms والبطاقة
+	// لا تختفي أبداً — وتتراكم توينات على نفس الودجة.
+	if (Entry.bExiting) return;
+	Entry.bExiting = true;
+
+	if (UBorder* Card = Entry.Card.Get())
+	{
+		// المكتبة تُزيل الودجة من الشجرة عند انتهاء الحركة؛ لا `RemoveFromParent`
+		// هنا.
+		URok2MotionLibrary::PlayToastOut(Card);
+	}
+}
+
+void URok2HudWidget::TickToasts(float InDeltaTime)
+{
+	for (int32 i = ActiveToasts.Num() - 1; i >= 0; --i)
+	{
+		FToastEntry& Entry = ActiveToasts[i];
+
+		// البطاقة اختفت (انتهت حركة الخروج فأزالتها المكتبة) — نُطلق مرساة الـGC.
+		if (!Entry.Card.IsValid())
+		{
+			ActiveToasts.RemoveAt(i);
+			continue;
+		}
+
+		if (Entry.bExiting)
+		{
+			// ننتظر المكتبة؛ لا حساب شفافية يدوي هنا. حساب التلاشي بالإطار كان
+			// يُكرّر منطق المكتبة في الودجة، فينحرف عن المعيار الموحد.
+			continue;
+		}
+
+		Entry.Remaining -= InDeltaTime;
+		if (Entry.Remaining <= 0.f)
+		{
+			BeginToastExit(Entry);
+		}
+	}
+
+	// تنظيف المراسي: كل مؤشر لم يبق له مدخل حيّ.
+	if (ToastCardRefs.Num() > ActiveToasts.Num())
+	{
+		for (int32 i = ToastCardRefs.Num() - 1; i >= 0; --i)
+		{
+			UBorder* Card = ToastCardRefs[i];
+			const bool bStillTracked = ActiveToasts.ContainsByPredicate(
+				[Card](const FToastEntry& E) { return E.Card.Get() == Card; });
+			if (!bStillTracked)
+			{
+				ToastCardRefs.RemoveAt(i);
+			}
+		}
 	}
 }
 

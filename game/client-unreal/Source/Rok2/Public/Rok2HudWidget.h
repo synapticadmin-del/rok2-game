@@ -95,9 +95,46 @@ protected:
 	UPROPERTY(Transient) UBorder* QueuesPanel;
 
 	// إشعارات
-	UPROPERTY(Transient) UVerticalBox* ToastsBox;
-	UPROPERTY(Transient) UBorder* NotifCenterPanel;
-	UPROPERTY(Transient) UScrollBox* NotifList;
+	UPROPERTY(Transient)
+	UVerticalBox* ToastsBox;
+
+	/**
+	 * P18-T3: بطاقة إشعار حيّة واحدة.
+	 *
+	 * **بنية عادية لا USTRUCT، وبلا `UPROPERTY` داخلها عن قصد.** زرع `UPROPERTY`
+	 * في بنية غير منعكسة لا يفعل شيئاً: UHT لا يرى الحقل فلا يتبعه جامع
+	 * القمامة، فيبدو الكود محمياً وهو ليس كذلك. مرساة الـGC الحقيقية هي
+	 * `ToastCardRefs` أدناه.
+	 */
+	struct FToastEntry
+	{
+		/** ضعيف: الحركة تُزيل البطاقة من الشجرة عند انتهاء الخروج. */
+		TWeakObjectPtr<UBorder> Card;
+
+		/** ما بقي قبل بدء الخروج (ثانية). سالبٌ = الخروج جارٍ. */
+		float Remaining = 0.f;
+
+		/** أُطلقت حركة الخروج؟ يمنع إطلاقها كل إطار بعد نفاد المدة. */
+		bool bExiting = false;
+	};
+
+	/** البطاقات الحيّة بترتيب الوصول — الأقدم أولاً. */
+	TArray<FToastEntry> ActiveToasts;
+
+	/**
+	 * P18-T3: مرساة الـGC لبطاقات الإشعارات.
+	 *
+	 * البطاقات تُبنى بـ`NewObject` وتُضاف إلى `ToastsBox`، لكن حركة الخروج
+	 * تُزيلها من الشجرة قبل أن نُسقط أثرها — ومن تلك اللحظة لا مالك منعكس لها.
+	 * هذه القائمة تحفظها حتى نُطلقها بأنفسنا.
+	 */
+	UPROPERTY(Transient)
+	TArray<UBorder*> ToastCardRefs;
+
+	UPROPERTY(Transient)
+	UBorder* NotifCenterPanel;
+	UPROPERTY(Transient)
+	UScrollBox* NotifList;
 
 	/**
 	 * P24-T1: معالجات صفوف الطوابير — كل زر تسريع يحمل معرّف طابوره.
@@ -137,6 +174,25 @@ protected:
 	UFUNCTION() void OnToast(const FString& Message);
 	UFUNCTION() void OnZones(const TArray<FRok2ZoneStatus>& Zones);
 	UFUNCTION() void OnConnState(bool bOnline, const FString& StatusMessage);
+
+	/**
+	 * P18-T3: يُحدّث عمر البطاقات الحيّة ويُطلق الخروج مرة واحدة لكل بطاقة.
+	 * يُنادى من `NativeTick` بالـDelta الحقيقي لا بدورة الربع ثانية، فمدة العرض
+	 * تظل ثابتة مهما تغيّر معدل الإطارات.
+	 */
+	void TickToasts(float InDeltaTime);
+
+	/**
+	 * يُخرج أقدم بطاقة بحركة `PlayToastOut`. لا تُزال يدوياً — المكتبة تُزيلها
+	 * عند انتهاء الحركة (§1 «لا قفزات جامدة»).
+	 */
+	void BeginToastExit(FToastEntry& Entry);
+
+	/** أقصى عدد بطاقات معروضة معاً — من مواصفة UI/UX §7 وبند PLAN «سقف 3». */
+	static constexpr int32 MaxVisibleToasts = 3;
+
+	/** مدة بقاء البطاقة قبل بدء الخروج (ثانية). */
+	static constexpr float ToastLifetimeSeconds = 4.f;
 
 	void UpdateResources();
 	void UpdateQueues();

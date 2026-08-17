@@ -1,4 +1,6 @@
 // Copyright ROK2. شاشة البحث العلمي (P18-T1) — implementation.
+// P6-T3: الحركة كلها من `URok2MotionLibrary` — دخول بتلاشٍ، وضغطة محسوسة على
+// كل زر (`BindPress`)، وتسريح بـ`PlayFadeOut` لا إزالة مفاجئة. لا توين محلي.
 
 #include "Rok2ResearchWidget.h"
 #include "Rok2Accessibility.h"
