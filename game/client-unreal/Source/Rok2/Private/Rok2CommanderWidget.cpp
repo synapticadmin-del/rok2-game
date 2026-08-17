@@ -3,6 +3,8 @@
 // P6-T3: انتقال دخول الشاشة (تلاشٍ) + ضغطة محسوسة على أزرار الإجراءات والبطاقات.
 
 #include "Rok2CommanderWidget.h"
+#include "Rok2Accessibility.h"
+#include "Rok2AudioManager.h"
 #include "Rok2Surface.h"
 #include "Rok2Typography.h"
 #include "Rok2VisualTheme.h"
@@ -178,14 +180,36 @@ void URok2CommanderWidget::BuildUI()
 	ListSize.Value = 0.4f;
 	ListPanelSlot->SetSize(ListSize);
 
-	// عنوان القائمة
+	// عنوان القائمة + زر الإغلاق (P18-T5). الشاشة كانت تُضاف للمنفذ ولا تُزال
+	// أبداً — لا زر ولا حجاب ولا مسار — فمن يفتحها يبقى عليها بقية الجلسة.
+	UHorizontalBox* ListHeader = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ListHeader"));
+	UVerticalBoxSlot* ListTitleSlot = ListPanel->AddChildToVerticalBox(ListHeader);
+	ListTitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+
 	UTextBlock* ListTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ListTitle"));
 	ListTitle->SetText(FText::FromString(TEXT("القادة")));
 	ListTitle->SetColorAndOpacity(FSlateColor(COLOR_GOLD));
 	URok2Typography::ApplyFont(ListTitle, ERok2TextRole::Display);
 	ListTitle->SetJustification(ETextJustify::Center);
-	UVerticalBoxSlot* ListTitleSlot = ListPanel->AddChildToVerticalBox(ListTitle);
-	ListTitleSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
+	UHorizontalBoxSlot* ListTitleTextSlot = ListHeader->AddChildToHorizontalBox(ListTitle);
+	ListTitleTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	ListTitleTextSlot->SetVerticalAlignment(VAlign_Center);
+
+	{
+		UButton* CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CommanderCloseButton"));
+		CloseButton->SetStyle(Rok2Surface::SecondaryButton());
+		CloseButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		CloseButton->OnClicked.AddDynamic(this, &URok2CommanderWidget::OnCloseClicked);
+		URok2MotionLibrary::BindPress(CloseButton);
+		UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 18.f, Rok2Visual::Muted()));
+		CloseIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+		CloseIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		CloseButton->AddChild(CloseIco);
+		UHorizontalBoxSlot* CloseSlot = ListHeader->AddChildToHorizontalBox(CloseButton);
+		CloseSlot->SetVerticalAlignment(VAlign_Center);
+		CloseSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	}
 
 	// ScrollBox للقائمة
 	CommanderListScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("CommanderListScroll"));
@@ -374,11 +398,29 @@ void URok2CommanderWidget::BuildUI()
 }
 
 // ---------------------------------------------------------------------------
+// P18-T5: الإغلاق. الشاشة كانت بلا أي مسار إزالة في المشروع كله.
+// ---------------------------------------------------------------------------
+void URok2CommanderWidget::CloseSelf()
+{
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	// تسريح بحركة كبقية اللوحات. `GameMode` يملك المؤشر ويعيد إضافتها عند
+	// الفتح التالي (`if (!IsInViewport())`)، فالإزالة لا تُتلف الكائن.
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2CommanderWidget::OnCloseClicked()
+{
+	CloseSelf();
+}
+
+// ---------------------------------------------------------------------------
 // SetupWithApi — يربط الشاشة بالـ API
 // ---------------------------------------------------------------------------
 void URok2CommanderWidget::SetupWithApi(URok2Api* InApi)
-{
-	if (Api)
+{	if (Api)
 	{
 		Api->OnCommandersLoaded.RemoveDynamic(this, &URok2CommanderWidget::RefreshCommanderList);
 	}

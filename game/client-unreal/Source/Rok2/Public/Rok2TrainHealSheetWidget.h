@@ -12,6 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2TrainHealSheetWidget.generated.h"
 
@@ -40,7 +41,7 @@ public:
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class ROK2_API URok2TrainHealSheetWidget : public UUserWidget
+class ROK2_API URok2TrainHealSheetWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -53,6 +54,9 @@ public:
 
 	/** تدريب/شفاء وحدة واحدة — عام لأن وسيط الزر يناديه. */
 	void HandleUnitAction(const FString& UnitId);
+
+	// P18-T5: الرجوع يغلق الورقة كزر «إغلاق» أو لمس الحجاب.
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 protected:
 	virtual void NativeConstruct() override;

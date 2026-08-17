@@ -4,6 +4,7 @@
 #include "Rok2ChatWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
+#include "Rok2AudioManager.h"
 #include "Rok2Surface.h"
 #include "Rok2Typography.h"
 #include "Rok2VisualTheme.h"
@@ -143,6 +144,22 @@ void URok2ChatWidget::BuildWidgetTree()
 	URok2MotionLibrary::BindPress(MinimizeButton);
 	HeaderBox->AddChildToHorizontalBox(MinimizeButton);
 
+	// P18-T5: زر إغلاق إلى جانب التصغير. التصغير يطوي الرسائل والإدخال
+	// والتبويبات فيبقى شريط الترويسة معلقاً على الشاشة بلا مسار إزالة.
+	{
+		UButton* CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ChatCloseButton"));
+		CloseButton->SetStyle(Rok2Surface::SecondaryButton());
+		CloseButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 14.f, Rok2Visual::Muted()));
+		CloseIco->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+		CloseIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		CloseButton->AddChild(CloseIco);
+		CloseButton->OnClicked.AddDynamic(this, &URok2ChatWidget::OnCloseClicked);
+		URok2MotionLibrary::BindPress(CloseButton);
+		HeaderBox->AddChildToHorizontalBox(CloseButton);
+	}
+
 	// ---- صندوق الرسائل ----
 	MessageScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("MessageScroll"));
 	MessageScroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
@@ -218,6 +235,27 @@ void URok2ChatWidget::OnMinimizeClicked()
 	if (InputBar) InputBar->SetVisibility(bMinimized ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (KingdomTab) KingdomTab->SetVisibility(bMinimized ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	if (AllianceTab) AllianceTab->SetVisibility(bMinimized ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+}
+
+void URok2ChatWidget::CloseSelf()
+{
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	// التصغير حالة لا إغلاق؛ الودجة تُعاد للمنفذ من GameMode عند الفتح التالي،
+	// فنُعيد الحالة المطويّة إلى وضعها الطبيعي وإلا فُتحت في المرة القادمة
+	// بشريط ترويسة وحده.
+	if (bMinimized)
+	{
+		OnMinimizeClicked();
+	}
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2ChatWidget::OnCloseClicked()
+{
+	CloseSelf();
 }
 
 void URok2ChatWidget::SwitchChannel(const FString& NewChannel)

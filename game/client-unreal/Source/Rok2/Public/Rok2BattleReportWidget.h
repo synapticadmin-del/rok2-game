@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2BattleReportWidget.generated.h"
 
@@ -13,7 +14,7 @@ class UVerticalBox;
 class UButton;
 
 UCLASS()
-class URok2BattleReportWidget : public UUserWidget
+class URok2BattleReportWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -29,6 +30,9 @@ public:
 	/** زر الإغلاق — يزيل الواجهة من الشاشة */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Battle")
 	void Close();
+
+	// P18-T5: الرجوع يغلق التقارير كزر الإغلاق (تلاشٍ ثم إزالة).
+	virtual void DismissLayer() override { Close(); }
 
 protected:
 	UPROPERTY(Transient)

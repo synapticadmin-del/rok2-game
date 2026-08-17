@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2CommanderWidget.generated.h"
 
@@ -103,7 +104,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommanderSelected, const FString&
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAssignCommander, const FString&, CommanderId);
 
 UCLASS()
-class ROK2_API URok2CommanderWidget : public UUserWidget
+class ROK2_API URok2CommanderWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -111,6 +112,19 @@ public:
 	/** تهيئة الشاشة بمرجع الـ API (يُستدعى بعد الإنشاء). */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void SetupWithApi(URok2Api* InApi);
+
+	/**
+	 * P18-T5: إغلاق شاشة القادة.
+	 *
+	 * كانت هذه الشاشة تُضاف للمنفذ في `HandleCommandersAction` **ولا تُزال
+	 * أبداً**: لا زر إغلاق في ترويستها ولا حجاب يُلمس ولا مسار في المشروع
+	 * يزيلها. فمن يفتح القادة يبقى عليها إلى نهاية الجلسة، والمدينة والخريطة
+	 * تحتها لا تُلمس. الرجوع وزر الإغلاق يمرّان من هنا.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void CloseSelf();
+
+	virtual void DismissLayer() override { CloseSelf(); }
 
 	/** يحدّث القائمة من Api->GetCommanders() + commanders.json. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
@@ -165,11 +179,16 @@ protected:
 	UFUNCTION()
 	void OnAssignClicked();
 
+
 	UFUNCTION()
 	void OnLevelUpClicked();
 
 	UFUNCTION()
 	void OnSkillUpgradeClicked();
+
+	/** زر إغلاق الترويسة (P18-T5) — يمرّ بـ`CloseSelf`. */
+	UFUNCTION()
+	void OnCloseClicked();
 
 	UPROPERTY(Transient)
 	URok2Api* Api;

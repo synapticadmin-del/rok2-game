@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2AllianceRosterWidget.generated.h"
 
@@ -30,7 +31,7 @@ struct FRok2AllianceMemberData
 };
 
 UCLASS()
-class URok2AllianceRosterWidget : public UUserWidget
+class URok2AllianceRosterWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -43,6 +44,17 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	TArray<FRok2AllianceMemberData> Members;
+
+	/**
+	 * P18-T5: إغلاق شاشة التحالف بحركة.
+	 *
+	 * زر «✕» في ترويستها كان مربوطاً بـ`UUserWidget::RemoveFromParent` مباشرة —
+	 * إزالة مفاجئة تمنعها قاعدة §1 «لا قفزات جامدة»، ولا صوت إغلاق معها.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void CloseSelf();
+
+	virtual void DismissLayer() override { CloseSelf(); }
 
 protected:
 	UPROPERTY(Transient)
@@ -84,6 +96,10 @@ protected:
 
 	UFUNCTION()
 	void OnCreateAllianceClicked();
+
+	/** زر «✕» في الترويسة (P18-T5) — كان مربوطاً بـ`RemoveFromParent` مباشرة. */
+	UFUNCTION()
+	void OnCloseClicked();
 
 	UFUNCTION()
 	void OnHelpClicked();

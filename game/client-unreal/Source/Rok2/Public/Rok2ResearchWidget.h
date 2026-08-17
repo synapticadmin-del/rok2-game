@@ -16,6 +16,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2ResearchWidget.generated.h"
 
@@ -42,7 +43,7 @@ public:
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class ROK2_API URok2ResearchWidget : public UUserWidget
+class ROK2_API URok2ResearchWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -52,6 +53,9 @@ public:
 
 	/** يبدأ بحث تقنية — يُنادى من وسيط الصف. */
 	void RequestResearch(const FString& TechId);
+
+	// P18-T5: الرجوع يغلق شاشة البحث كزر الإغلاق فيها.
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 protected:
 	virtual void NativeConstruct() override;

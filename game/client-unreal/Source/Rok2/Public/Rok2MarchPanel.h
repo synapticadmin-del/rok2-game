@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2MarchPanel.generated.h"
 
 class URok2Api;
@@ -13,13 +14,24 @@ class UTextBlock;
 class UComboBoxString;
 
 UCLASS()
-class URok2MarchPanel : public UUserWidget
+class URok2MarchPanel : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
 public:
 	virtual void NativeConstruct() override;
 	virtual TSharedRef<SWidget> RebuildWidget() override;
+
+	/**
+	 * P18-T5: إغلاق اللوحة بلا إرسال. كانت هذه اللوحة **الوحيدة بلا أي مسار
+	 * إغلاق**: تُفتح بلمس هدف على الخريطة ولا تُزال إلا بإرسال مسيرة أو كشافة
+	 * أو رالي — فاللاعب الذي يلمس عقدة بالخطأ كان محصوراً بين إرسال قوات لم
+	 * يقصده وبين لوحة لا تختفي.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void CloseSelf();
+
+	virtual void DismissLayer() override { CloseSelf(); }
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	URok2Api* Api;
@@ -90,6 +102,10 @@ protected:
 
 	UFUNCTION()
 	void OnRallyClicked();
+
+	/** زر الإغلاق في الترويسة (P18-T5) — نفس مسار `CloseSelf`. */
+	UFUNCTION()
+	void OnCloseClicked();
 
 	/** P5-T5: يرسل كشافة للنقطة المحددة */
 	UFUNCTION()

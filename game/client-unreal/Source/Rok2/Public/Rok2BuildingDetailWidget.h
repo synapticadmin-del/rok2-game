@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2BuildingDetailWidget.generated.h"
 
 class URok2Api;
@@ -22,7 +23,7 @@ class ARok2CityLayoutActor;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBuildingAction, const FString&, BuildingId, const FString&, ActionKind);
 
 UCLASS(BlueprintType, Blueprintable)
-class ROK2_API URok2BuildingDetailWidget : public UUserWidget
+class ROK2_API URok2BuildingDetailWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -42,6 +43,9 @@ public:
 	/** يُطلق عند ضغط الزر الثانوي (تدريب/شفاء/بحث/صناديق) */
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnBuildingAction OnBuildingAction;
+
+	// P18-T5: البطاقة على ترتيب 200 فهي أعلى الطبقات — أول ما يغلقه الرجوع.
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 protected:
 	virtual void NativeConstruct() override;

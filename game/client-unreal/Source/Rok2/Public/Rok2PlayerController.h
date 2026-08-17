@@ -27,9 +27,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void FocusOnPlayerCity();
 
+	/**
+	 * P18-T5: زر الرجوع. يُغلق **طبقة واحدة** لكل ضغطة بترتيب المنفذ (اللوحات
+	 * قبل الـHUD)، وعند خلو الشاشة يطلب تأكيد الخروج.
+	 *
+	 * عام وBlueprintCallable لأنه يُربط من ثلاثة مصادر: مفتاح Escape على
+	 * الحاسوب، `EKeys::Android_Back` على الجهاز، وأي زر رجوع في الواجهة.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void HandleBackRequested();
+
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
+
+	/**
+	 * لوحة تأكيد الخروج (P18-T5) — تُنشأ عند أول ضغطة رجوع على شاشة خالية
+	 * وتُعاد للعرض بعدها. الاحتفاظ بالمؤشر يمنع تراكم نسخة لكل ضغطة.
+	 */
+	UPROPERTY(Transient)
+	class URok2ExitConfirmWidget* ExitConfirmWidget;
 
 	UPROPERTY(Transient)
 	class ARok2IsometricCamera* IsoCamera;
@@ -45,6 +62,18 @@ protected:
 	void OnZoom(float V) { ZoomInput = V; }
 	void OnTap();
 	void OnEscape();
+
+	/**
+	 * P18-T5: زر الرجوع على أندرويد.
+	 *
+	 * لماذا ربط مباشر لا `ActionMappings`: `FAndroidPlatformInput::GetKeyMap`
+	 * يسجّل `AKEYCODE_BACK` مرتين — مرة كـ`Escape` (خريطة المحارف) ومرة
+	 * كـ`Android_Back`. و`FInputKeyManager::GetKeyFromCodes` يقدّم الخريطة
+	 * الافتراضية، فأي من الاسمين قد يصل حسب مسار الحدث. الربط بالمفتاحين معاً
+	 * يجعل السلوك واحداً بلا اعتماد على أي المسارين فاز، ويمنع ضغطة مزدوجة عبر
+	 * حارس الإطار الواحد في `HandleBackRequested`.
+	 */
+	void OnAndroidBack();
 
 	// -----------------------------------------------------------------------
 	// إدخال اللمس (أندرويد)
@@ -77,4 +106,14 @@ protected:
 
 	/** أقصى مدة بالثواني تُحتسب معها اللمسة نقرة. */
 	static constexpr float TapMaxDurationSeconds = 0.6f;
+
+	/**
+	 * زمن آخر ضغطة رجوع مُعالَجة. `AKEYCODE_BACK` يصل مرتين على أندرويد
+	 * (كـ`Escape` وكـ`Android_Back`) فبدون هذا الحارس كانت الضغطة الواحدة تغلق
+	 * طبقتين، أو تفتح تأكيد الخروج وتُلغيه في اللحظة نفسها.
+	 */
+	float LastBackHandledSeconds = -1.f;
+
+	/** نافذة تجاهل الضغطة المكرّرة — أقصر من أي ضغطة بشرية متتابعة. */
+	static constexpr float BackDebounceSeconds = 0.15f;
 };

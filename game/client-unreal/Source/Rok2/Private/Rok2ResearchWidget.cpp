@@ -4,6 +4,7 @@
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2AudioManager.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2Surface.h"
 #include "Rok2Typography.h"
@@ -207,7 +208,13 @@ void URok2ResearchWidget::OnDefenseTab() { SelectBranch(BranchDefense); }
 
 void URok2ResearchWidget::OnCloseClicked()
 {
-	RemoveFromParent();
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	// P18-T5: كانت `RemoveFromParent()` عارية — إزالة مفاجئة تمنعها §1 «لا
+	// قفزات جامدة»، والشاشة تُفتح بحركة تلاشٍ فكان الخروج غير متماثل.
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2ResearchWidget::OnResearchLoaded()

@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2BuildMenuWidget.generated.h"
 
 class URok2Api;
@@ -35,7 +36,7 @@ public:
 };
 
 UCLASS(BlueprintType, Blueprintable)
-class ROK2_API URok2BuildMenuWidget : public UUserWidget
+class ROK2_API URok2BuildMenuWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -45,6 +46,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Rok2")
 	FOnBuildMenuPick OnBuildMenuPick;
+
+	// P18-T5: زر الرجوع/Escape يغلق هذه الورقة بنفس مسار زر الإغلاق.
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 protected:
 	virtual void NativeConstruct() override;

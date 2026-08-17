@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2ChatWidget.generated.h"
 
@@ -16,13 +17,25 @@ class UVerticalBox;
 class UHorizontalBox;
 
 UCLASS()
-class URok2ChatWidget : public UUserWidget
+class URok2ChatWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
 public:
 	virtual void NativeConstruct() override;
 	virtual TSharedRef<SWidget> RebuildWidget() override;
+
+	/**
+	 * P18-T5: إغلاق الدردشة.
+	 *
+	 * كان في ترويستها زر «_» للتصغير وحده: يطوي الرسائل وشريط الإدخال
+	 * والتبويبات فيبقى شريط الترويسة على الشاشة إلى الأبد — ولا مسار إزالة في
+	 * المشروع كله.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2")
+	void CloseSelf();
+
+	virtual void DismissLayer() override { CloseSelf(); }
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rok2")
 	URok2Api* Api;
@@ -62,6 +75,10 @@ protected:
 	UFUNCTION() void OnKingdomTabClicked();
 	UFUNCTION() void OnAllianceTabClicked();
 	UFUNCTION() void OnMinimizeClicked();
+
+	/** زر الإغلاق في الترويسة (P18-T5) — يمرّ بـ`CloseSelf`. */
+	UFUNCTION() void OnCloseClicked();
+
 
 	// ---- ألوان الحضارات ----
 	static FLinearColor GetCivColor(const FString& Civ);

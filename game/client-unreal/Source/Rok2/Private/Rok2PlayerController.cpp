@@ -1,10 +1,14 @@
 // Copyright ROK2. Player controller impl.
 
 #include "Rok2PlayerController.h"
+#include "Rok2CityBuilder.h"
+#include "Rok2ExitConfirmWidget.h"
 #include "Rok2GameMode.h"
 #include "Rok2IsometricCamera.h"
 #include "Rok2Api.h"
 #include "Rok2Types.h"
+#include "Rok2UiStack.h"
+#include "Rok2ViewManager.h"
 #include "EngineUtils.h"
 #include "Rok2MarchPanel.h"
 #include "Rok2WorldRenderer.h"
@@ -61,6 +65,13 @@ void ARok2PlayerController::SetupInputComponent()
 	InputComponent->BindAxis(TEXT("Zoom"), this, &ARok2PlayerController::OnZoom);
 	InputComponent->BindAction(TEXT("Tap"), IE_Pressed, this, &ARok2PlayerController::OnTap);
 	InputComponent->BindAction(TEXT("Escape"), IE_Pressed, this, &ARok2PlayerController::OnEscape);
+
+	// P18-T5: زر الرجوع على أندرويد. `FAndroidPlatformInput::GetKeyMap` يسجّل
+	// `AKEYCODE_BACK` باسمين (`Escape` في خريطة المحارف و`Android_Back` في
+	// خريطة المفاتيح)، فأي منهما قد يصل حسب مسار الحدث. نربط المفتاح صريحاً
+	// إلى جانب `ActionMappings` كي لا يعتمد السلوك على أي المسارين فاز؛
+	// والوصول المزدوج يمتصّه حارس `BackDebounceSeconds`.
+	InputComponent->BindKey(EKeys::Android_Back, IE_Pressed, this, &ARok2PlayerController::OnAndroidBack);
 
 	// اللمس — المسار الوحيد الفعّال على أندرويد.
 	InputComponent->BindTouch(IE_Pressed, this, &ARok2PlayerController::OnTouchBegin);
@@ -262,7 +273,11 @@ void ARok2PlayerController::HandleTapAtScreenPos(const FVector2D& ScreenPos)
 				Panel->TargetName = FoundName;
 				Panel->ToX = FoundX;
 				Panel->ToY = FoundY;
-				Panel->AddToViewport();
+				// P18-T5: كانت `AddToViewport()` بلا معامل — أي ZOrder = 0،
+				// **تحت الـHUD (20)**. فأزرار الإرسال والكشافة كانت مرسومة تحت
+				// شريط الموارد وعنقود الأزرار، ولوحة المسيرة خارج ترتيب الطبقات
+				// الذي يقرأه زر الرجوع. ترتيب اللوحات هو 50 في هذا المشروع.
+				Panel->AddToViewport(50);
 			}
 		}
 	}
@@ -270,5 +285,77 @@ void ARok2PlayerController::HandleTapAtScreenPos(const FVector2D& ScreenPos)
 
 void ARok2PlayerController::OnEscape()
 {
-	// could close UI panels
+	HandleBackRequested();
+}
+
+void ARok2PlayerController::OnAndroidBack()
+{
+	HandleBackRequested();
+}
+
+// ---------------------------------------------------------------------------
+// P18-T5: زر الرجوع.
+//
+// كان جسم `OnEscape` تعليقاً واحداً («could close UI panels») — فمفتاح Escape
+// على الحاسوب وزر الرجوع على أندرويد لا يفعلان شيئاً مهما تراكمت اللوحات.
+//
+// السلوك: **طبقة واحدة لكل ضغطة**، بترتيب المنفذ الفعلي (بطاقة المبنى 200 ثم
+// ورقة التدريب 150 ثم اللوحات 50 … فوق الـHUD 20). ثم — إن خلت الشاشة —
+// وضع تحرير المدينة، ثم عرض الخريطة يعود للمدينة، وأخيراً تأكيد الخروج.
+//
+// الترتيب مقصود: الرجوع يُلغي آخر ما فعله اللاعب. من فتح الخريطة فلمس عقدة
+// فلوحة مسيرة، يعود بثلاث ضغطات إلى مدينته لا يُقذف خارج التطبيق.
+// ---------------------------------------------------------------------------
+void ARok2PlayerController::HandleBackRequested()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	// `AKEYCODE_BACK` يصل مرتين على أندرويد (Escape + Android_Back)؛ الضغطة
+	// الواحدة يجب أن تغلق طبقة واحدة.
+	const float Now = World->GetTimeSeconds();
+	if (LastBackHandledSeconds >= 0.f && (Now - LastBackHandledSeconds) < BackDebounceSeconds)
+	{
+		return;
+	}
+	LastBackHandledSeconds = Now;
+
+	// 1) أعلى لوحة مفتوحة — تُغلق بحركتها الخاصة لا بإزالة مفاجئة.
+	if (URok2UiStack::DismissTopLayer(this))
+	{
+		return;
+	}
+
+	ARok2GameMode* GameMode = World->GetAuthGameMode<ARok2GameMode>();
+
+	// 2) وضع تحرير المدينة حالة يجب أن يُخرج منها الرجوع: اللاعب فيه يسحب
+	//    مبانٍ ولا زر «تم» بارز، فبدون هذا كان الرجوع يقفز إلى سؤال الخروج
+	//    والمدينة ما تزال في وضع التحرير.
+	if (GameMode && GameMode->ViewManager && GameMode->ViewManager->CityBuilder
+		&& GameMode->ViewManager->CityBuilder->IsEditModeActive())
+	{
+		GameMode->ViewManager->CityBuilder->ToggleEditMode();
+		return;
+	}
+
+	// 3) على الخريطة: الرجوع يعود إلى المدينة — «الرجوع» بمعناه المباشر.
+	if (GameMode && GameMode->ViewManager && !GameMode->ViewManager->IsCityView()
+		&& !GameMode->ViewManager->IsTransitioning())
+	{
+		GameMode->ViewManager->SwitchToCityView();
+		return;
+	}
+
+	// 4) لا شيء ليُغلق: تأكيد الخروج. الودجة نفسها طبقة قابلة للتسريح، فضغطة
+	//    رجوع أخرى تُلغي السؤال بدل أن تخرج.
+	if (!ExitConfirmWidget)
+	{
+		ExitConfirmWidget = Cast<URok2ExitConfirmWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(this, URok2ExitConfirmWidget::StaticClass()));
+	}
+	if (ExitConfirmWidget && !ExitConfirmWidget->IsInViewport())
+	{
+		// فوق كل شيء إلا شاشة الدخول (100): سؤالٌ يوقف اللعب لا لوحة محتوى.
+		ExitConfirmWidget->AddToViewport(90);
+	}
 }

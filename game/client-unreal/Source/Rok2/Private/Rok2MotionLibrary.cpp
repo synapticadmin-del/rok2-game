@@ -418,6 +418,17 @@ bool URok2MotionLibrary::TickTweens(float DeltaTime)
 			if (bRemoveWidget)
 			{
 				W->RemoveFromParent();
+
+				// إعادة خصائص الرندر بعد الإزالة. الودجة خارج الشاشة فلا يُرى
+				// شيء، لكن هذا يمنع عطلاً حقيقياً: اللوحات التي يملكها GameMode
+				// تُنشأ مرة وتُعاد للعرض مراراً (`if (!IsInViewport()) AddToViewport`)،
+				// وحركة الخروج تنتهي بشفافية 0 — فالفتح الثاني لقائمة البناء أو
+				// الدردشة أو التقارير كان يضيف لوحة شفافة تماماً بلا أي مسار
+				// يعيد الشفافية. الإغلاق بزر الرجوع (P18-T5) يمرّ بنفس المسار،
+				// فبدون هذا كان الرجوع يُخفي اللوحة إلى الأبد.
+				W->SetRenderOpacity(1.f);
+				W->SetRenderTranslation(FVector2D::ZeroVector);
+				W->SetRenderScale(FVector2D(1.f, 1.f));
 			}
 		}
 	}

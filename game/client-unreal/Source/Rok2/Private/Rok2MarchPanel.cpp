@@ -6,6 +6,7 @@
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2AudioManager.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2Surface.h"
 #include "Rok2VisualTheme.h"
@@ -65,6 +66,32 @@ void URok2MarchPanel::NativeConstruct()
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("VBox"));
 		MainBorder->AddChild(VBox);
+
+		// P18-T5: صفّ ترويسة بزر إغلاق. كانت هذه اللوحة تُفتح بلمس هدف على
+		// الخريطة ولا تُزال إلا بإرسال مسيرة/كشافة/رالي — فلمسة خاطئة على عقدة
+		// تحصر اللاعب بين إرسال قوات لم يقصده ولوحة لا تختفي.
+		{
+			UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MarchHeaderRow"));
+			UVerticalBoxSlot* HeaderSlot = VBox->AddChildToVerticalBox(HeaderRow);
+			HeaderSlot->SetPadding(FMargin(Rok2Space::M, Rok2Space::S, Rok2Space::M, Rok2Space::None));
+
+			USpacer* HeaderGap = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
+			HeaderRow->AddChildToHorizontalBox(HeaderGap)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+			UButton* CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("MarchCloseButton"));
+			CloseButton->SetStyle(Rok2Surface::SecondaryButton());
+			CloseButton->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+			CloseButton->OnClicked.AddDynamic(this, &URok2MarchPanel::OnCloseClicked);
+			URok2MotionLibrary::BindPress(CloseButton);
+			UImage* CloseIco = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			CloseIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("close"), 18.f, Rok2Visual::Muted()));
+			CloseIco->SetDesiredSizeOverride(FVector2D(18.f, 18.f));
+			CloseIco->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+			CloseButton->AddChild(CloseIco);
+			UHorizontalBoxSlot* CloseSlot = HeaderRow->AddChildToHorizontalBox(CloseButton);
+			CloseSlot->SetVerticalAlignment(VAlign_Center);
+			CloseSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		}
 
 		// Title
 		TargetNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TargetNameText"));
@@ -306,8 +333,7 @@ void URok2MarchPanel::NativeConstruct()
 }
 
 void URok2MarchPanel::OnDispatchClicked()
-{
-	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
+{	ARok2WorldRenderer* WorldRenderer = Cast<ARok2WorldRenderer>(UGameplayStatics::GetActorOfClass(GetWorld(), ARok2WorldRenderer::StaticClass()));
 	if (!Api || !WorldRenderer || !WorldRenderer->CanInteractWithWorldTarget(TargetType, true)) return;
 
 	TMap<FString, int32> TroopsMap;
@@ -379,4 +405,19 @@ void URok2MarchPanel::OnScoutClicked()
 	Api->SendScout(ToX, ToY);
 	// P6-T3: تسريح بتلاشٍ ثم إزالة (لا قفزة مفاجئة) — §1 «لا قفزات جامدة»
 	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2MarchPanel::CloseSelf()
+{
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	// نفس تسريح بقية المسارات: تلاشٍ ثم إزالة، لا قفزة جامدة.
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2MarchPanel::OnCloseClicked()
+{
+	CloseSelf();
 }

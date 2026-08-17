@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2SeasonStoryWidget.generated.h"
 
@@ -19,7 +20,7 @@ class UVerticalBox;
  * or a season_story_event message; no private combat report is required.
  */
 UCLASS()
-class ROK2_API URok2SeasonStoryWidget : public UUserWidget
+class ROK2_API URok2SeasonStoryWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -32,6 +33,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ROK2|Season Story")
 	const TArray<FRok2SeasonStoryEntry>& GetStoryEvents() const { return StoryEvents; }
+
+	/**
+	 * P18-T5: هذه اللوحة تبقى في المنفذ بعد الإغلاق وتُطوى بـ`Collapsed` وحدها
+	 * (اصطلاح P7-T1، والغرض حفظ الخط الزمني المبني). فالتنفيذ الافتراضي لـ
+	 * `IsLayerOpen` كافٍ ولا نحتاج تجاوزه: يسأل عن الطيّ لا عن الوجود.
+	 */
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 protected:
 	virtual void NativeConstruct() override;

@@ -4,6 +4,7 @@
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2ArtAssets.h"
+#include "Rok2AudioManager.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2Surface.h"
 #include "Rok2Typography.h"
@@ -166,7 +167,13 @@ void URok2TrainHealSheetWidget::NativeConstruct()
 
 void URok2TrainHealSheetWidget::OnCloseClicked()
 {
-	RemoveFromParent();
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	// P18-T5: كانت `RemoveFromParent()` عارية بينما الورقة تفتح بحركة تلاشٍ —
+	// خروج غير متماثل تمنعه §1 «لا قفزات جامدة».
+	URok2MotionLibrary::PlayFadeOut(this);
 }
 
 void URok2TrainHealSheetWidget::OnHealAllClicked()
@@ -180,7 +187,7 @@ void URok2TrainHealSheetWidget::OnHealAllClicked()
 		return;
 	}
 	Api->HealWounded(City.Wounded);
-	RemoveFromParent();
+	OnCloseClicked();
 }
 
 void URok2TrainHealSheetWidget::AdjustCount(const FString& UnitId, int32 Delta)
@@ -215,7 +222,7 @@ void URok2TrainHealSheetWidget::HandleUnitAction(const FString& UnitId)
 		const int32 Count = Counts.FindRef(UnitId);
 		Api->Train(UnitId, Count > 0 ? Count : 1);
 	}
-	RemoveFromParent();
+	OnCloseClicked();
 }
 
 FString URok2TrainHealSheetWidget::BranchForBuilding(const FString& InBuildingId) const

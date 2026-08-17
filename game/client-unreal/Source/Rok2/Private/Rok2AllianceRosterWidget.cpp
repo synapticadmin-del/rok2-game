@@ -5,6 +5,7 @@
 #include "Rok2AllianceRosterWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2AllianceRallyWidget.h"
+#include "Rok2AudioManager.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2Surface.h"
 #include "Rok2Typography.h"
@@ -90,7 +91,12 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		HeaderRow->AddChildToHorizontalBox(Sp)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 		UButton* CloseBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseBtn"));
-		CloseBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::RemoveFromParent);
+		// P18-T5: كان مربوطاً بـ`RemoveFromParent` مباشرة — إزالة مفاجئة بلا
+		// حركة ولا صوت، وهو ما تمنعه §1 «لا قفزات جامدة».
+		CloseBtn->SetStyle(Rok2Surface::SecondaryButton());
+		CloseBtn->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("close")));
+		CloseBtn->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnCloseClicked);
+		URok2MotionLibrary::BindPress(CloseBtn);
 		UTextBlock* XTxt = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		XTxt->SetText(FText::FromString(TEXT("✕")));
 		XTxt->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
@@ -343,6 +349,20 @@ void URok2AllianceRosterWidget::OnRallyReportsClicked()
 		RallyReportsWidget->AddToViewport(55);
 	}
 	Api->FetchBattleReports();
+}
+
+void URok2AllianceRosterWidget::CloseSelf()
+{
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::UiPanelClose);
+	}
+	URok2MotionLibrary::PlayFadeOut(this);
+}
+
+void URok2AllianceRosterWidget::OnCloseClicked()
+{
+	CloseSelf();
 }
 
 void URok2AllianceRosterWidget::OnHelpClicked()

@@ -27,6 +27,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Rok2DismissibleLayer.h"
 #include "Rok2Types.h"
 #include "Rok2CivInfoWidget.generated.h"
 
@@ -37,7 +38,7 @@ class UVerticalBox;
 class UCanvasPanel;
 
 UCLASS(BlueprintType, Blueprintable)
-class ROK2_API URok2CivInfoWidget : public UUserWidget
+class ROK2_API URok2CivInfoWidget : public UUserWidget, public IRok2DismissibleLayer
 {
 	GENERATED_BODY()
 
@@ -45,6 +46,9 @@ public:
 	/** يربط الـApi ويرسم حضارة اللاعب الحالية */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Lore")
 	void Setup(URok2Api* InApi);
+
+	// P18-T5: الرجوع يمرّ بنفس مسار زر الإغلاق ولمس الحجاب.
+	virtual void DismissLayer() override { OnCloseClicked(); }
 
 	/**
 	 * يعيد الرسم من حضارة اللاعب الحالية. يُنادى عند كل فتح — فاللوحة تُنشأ
