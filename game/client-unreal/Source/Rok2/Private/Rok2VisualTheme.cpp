@@ -40,6 +40,12 @@ namespace
 	const FLinearColor GRarityElite(0.20f, 0.50f, 0.90f, 1.0f);
 	const FLinearColor GRarityEpic(0.60f, 0.30f, 0.80f, 1.0f);
 	const FLinearColor GRarityLegendary(0.95f, 0.60f, 0.10f, 1.0f);
+
+	// ── صبغ الصور الفنية تحت المحتوى (P24-T5) ────────────────────────────────
+	// رمادي مضروب في اللون الأصلي: يخفت الصورة بلا إزاحة في درجة اللون.
+	const FLinearColor GVeilLight(0.72f, 0.72f, 0.72f, 1.0f);
+	const FLinearColor GVeilMedium(0.62f, 0.62f, 0.62f, 1.0f);
+	const FLinearColor GVeilHeavy(0.55f, 0.55f, 0.55f, 1.0f);
 }
 
 const FLinearColor& Rok2Visual::Ink() { return GInk; }
@@ -79,6 +85,17 @@ FLinearColor Rok2Visual::RarityTier(int32 Tier)
 	case 2:  return GRarityElite;
 	case 1:
 	default: return GRarityAdvanced;
+	}
+}
+
+FLinearColor Rok2Visual::ArtVeil(int32 ContentDensity)
+{
+	switch (ContentDensity)
+	{
+	case 3:  return GVeilHeavy;
+	case 2:  return GVeilMedium;
+	case 1:
+	default: return GVeilLight;
 	}
 }
 

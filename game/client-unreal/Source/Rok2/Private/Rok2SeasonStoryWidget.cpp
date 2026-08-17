@@ -10,11 +10,13 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "Engine/Texture2D.h"
 #include "Rok2Surface.h"
 #include "Rok2VisualTheme.h"
 
@@ -28,8 +30,37 @@ namespace Rok2SeasonStory
 	static const FLinearColor Azure = Rok2Visual::InformationText();
 	static const FLinearColor Crimson = Rok2Visual::DangerText();
 	static const FLinearColor Jade = Rok2Visual::SuccessText();
-}
 
+	/**
+	 * P24-T5: لوحة فصل الموسم. الصور الأربع في Content/Art/SeasonStory كانت
+	 * مولّدة وغير مستوردة ولا قارئ لها. الاختيار حسب ما جرى فعلاً في الموسم:
+	 * التتويج يُنهي القصة، والحرب تسبق التحالف، والميلاد هو الحالة الأولى.
+	 */
+	static const TCHAR* BackdropForEvents(const TArray<FRok2SeasonStoryEntry>& Events)
+	{
+		bool bHasWar = false;
+		bool bHasAlliance = false;
+		for (const FRok2SeasonStoryEntry& Event : Events)
+		{
+			if (Event.Kind.Contains(TEXT("champion")) || Event.Kind.Contains(TEXT("crown")))
+			{
+				return TEXT("story_endgame");
+			}
+			if (Event.Kind.Contains(TEXT("battle")) || Event.Kind.Contains(TEXT("rally"))
+				|| Event.Kind.Contains(TEXT("war")) || Event.Kind.Contains(TEXT("holy")))
+			{
+				bHasWar = true;
+			}
+			else if (Event.Kind.Contains(TEXT("alliance")))
+			{
+				bHasAlliance = true;
+			}
+		}
+		if (bHasWar) return TEXT("story_war");
+		if (bHasAlliance) return TEXT("story_alliance");
+		return TEXT("story_birth");
+	}
+}
 
 TSharedRef<SWidget> URok2SeasonStoryWidget::RebuildWidget()
 {
@@ -66,6 +97,16 @@ void URok2SeasonStoryWidget::NativeConstruct()
 	CardSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
 	CardSlot->SetAlignment(FVector2D(0.5f, 0.5f));
 	CardSlot->SetSize(FVector2D(820.f, 590.f));
+
+	// P24-T5: لوحة الفصل خلف البطاقة. تُملأ في RebuildTimeline حسب أحداث
+	// الموسم، فتتغيّر الصورة مع تقدّم الحكاية بدل خلفية ثابتة واحدة.
+	BackdropImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("StoryBackdropArt"));
+	BackdropImage->SetVisibility(ESlateVisibility::Collapsed);
+	UCanvasPanelSlot* ArtSlot = Root->AddChildToCanvas(BackdropImage);
+	ArtSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));
+	ArtSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+	ArtSlot->SetSize(FVector2D(880.f, 640.f));
+	ArtSlot->SetZOrder(-1);	// خلف البطاقة صراحةً لا بترتيب الإضافة وحده
 
 	UVerticalBox* Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StoryMain"));
 	Card->SetContent(Main);
@@ -127,6 +168,31 @@ void URok2SeasonStoryWidget::AddStoryEvent(const FRok2SeasonStoryEntry& InEvent)
 	SetStoryEvents(StoryEvents);
 }
 
+void URok2SeasonStoryWidget::RefreshBackdrop()
+{
+	if (!BackdropImage) return;
+
+	const FString AssetName = Rok2SeasonStory::BackdropForEvents(StoryEvents);
+	if (AssetName == LastBackdropAsset)
+	{
+		return;	// نفس الفصل — لا إعادة تحميل عند كل حدث يصل
+	}
+	LastBackdropAsset = AssetName;
+
+	const FString Path = FString::Printf(TEXT("/Game/Art/SeasonStory/%s.%s"), *AssetName, *AssetName);
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
+	if (!Texture)
+	{
+		BackdropImage->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+
+	BackdropImage->SetBrushFromTexture(Texture, false);
+	// معتّمة كثيراً: النص يعلوها مباشرة، والصورة سياق لا موضوع.
+	BackdropImage->SetColorAndOpacity(Rok2Visual::ArtVeil(3));
+	BackdropImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
 void URok2SeasonStoryWidget::OnCloseClicked()
 {
 	if (URok2AudioManager* Audio = URok2AudioManager::Get())
@@ -170,6 +236,7 @@ void URok2SeasonStoryWidget::UpdateChampion()
 void URok2SeasonStoryWidget::RebuildTimeline()
 {
 	UpdateChampion();
+	RefreshBackdrop();
 	if (!Timeline) return;
 	Timeline->ClearChildren();
 	if (StoryEvents.Num() == 0) {

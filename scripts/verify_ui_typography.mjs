@@ -270,8 +270,9 @@ detector(
     return [
       { name: 'ERok2Face يعرّف Display و Ui و Numeric', ok: /enum class ERok2Face : uint8[\s\S]*?Display[\s\S]*?Ui[\s\S]*?Numeric/.test(code(vfs, H)) },
       { name: `أسماء أصول مميّزة للأوجه (${[...uniq].join(', ')})`, ok: uniq.size === 3 },
-      // نفس اصطلاح URok2ArtAssets::EditorPackagePath — /Game/<dir>/<name>.<name>
-      { name: 'المسار على اصطلاح /Game/<dir>/<name>.<name>', ok: /\/Game\/Fonts\/%s\.%s/.test(c) },
+      // أصول FontFace تسكن /Game/Fonts/Faces على نفس اصطلاح
+      // URok2ArtAssets::EditorPackagePath — /Game/<dir>/<name>.<name>
+      { name: 'المسار على اصطلاح /Game/<dir>/<name>.<name>', ok: /\/Game\/Fonts\/Faces\/%s\.%s/.test(c) },
     ];
   },
   [
@@ -293,12 +294,15 @@ detector(
     const fnBody = (/FSlateFontInfo URok2Typography::Font\(ERok2TextRole Role\)\s*\{([\s\S]*?)\n\}/.exec(c) || [, ''])[1];
     const sizedBody = (/FSlateFontInfo URok2Typography::FontSized\([\s\S]*?\)\s*\{([\s\S]*?)\n\}/.exec(c) || [, ''])[1];
     return [
-      { name: 'يحاول التحميل عبر LoadObject<UFont>', ok: /LoadObject<UFont>/.test(c) },
+      { name: 'يحاول تحميل أصول الأوجه عبر LoadObject', ok: /LoadObject<UObject>\(nullptr, \*FaceAssetPath/.test(c) },
       { name: 'Font() نفسها ترجع إلى خط المحرك عند الغياب', ok: /FCoreStyle::GetDefaultFontStyle/.test(fnBody) },
       { name: 'FontSized ترجع إلى خط المحرك كذلك', ok: /FCoreStyle::GetDefaultFontStyle/.test(sizedBody) },
       { name: 'يخبّئ الفشل فلا يعيد المحاولة كل إطار', ok: /FaceMisses/.test(c) },
       { name: 'يقصر الأوزان غير المضمونة على خط المحرك', ok: /ClampWeightForEngineFont/.test(c) },
-      { name: 'الخبأ محمي من الـGC بـ UPROPERTY', ok: /UPROPERTY\(\)\s*\n\s*TMap<uint8, UFont\*>/.test(code(vfs, H)) },
+      // الخبأ صار FStandaloneCompositeFont (يرث FGCObject فيحمي FFontData
+      // داخله)، وأصول الأوجه تُثبَّت بـUPROPERTY منفصل — فلا يجمعها الـGC
+      // بينما الخط المركّب يشير إليها.
+      { name: 'أصول الأوجه محمية من الـGC بـ UPROPERTY', ok: /UPROPERTY\(\)\s*\n\s*TSet<UObject\*>\s+FaceAssets;/.test(code(vfs, H)) },
     ];
   },
   [

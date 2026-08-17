@@ -115,7 +115,9 @@ console.log('\n[4] النصوص البديلة والتباين في كل الو
 
 const widgetTooltips = [
   ['Rok2ChatWidget.cpp', ['LabelForIcon', 'SetToolTipText']],
-  ['Rok2CityWidget.cpp', ['LabelForIcon', 'SetToolTipText']],
+  // P24-T1: `Rok2CityWidget` تقاعدت (ألواحها كانت مطوية بلا مسار إظهار)؛
+  // شريط الموارد والطوابير وتسميات أيقوناتها انتقلت إلى الـHUD.
+  ['Rok2HudWidget.cpp', ['LabelForIcon', 'SetToolTipText']],
   ['Rok2BattleReportWidget.cpp', ['LabelForIcon', 'SetToolTipText']],
   ['Rok2BuildingDetailWidget.cpp', ['LabelForIcon', 'SetToolTipText']],
   ['Rok2MarchPanel.cpp', ['LabelForIcon', 'SetToolTipText']],

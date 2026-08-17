@@ -40,8 +40,9 @@ JOBS = [
     ("Art/kaykit",            "/Game/Art/kaykit",            False),
     ("Art/Commanders",        "/Game/Art/Commanders",        False),
     ("Art/WorldMapIcons",     "/Game/Art/WorldMapIcons",     False),  # P7-T10: أيقونات خريطة العالم
-    ("Art/UIIcons",           "/Game/Art/UIIcons",           False),  # أيقونات الواجهة (20)
+    ("Art/UIIcons",           "/Game/Art/UIIcons",           False),  # أيقونات الواجهة (70 بعد P24-T2)
     ("Art/UIButtons",         "/Game/Art/UIButtons",         False),  # جلود الأزرار (4)
+    ("Art/UISurfaces",        "/Game/Art/UISurfaces",        False),  # P24-T3: نسيج اللوحات والإطارات
     ("Art/CityBuildingIcons", "/Game/Art/CityBuildingIcons", False),  # صور المباني (58)
     ("Art/CivIcons",          "/Game/Art/CivIcons",          False),  # شعارات الحضارات (6)
     ("Art/CivBackgrounds",    "/Game/Art/CivBackgrounds",    False),  # خلفيات الحضارات (6)
@@ -50,6 +51,8 @@ JOBS = [
     ("Art/SeasonStory",       "/Game/Art/SeasonStory",       False),  # P16-T2: خلفيات قصة الموسم (4)
     ("Art/CommanderSkins",    "/Game/Art/CommanderSkins",    False),  # P16-T3: جلود القادة النادرة (6)
     ("Art/Events",            "/Game/Art/Events",            False),  # P16-T4: فن أحداث P10
+    ("Art/HumanUnits",        "/Game/Art/HumanUnits",        False),  # P8-T8: وحدات T1–T5 (17 glb)
+    ("Art/KenneyCastleKit",   "/Game/Art/KenneyCastleKit",   False),  # P8-T8: آلات الحصار T3–T5 (CC0)
     ("Audio",                 "/Game/Audio",                 True),   # لازم: <civ>/music
 ]
 

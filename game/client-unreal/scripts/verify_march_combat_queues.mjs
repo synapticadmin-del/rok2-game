@@ -11,7 +11,10 @@ const files = {
   shard: path.join(repoRoot, 'game/backend/src/do/KingdomShard.ts'),
   types: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2Types.h'),
   apiHeader: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2Api.h'),
-  cityWidget: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2CityWidget.cpp'),
+  // P24-T1: `Rok2CityWidget` تقاعدت — ألواحها الثلاثة كانت تُبنى ثم تُخفى
+  // بـ`ESlateVisibility::Collapsed` بلا مسار يعيد إظهارها، فلوحة طوابيرها لم
+  // تُعرض قط. لوحة الطوابير الوحيدة صارت في الـHUD.
+  hudWidget: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2HudWidget.cpp'),
   worldHeader: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2WorldRenderer.h'),
   worldSource: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2WorldRenderer.cpp'),
   controller: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2PlayerController.cpp'),
@@ -35,7 +38,7 @@ const required = [
   ['router', /grantBpXp\(env, player\.id, "march"\)/, 'تسجيل حدث المسيرة'],
   ['types', /ActiveQueues/, 'نموذج طوابير المدينة في العميل'],
   ['apiHeader', /DispatchMarch/, 'أمر إرسال مسيرة من العميل'],
-  ['cityWidget', /البناء|تدريب|الشفاء|البحث/, 'عرض قنوات الطوابير في واجهة المدينة'],
+  ['hudWidget', /ترقية|تدريب|شفاء|بحث/, 'عرض قنوات الطوابير في الـHUD'],
   ['worldHeader', /GetMarchCapacity/, 'إظهار سعة المسيرات لواجهة العالم'],
   ['worldHeader', /CanInteractWithWorldTarget/, 'عقد تفاعل الخريطة المقيد بالطبقة'],
   ['worldSource', /CurrentZoomLayer/, 'اعتماد التفاعل على طبقة التكبير'],

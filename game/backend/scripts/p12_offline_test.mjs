@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { chainRuns } from "../../../scripts/lib/npm_script_chain.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BACKEND = join(__dirname, "..");
@@ -139,7 +140,7 @@ check(plan.includes("P12-T6"), "PLAN يشمل P12-T6");
 const docsExist = (() => { try { readFileSync(join(BACKEND, "..", "..", "game", "docs", "P12_T6_SEASON_RESET.md"), "utf8"); return true; } catch { return false; } })();
 check(docsExist, "وثيقة P12_T6_SEASON_RESET.md");
 const pkg = JSON.parse(readFileSync(join(BACKEND, "package.json"), "utf8"));
-check((pkg.scripts?.check || "").includes("test:p12"), "check chain يشمل test:p12*");
+check(chainRuns(pkg.scripts ?? {}, "test:p12"), "check chain يشمل test:p12*");
 
 console.log(`checks: ${checks.length}, failed: ${failed}`);
 for (const c of checks) {

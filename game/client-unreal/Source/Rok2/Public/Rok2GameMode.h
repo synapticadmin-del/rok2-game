@@ -9,7 +9,6 @@
 
 class URok2Api;
 class URok2BootWidget;
-class URok2CityWidget;
 class URok2HudWidget;
 class URok2BuildMenuWidget;
 class URok2CommanderWidget;
@@ -52,18 +51,23 @@ public:
 	UPROPERTY(Transient)
 	URok2BootWidget* BootWidget;
 
-	UPROPERTY(Transient)
-	URok2CityWidget* CityWidget;
-
-	/** HUD موحد بأسلوب RoK (P5-T3): موارد + أزرار دائرية + إشعارات */
+	/**
+	 * HUD موحد بأسلوب RoK (P5-T3): موارد + أزرار دائرية + طوابير + إشعارات.
+	 *
+	 * P24-T1: صار الطبقة الوحيدة فوق العالم بعد تقاعد `URok2CityWidget`. تلك
+	 * الودجة كانت تبني ثلاثة ألواح ثم تخفيها كلها بـ`ESlateVisibility::Collapsed`
+	 * بلا أي مسار يعيد إظهارها، وتُحدّث محتواها كل ثانية في `NativeTick` وهي غير
+	 * مرئية. ما كان فريداً فيها انتقل إلى مواضعه: التحصيل والتدريب وتسريع
+	 * الطوابير إلى الـHUD، وإنشاء التحالف إلى شاشة التحالف.
+	 */
 	UPROPERTY(Transient)
 	URok2HudWidget* HudWidget;
 
 	/**
 	 * طبقة إرشاد الدقيقة الأولى (P6-T4). ترتيب الطبقات: Boot 100 > الإرشاد 60
-	 * > اللوحات 50 > HUD 20 > المدينة 10 — فوق اللوحات لتبقى البطاقة مرئية
-	 * وورقة البناء مفتوحة (وهي الورقة التي تُرشد إليها الخطوة الأولى)، وتحت
-	 * Boot فلا تظهر على شاشة التحميل.
+	 * > اللوحات 50 > HUD 20 — فوق اللوحات لتبقى البطاقة مرئية وورقة البناء
+	 * مفتوحة (وهي الورقة التي تُرشد إليها الخطوة الأولى)، وتحت Boot فلا تظهر
+	 * على شاشة التحميل.
 	 */
 	UPROPERTY(Transient)
 	URok2OnboardingWidget* OnboardingWidget;
@@ -130,6 +134,8 @@ protected:
 	UFUNCTION() void HandleChatAction();
 	UFUNCTION() void HandleSeasonStoryAction();
 	UFUNCTION() void HandleResearchAction();
+	UFUNCTION() void HandleCollectAction();
+	UFUNCTION() void HandleTrainAction();
 	UFUNCTION() void HandleSeasonStoryEvent(const FRok2SeasonStoryEntry& Event);
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 

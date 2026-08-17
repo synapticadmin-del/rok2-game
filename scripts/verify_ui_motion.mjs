@@ -276,6 +276,8 @@ check('flash target is a UImage (real gold tint, not opacity fallback)',
 console.log('\n[8] ربط الشاشات — كل شاشة تستخدم المكتبة');
 
 // [ملف, [حركات متوقعة]]
+// P24-T1: `Rok2CityWidget` تقاعدت — ألواحها الثلاثة كانت تُبنى ثم تُخفى
+// بـ`ESlateVisibility::Collapsed` بلا مسار يعيد إظهارها، فحركة دخولها لم تُرَ.
 const widgetWiring = [
   ['Rok2BuildingDetailWidget.cpp', ['PlaySlideInBottom', 'BindPress']],
   ['Rok2BuildMenuWidget.cpp', ['PlaySlideInBottom', 'BindPress']],
@@ -284,7 +286,7 @@ const widgetWiring = [
   ['Rok2MarchPanel.cpp', ['PlayScaleInCenter', 'BindPress']],
   ['Rok2CommanderWidget.cpp', ['PlayFadeIn', 'BindPress']],
   ['Rok2BootWidget.cpp', ['PlayFadeIn', 'BindPress']],
-  ['Rok2CityWidget.cpp', ['PlayFadeIn', 'BindPress']],
+  ['Rok2TrainHealSheetWidget.cpp', ['PlayFadeIn', 'BindPress']],
   ['Rok2ResearchWidget.cpp', ['PlayFadeIn', 'BindPress']],
   ['Rok2AllianceRosterWidget.cpp', ['PlayScaleInCenter', 'BindPress']],
 ];

@@ -138,13 +138,15 @@ if (existsSync(artCpp)) {
 console.log('\n[4] ربط الـ Widgets بنظام الأيقونات');
 
 const widgetChecks = [
-  ['Rok2HudWidget.cpp', ['GetIconBrush', 'Rok2ArtAssets.h', 'TEXT("build")', 'TEXT("food")', 'TEXT("bell")', 'TEXT("conn")', 'TEXT("helmet")', 'TEXT("hourglass")']],
+  // P24-T1: `Rok2CityWidget` تقاعدت — ألواحها الثلاثة كانت تُبنى ثم تُخفى
+  // بـ`ESlateVisibility::Collapsed` بلا مسار يعيد إظهارها، فأيقوناتها لم
+  // تُعرض قط. التحصيل والتدريب وتسريع الطوابير انتقلت إلى الـHUD.
+  ['Rok2HudWidget.cpp', ['GetIconBrush', 'Rok2ArtAssets.h', 'TEXT("build")', 'TEXT("food")', 'TEXT("bell")', 'TEXT("conn")', 'TEXT("helmet")', 'TEXT("hourglass")', 'TEXT("speedup")']],
   ['Rok2BuildMenuWidget.cpp', ['GetIconBrush', 'TEXT("wheat")', 'TEXT("sword")', 'TEXT("art")', 'TEXT("castle")']],
   ['Rok2BuildingDetailWidget.cpp', ['GetIconBrush', 'ActionIconForBuilding', 'HeaderIcon', 'CostFoodIcon', 'TimeIcon']],
   ['Rok2CommanderWidget.cpp', ['GetIconBrush', 'TEXT("sparkle")', 'TEXT("boots")', 'TEXT("ring")', 'TEXT("skillup")']],
   ['Rok2MarchPanel.cpp', ['GetIconBrush', 'TEXT("scout")', 'TEXT("sword")']],
   ['Rok2BattleReportWidget.cpp', ['GetIconBrush', 'TEXT("trophy")', 'TEXT("handshake")', 'TEXT("scroll")']],
-  ['Rok2CityWidget.cpp', ['GetIconBrush', 'TEXT("governor")', 'TEXT("refresh")', 'TEXT("speedup")']],
   ['Rok2BootWidget.cpp', ['GetIconBrush', 'TEXT("crown")']],
   ['Rok2AllianceRosterWidget.cpp', ['GetIconBrush', 'TEXT("handshake")']],
   ['Rok2ResearchWidget.cpp', ['GetIconBrush', 'TEXT("flask")']],
@@ -169,7 +171,7 @@ const clientFiles = [
   'Private/Rok2HudWidget.cpp', 'Private/Rok2BuildMenuWidget.cpp',
   'Private/Rok2BuildingDetailWidget.cpp', 'Private/Rok2CommanderWidget.cpp',
   'Private/Rok2MarchPanel.cpp', 'Private/Rok2BattleReportWidget.cpp',
-  'Private/Rok2CityWidget.cpp', 'Private/Rok2BootWidget.cpp',
+  'Private/Rok2BootWidget.cpp',
   'Private/Rok2AllianceRosterWidget.cpp', 'Private/Rok2ResearchWidget.cpp',
   'Private/Rok2Api.cpp',
 ];
@@ -196,9 +198,10 @@ for (const rel of clientFiles) {
 console.log('\n[6] تصريحات الـ headers الجديدة');
 
 const headerChecks = [
-  ['Rok2HudWidget.h', ['UImage* ConnIcon', 'UImage* BellIcon']],
+  // شريط الموارد الوحيد صار في الـHUD بعد تقاعد `Rok2CityWidget` (P24-T1)،
+  // فأسماء نصوص الموارد هناك هي ResFoodText وأخواتها.
+  ['Rok2HudWidget.h', ['UImage* ConnIcon', 'UImage* BellIcon', 'ResFoodText', 'ResWoodText', 'ResStoneText', 'ResGoldText']],
   ['Rok2BuildingDetailWidget.h', ['UImage* HeaderIcon', 'UImage* CostFoodIcon', 'UImage* ActionBtnIcon', 'ActionIconForBuilding']],
-  ['Rok2CityWidget.h', ['UImage* ConnIcon', 'ResFoodVal', 'ResWoodVal', 'ResStoneVal', 'ResGoldVal']],
 ];
 
 for (const [file, needles] of headerChecks) {

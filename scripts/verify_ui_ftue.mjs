@@ -73,7 +73,10 @@ const WC = 'Private/Rok2OnboardingWidget.cpp';
 const GH = 'Public/Rok2GameMode.h';
 const GC = 'Private/Rok2GameMode.cpp';
 const HUD = 'Private/Rok2HudWidget.cpp';
-const CITY = 'Private/Rok2CityWidget.cpp';
+// P24-T1: `Rok2CityWidget` تقاعدت — كانت تبني ثلاثة ألواح ثم تخفيها كلها
+// بـ`ESlateVisibility::Collapsed` بلا مسار يعيد إظهارها، فمرساة التدريب
+// المسجّلة فيها كانت هندستها صفرية والحلقة الذهبية تُخفى أبداً. الحبّة في
+// الـHUD مرئية فعلاً، فالمرساتان الآن من ملف واحد.
 const ICONS = 'Private/Rok2IconLibrary.cpp';
 const BUILDINGS = 'Data/buildings.json';
 
@@ -515,8 +518,8 @@ const DETECTORS = [
       }
       r.push(test(registered.some((x) => x.file === HUD && x.anchor === 'AnchorBuild'),
         'مرساة البناء من الـHUD'));
-      r.push(test(registered.some((x) => x.file === CITY && x.anchor === 'AnchorTrain'),
-        'مرساة التدريب من لوحة المدينة'));
+      r.push(test(registered.some((x) => x.file === HUD && x.anchor === 'AnchorTrain'),
+        'مرساة التدريب من الـHUD (حبّة مرئية لا لوح مطوي)'));
       // الغلاف المرئي لا الزر الداخلي: الحلقة تحيط بما يراه اللاعب
       r.push(test(registered.some((x) => x.anchor === 'AnchorBuild' && /Circle/i.test(x.widget)),
         'مرساة البناء هي الدائرة المرئية لا الزر الداخلي',
@@ -678,7 +681,7 @@ const DETECTORS = [
 
 const REAL = readTree();
 
-for (const key of [OH, OC, WH, WC, GC, GH, HUD, CITY, ICONS, BUILDINGS]) {
+for (const key of [OH, OC, WH, WC, GC, GH, HUD, ICONS, BUILDINGS]) {
   if (!REAL.has(key)) {
     console.error(`❌ ملف مفقود من الشجرة: ${key}`);
     process.exit(1);

@@ -29,6 +29,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Fonts/CompositeFont.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Rok2Typography.generated.h"
 
@@ -206,14 +207,21 @@ public:
 	static TArray<ERok2TextRole> AllRoles();
 
 private:
-	/** يحلّ وجهاً إلى أصل خط، ويخبّئ النتيجة (بما فيها الفشل) */
-	UFont* ResolveFace(ERok2Face Face);
+	/** يحلّ وجهاً إلى خط مركّب مبني من أصول FontFace، ويخبّئ النتيجة */
+	TSharedPtr<const FCompositeFont> ResolveFace(ERok2Face Face);
 
-	/** خبأ الأوجه المحلولة — UPROPERTY ليحميها من الـGC */
-	UPROPERTY()
-	TMap<uint8, UFont*> FaceCache;
+	/** خبأ الأوجه المحلولة — الأصول محفوظة في FaceAssets ليحميها الـGC */
+	TMap<uint8, TSharedPtr<FStandaloneCompositeFont>> FaceCache;
 
 	/** أوجه حاولنا تحميلها وفشلت — لا نعيد المحاولة كل إطار */
 	UPROPERTY()
 	TSet<uint8> FaceMisses;
+
+	/**
+	 * أصول FontFace المحمّلة. `FStandaloneCompositeFont` يرث FGCObject فيحمي
+	 * ما داخله، لكن الخبأ مملوك لهذا الكائن فنُبقي مرجعاً صريحاً كذلك — أرخص
+	 * من الاعتماد على تتبّع FGCObject لأصول نستطيع تثبيتها بـUPROPERTY.
+	 */
+	UPROPERTY()
+	TSet<UObject*> FaceAssets;
 };

@@ -161,14 +161,36 @@ FString URok2ArtAssets::GetImportedUiIconAssetPath(const FString& IconId)
 		CanonicalId = TEXT("reports");
 	}
 
-	// القائمة تطابق ما هو مستورد فعلاً في Content/Art/UIIcons (20 أيقونة).
-	// أي معرّف خارجها يعود إلى الراسم الإجرائي في URok2IconLibrary.
+	// القائمة تطابق ما هو مستورد فعلاً في Content/Art/UIIcons (70 أيقونة).
+	// كانت 20 فقط، فكانت أربعون معرّفاً — من بينها sword وshield وcrown
+	// وcastle وhelmet وbanner، أي أيقونات الأزرار الرئيسية في الـHUD — تسقط
+	// إلى الراسم الإجرائي: أشكال بدائية على شبكة 32×32 تُعرض بحجم 14–24px.
+	// المجموعة المتبقية وُلّدت في scripts/generate_ui_icon_set.py بنفس أسلوب
+	// المجموعة الأصلية، فالقائمتان الآن مجموعة واحدة متسقة.
+	//
+	// الترتيب يطابق `KnownIds` في Rok2IconLibrary.cpp؛ أي معرّف خارج القائمتين
+	// يبقى على الراسم الإجرائي بلا انكسار.
 	static const TSet<FString> ImportedIds = {
+		// المجموعة الأصلية (P7-T9)
 		TEXT("build"), TEXT("upgrade"), TEXT("train"), TEXT("research"),
 		TEXT("alliance"), TEXT("map"), TEXT("reports"), TEXT("mail"),
 		TEXT("settings"), TEXT("food"), TEXT("wood"), TEXT("stone"),
 		TEXT("gold"), TEXT("gems"), TEXT("speedup"), TEXT("hospital"),
-		TEXT("bag"), TEXT("bell"), TEXT("heal"), TEXT("speed")
+		TEXT("bag"), TEXT("bell"), TEXT("heal"), TEXT("speed"),
+		// مجموعة P24-T2 — الخمسون الباقية من KnownIds
+		TEXT("ap"), TEXT("sword"), TEXT("shield"), TEXT("helmet"),
+		TEXT("banner"), TEXT("edit"), TEXT("lock"), TEXT("calendar"),
+		TEXT("hourglass"), TEXT("flask"), TEXT("cross"), TEXT("scout"),
+		TEXT("close"), TEXT("star"), TEXT("skull"), TEXT("blood"),
+		TEXT("bandage"), TEXT("trophy"), TEXT("handshake"), TEXT("refresh"),
+		TEXT("gift"), TEXT("wheat"), TEXT("box"), TEXT("cart"),
+		TEXT("horse"), TEXT("bow"), TEXT("tent"), TEXT("tower"),
+		TEXT("castle"), TEXT("bricks"), TEXT("rock"), TEXT("beer"),
+		TEXT("scale"), TEXT("crown"), TEXT("builder"), TEXT("conn"),
+		TEXT("governor"), TEXT("stats"), TEXT("move"), TEXT("sparkle"),
+		TEXT("combat"), TEXT("ring"), TEXT("boots"), TEXT("arrow"),
+		TEXT("skillup"), TEXT("pickaxe"), TEXT("clock"), TEXT("art"),
+		TEXT("monument"), TEXT("wrench")
 	};
 	if (!ImportedIds.Contains(CanonicalId))
 	{
@@ -286,6 +308,72 @@ UTexture2D* URok2ArtAssets::LoadWorldFeatureTexture(const FString& FeatureId, co
 	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
 	CachedWorldTextures.Add(Key, Texture);
 	return Texture;
+}
+
+// ---------------------------------------------------------------------------
+// P24-T4: صور المباني المرسومة (2.5D).
+//
+// 96 صورة في Content/Art/CityBuildingIcons لم يكن لها قارئ: الدالتان أعلاه
+// معرّفتان بلا مستدعٍ، وبطاقة المبنى تعرض رمزاً إجرائياً بدلاً منها. الأسماء
+// أدناه مقروءة من القرص لا مخترعة — أي مبنى خارجها يبقى على الرمز الإجرائي.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	/** المباني التي تملك صورة `T_<id>_base_tier1_D` فعلاً. */
+	const TSet<FString>& BasePortraitBuildings()
+	{
+		static const TSet<FString> Ids = {
+			TEXT("academy"), TEXT("archery_range"), TEXT("barracks"), TEXT("city_hall"),
+			TEXT("farm"), TEXT("hospital"), TEXT("siege_workshop"), TEXT("stable"),
+			TEXT("storehouse"), TEXT("wall")
+		};
+		return Ids;
+	}
+
+	/** الحضارات التي تملك قاعة مدينة مخصّصة `T_civ_<civ>_hall_tier4_D`. */
+	const TSet<FString>& CivHallCivilizations()
+	{
+		static const TSet<FString> Ids = {
+			TEXT("arabia"), TEXT("china"), TEXT("egypt"),
+			TEXT("japan"), TEXT("rome"), TEXT("vikings")
+		};
+		return Ids;
+	}
+
+	/** المستوى الذي تحلّ عنده قاعة الحضارة محل القاعة العامة (اسم الأصل tier4). */
+	constexpr int32 CivHallLevel = 10;
+}
+
+FString URok2ArtAssets::GetCityBuildingPortraitId(const FString& BuildingId, int32 Level, const FString& CivilizationId)
+{
+	// قاعة المدينة عند مستوى متقدم تكسب طابع الحضارة — وهو المكان الوحيد الذي
+	// تُرى فيه هوية الحضارة بعد شاشة الاختيار.
+	if (BuildingId == TEXT("city_hall") && Level >= CivHallLevel && !CivilizationId.IsEmpty())
+	{
+		const FString Civ = CivilizationId.ToLower();
+		if (CivHallCivilizations().Contains(Civ))
+		{
+			return FString::Printf(TEXT("civ_%s_hall_tier4"), *Civ);
+		}
+	}
+
+	if (BasePortraitBuildings().Contains(BuildingId))
+	{
+		return FString::Printf(TEXT("%s_base_tier1"), *BuildingId);
+	}
+	return FString();
+}
+
+UTexture2D* URok2ArtAssets::LoadCityBuildingPortrait(const FString& BuildingId, int32 Level, const FString& CivilizationId)
+{
+	const FString PortraitId = GetCityBuildingPortraitId(BuildingId, Level, CivilizationId);
+	if (PortraitId.IsEmpty())
+	{
+		return nullptr;
+	}
+	// خريطة اللون وحدها تُعرض في الواجهة؛ العمق والإضاءة لمواد العالم 2.5D.
+	return LoadCityBuildingTexture(PortraitId, TEXT("D"));
 }
 
 // ---------------------------------------------------------------------------

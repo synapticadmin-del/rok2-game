@@ -143,6 +143,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
 	static UTexture2D* LoadWorldFeatureTexture(const FString& FeatureId, const FString& MapType = TEXT("D"));
 
+	/**
+	 * P24-T4: معرّف صورة المبنى المرسومة (2.5D) من هوية المبنى ومستواه وحضارته.
+	 *
+	 * الأصول في Content/Art/CityBuildingIcons تُسمّى
+	 * `T_<building>_base_tier1_<D|N|E>`، ولقاعات الحضارات
+	 * `T_civ_<civ>_hall_tier4_<D|N|E>`. لم يكن لهذه الـ96 صورة أي قارئ في
+	 * المشروع: `LoadCityBuildingTexture` كانت معرّفة بلا مستدعٍ واحد، وبطاقة
+	 * المبنى تعرض رمزاً إجرائياً 28px بدلاً منها.
+	 *
+	 * يعيد سلسلة فارغة إن لم يوجد أصل مرسوم للمبنى — فيبقى الرمز الإجرائي.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
+	static FString GetCityBuildingPortraitId(const FString& BuildingId, int32 Level = 1, const FString& CivilizationId = TEXT(""));
+
+	/** يحمّل صورة المبنى المرسومة، أو nullptr إن لم تُرسم/تُستورد بعد. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
+	static UTexture2D* LoadCityBuildingPortrait(const FString& BuildingId, int32 Level = 1, const FString& CivilizationId = TEXT(""));
+
 	// -------------------------------------------------------------------
 	// P6-T8: فهرس أصوات الواجهة (أصول WAV مشتركة + همس حضاري عند الفتح).
 	// يقتصر على المسارات؛ التشغيل يتولاه مالك الواجهة/مدير الصوت عند الربط.

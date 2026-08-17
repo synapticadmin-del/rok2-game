@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { chainRuns } from '../../../scripts/lib/npm_script_chain.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(here, '..', '..', '..');
@@ -67,7 +68,9 @@ expect('prep_seconds restored in teardown', script.includes('z2.alliance.rally.p
 // 6. Package job: full path and part of check chain
 const job = pkg.scripts['test:e2e-p7-t3'];
 expect('test:e2e-p7-t3 runs the full path (E2E_FULL=1)', Boolean(job) && job.includes('E2E_FULL=1'));
-expect('test:e2e-p7-t3 in check chain', pkg.scripts.check.includes('test:e2e-p7-t3'));
+// البوابة صارت مركّبة (check → check:fast/check:e2e/check:ue-contracts)، فالبحث
+// الحرفي في سطر check وحده يبلّغ غياباً وهمياً — chainRuns يوسّع المراجع تعدياً.
+expect('test:e2e-p7-t3 in check chain', chainRuns(pkg.scripts, 'test:e2e-p7-t3'));
 
 // 7. Docs reference
 const docs = path.join(REPO, 'game', 'docs', 'P7_T3_TWO_PLAYERS_E2E.md');

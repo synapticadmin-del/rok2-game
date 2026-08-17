@@ -5,7 +5,6 @@
 #include "Rok2CityBuilder.h"
 #include "Rok2PlayerController.h"
 #include "Rok2BootWidget.h"
-#include "Rok2CityWidget.h"
 #include "Rok2HudWidget.h"
 #include "Rok2BuildMenuWidget.h"
 #include "Rok2CommanderWidget.h"
@@ -44,6 +43,16 @@ ARok2GameMode::ARok2GameMode()
 void ARok2GameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Create the API before actors: SpawnActor invokes BeginPlay immediately.
+	if (!Api)
+	{
+		Api = NewObject<URok2Api>(this);
+	}
+	Api->SetCivilizations(URok2BlueprintLibrary::GetDefaultCivilizations());
+	Api->Init(ApiBaseUrl, KingdomId, AdminKey);
+	Api->OnPlayerLoaded.AddDynamic(this, &ARok2GameMode::OnPlayerLoadedHandler);
+	Api->OnSeasonStoryEvent.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryEvent);
 
 	UWorld* World = GetWorld();
 	if (World)
@@ -91,14 +100,6 @@ void ARok2GameMode::BeginPlay()
 		}
 	}
 
-	if (!Api)
-	{
-		Api = NewObject<URok2Api>(this);
-	}
-	Api->SetCivilizations(URok2BlueprintLibrary::GetDefaultCivilizations());
-	Api->Init(ApiBaseUrl, KingdomId, AdminKey);
-	Api->OnPlayerLoaded.AddDynamic(this, &ARok2GameMode::OnPlayerLoadedHandler);
-	Api->OnSeasonStoryEvent.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryEvent);
 
 	// Boot Widget
 	if (!BootWidget && World)
@@ -129,16 +130,6 @@ void ARok2GameMode::OnPlayerLoadedHandler(const FRok2Player& Player)
 	{
 		BootWidget->RemoveFromParent();
 		BootWidget = nullptr;
-	}
-
-	if (!CityWidget && GetWorld())
-	{
-		CityWidget = Cast<URok2CityWidget>(URok2BlueprintLibrary::CreateRok2Widget(GetWorld(), URok2CityWidget::StaticClass()));
-		if (CityWidget)
-		{
-			CityWidget->Setup(Api);
-			CityWidget->AddToViewport(10);
-		}
 	}
 
 	if (!HudWidget && GetWorld())
@@ -191,6 +182,32 @@ void ARok2GameMode::BindHudEvents()
 	HudWidget->OnChatAction.AddDynamic(this, &ARok2GameMode::HandleChatAction);
 	HudWidget->OnSeasonStoryAction.AddDynamic(this, &ARok2GameMode::HandleSeasonStoryAction);
 	HudWidget->OnResearchAction.AddDynamic(this, &ARok2GameMode::HandleResearchAction);
+	// P24-T1: فعلان ورثهما الـHUD من `URok2CityWidget` المتقاعد.
+	HudWidget->OnCollectAction.AddDynamic(this, &ARok2GameMode::HandleCollectAction);
+	HudWidget->OnTrainAction.AddDynamic(this, &ARok2GameMode::HandleTrainAction);
+}
+
+// ---------------------------------------------------------------------------
+// P24-T1: تحصيل الإنتاج وورقة التدريب.
+//
+// كان زرّاهما داخل ألواح `URok2CityWidget` المطوية بـ`ESlateVisibility::Collapsed`،
+// فلا يراهما لاعب — و`URok2Api::CollectCityProduction` لم يكن له مستدعٍ آخر في
+// المشروع كله. الورقة نفسها هي `URok2TrainHealSheetWidget` التي تفتحها بطاقة
+// المبنى، فلا واجهة تدريب ثانية بمنطق ثانٍ.
+// ---------------------------------------------------------------------------
+void ARok2GameMode::HandleCollectAction()
+{
+	if (Api)
+	{
+		Api->CollectCityProduction();
+	}
+}
+
+void ARok2GameMode::HandleTrainAction()
+{
+	// الثكنة هي المبنى الافتراضي من الشريط السفلي؛ فتح الورقة من بطاقة مبنى
+	// آخر يمرّر معرّفه فتتغيّر قائمة الوحدات إلى فرعه.
+	HandleBuildingAction(TEXT("barracks"), TEXT("train"));
 }
 
 void ARok2GameMode::EnsureViewManager()
@@ -360,29 +377,30 @@ void ARok2GameMode::OpenResearchScreen()
 
 void ARok2GameMode::HandleItemsAction()
 {
-	// الحقيبة — غير منفذة بعد (متجر/VIP). نعرض إشعاراً مؤقتاً.
-	if (Api)
-	{
-		// يستخدم نظام الإشعارات الداخلي عبر toast
-		// (تحسين مستقبلي: شاشة حقيبة كاملة)
-	}
+	if (Api) Api->EmitToast(TEXT("الحقيبة قيد التجهيز — ستظهر العناصر هنا عند توفرها"));
 }
 
 void ARok2GameMode::HandleEventsAction()
 {
-	// الأحداث — غير منفذة بعد. (تحسين مستقبلي: شاشة أحداث)
+	if (Api) Api->EmitToast(TEXT("لا توجد أحداث نشطة حالياً"));
 }
 
 void ARok2GameMode::HandleMapAction()
 {
-	// التبديل بين مدينة اللاعب وخريطة العالم
 	EnsureViewManager();
-	if (ViewManager)
+	if (!ViewManager) return;
+
+	const bool bOpeningMap = ViewManager->IsCityView();
+	ViewManager->ToggleView();
+	if (bOpeningMap)
 	{
-		ViewManager->ToggleView();
-		// عند الذهاب للخريطة: حدّث العالم
+		if (ARok2PlayerController* PC = Cast<ARok2PlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0)))
+		{
+			PC->FocusOnPlayerCity();
+		}
 		if (Api)
 		{
+			Api->EmitToast(TEXT("جارٍ تحديث خريطة المملكة…"));
 			Api->RefreshWorld();
 		}
 	}

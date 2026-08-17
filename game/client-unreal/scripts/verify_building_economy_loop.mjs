@@ -14,8 +14,11 @@ const files = {
   types: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2Types.h'),
   apiHeader: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2Api.h'),
   apiSource: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2Api.cpp'),
-  cityWidgetHeader: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2CityWidget.h'),
-  cityWidgetSource: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2CityWidget.cpp'),
+  // P24-T1: `Rok2CityWidget` تقاعدت — زرّ التحصيل وصفوف الطوابير كانا داخل
+  // ألواح مطوية بـ`ESlateVisibility::Collapsed` بلا مسار إظهار، فلم يكن
+  // لـ`CollectCityProduction` مستدعٍ يراه لاعب. موضعهما الآن الـHUD.
+  hudHeader: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Public/Rok2HudWidget.h'),
+  hudSource: path.join(repoRoot, 'game/client-unreal/Source/Rok2/Private/Rok2HudWidget.cpp'),
 };
 
 const content = Object.fromEntries(
@@ -47,9 +50,10 @@ const required = [
   ['apiHeader', /CollectCityProduction/, 'أمر تحصيل المدينة'],
   ['apiSource', /activeQueues/, 'تحليل حالة طابور الخادم'],
   ['apiSource', /ratesPerHour/, 'تحليل معدلات الإنتاج السلطوية'],
-  ['cityWidgetHeader', /CollectButton/, 'زر تحصيل الإنتاج'],
-  ['cityWidgetSource', /OnCollectClicked/, 'ربط زر التحصيل'],
-  ['cityWidgetSource', /إنهاء %d ج/, 'إظهار سعر إنهاء الطابور بالجواهر'],
+  ['hudHeader', /OnCollectAction/, 'فعل تحصيل الإنتاج في الـHUD'],
+  ['hudSource', /OnCollectClickedHandler/, 'ربط زر التحصيل'],
+  ['hudSource', /%d ج/, 'إظهار سعر إنهاء الطابور بالجواهر'],
+  ['hudSource', /SpeedupQueue/, 'زر تسريع الطابور يستدعي الأمر السلطوي'],
 ];
 
 const failures = [];

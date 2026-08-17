@@ -1,4 +1,4 @@
-﻿// Copyright ROK2. Unified HUD widget (P5-T3) — implementation.
+// Copyright ROK2. Unified HUD widget (P5-T3) — implementation.
 // أسلوب RoK: برونز داكن + ذهب مزخرف، أزرار دائرية، شريط موارد RTL.
 // P6-T1: كل الأيقونات إجرائية من URok2ArtAssets — لا إيموجي في الواجهة.
 // P6-T3: بطاقات الإشعارات تنبثق من الأسفل + كل زر بضغطة محسوسة (URok2MotionLibrary).
@@ -6,6 +6,7 @@
 #include "Rok2HudWidget.h"
 #include "Rok2Accessibility.h"
 #include "Rok2Api.h"
+#include "Rok2AudioManager.h"
 #include "Rok2ArtAssets.h"
 #include "Rok2MotionLibrary.h"
 #include "Rok2Surface.h"
@@ -59,6 +60,7 @@ void URok2HudWidget::Setup(URok2Api* InApi)
 	if (!Api) return;
 
 	Api->OnHudNotification.AddDynamic(this, &URok2HudWidget::OnNotification);
+	Api->OnToast.AddDynamic(this, &URok2HudWidget::OnToast);
 	Api->OnZonesUpdated.AddDynamic(this, &URok2HudWidget::OnZones);
 	Api->OnConnectionState.AddDynamic(this, &URok2HudWidget::OnConnState);
 
@@ -143,7 +145,8 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 		SwordIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 		GovernorPowerText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GovernorPowerText"));
-		GovernorPowerText->SetText(FText::FromString(TEXT("1,500")));
+		// لا نعرض رقماً افتراضياً قبل وصول الملف السلطوي؛ الشرطة حالة تحميل صادقة.
+		GovernorPowerText->SetText(FText::FromString(TEXT("—")));
 		GovernorPowerText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Gold()));
 		URok2Typography::ApplyFont(GovernorPowerText, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* PowerSlot = H->AddChildToHorizontalBox(GovernorPowerText);
@@ -160,7 +163,8 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 		Out = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		Out->SetText(FText::FromString(TEXT("100.0K")));
+		// حالة تحميل محايدة حتى تصل موارد المدينة من الخادم؛ لا قيم وهمية.
+		Out->SetText(FText::FromString(TEXT("—")));
 		Out->SetColorAndOpacity(FSlateColor(Color));
 		URok2Typography::ApplyFont(Out, ERok2TextRole::Numeric);
 		UHorizontalBoxSlot* TxtSlot = H->AddChildToHorizontalBox(Out);
@@ -372,6 +376,12 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	MakePill(TEXT("scroll"), TEXT("حكاية المملكة"), FName(TEXT("OnSeasonStoryClickedHandler")));
 	MakePill(TEXT("edit"), TEXT("تحرير المدينة"), FName(TEXT("OnEditCityClickedHandler")));
 
+	// P24-T1: حبّتان ورثهما الـHUD من `URok2CityWidget` المتقاعد. زرّاهما هناك
+	// كانا داخل ألواح مطوية بـ`Collapsed` فلا يراهما لاعب، وكانا المستدعي
+	// الوحيد لـ`CollectCityProduction` و`Train` في المشروع.
+	MakePill(TEXT("food"), TEXT("تحصيل"), FName(TEXT("OnCollectClickedHandler")));
+	UBorder* TrainPill = MakePill(TEXT("sword"), TEXT("تدريب"), FName(TEXT("OnTrainClickedHandler")));
+
 	// زر الدردشة الحية
 	{
 		ChatButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ChatPill"));
@@ -403,6 +413,11 @@ void URok2HudWidget::BuildLeftCluster(UCanvasPanel* RootCanvas)
 	}
 
 	URok2Onboarding::Get()->RegisterAnchor(Rok2FtueSpec::AnchorMap, MapPill);
+
+	// P24-T1: مرساة خطوة «درّب أول جنودك» كانت مسجّلة على زر داخل لوح مطوي في
+	// `URok2CityWidget`، فكانت هندسته صفرية والحلقة الذهبية تُخفى أبداً. الحبّة
+	// هنا مرئية فعلاً، فيُشير الإرشاد إلى ما يستطيع اللاعب لمسه.
+	URok2Onboarding::Get()->RegisterAnchor(Rok2FtueSpec::AnchorTrain, TrainPill);
 }
 
 // ---------------------------------------------------------------------------
@@ -502,6 +517,9 @@ void URok2HudWidget::BuildNotifCenter(UCanvasPanel* RootCanvas)
 void URok2HudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	HudRefreshAccumulator += InDeltaTime;
+	if (HudRefreshAccumulator < 0.25f) return;
+	HudRefreshAccumulator = 0.f;
 	UpdateResources();
 	UpdateQueues();
 	UpdateBuildBadge();
@@ -520,6 +538,8 @@ void URok2HudWidget::OnEditCityClickedHandler() { OnEditCityAction.Broadcast(); 
 void URok2HudWidget::OnChatClickedHandler() { OnChatAction.Broadcast(); }
 void URok2HudWidget::OnSeasonStoryClickedHandler() { OnSeasonStoryAction.Broadcast(); }
 void URok2HudWidget::OnResearchClickedHandler() { OnResearchAction.Broadcast(); }
+void URok2HudWidget::OnCollectClickedHandler() { OnCollectAction.Broadcast(); }
+void URok2HudWidget::OnTrainClickedHandler() { OnTrainAction.Broadcast(); }
 
 void URok2HudWidget::OnBellClicked()
 {
@@ -548,7 +568,7 @@ void URok2HudWidget::UpdateResources()
 		}
 		if (GovernorPowerText)
 		{
-			const int32 Power = P.Power > 0 ? P.Power : 1500;
+			const int32 Power = FMath::Max(0, P.Power);
 			GovernorPowerText->SetText(FText::FromString(FString::Printf(TEXT("%s"), *FText::AsNumber(Power).ToString())));
 		}
 	}
@@ -571,12 +591,12 @@ void URok2HudWidget::UpdateResources()
 		T->SetText(FText::FromString(Fmt(Val + Rate * H)));
 	};
 
-	SetRes(ResFoodText, C.Resources.Food > 0 ? C.Resources.Food : 100000.0, C.Rates.Food);
-	SetRes(ResWoodText, C.Resources.Wood > 0 ? C.Resources.Wood : 100000.0, C.Rates.Wood);
-	SetRes(ResStoneText, C.Resources.Stone > 0 ? C.Resources.Stone : 50000.0, C.Rates.Stone);
-	SetRes(ResGoldText, C.Resources.Gold > 0 ? C.Resources.Gold : 20000.0, C.Rates.Gold);
-	if (ResGemsText) ResGemsText->SetText(FText::FromString(TEXT("0")));
-	if (ResApText) ResApText->SetText(FText::FromString(TEXT("1000")));
+	SetRes(ResFoodText, C.Resources.Food, C.Rates.Food);
+	SetRes(ResWoodText, C.Resources.Wood, C.Rates.Wood);
+	SetRes(ResStoneText, C.Resources.Stone, C.Rates.Stone);
+	SetRes(ResGoldText, C.Resources.Gold, C.Rates.Gold);
+	SetRes(ResGemsText, C.Gems, 0.0);
+	SetRes(ResApText, Api->GetWorldSnapshot().ApState.Ap, 0.0);
 }
 
 void URok2HudWidget::UpdateSeasonAndZones()
@@ -622,6 +642,8 @@ void URok2HudWidget::UpdateQueues()
 	if (!Api || !QueuesBox) return;
 	const FRok2City& C = Api->GetCity();
 	QueuesBox->ClearChildren();
+	// الوسائط تُعاد بناؤها مع الصفوف؛ بلا تفريغ تتراكم عبر الجلسة كلها.
+	QueueActions.Empty();
 
 	if (C.ActiveQueues.Num() == 0)
 	{
@@ -641,22 +663,44 @@ void URok2HudWidget::UpdateQueues()
 		Shown++;
 
 		UHorizontalBox* ItemRow = NewObject<UHorizontalBox>(this);
-		const TCHAR* IconId = Q.Type == TEXT("build") ? TEXT("build") : Q.Type == TEXT("research") ? TEXT("flask") : Q.Type == TEXT("heal") ? TEXT("cross") : TEXT("sword");
+		// P24-T1: أسماء الطوابير كانت `RefId Lv%d` — معرّف خادمي لاتيني في واجهة
+		// عربية. الترجمة من نفس أسماء `Api->GetMeta()` التي تستخدمها ورقة التدريب،
+		// فلا اختراع اسم في العميل.
+		const bool bBuildQueue = (Q.Type == TEXT("build") || Q.Type == TEXT("building"));
+		const bool bResearchQueue = (Q.Type == TEXT("research"));
+		const bool bHealQueue = (Q.Type == TEXT("heal") || Q.Type == TEXT("healing"));
+		const TCHAR* IconId = bBuildQueue ? TEXT("build")
+			: bResearchQueue ? TEXT("flask")
+			: bHealQueue ? TEXT("cross")
+			: TEXT("sword");
+		const FLinearColor RowColor = bBuildQueue ? Rok2HudStyle::InfoBlue()
+			: bResearchQueue ? Rok2Visual::ResourceActionPoints()
+			: bHealQueue ? Rok2HudStyle::Success()
+			: Rok2HudStyle::Gold();
+
 		UImage* Ico = NewObject<UImage>(this);
-		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, Rok2HudStyle::Ivory()));
+		Ico->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 14.f, RowColor));
 		Ico->SetDesiredSizeOverride(FVector2D(14.f, 14.f));
+		Ico->SetToolTipText(URok2Accessibility::LabelForIcon(FString(IconId)));
 		UHorizontalBoxSlot* IcoSlot = ItemRow->AddChildToHorizontalBox(Ico);
 		IcoSlot->SetPadding(FMargin(0, 0, 5, 0));
 		IcoSlot->SetVerticalAlignment(VAlign_Center);
 		IcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
 
 		UVerticalBox* Item = NewObject<UVerticalBox>(this);
-		ItemRow->AddChildToHorizontalBox(Item);
+		ItemRow->AddChildToHorizontalBox(Item)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 		UTextBlock* Label = NewObject<UTextBlock>(this);
 		const double RemainSec = FMath::Max(0.0, (double)(Q.EndMs - NowMs) / 1000.0);
-		Label->SetText(FText::FromString(FString::Printf(TEXT("%s Lv%d — %.0fث"), *Q.RefId, Q.Level, RemainSec)));
-		Label->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
+		const int32 Minutes = (int32)RemainSec / 60;
+		const int32 Seconds = (int32)RemainSec % 60;
+		const FString Verb = bBuildQueue ? TEXT("ترقية")
+			: bResearchQueue ? TEXT("بحث")
+			: bHealQueue ? TEXT("شفاء")
+			: TEXT("تدريب");
+		Label->SetText(FText::FromString(FString::Printf(TEXT("%s %s · %02d:%02d"),
+			*Verb, *QueueSubjectName(Q), Minutes, Seconds)));
+		Label->SetColorAndOpacity(FSlateColor(RowColor));
 		URok2Typography::ApplyFont(Label, ERok2TextRole::Micro);
 		Item->AddChildToVerticalBox(Label);
 
@@ -668,13 +712,107 @@ void URok2HudWidget::UpdateQueues()
 		// مسار حجري مستدير بدل الشريط المستطيل الافتراضي — من §4 في وثيقة الهوية.
 		FProgressBarStyle BarStyle;
 		BarStyle.SetBackgroundImage(Rok2Surface::ProgressTrack());
-		BarStyle.SetFillImage(Rok2Surface::ProgressFill(Rok2Visual::Gold()));
+		BarStyle.SetFillImage(Rok2Surface::ProgressFill(RowColor));
 		Bar->SetWidgetStyle(BarStyle);
 		Bar->SetFillColorAndOpacity(FLinearColor::White);
 
 		Item->AddChildToVerticalBox(Bar)->SetPadding(FMargin(Rok2Space::None, Rok2Space::Hair, Rok2Space::None, Rok2Space::S));
 
+		// P24-T1: زر التسريع. `SpeedupQueue` كان بلا أي مستدعٍ بعد تقاعد
+		// `URok2CityWidget`، أي أن إنهاء الطابور بالجواهر كان غير قابل للوصول.
+		{
+			URok2HudQueueAction* Action = NewObject<URok2HudQueueAction>(this);
+			Action->QueueId = Q.Id;
+			Action->Api = Api;
+			QueueActions.Add(Action);
+
+			UButton* Speedup = NewObject<UButton>(this);
+			Speedup->SetStyle(Rok2Surface::SecondaryButton());
+			Speedup->OnClicked.AddDynamic(Action, &URok2HudQueueAction::HandleClick);
+			Speedup->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("speedup")));
+			URok2MotionLibrary::BindPress(Speedup);
+
+			UHorizontalBox* BtnBox = NewObject<UHorizontalBox>(this);
+			Speedup->AddChild(BtnBox);
+			UImage* SpdIco = NewObject<UImage>(this);
+			SpdIco->SetBrush(URok2ArtAssets::GetIconBrush(TEXT("speedup"), 12.f, Rok2HudStyle::Ivory()));
+			SpdIco->SetDesiredSizeOverride(FVector2D(12.f, 12.f));
+			UHorizontalBoxSlot* SpdIcoSlot = BtnBox->AddChildToHorizontalBox(SpdIco);
+			SpdIcoSlot->SetPadding(FMargin(Rok2Space::XS, Rok2Space::None, Rok2Space::Hair, Rok2Space::None));
+			SpdIcoSlot->SetVerticalAlignment(VAlign_Center);
+			SpdIcoSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+
+			UTextBlock* BtnText = NewObject<UTextBlock>(this);
+			// السعر يأتي من الخادم؛ عند غيابه لا نخترع رقماً بل نُسمّي الفعل.
+			BtnText->SetText(FText::FromString(Q.FinishCostGems > 0
+				? FString::Printf(TEXT("%d ج"), Q.FinishCostGems)
+				: TEXT("إنهاء")));
+			BtnText->SetColorAndOpacity(FSlateColor(Rok2HudStyle::Ivory()));
+			URok2Typography::ApplyFont(BtnText, ERok2TextRole::Micro);
+			BtnBox->AddChildToHorizontalBox(BtnText)->SetPadding(FMargin(Rok2Space::None, Rok2Space::None, Rok2Space::XS, Rok2Space::None));
+
+			UHorizontalBoxSlot* BtnSlot = ItemRow->AddChildToHorizontalBox(Speedup);
+			BtnSlot->SetVerticalAlignment(VAlign_Center);
+			BtnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+		}
+
 		QueuesBox->AddChildToVerticalBox(ItemRow);
+	}
+}
+
+FString URok2HudWidget::QueueSubjectName(const FRok2QueueEntry& Q) const
+{
+	if (!Api)
+	{
+		return Q.RefId;
+	}
+
+	// وحدة قابلة للتدريب؟ الاسم العربي جاهز في بيانات التوازن الموحّدة.
+	for (const FRok2TrainableUnit& Unit : Api->GetMeta().TrainableUnits)
+	{
+		if (Unit.Id == Q.RefId && !Unit.Name.IsEmpty())
+		{
+			return Q.Level > 0 ? FString::Printf(TEXT("%s Lv%d"), *Unit.Name, Q.Level) : Unit.Name;
+		}
+	}
+
+	// وإلا مبنى: خريطة أسماء buildings.json العربية. المعرّف نفسه احتياطٌ صادق
+	// أفضل من ترجمة مخترعة لمبنى لم يُسمَّ بعد.
+	static const TMap<FString, FString> BuildingNames = {
+		{ TEXT("city_hall"),       TEXT("قاعة المدينة") },
+		{ TEXT("farm"),            TEXT("مزرعة") },
+		{ TEXT("lumber_mill"),     TEXT("منشرة") },
+		{ TEXT("quarry"),          TEXT("محجر") },
+		{ TEXT("goldmine"),        TEXT("منجم ذهب") },
+		{ TEXT("storehouse"),      TEXT("مخزن") },
+		{ TEXT("barracks"),        TEXT("ثكنة") },
+		{ TEXT("stable"),          TEXT("إسطبل") },
+		{ TEXT("archery_range"),   TEXT("ميدان رماية") },
+		{ TEXT("siege_workshop"),  TEXT("ورشة حصار") },
+		{ TEXT("hospital"),        TEXT("مستشفى") },
+		{ TEXT("wall"),            TEXT("سور") },
+		{ TEXT("watchtower"),      TEXT("برج مراقبة") },
+		{ TEXT("academy"),         TEXT("أكاديمية") },
+		{ TEXT("tavern"),          TEXT("حانة") },
+		{ TEXT("trading_post"),    TEXT("مركز تبادل") },
+		{ TEXT("alliance_center"), TEXT("مركز التحالف") },
+		{ TEXT("scout_camp"),      TEXT("معسكر كشافة") },
+		{ TEXT("castle"),          TEXT("قلعة") },
+		{ TEXT("shop"),            TEXT("متجر") },
+		{ TEXT("courier_station"), TEXT("مركز بريد") },
+		{ TEXT("builders_hut"),    TEXT("كوخ البنّائين") },
+		{ TEXT("monument"),        TEXT("نصب") },
+	};
+	const FString* Found = BuildingNames.Find(Q.RefId);
+	const FString Base = Found ? *Found : Q.RefId;
+	return Q.Level > 0 ? FString::Printf(TEXT("%s → %d"), *Base, Q.Level) : Base;
+}
+
+void URok2HudQueueAction::HandleClick()
+{
+	if (Api)
+	{
+		Api->SpeedupQueue(QueueId);
 	}
 }
 
@@ -694,6 +832,29 @@ void URok2HudWidget::UpdateBuildBadge()
 void URok2HudWidget::OnNotification(const FRok2HudNotification& N)
 {
 	UpdateBellBadge();
+}
+
+void URok2HudWidget::OnToast(const FString& Message)
+{
+	if (!ToastsBox || Message.IsEmpty()) return;
+	while (ToastsBox->GetChildrenCount() >= 3)
+	{
+		ToastsBox->RemoveChildAt(0);
+	}
+	UBorder* Card = NewObject<UBorder>(this);
+	Card->SetBrush(Rok2Surface::AccentCard(Rok2Visual::Gold()));
+	Card->SetPadding(FMargin(Rok2Space::M, Rok2Space::S));
+	UTextBlock* Text = NewObject<UTextBlock>(this);
+	Text->SetText(FText::FromString(Message));
+	Text->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
+	Text->SetAutoWrapText(true);
+	URok2Typography::ApplyFont(Text, ERok2TextRole::Body);
+	Card->SetContent(Text);
+	ToastsBox->AddChildToVerticalBox(Card)->SetPadding(FMargin(0.f, Rok2Space::XS));
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->PlaySfx(ERok2AudioType::Notification);
+	}
 }
 
 void URok2HudWidget::UpdateNotifications()

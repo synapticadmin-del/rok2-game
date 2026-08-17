@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { chainRuns } from "../../../scripts/lib/npm_script_chain.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "../../..");
@@ -42,7 +43,16 @@ const kingdomShard = requireFile("game/backend/src/do/KingdomShard.ts");
   "game/client-unreal/scripts/verify_city_layout_sync.mjs",
 ].forEach(requireFile);
 
-requireText(packageJsonPath, packageJson, /"check"\s*:\s*"[^"]*test:offline[^"]*test:march-redirect-notifications/, "بوابة check المتسلسلة");
+// البوابة صارت مركّبة (check → check:fast/check:e2e/check:ue-contracts)، فتعبير
+// نمطي على سطر check وحده يبلّغ غياباً وهمياً — chainRuns يوسّع المراجع تعدياً.
+{
+  const scripts = JSON.parse(packageJson || "{}").scripts ?? {};
+  for (const job of ["test:offline", "test:march-redirect-notifications"]) {
+    if (!chainRuns(scripts, job)) {
+      errors.push(`دليل مفقود في ${packageJsonPath}: بوابة check تشمل ${job}`);
+    }
+  }
+}
 requireText(packageJsonPath, packageJson, /"smoke"\s*:\s*"node scripts\/smoke\.mjs"/, "اختبار smoke التشغيلي");
 requireText("PLAN.md", plan, /### المرحلة 7[\s\S]*?\*\*P7-T0\*\*/, "تعريف P7-T0 في المرحلة السابعة");
 requireText("PLAN.md", plan, /P7-T1[\s\S]*?P7-T9/, "خريطة مهام P7-T1 إلى P7-T9");

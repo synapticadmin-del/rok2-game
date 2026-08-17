@@ -224,6 +224,14 @@ protected:
 	UPROPERTY(Transient)
 	UImage* DetailPortraitImage;
 
+	/**
+	 * P24-T5: لوحة الجلد الأسطوري خلف ترويسة التفاصيل. الصور الست في
+	 * Content/Art/CommanderSkins (35MB) كانت مولّدة بلا أي قارئ في المشروع.
+	 * تظهر للقادة الأسطوريين وحدهم وتُطوى لغيرهم.
+	 */
+	UPROPERTY(Transient)
+	UImage* DetailSkinImage;
+
 	/** معالج مستقل لكل بطاقة ديناميكية؛ يحتفظ بمعرّف القائد حتى يصل حدث الضغط. */
 	UPROPERTY(Transient)
 	TArray<URok2CommanderCardHandler*> CommanderCardHandlers;

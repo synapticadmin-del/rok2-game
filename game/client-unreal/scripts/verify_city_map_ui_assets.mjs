@@ -88,12 +88,21 @@ requireText('Source/Rok2/Private/Rok2ArtAssets.cpp', [
   'GetImportedUiIconAssetPath', 'ImportedIds', '/Game/Art/UIIcons/icon_%s.icon_%s',
   'URok2IconLibrary::BrushFromArtAssets',
 ]);
-requireText('Source/Rok2/Private/Rok2CityWidget.cpp', [
-  'ApplyButtonSkin', '/Game/Art/UIButtons/%s.%s', 'button_primary_gold',
-  // P17-T4: جلود الأزرار صارت عبر Rok2Surface::TexturedSkinButton التي تسقط
-  // إلى SecondaryButton عند غياب الجلد — لا SetStyle(Style) اليدوية القديمة.
-  'button_secondary_blue', 'TexturedSkinButton', 'ResolveCityBuildingArtId',
-  '/Game/Art/CityBuildingIcons/building_%s.building_%s', 'LoadObject<UTexture2D>',
+// P24-T1/T3/T4: جلود الأزرار انتقلت من `Rok2CityWidget` المتقاعد إلى مصنع
+// الأسطح، فتسري على كل زر في اللعبة بدل زرّين داخل لوح مطوي. وصور المباني
+// صار لها قارئ في `Rok2ArtAssets` وعارض في بطاقة المبنى.
+requireText('Source/Rok2/Private/Rok2Surface.cpp', [
+  '/Game/Art/UIButtons/%s.%s', 'button_primary_gold', 'button_secondary_blue',
+  'button_danger_red', 'button_success_green', 'TexturedSkinButton',
+  // P24-T3: نسيج اللوحات 9-slice مع سقوط إلى اللون المسطّح عند غياب الأصل.
+  '/Game/Art/UISurfaces/%s.%s', 'panel_parchment', 'ESlateBrushDrawType::Box',
+]);
+requireText('Source/Rok2/Private/Rok2ArtAssets.cpp', [
+  'GetCityBuildingPortraitId', 'LoadCityBuildingPortrait', '_base_tier1',
+  '/Game/Art/CityBuildingIcons/T_%s_%s.T_%s_%s',
+]);
+requireText('Source/Rok2/Private/Rok2BuildingDetailWidget.cpp', [
+  'LoadCityBuildingPortrait', 'PortraitImage',
 ]);
 requireText('../docs/CITY_MAP_UI_ASSET_BRIEF.md', [
   'Kenney Castle Kit', 'CC0', 'المدينة الداخلية', 'الخريطة', 'أزرار',

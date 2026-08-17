@@ -54,6 +54,13 @@ protected:
 	UPROPERTY() UTextBlock* TitleText;
 	// P6-T1: أيقونة المبنى في الترويسة (إجرائية من URok2ArtAssets)
 	UPROPERTY() UImage* HeaderIcon;
+	/**
+	 * P24-T4: صورة المبنى المرسومة (2.5D) وإطارها. كانت 96 صورة في
+	 * Content/Art/CityBuildingIcons بلا أي قارئ، وهذه البطاقة — الشاشة التي
+	 * تُفتح عند لمس كل مبنى — تعرض رمزاً هندسياً 28px عنه.
+	 */
+	UPROPERTY() UImage* PortraitImage;
+	UPROPERTY() UBorder* PortraitFrame;
 	UPROPERTY() UTextBlock* LevelText;
 	UPROPERTY() UTextBlock* DescText;
 	// P6-T1: التكلفة أصبحت زوجي أيقونة+رقم (طعام/خشب) + أيقونة ساعة للمدة

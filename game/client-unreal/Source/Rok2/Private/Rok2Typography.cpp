@@ -27,6 +27,34 @@ namespace
 	{
 		return (Weight == Rok2TypeWeight::Black) ? Rok2TypeWeight::Bold : Weight;
 	}
+
+	/**
+	 * ملف الوجه لكل (وجه، وزن). Aref Ruqaa وCinzel لا يوفّران Black، فيُربط
+	 * الوزن الأثقل بملف Bold — تمييز حقيقي مع صدق في المصدر، بدل اختراع وزن
+	 * ليس في الخط.
+	 */
+	const TCHAR* FaceFileFor(ERok2Face Face, const FName Weight)
+	{
+		const bool bBlack = (Weight == Rok2TypeWeight::Black);
+		const bool bBold = (Weight == Rok2TypeWeight::Bold) || bBlack;
+
+		switch (Face)
+		{
+		case ERok2Face::Display:
+			return bBold ? TEXT("ArefRuqaa-Bold") : TEXT("ArefRuqaa-Regular");
+		case ERok2Face::Numeric:
+			return bBold ? TEXT("Cinzel-Bold") : TEXT("Cinzel-Regular");
+		case ERok2Face::Ui:
+		default:
+			return bBlack ? TEXT("Cairo-Black") : (bBold ? TEXT("Cairo-Bold") : TEXT("Cairo-Regular"));
+		}
+	}
+
+	/** مسار أصل FontFace — /Game/Fonts/Faces/<name>.<name> كاصطلاح بقية الأصول. */
+	FString FaceAssetPath(const TCHAR* FileName)
+	{
+		return FString::Printf(TEXT("/Game/Fonts/Faces/%s.%s"), FileName, FileName);
+	}
 }
 
 URok2Typography* URok2Typography::Get()
@@ -53,16 +81,17 @@ FString URok2Typography::FaceAssetName(ERok2Face Face)
 
 FString URok2Typography::FacePackagePath(ERok2Face Face)
 {
-	// نفس اصطلاح URok2ArtAssets::EditorPackagePath — /Game/<dir>/<name>.<name>
-	const FString Name = FaceAssetName(Face);
-	return FString::Printf(TEXT("/Game/Fonts/%s.%s"), *Name, *Name);
+	// الوجه المنطقي يُبنى من ثلاثة أصول FontFace لا من أصل Font واحد (انظر
+	// ResolveFace)؛ يبقى هذا المسار معرّفاً للوجه في التوثيق والاختبار، ويشير
+	// إلى وجه الوزن العادي وهو ما يقع عليه Slate عند طلب وزن غائب.
+	return FaceAssetPath(FaceFileFor(Face, Rok2TypeWeight::Regular));
 }
 
-UFont* URok2Typography::ResolveFace(ERok2Face Face)
+TSharedPtr<const FCompositeFont> URok2Typography::ResolveFace(ERok2Face Face)
 {
 	const uint8 Key = static_cast<uint8>(Face);
 
-	if (UFont** Cached = FaceCache.Find(Key))
+	if (TSharedPtr<FStandaloneCompositeFont>* Cached = FaceCache.Find(Key))
 	{
 		return *Cached;
 	}
@@ -71,25 +100,69 @@ UFont* URok2Typography::ResolveFace(ERok2Face Face)
 		return nullptr;	// حاولنا وفشلنا — لا نكرر التحميل
 	}
 
-	UFont* Loaded = LoadObject<UFont>(nullptr, *FacePackagePath(Face));
-	if (Loaded)
+	// الأوزان الثلاثة بأسمائها الحرفية: `WeightOf` يطلبها بالاسم، وغياب اسم
+	// يجعل Slate يقع على أول وجه في القائمة (Regular) بلا شكوى.
+	static const FName Weights[] = { Rok2TypeWeight::Regular, Rok2TypeWeight::Bold, Rok2TypeWeight::Black };
+
+	FTypeface Typeface;
+	TArray<UObject*> LoadedFaces;
+	for (const FName Weight : Weights)
 	{
-		FaceCache.Add(Key, Loaded);
-		UE_LOG(LogRok2Type, Log, TEXT("Typography face '%s' loaded"), *FaceAssetName(Face));
-		return Loaded;
+		const TCHAR* FileName = FaceFileFor(Face, Weight);
+		UObject* FaceAsset = LoadObject<UObject>(nullptr, *FaceAssetPath(FileName));
+		if (!FaceAsset)
+		{
+			continue;
+		}
+		LoadedFaces.Add(FaceAsset);
+
+		FTypefaceEntry& Entry = Typeface.Fonts.AddDefaulted_GetRef();
+		Entry.Name = Weight;
+		Entry.Font = FFontData(FaceAsset);
 	}
 
-	// غير مستورد بعد — نبقى على خط المحرك بنفس الحجم والوزن (fallback)
-	FaceMisses.Add(Key);
-	UE_LOG(LogRok2Type, Verbose,
-		TEXT("Typography face '%s' not imported yet (%s) — engine default font stays active"),
-		*FaceAssetName(Face), *FacePackagePath(Face));
-	return nullptr;
+	if (Typeface.Fonts.IsEmpty())
+	{
+		// غير مستورد بعد — نبقى على خط المحرك بنفس الحجم والوزن (fallback)
+		FaceMisses.Add(Key);
+		UE_LOG(LogRok2Type, Verbose,
+			TEXT("Typography face '%s' not imported yet (%s) — engine default font stays active"),
+			*FaceAssetName(Face), *FacePackagePath(Face));
+		return nullptr;
+	}
+
+	TSharedRef<FStandaloneCompositeFont> Composite = MakeShared<FStandaloneCompositeFont>();
+	Composite->DefaultTypeface = Typeface;
+
+	// Cinzel لاتيني بحت، وAref Ruqaa يغطي العربية دون اللاتينية الكاملة. فوجه
+	// الاحتياط هو Cairo الذي يحمل الاثنين: رقمٌ عربي داخل عنوان أو محرف عربي
+	// في دور رقمي يُرسم بمحرف حقيقي بدل مربّع، وهو ما كان NotoNaskh يفعله في
+	// المسار الاحتياطي القديم.
+	if (Face != ERok2Face::Ui)
+	{
+		if (UObject* UiFallback = LoadObject<UObject>(nullptr, *FaceAssetPath(TEXT("Cairo-Regular"))))
+		{
+			LoadedFaces.Add(UiFallback);
+			FTypefaceEntry& FallbackEntry = Composite->FallbackTypeface.Typeface.Fonts.AddDefaulted_GetRef();
+			FallbackEntry.Name = Rok2TypeWeight::Regular;
+			FallbackEntry.Font = FFontData(UiFallback);
+		}
+	}
+
+	for (UObject* Asset : LoadedFaces)
+	{
+		FaceAssets.Add(Asset);
+	}
+
+	FaceCache.Add(Key, Composite);
+	UE_LOG(LogRok2Type, Log, TEXT("Typography face '%s' built from %d FontFace asset(s)"),
+		*FaceAssetName(Face), Typeface.Fonts.Num());
+	return Composite;
 }
 
 bool URok2Typography::HasFace(ERok2Face Face)
 {
-	return ResolveFace(Face) != nullptr;
+	return ResolveFace(Face).IsValid();
 }
 
 ERok2Face URok2Typography::FaceOf(ERok2TextRole Role)
@@ -179,7 +252,7 @@ FSlateFontInfo URok2Typography::Font(ERok2TextRole Role)
 	const float Size = SizeOf(Role);
 	const FName Weight = WeightOf(Role);
 
-	if (UFont* Face = Get()->ResolveFace(FaceOf(Role)))
+	if (TSharedPtr<const FCompositeFont> Face = Get()->ResolveFace(FaceOf(Role)))
 	{
 		return FSlateFontInfo(Face, Size, Weight);
 	}
@@ -193,9 +266,8 @@ FSlateFontInfo URok2Typography::Font(ERok2TextRole Role)
 	// Manifest_UFSFiles_Android.txt).
 	//
 	// ما يفقده هذا المسار هو الطابع فقط: Naskh وجه واحد بوزن Regular، فلا فرق
-	// بصري بين Display وBody غير الحجم، ولا خط عربي «فخم» كما تطلب وثيقة الهوية.
-	// إسقاط الخطوط الموثقة في Content/Fonts/README.md يفعّل الأوجه الثلاثة بلا
-	// تعديل كود.
+	// بصري بين Display وBody غير الحجم. يبقى هذا المسار حياً لأن حذف أصول
+	// Content/Fonts/Faces يجب أن يُخفت الواجهة لا أن يمحو نصها.
 	return FCoreStyle::GetDefaultFontStyle(ClampWeightForEngineFont(Weight), Size);
 }
 
@@ -213,7 +285,7 @@ FSlateFontInfo URok2Typography::FontSized(ERok2Face Face, float Size, bool bBold
 	const FName Weight = bBold ? Rok2TypeWeight::Bold : Rok2TypeWeight::Regular;
 	const float Clamped = FMath::Clamp(Size, Rok2TypeScale::Min, Rok2TypeScale::Max);
 
-	if (UFont* Loaded = Get()->ResolveFace(Face))
+	if (TSharedPtr<const FCompositeFont> Loaded = Get()->ResolveFace(Face))
 	{
 		return FSlateFontInfo(Loaded, Clamped, Weight);
 	}

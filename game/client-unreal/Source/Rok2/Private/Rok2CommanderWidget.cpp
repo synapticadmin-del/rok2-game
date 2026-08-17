@@ -21,6 +21,8 @@
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/ScrollBox.h"
 #include "Components/Border.h"
@@ -59,6 +61,34 @@ static UImage* MakePortraitImage(UWidgetTree* Tree, UTexture2D* Tex, float Size)
 	Img->SetBrushFromTexture(Tex);
 	Img->SetDesiredSizeOverride(FVector2D(Size, Size));
 	return Img;
+}
+
+/**
+ * P24-T5: جلد أسطوري حسب الأمّة. الصور الست في Content/Art/CommanderSkins
+ * (35MB) كانت مولّدة وغير مستوردة ولا قارئ لها في المشروع. تُستخدم للقادة
+ * الأسطوريين وحدهم، فيصير للنُدرة أثر بصري لا وسم لوني فقط.
+ *
+ * يعيد nullptr لأمّة بلا جلد — فيبقى البورتريه العادي.
+ */
+static UTexture2D* LoadLegendarySkin(const FString& Nation)
+{
+	if (Nation.IsEmpty()) return nullptr;
+
+	// أسماء الأصول على القرص: skin_<key>_legend، وروما استُثنيت بـ«roman».
+	FString Key = Nation.ToLower();
+	if (Key == TEXT("rome")) Key = TEXT("roman");
+
+	static const TSet<FString> Available = {
+		TEXT("arabia"), TEXT("china"), TEXT("egypt"),
+		TEXT("japan"), TEXT("roman"), TEXT("vikings")
+	};
+	if (!Available.Contains(Key))
+	{
+		return nullptr;
+	}
+
+	const FString Name = FString::Printf(TEXT("skin_%s_legend"), *Key);
+	return LoadObject<UTexture2D>(nullptr, *FString::Printf(TEXT("/Game/Art/CommanderSkins/%s.%s"), *Name, *Name));
 }
 
 // ---------------------------------------------------------------------------
@@ -183,9 +213,26 @@ void URok2CommanderWidget::BuildUI()
 	DetailScroll->AddChild(DetailPanel);
 
 	// --- ترويسة التفاصيل: بورتريه + اسم + ندرة + مستوى ---
+	// P24-T5: الترويسة صارت طبقتين: جلد أسطوري خلفها (للأسطوريين وحدهم) ثم
+	// الصف نفسه فوقه. Overlay لا CanvasPanel كي يتبع الجلد ارتفاع الترويسة.
+	UOverlay* HeaderLayers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("HeaderLayers"));
+	UVerticalBoxSlot* LayersSlot = DetailPanel->AddChildToVerticalBox(HeaderLayers);
+	LayersSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 12.f));
+
+	DetailSkinImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("DetailSkin"));
+	DetailSkinImage->SetVisibility(ESlateVisibility::Collapsed);
+	if (UOverlaySlot* SkinSlot = HeaderLayers->AddChildToOverlay(DetailSkinImage))
+	{
+		SkinSlot->SetHorizontalAlignment(HAlign_Fill);
+		SkinSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+
 	UHorizontalBox* HeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("HeaderBox"));
-	UVerticalBoxSlot* HeaderSlot = DetailPanel->AddChildToVerticalBox(HeaderBox);
-	HeaderSlot->SetPadding(FMargin(0.f, 0.f, 0.f, 12.f));
+	if (UOverlaySlot* HeaderSlot = HeaderLayers->AddChildToOverlay(HeaderBox))
+	{
+		HeaderSlot->SetHorizontalAlignment(HAlign_Fill);
+		HeaderSlot->SetVerticalAlignment(VAlign_Fill);
+	}
 
 	// بورتريه كبير (placeholder)
 	DetailPortraitImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("DetailPortrait"));
@@ -550,6 +597,23 @@ void URok2CommanderWidget::PopulateDetailPanel(const FRok2CommanderDetailData& D
 		{
 			DetailPortraitImage->SetBrushFromTexture(Tex);
 			DetailPortraitImage->SetDesiredSizeOverride(FVector2D(160.f, 160.f));
+		}
+	}
+
+	// P24-T5: لوحة الجلد الأسطوري خلف البورتريه — للأسطوريين وحدهم.
+	if (DetailSkinImage)
+	{
+		UTexture2D* Skin = Detail.Rarity == TEXT("legendary") ? LoadLegendarySkin(Detail.Nation) : nullptr;
+		if (Skin)
+		{
+			DetailSkinImage->SetBrushFromTexture(Skin, false);
+			// معتّمة: البورتريه والنص يعلوانها، فهي خلفية لا موضوع.
+			DetailSkinImage->SetColorAndOpacity(Rok2Visual::ArtVeil(2));
+			DetailSkinImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else
+		{
+			DetailSkinImage->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 

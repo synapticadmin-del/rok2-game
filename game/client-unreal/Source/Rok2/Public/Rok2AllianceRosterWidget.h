@@ -11,6 +11,7 @@ class URok2Api;
 class UVerticalBox;
 class UButton;
 class UTextBlock;
+class UEditableTextBox;
 class URok2BattleReportWidget;
 
 USTRUCT(BlueprintType)
@@ -60,6 +61,30 @@ protected:
 	UPROPERTY(Transient)
 	URok2BattleReportWidget* RallyReportsWidget;
 
+	/**
+	 * P24-T1: إنشاء تحالف. كان حقلا الاسم والوسم وزر الإنشاء يُبنون داخل لوح
+	 * `URok2CityWidget` المطوي بـ`Collapsed`، فلم يكن للاعب سبيل إلى
+	 * `URok2Api::CreateAlliance` أصلاً — وهو المدخل الوحيد لكل نظام التحالف.
+	 * موضعهم الطبيعي هذه الشاشة: تظهر الحقول لمن لا تحالف له، والسجل لمن له.
+	 */
+	UPROPERTY(Transient)
+	UVerticalBox* CreateBox;
+
+	UPROPERTY(Transient)
+	UEditableTextBox* AllianceNameInput;
+
+	UPROPERTY(Transient)
+	UEditableTextBox* AllianceTagInput;
+
+	UPROPERTY(Transient)
+	UButton* CreateAllianceButton;
+
+	UPROPERTY(Transient)
+	UTextBlock* CreateHintText;
+
+	UFUNCTION()
+	void OnCreateAllianceClicked();
+
 	UFUNCTION()
 	void OnHelpClicked();
 
@@ -78,6 +103,12 @@ protected:
 	void PopulateRoster();
 	void PopulateRallies(const TArray<FRok2AllianceRally>& Rallies);
 
+	/** يُظهر قسم الإنشاء للاعب بلا تحالف ويخفيه لمن له تحالف. */
+	void RefreshMembershipState();
+
 	UFUNCTION()
 	void OnRalliesUpdated(const TArray<FRok2AllianceRally>& Rallies);
+
+	UFUNCTION()
+	void OnPlayerUpdated(const FRok2Player& Player);
 };

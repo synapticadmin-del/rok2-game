@@ -267,7 +267,8 @@ expect(
 // لا أسطر مكررة متتالية في ملفات الواجهات (أثر سكربتات التصحيح الآلية)
 // ---------------------------------------------------------------------------
 for (const rel of [
-  'Source/Rok2/Private/Rok2CityWidget.cpp',
+  // P24-T1: `Rok2CityWidget` تقاعدت (ألواح مطوية بلا مسار إظهار).
+  'Source/Rok2/Private/Rok2Surface.cpp',
   'Source/Rok2/Private/Rok2HudWidget.cpp',
   'Source/Rok2/Private/Rok2WorldRenderer.cpp',
 ]) {

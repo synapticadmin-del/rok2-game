@@ -52,9 +52,14 @@ requireText('client-unreal/Source/Rok2/Private/Rok2BootWidget.cpp',
   'Rok2BootWidget.cpp');
 
 // ---- 3. Asset pipelines still wired for runtime-safe imports ----
-requireText('client-unreal/Source/Rok2/Private/Rok2CityWidget.cpp',
-  ['ApplyButtonSkin', 'ResolveCityBuildingArtId'],
-  'Rok2CityWidget.cpp');
+// P24-T1: `Rok2CityWidget` تقاعدت؛ جلود الأزرار صارت في مصنع الأسطح وصور
+// المباني في مكتبة الفن، فيسري كلٌّ منهما على اللعبة كلها لا على لوح مطوي.
+requireText('client-unreal/Source/Rok2/Private/Rok2Surface.cpp',
+  ['/Game/Art/UIButtons/%s.%s', 'TexturedSkinButton'],
+  'Rok2Surface.cpp');
+requireText('client-unreal/Source/Rok2/Private/Rok2ArtAssets.cpp',
+  ['LoadCityBuildingPortrait'],
+  'Rok2ArtAssets.cpp');
 
 // ---- 4. No placeholder promises in the docs ----
 requireText('docs/P7_T9_FULL_PLAY_LOOP_ACCEPTANCE.md',

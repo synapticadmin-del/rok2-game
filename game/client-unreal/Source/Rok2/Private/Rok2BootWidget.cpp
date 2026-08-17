@@ -124,6 +124,26 @@ void URok2BootWidget::NativeConstruct()
 		UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
 		WidgetTree->RootWidget = RootCanvas;
 
+		// P24-T5: خلفية كامل الشاشة. الصور الثلاث في Content/Art/Splash (2560×1440)
+		// كانت مولّدة وغير مستوردة ولا قارئ لها، فكانت شاشة الدخول بطاقةً واحدة
+		// على سواد المحرك. تُرسم أولاً فتكون خلف كل شيء، ولا شيء يُرسم إن غاب
+		// الأصل — سواد نظيف لا مستطيل غريب.
+		{
+			UImage* Splash = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("SplashBackdrop"));
+			if (UTexture2D* SplashTexture = Rok2BootLoreStyle::LoadImportedVisual(TEXT("Splash"), TEXT("splash_title")))
+			{
+				Splash->SetBrushFromTexture(SplashTexture, false);
+				Splash->SetColorAndOpacity(Rok2Visual::ArtVeil(1));
+			}
+			else
+			{
+				Splash->SetVisibility(ESlateVisibility::Collapsed);
+			}
+			UCanvasPanelSlot* SplashSlot = RootCanvas->AddChildToCanvas(Splash);
+			SplashSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+			SplashSlot->SetOffsets(FMargin(0.f));
+		}
+
 		UBorder* CardBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CardBorder"));
 		CardBorder->SetBrush(Rok2Surface::Panel());
 

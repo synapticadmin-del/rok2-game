@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { chainRuns } from "../../../scripts/lib/npm_script_chain.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -197,7 +198,9 @@ check("run_offline_tests يشغّل daily_quests_offline_test", runner.includes(
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 check("job test:p8-t6-daily-quests موجود", Boolean(pkg.scripts["test:p8-t6-daily-quests"]));
-check("check chain يشمل test:p8-t6-daily-quests", (pkg.scripts.check || "").includes("test:p8-t6-daily-quests"));
+// البوابة صارت مركّبة (check → check:fast/check:e2e/check:ue-contracts)، فالبحث
+// الحرفي في سطر check وحده يبلّغ غياباً وهمياً — chainRuns يوسّع المراجع تعدياً.
+check("check chain يشمل test:p8-t6-daily-quests", chainRuns(pkg.scripts, "test:p8-t6-daily-quests"));
 
 // ── doc ─────────────────────────────────────────────────────────────────────
 const docPath = path.join(root, "../docs/P8_T6_DAILY_QUESTS.md");

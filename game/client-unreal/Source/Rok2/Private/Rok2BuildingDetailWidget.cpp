@@ -63,9 +63,44 @@ void URok2BuildingDetailWidget::SetupBuilding(URok2Api* InApi, const FString& In
 
 	// P6-T1: أيقونة المبنى الإجرائية في الترويسة (تُزرع في HeaderIconBox عند البناء)
 	if (TitleText) TitleText->SetText(FText::FromString(DisplayName));
-	if (HeaderIcon) HeaderIcon->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 28.f, Rok2Visual::Gold()));
-	// P7-T7: نص بديل لأيقونة المبنى
-	if (HeaderIcon) HeaderIcon->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
+	if (HeaderIcon)
+	{
+		HeaderIcon->SetBrush(URok2ArtAssets::GetIconBrush(IconId, 28.f, Rok2Visual::Gold()));
+		// P7-T7: نص بديل لأيقونة المبنى
+		HeaderIcon->SetToolTipText(URok2Accessibility::LabelForIcon(IconId));
+	}
+
+	// P24-T4: صورة المبنى المرسومة. الـ96 صورة في Content/Art/CityBuildingIcons
+	// لم يكن لها قارئ واحد في المشروع، وبطاقة المبنى — الشاشة التي تُفتح عند لمس
+	// كل مبنى — كانت تعرض رمزاً هندسياً 28px عنه. قاعة المدينة عند مستوى متقدم
+	// تُظهر طابع الحضارة، فيعود للحضارة أثر بصري بعد شاشة الاختيار.
+	if (PortraitImage)
+	{
+		const FString CivId = (Api && Api->HasPlayer()) ? Api->GetPlayer().Civ : FString();
+		UTexture2D* Portrait = URok2ArtAssets::LoadCityBuildingPortrait(BuildingId, CurrentLevel, CivId);
+		if (Portrait)
+		{
+			FSlateBrush Brush;
+			Brush.SetResourceObject(Portrait);
+			// النسبة الأصلية للصور 199×139؛ الحفاظ عليها يمنع سحق المنظور
+			// المتساوي القياس الذي رُسمت به.
+			Brush.ImageSize = FVector2D(199.f, 139.f);
+			Brush.DrawAs = ESlateBrushDrawType::Image;
+			PortraitImage->SetBrush(Brush);
+			PortraitImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		else
+		{
+			// لا صورة مرسومة لهذا المبنى بعد — نطوي الإطار بدل ترك فراغ موسوم.
+			PortraitImage->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+	if (PortraitFrame)
+	{
+		PortraitFrame->SetVisibility(PortraitImage && PortraitImage->GetVisibility() != ESlateVisibility::Collapsed
+			? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+	}
 	if (DescText) DescText->SetText(FText::FromString(Desc));
 	if (LevelText) LevelText->SetText(FText::FromString(FString::Printf(TEXT("المستوى %d  ➔  %d"), CurrentLevel, CurrentLevel + 1)));
 
@@ -167,7 +202,8 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	SheetSlot->SetAnchors(FAnchors(0.f, 1.f, 1.f, 1.f));
 	SheetSlot->SetAlignment(FVector2D(0.5f, 1.f));
 	SheetSlot->SetPosition(FVector2D(0.f, 0.f));
-	SheetSlot->SetSize(FVector2D(0.f, 300.f));
+	// الورقة كانت 300px تكفي نصاً وأزراراً؛ صورة المبنى 139px تحتاج مساحتها.
+	SheetSlot->SetSize(FVector2D(0.f, 448.f));
 
 	UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	SheetBorder->SetContent(VBox);
@@ -179,6 +215,23 @@ void URok2BuildingDetailWidget::NativeConstruct()
 	HandleSlot->SetHorizontalAlignment(HAlign_Center);
 	HandleSlot->SetPadding(FMargin(0, 8, 0, 4));
 	// حجم المقبض يُدار من SizeBox لاحقاً — نكتفي بالشريط الرفيع هنا
+
+	// P24-T4: صورة المبنى المرسومة داخل إطار مزخرف. تُملأ في SetupBuilding،
+	// وتُطوى مع إطارها إن لم يكن للمبنى صورة — فلا فراغ محجوز بلا محتوى.
+	{
+		PortraitFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("PortraitFrame"));
+		PortraitFrame->SetBrush(Rok2Surface::Card());
+		PortraitFrame->SetPadding(FMargin(Rok2Space::XS));
+		PortraitFrame->SetVisibility(ESlateVisibility::Collapsed);
+		UVerticalBoxSlot* FrameSlot = VBox->AddChildToVerticalBox(PortraitFrame);
+		FrameSlot->SetHorizontalAlignment(HAlign_Center);
+		FrameSlot->SetPadding(FMargin(0.f, Rok2Space::XS, 0.f, Rok2Space::XS));
+
+		PortraitImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("PortraitImage"));
+		PortraitImage->SetDesiredSizeOverride(FVector2D(199.f, 139.f));
+		PortraitImage->SetVisibility(ESlateVisibility::Collapsed);
+		PortraitFrame->SetContent(PortraitImage);
+	}
 
 	// P6-T1: ترويسة البطاقة = أيقونة المبنى + عنوان، بمحاذاة مركزية
 	UHorizontalBox* HeaderRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());

@@ -22,6 +22,7 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/Button.h"
+#include "Components/EditableTextBox.h"
 #include "Components/Spacer.h"
 #include "Components/Image.h"
 
@@ -103,6 +104,47 @@ void URok2AllianceRosterWidget::NativeConstruct()
 		URok2Typography::ApplyFont(RallyTitle, ERok2TextRole::Subtitle);
 		VBox->AddChildToVerticalBox(RallyTitle)->SetPadding(FMargin(20.f, 8.f, 20.f, 2.f));
 
+		// ── قسم إنشاء التحالف (P24-T1) ──
+		// انتقل من لوح `URok2CityWidget` المطوي حيث لم يكن يُرى. يُظهره
+		// RefreshMembershipState للاعب بلا تحالف فقط.
+		{
+			CreateBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CreateBox"));
+			VBox->AddChildToVerticalBox(CreateBox)->SetPadding(FMargin(20.f, 4.f, 20.f, 8.f));
+
+			CreateHintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CreateHintText"));
+			CreateHintText->SetText(FText::FromString(TEXT("لا تحالف لك بعد — أنشئ واحداً وابدأ بجمع الحكّام.")));
+			CreateHintText->SetColorAndOpacity(FSlateColor(Rok2Visual::Muted()));
+			CreateHintText->SetAutoWrapText(true);
+			URok2Typography::ApplyFont(CreateHintText, ERok2TextRole::BodySmall);
+			CreateBox->AddChildToVerticalBox(CreateHintText)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
+
+			UHorizontalBox* CreateRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CreateRow"));
+			CreateBox->AddChildToVerticalBox(CreateRow);
+
+			AllianceNameInput = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("AllianceNameInput"));
+			AllianceNameInput->SetHintText(FText::FromString(TEXT("اسم التحالف")));
+			AllianceNameInput->WidgetStyle.SetBackgroundImageNormal(Rok2Surface::Card());
+			UHorizontalBoxSlot* NameSlot = CreateRow->AddChildToHorizontalBox(AllianceNameInput);
+			NameSlot->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+			NameSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+			AllianceTagInput = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("AllianceTagInput"));
+			AllianceTagInput->SetHintText(FText::FromString(TEXT("TAG")));
+			AllianceTagInput->WidgetStyle.SetBackgroundImageNormal(Rok2Surface::Card());
+			CreateRow->AddChildToHorizontalBox(AllianceTagInput)->SetPadding(FMargin(0.f, 0.f, 6.f, 0.f));
+
+			CreateAllianceButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateAllianceButton"));
+			CreateAllianceButton->SetStyle(Rok2Surface::PrimaryButton());
+			CreateAllianceButton->OnClicked.AddDynamic(this, &URok2AllianceRosterWidget::OnCreateAllianceClicked);
+			URok2MotionLibrary::BindPress(CreateAllianceButton);
+			UTextBlock* CreateText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+			CreateText->SetText(FText::FromString(TEXT("إنشاء")));
+			CreateText->SetColorAndOpacity(FSlateColor(Rok2Visual::Ivory()));
+			URok2Typography::ApplyFont(CreateText, ERok2TextRole::Button);
+			CreateAllianceButton->AddChild(CreateText);
+			CreateRow->AddChildToHorizontalBox(CreateAllianceButton)->SetVerticalAlignment(VAlign_Center);
+		}
+
 		RallyVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RallyVBox"));
 		UVerticalBoxSlot* RallySlot = VBox->AddChildToVerticalBox(RallyVBox);
 		RallySlot->SetPadding(FMargin(20.f, 0.f, 20.f, 4.f));
@@ -160,9 +202,49 @@ void URok2AllianceRosterWidget::NativeConstruct()
 	{
 		Api->OnAllianceRalliesUpdated.RemoveDynamic(this, &URok2AllianceRosterWidget::OnRalliesUpdated);
 		Api->OnAllianceRalliesUpdated.AddDynamic(this, &URok2AllianceRosterWidget::OnRalliesUpdated);
+		// حالة العضوية تتغيّر بعد الإنشاء أو الانضمام، والخادم هو من يقرّها —
+		// فنستمع للملف بدل إخفاء القسم تخميناً.
+		Api->OnPlayerLoaded.RemoveDynamic(this, &URok2AllianceRosterWidget::OnPlayerUpdated);
+		Api->OnPlayerLoaded.AddDynamic(this, &URok2AllianceRosterWidget::OnPlayerUpdated);
 		PopulateRallies(Api->GetAllianceRallies());
 		Api->FetchAllianceRallies();
 	}
+	RefreshMembershipState();
+}
+
+void URok2AllianceRosterWidget::RefreshMembershipState()
+{
+	if (!CreateBox) return;
+
+	const bool bHasAlliance = Api && Api->HasPlayer() && !Api->GetPlayer().AllianceId.IsEmpty();
+	CreateBox->SetVisibility(bHasAlliance ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+}
+
+void URok2AllianceRosterWidget::OnPlayerUpdated(const FRok2Player& Player)
+{
+	RefreshMembershipState();
+}
+
+void URok2AllianceRosterWidget::OnCreateAllianceClicked()
+{
+	if (!Api || !AllianceNameInput || !AllianceTagInput) return;
+
+	const FString Name = AllianceNameInput->GetText().ToString().TrimStartAndEnd();
+	const FString Tag = AllianceTagInput->GetText().ToString().TrimStartAndEnd();
+
+	// حدود الطول من عقد الخادم؛ نُبلّغ اللاعب بدل إرسال طلب سيُرفض بصمت.
+	if (Name.Len() < 3)
+	{
+		Api->EmitToast(TEXT("اسم التحالف: ثلاثة أحرف على الأقل"));
+		return;
+	}
+	if (Tag.Len() < 2)
+	{
+		Api->EmitToast(TEXT("وسم التحالف: حرفان على الأقل"));
+		return;
+	}
+
+	Api->CreateAlliance(Name, Tag);
 }
 
 void URok2AllianceRosterWidget::PopulateRoster()

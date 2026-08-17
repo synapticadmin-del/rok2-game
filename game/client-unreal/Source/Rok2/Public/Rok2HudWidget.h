@@ -1,4 +1,4 @@
-﻿// Copyright ROK2. Unified HUD widget (P5-T3) — RoK-style game HUD.
+// Copyright ROK2. Unified HUD widget (P5-T3) — RoK-style game HUD.
 // Built fully in code (no Blueprint asset required), layered above URok2CityWidget.
 //
 // المواصفة: 07-game-design/ui-ux-design-system.md
@@ -53,6 +53,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Season Story") FOnHudAction OnSeasonStoryAction;
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Research") FOnHudAction OnResearchAction;
 
+	// P24-T1: أفعال ورثها الـHUD من `URok2CityWidget` المتقاعد. كانت أزرارها
+	// تُبنى داخل ألواح مطوية بـ`ESlateVisibility::Collapsed` فلا يراها لاعب،
+	// و`CollectCityProduction`/`CreateAlliance`/`SpeedupQueue` لم يكن لها مستدعٍ
+	// آخر في المشروع كله — أي أن ثلاث نقاط نهاية خادمية كانت غير قابلة للوصول.
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCollectAction;   // تحصيل الإنتاج
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnTrainAction;    // ورقة التدريب
+
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
@@ -92,6 +99,13 @@ protected:
 	UPROPERTY(Transient) UBorder* NotifCenterPanel;
 	UPROPERTY(Transient) UScrollBox* NotifList;
 
+	/**
+	 * P24-T1: معالجات صفوف الطوابير — كل زر تسريع يحمل معرّف طابوره.
+	 * `UButton::OnClicked` بلا معاملات، فالمعرّف يسكن في كائن وسيط. القائمة
+	 * تُفرَّغ مع كل إعادة بناء وإلا تراكمت عبر الجلسة.
+	 */
+	UPROPERTY(Transient) TArray<class URok2HudQueueAction*> QueueActions;
+
 	virtual void NativeConstruct() override;
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -116,13 +130,24 @@ protected:
 	UFUNCTION() void OnSeasonStoryClickedHandler();
 	UFUNCTION() void OnResearchClickedHandler();
 	UFUNCTION() void OnBellClicked();
+	UFUNCTION() void OnCollectClickedHandler();
+	UFUNCTION() void OnTrainClickedHandler();
 
 	UFUNCTION() void OnNotification(const FRok2HudNotification& N);
+	UFUNCTION() void OnToast(const FString& Message);
 	UFUNCTION() void OnZones(const TArray<FRok2ZoneStatus>& Zones);
 	UFUNCTION() void OnConnState(bool bOnline, const FString& StatusMessage);
 
 	void UpdateResources();
 	void UpdateQueues();
+
+	/**
+	 * اسم موضوع الطابور بالعربية: وحدة من `Api->GetMeta()` أو مبنى من خريطة
+	 * أسماء buildings.json. كان السطر يعرض `RefId Lv%d` — معرّفاً خادمياً
+	 * لاتينياً وسط واجهة عربية.
+	 */
+	FString QueueSubjectName(const FRok2QueueEntry& Q) const;
+
 	void UpdateSeasonAndZones();
 	void UpdateNotifications();
 	void UpdateBellBadge();
@@ -131,4 +156,21 @@ protected:
 
 private:
 	int32 LastNotifCount = 0;
+	float HudRefreshAccumulator = 0.f;
+};
+
+/**
+ * P24-T1: وسيط زر تسريع طابور. `URok2QueueBtnHandler` كان يخدم نفس الغرض في
+ * `URok2CityWidget` المتقاعد؛ هذا نظيره في الـHUD حيث تُعرض الطوابير فعلاً.
+ */
+UCLASS()
+class ROK2_API URok2HudQueueAction : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY() FString QueueId;
+	UPROPERTY() URok2Api* Api;
+
+	UFUNCTION() void HandleClick();
 };

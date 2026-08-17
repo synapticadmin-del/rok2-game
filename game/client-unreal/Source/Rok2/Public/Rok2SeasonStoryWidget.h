@@ -9,6 +9,7 @@
 
 class UBorder;
 class UButton;
+class UImage;
 class UTextBlock;
 class UVerticalBox;
 
@@ -49,6 +50,17 @@ private:
 	UPROPERTY(Transient)
 	UTextBlock* ChampionDetail = nullptr;
 
+	/**
+	 * P24-T5: لوحة فصل الموسم خلف البطاقة. الصور الأربع في
+	 * Content/Art/SeasonStory كانت مولّدة بلا قارئ، فكانت شاشة الحكاية نصاً
+	 * على لون واحد.
+	 */
+	UPROPERTY(Transient)
+	UImage* BackdropImage = nullptr;
+
+	/** آخر فصل مُحمَّل — يمنع إعادة التحميل عند كل حدث يصل من الخادم. */
+	FString LastBackdropAsset;
+
 	UPROPERTY()
 	TArray<FRok2SeasonStoryEntry> StoryEvents;
 
@@ -57,6 +69,10 @@ private:
 
 	void RebuildTimeline();
 	void UpdateChampion();
+
+	/** يختار لوحة الفصل حسب ما جرى في الموسم ويحمّلها عند التغيّر فقط. */
+	void RefreshBackdrop();
+
 	FText LabelFor(const FRok2SeasonStoryEntry& Event) const;
 	FLinearColor ColorFor(const FRok2SeasonStoryEntry& Event) const;
 };
