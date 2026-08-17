@@ -208,6 +208,15 @@ async function main() {
 
   const health = await req("/v1/health");
   must(health.status === 200 && health.data?.ok, "server health endpoint is available");
+  const anonymousOps = await req("/v1/admin/ops");
+  assert(anonymousOps.status === 401 || anonymousOps.status === 403, "ops indicators reject unauthenticated access");
+  const ops = await req("/v1/admin/ops", { admin: true });
+  assert(ops.status === 200, "admin ops endpoint returns a snapshot");
+  assert(["starting", "healthy", "degraded"].includes(ops.data?.healthStatus), "ops snapshot exposes a valid health status");
+  assert(Number.isFinite(ops.data?.checkedAtMs) && Number.isFinite(ops.data?.lastTickMs), "ops snapshot exposes health timestamps");
+  assert(Number.isFinite(ops.data?.lastTickDurationMs) && Number.isFinite(ops.data?.avgTickDurationMs) && Number.isFinite(ops.data?.maxTickDurationMs), "ops snapshot exposes tick duration metrics");
+  assert(Number.isFinite(ops.data?.commandErrorsTotal) && Number.isFinite(ops.data?.queuesStuck), "ops snapshot exposes command and queue indicators");
+  assert(Array.isArray(ops.data?.alerts) && Array.isArray(ops.data?.commandErrors), "ops snapshot exposes alert and command-error collections");
   const anonymousSnapshot = await req("/v1/world/snapshot");
   assert(anonymousSnapshot.status === 401 || anonymousSnapshot.status === 403, "world snapshot rejects unauthenticated access (privacy)");
 
