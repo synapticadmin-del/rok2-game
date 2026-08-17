@@ -24,6 +24,8 @@
 #include "Components/Image.h"
 #include "Components/SizeBox.h"
 #include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
+#include "Components/ScrollBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Texture2D.h"
 
@@ -42,12 +44,54 @@ namespace Rok2BootLoreStyle
 	static const FLinearColor ShowcaseFallback = Rok2Visual::Ink();
 	static const FLinearColor ShowcaseVeil = Rok2Visual::Scrim();
 
+	/** مقاس بطاقة الحضارة المرئية — يحدّ فن الخلفية فلا يفرض حجمه على البطاقة. */
+	static constexpr float ShowcaseWidth = 680.f;
+	static constexpr float ShowcaseHeight = 268.f;
+	static constexpr float EmblemSize = 64.f;
+	static constexpr float CommanderSize = 96.f;
+
 	/** يحمل Texture2D مستورداً؛ يبقى التخطيط صالحاً مع لون احتياطي إن لم يُستورد المصدر بعد. */
 	static UTexture2D* LoadImportedVisual(const FString& Folder, const FString& AssetName)
 	{
 		if (AssetName.IsEmpty()) return nullptr;
 		const FString Path = FString::Printf(TEXT("/Game/Art/%s/%s.%s"), *Folder, *AssetName, *AssetName);
 		return LoadObject<UTexture2D>(nullptr, *Path);
+	}
+
+	/**
+	 * يضع نسيجاً في UImage **بمقاس رسم صريح**.
+	 *
+	 * `SetBrushFromTexture(Tex, bMatchSize=true)` كان يضبط `Brush.ImageSize`
+	 * إلى مقاس الملف الكامل — 1920×1920 للشعار و2560×1440 للخلفية — و`SImage`
+	 * تحسب حجمها المطلوب من `ImageSize` ما لم يوجد override. و`SetDesiredSizeOverride`
+	 * **لا يُخزَّن في UImage**: التنفيذ يمرّره إلى `MyImage` إن كانت صالحة ولا
+	 * يحفظ شيئاً، ولا يُعاد تطبيقه في `SynchronizeProperties`. فنداؤه على ودجة
+	 * بُنيت لحظتها داخل `NativeConstruct` (قبل `Super::RebuildWidget`) **لا أثر
+	 * له بالمرة** — ولهذا رُسم الشعار بحجمه الأصلي فطرد بقية البطاقة خارج الشاشة.
+	 *
+	 * `Brush.ImageSize` بخلافه UPROPERTY يبقى، فهو المقاس المعتمد هنا؛ ويُستدعى
+	 * الـoverride بعده كذلك ليسري فوراً على ودجة موجودة على الشاشة.
+	 */
+	static void ApplyTextureAtSize(UImage* Image, UTexture2D* Texture, const FVector2D& DrawSize, const FLinearColor& FallbackTint)
+	{
+		if (!Image) return;
+
+		FSlateBrush Brush;
+		Brush.ImageSize = DrawSize;
+		if (Texture)
+		{
+			Brush.SetResourceObject(Texture);
+			Brush.TintColor = FSlateColor(FLinearColor::White);
+		}
+		else
+		{
+			// بلا مورد: الفرشاة لا ترسم شيئاً، واللون الاحتياطي يبقى وسماً للموضع
+			// لا مستطيلاً غريباً — نفس سلوك `OrnateFrame` عند غياب أصلها.
+			Brush.TintColor = FSlateColor(FallbackTint);
+		}
+		Image->SetBrush(Brush);
+		Image->SetColorAndOpacity(Texture ? FLinearColor::White : FallbackTint);
+		Image->SetDesiredSizeOverride(DrawSize);
 	}
 
 	static FString JoinLoreHints(const FRok2CivLore& Lore)
@@ -154,7 +198,14 @@ void URok2BootWidget::NativeConstruct()
 		CardSlot->SetSize(FVector2D(A11y ? A11y->GetScaledPx(840.f) : 840.f, A11y ? A11y->GetScaledPx(680.f) : 680.f));
 
 		UVerticalBox* VBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
-		CardBorder->SetContent(VBox);
+		// البطاقة مقاسها ثابت (840×680) ومحتواها ينمو مع كل بند: البطاقة المرئية
+		// والنبذة الأدبية وحدهما ~470px. بلا ScrollBox يُقصّ ما يفيض بلا أثر —
+		// وهو ما أخفى زر «ابدأ رحلة» نفسه. الشريط عمودي فقط: العرض محدود بالبطاقة
+		// وأي تمرير أفقي يعني تخطيطاً مكسوراً لا محتوى طويلاً.
+		UScrollBox* CardScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("CardScroll"));
+		CardScroll->SetOrientation(EOrientation::Orient_Vertical);
+		CardBorder->SetContent(CardScroll);
+		CardScroll->AddChild(VBox);
 
 		// Title
 		{
@@ -323,26 +374,43 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	CivShowcasePanel->SetPadding(FMargin(16.f));
 	VBox->AddChildToVerticalBox(CivShowcasePanel)->SetPadding(FMargin(30.f, 4.f, 30.f, 10.f));
 
+	// حدّ صريح لبطاقة الحضارة. بلا SizeBox تُشتقّ الطبقات من أكبر طبقة داخل
+	// الـOverlay — وهي طبقة الفن، فتحكم صورةٌ خام في مقاس البطاقة كلها. البطاقة
+	// المحيطة مقاسها ثابت (840×680) فتجاوز الطبقات له يدفع الأزرار خارج الشاشة.
+	USizeBox* ShowcaseBounds = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("CivShowcaseBounds"));
+	ShowcaseBounds->SetWidthOverride(Rok2BootLoreStyle::ShowcaseWidth);
+	ShowcaseBounds->SetHeightOverride(Rok2BootLoreStyle::ShowcaseHeight);
+	CivShowcasePanel->SetContent(ShowcaseBounds);
+
 	UOverlay* Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CivShowcaseLayers"));
-	CivShowcasePanel->SetContent(Layers);
+	ShowcaseBounds->SetContent(Layers);
 
 	CivBackdropImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivBackdropImage"));
 	CivBackdropImage->SetColorAndOpacity(FLinearColor::White);
-	Layers->AddChildToOverlay(CivBackdropImage);
+	// الخلفية تملأ الحدّ: بلا تمديد صريح تُرسم بمقاس الفرشاة في زاوية الطبقة.
+	UOverlaySlot* BackdropSlot = Layers->AddChildToOverlay(CivBackdropImage);
+	BackdropSlot->SetHorizontalAlignment(HAlign_Fill);
+	BackdropSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UBorder* Veil = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CivShowcaseVeil"));
 	Veil->SetBrush(Rok2Surface::Scrim());
-	Layers->AddChildToOverlay(Veil);
+	UOverlaySlot* VeilSlot = Layers->AddChildToOverlay(Veil);
+	VeilSlot->SetHorizontalAlignment(HAlign_Fill);
+	VeilSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UVerticalBox* Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CivShowcaseContent"));
-	Layers->AddChildToOverlay(Content);
+	UOverlaySlot* ContentSlot = Layers->AddChildToOverlay(Content);
+	ContentSlot->SetHorizontalAlignment(HAlign_Fill);
+	ContentSlot->SetVerticalAlignment(VAlign_Fill);
 
 	CivEmblemImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivEmblemImage"));
-	CivEmblemImage->SetDesiredSizeOverride(FVector2D(76.f, 76.f));
-	CivEmblemImage->SetColorAndOpacity(Rok2BootLoreStyle::Gold);
+	// المقاس يُحسم في `ApplyTextureAtSize` عبر `Brush.ImageSize` لأن override
+	// وحده لا يُحفظ في UImage ولا يسري على ودجة لم تُبنَ بعد.
+	Rok2BootLoreStyle::ApplyTextureAtSize(CivEmblemImage, nullptr,
+		FVector2D(Rok2BootLoreStyle::EmblemSize), Rok2BootLoreStyle::Gold);
 	UVerticalBoxSlot* EmblemSlot = Content->AddChildToVerticalBox(CivEmblemImage);
 	EmblemSlot->SetHorizontalAlignment(HAlign_Center);
-	EmblemSlot->SetPadding(FMargin(0.f, 10.f, 0.f, 2.f));
+	EmblemSlot->SetPadding(FMargin(0.f, 6.f, 0.f, 2.f));
 
 	CivNameText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivNameText"));
 	CivNameText->SetJustification(ETextJustify::Center);
@@ -359,14 +427,25 @@ void URok2BootWidget::BuildCivShowcase(UVerticalBox* VBox)
 	UHorizontalBox* Details = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("CivShowcaseDetails"));
 	UVerticalBoxSlot* DetailsSlot = Content->AddChildToVerticalBox(Details);
 	DetailsSlot->SetPadding(FMargin(12.f, 6.f, 12.f, 2.f));
-	DetailsSlot->SetHorizontalAlignment(HAlign_Center);
+	// يمتد بعرض البطاقة ويأخذ ما بقي من طولها: عمود النصّ داخله على Fill، وFill
+	// داخل صفٍّ محدّد بالتوسيط لا يملك عرضاً يلتفّ فيه.
+	DetailsSlot->SetHorizontalAlignment(HAlign_Fill);
+	DetailsSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	CivCommanderImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CivCommanderImage"));
-	CivCommanderImage->SetDesiredSizeOverride(FVector2D(116.f, 116.f));
-	Details->AddChildToHorizontalBox(CivCommanderImage)->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
+	Rok2BootLoreStyle::ApplyTextureAtSize(CivCommanderImage, nullptr,
+		FVector2D(Rok2BootLoreStyle::CommanderSize), Rok2BootLoreStyle::Muted);
+	UHorizontalBoxSlot* CommanderSlot = Details->AddChildToHorizontalBox(CivCommanderImage);
+	CommanderSlot->SetPadding(FMargin(0.f, 0.f, 14.f, 0.f));
+	CommanderSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+	CommanderSlot->SetVerticalAlignment(VAlign_Center);
 
 	UVerticalBox* TextColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CivShowcaseTextColumn"));
-	Details->AddChildToHorizontalBox(TextColumn)->SetVerticalAlignment(VAlign_Center);
+	UHorizontalBoxSlot* TextColumnSlot = Details->AddChildToHorizontalBox(TextColumn);
+	TextColumnSlot->SetVerticalAlignment(VAlign_Center);
+	// النصّ يملأ ما بقي: `SetAutoWrapText` لا يلتفّ بلا حدٍّ أفقي، وبلا Fill
+	// يأخذ العمود عرضه من أطول سطر فيخرج عن البطاقة (نفس عطل لوحة النبذة).
+	TextColumnSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	CivPerksText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CivPerksText"));
 	CivPerksText->SetAutoWrapText(true);
 	CivPerksText->SetColorAndOpacity(FSlateColor(Rok2BootLoreStyle::Ivory));
@@ -532,24 +611,20 @@ void URok2BootWidget::ShowCivVisuals(const FString& CivId)
 
 	const FRok2CivLore& Entry = Lore->GetLore(CivId);
 	const FString AssetId = CivId.ToLower();
-	const auto ApplyTexture = [](UImage* Image, UTexture2D* Texture, const FLinearColor& Fallback)
-	{
-		if (!Image) return;
-		if (Texture)
-		{
-			Image->SetBrushFromTexture(Texture, true);
-			Image->SetColorAndOpacity(FLinearColor::White);
-		}
-		else
-		{
-			Image->SetBrush(FSlateBrush());
-			Image->SetColorAndOpacity(Fallback);
-		}
-	};
 
-	ApplyTexture(CivBackdropImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivBackgrounds"), FString::Printf(TEXT("bg_%s"), *AssetId)), Rok2BootLoreStyle::ShowcaseFallback);
-	ApplyTexture(CivEmblemImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivIcons"), FString::Printf(TEXT("icon_%s_runtime"), *AssetId)), Rok2BootLoreStyle::Gold);
-	ApplyTexture(CivCommanderImage, Rok2BootLoreStyle::LoadImportedVisual(TEXT("Commanders"), FString::Printf(TEXT("cmd_%s_starter"), *AssetId)), Rok2BootLoreStyle::Muted);
+	// المقاسات صريحة لكل طبقة. `SetBrushFromTexture(Tex, true)` كان يضبط
+	// `ImageSize` إلى مقاس الملف: 2560×1440 للخلفية و1920×1920 للشعار و512 للقائد
+	// — فطبقة الفن وحدها كانت تفرض على البطاقة حجماً أكبر من الشاشة.
+	Rok2BootLoreStyle::ApplyTextureAtSize(CivBackdropImage,
+		Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivBackgrounds"), FString::Printf(TEXT("bg_%s"), *AssetId)),
+		FVector2D(Rok2BootLoreStyle::ShowcaseWidth, Rok2BootLoreStyle::ShowcaseHeight),
+		Rok2BootLoreStyle::ShowcaseFallback);
+	Rok2BootLoreStyle::ApplyTextureAtSize(CivEmblemImage,
+		Rok2BootLoreStyle::LoadImportedVisual(TEXT("CivIcons"), FString::Printf(TEXT("icon_%s_runtime"), *AssetId)),
+		FVector2D(Rok2BootLoreStyle::EmblemSize), Rok2BootLoreStyle::Gold);
+	Rok2BootLoreStyle::ApplyTextureAtSize(CivCommanderImage,
+		Rok2BootLoreStyle::LoadImportedVisual(TEXT("Commanders"), FString::Printf(TEXT("cmd_%s_starter"), *AssetId)),
+		FVector2D(Rok2BootLoreStyle::CommanderSize), Rok2BootLoreStyle::Muted);
 
 	if (CivNameText) CivNameText->SetText(FText::FromString(Entry.NameAr.IsEmpty() ? Entry.NameLatin : Entry.NameAr));
 	if (CivFantasyText) CivFantasyText->SetText(FText::FromString(Entry.FantasyAr));

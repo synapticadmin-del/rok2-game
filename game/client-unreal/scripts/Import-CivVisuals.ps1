@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   يستورد أصول شاشة اختيار الحضارات كـ Texture2D داخل مشروع Unreal.
 
@@ -34,7 +34,7 @@ function Resolve-UnrealEngineRoot {
     $Version = Get-Content -Path $VersionFile -Raw | ConvertFrom-Json
     $ActualVersion = "$($Version.MajorVersion).$($Version.MinorVersion).$($Version.PatchVersion)"
     if ($ActualVersion -ne '5.4.4') {
-        throw "يتطلب استيراد أصول ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو $ActualVersion: $Candidate"
+        throw "يتطلب استيراد أصول ROK2 Unreal Engine 5.4.4، لكن المحرك المحدد هو ${ActualVersion}: $Candidate"
     }
     return (Resolve-Path $Candidate).Path
 }

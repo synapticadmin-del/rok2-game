@@ -1,0 +1,58 @@
+{
+  "task": "P24-T9",
+  "criteria": {
+    "neutralSaturation": 8,
+    "neutralMinValue": 225,
+    "bleedIterations": 8
+  },
+  "icons": [
+    {
+      "file": "icon_rome_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1985208,
+      "opaqueNeutralLightPixels": 40508,
+      "sha256": "372a4e85835cc2417e89e1baa4505a15758e90a51b5860de42f082909a632279"
+    },
+    {
+      "file": "icon_china_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1673385,
+      "opaqueNeutralLightPixels": 4912,
+      "sha256": "472e229d49dc3ef266c7fcf41cb4652cc09a63e7f26a10a05c29ae9592949e8b"
+    },
+    {
+      "file": "icon_arabia_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1949822,
+      "opaqueNeutralLightPixels": 5788,
+      "sha256": "55c1bec0180766a8b3b2df395add848b157eaf99b1013b2a804c60cab0074609"
+    },
+    {
+      "file": "icon_egypt_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1523586,
+      "opaqueNeutralLightPixels": 5502,
+      "sha256": "0025f0a6e12112c93f98c1dafb9d52f47b06f621360a0603b310add6181b85d8"
+    },
+    {
+      "file": "icon_vikings_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1444689,
+      "opaqueNeutralLightPixels": 18155,
+      "sha256": "daa53149f48697d47d332d45b300d6c47550954d62a2f52192f967efba33b275"
+    },
+    {
+      "file": "icon_japan_runtime.png",
+      "action": "skipped",
+      "reason": "already has an alpha channel with transparency",
+      "transparentPixels": 1627696,
+      "opaqueNeutralLightPixels": 6665,
+      "sha256": "eea59477a8d50a40a9d501b18d9848f12229ea1356f1a513f8dd4519171c9180"
+    }
+  ]
+}
