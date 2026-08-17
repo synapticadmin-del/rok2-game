@@ -3616,7 +3616,19 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       enforceRateLimit(player.id, "tavern_keys");
       const body = await request.json<any>();
       const stub = kingdomStub(env);
-      const res = await stub.fetch("https://do/tavern-add-keys", { method: "POST", headers: shardPlayerHeaders(player.id), body: JSON.stringify({ playerId: player.id, key: String(body.key || "bronze"), count: Number(body.count) || 1 }) });
+      // P19-T4: الحقل `keyId` لا `key`، والافتراضي `silver_key` لا `bronze`.
+      // الشارد يقرأ `keyId`، و«bronze» ليس مفتاحاً في `tavern.json` أصلاً
+      // (المفاتيح: silver_key / gold_key / gear_key) — فالطلب بلا حقل كان
+      // ينجح بـ200 ويكتب رصيداً على مفتاح لا وجود له.
+      const res = await stub.fetch("https://do/tavern-add-keys", {
+        method: "POST",
+        headers: shardPlayerHeaders(player.id),
+        body: JSON.stringify({
+          playerId: player.id,
+          keyId: String(body.keyId || body.key || "silver_key"),
+          count: Number(body.count) || 1,
+        }),
+      });
       return json(await res.json(), res.status);
     }
     if (path === "/v1/tavern/daily-key" && request.method === "POST") {

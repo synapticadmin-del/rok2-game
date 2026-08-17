@@ -76,7 +76,12 @@ check('GameMode.h: عضو ResearchWidget', gmH.includes('URok2ResearchWidget* Re
 check('GameMode.cpp: تنفيذ HandleBuildingAction', gmCpp.includes('void ARok2GameMode::HandleBuildingAction('));
 check('GameMode.cpp: مسار research يفتح الشاشة', /HandleBuildingAction[\s\S]{0,600}OpenResearchScreen\(\);/.test(gmCpp));
 check('GameMode.cpp: مسارا train/heal يفتحان الورقة', /HandleBuildingAction[\s\S]{0,900}URok2TrainHealSheetWidget/.test(gmCpp));
-check('GameMode.cpp: chests لا يصمت (توست صادق)', /HandleBuildingAction[\s\S]{0,1400}EmitToast/.test(gmCpp));
+// P19-T4: الشرط كان «توست صادق» لأن شاشة الحانة لم تكن موجودة — والعطل الذي
+// يحرسه هذا الفحص هو **الصمت** لا غياب التوست. الآن يفتح المسار الشاشة فعلاً،
+// وهو ما كان التوست وعداً به. فيقبل الفحص الوفاء (شاشة) أو الوعد (توست) ويرفض
+// الصمت وحده.
+check('GameMode.cpp: chests لا يصمت (شاشة الحانة أو توست صادق)',
+  /HandleBuildingAction[\s\S]{0,1400}(OpenTavernScreen\(\)|EmitToast)/.test(gmCpp));
 check('GameMode.cpp: OpenResearchScreen ينشئ كسولاً ويجلب الشجرة', /OpenResearchScreen[\s\S]{0,800}FetchResearch\(\);/.test(gmCpp));
 
 // ── 6) ورقة التدريب/الشفاء ──

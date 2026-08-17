@@ -82,6 +82,9 @@ void URok2AudioManager::BuildAudioPaths()
 	SfxPaths.Add(ERok2AudioType::HealComplete,     TEXT("Audio/sfx/heal_complete"));
 	SfxPaths.Add(ERok2AudioType::ZoneUnlock,       TEXT("Audio/sfx/zone_unlock"));
 	SfxPaths.Add(ERok2AudioType::RallyLaunch,      TEXT("Audio/sfx/rally_launch"));
+	// P19-T4: الملفان كانا على القرص بلا نوع يشير إليهما، فلا مستهلك لهما.
+	SfxPaths.Add(ERok2AudioType::ChestOpen,        TEXT("Audio/sfx/chest_open"));
+	SfxPaths.Add(ERok2AudioType::WheelSpin,        TEXT("Audio/sfx/wheel_spin"));
 }
 
 USoundWave* URok2AudioManager::LoadSound(const FString& Path) const

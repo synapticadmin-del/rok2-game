@@ -1043,6 +1043,18 @@ export class KingdomShard extends DurableObject<Env> {
       `);
       this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (15)");
     }
+    if (ver < 21) {
+      // P19-T4: يوم آخر مفتاح مجاني.
+      //
+      // كان يُحفظ في `(state as any).__lastFreeDay` — حقلٌ خارج نوع
+      // `TavernState`، و`persistTavern` يكتب `keys_json` و`history_json` فقط.
+      // فالراية تضيع مع أول إعادة تحميل للشارد، ويستطيع اللاعب أخذ مفتاح مجاني
+      // كل مرة يُستأنف فيها الكائن — وهو تجاوز اقتصادي لا مجرد إزعاج.
+      this.ctx.storage.sql.exec(
+        `ALTER TABLE tavern_state ADD COLUMN last_free_day TEXT NOT NULL DEFAULT ''`,
+      );
+      this.ctx.storage.sql.exec("INSERT OR IGNORE INTO _sql_schema_migrations (id) VALUES (21)");
+    }
   }
   private loadMapDefs() {
     const map = getMap();
@@ -1647,6 +1659,8 @@ export class KingdomShard extends DurableObject<Env> {
       this.tavernStates.set(row.player_id, {
         keys: this.safeJsonParse<Record<string, number>>(row.keys_json, {}),
         openedHistory: this.safeJsonParse<{ boxId: string; kind: string; atMs: number }[]>(row.history_json, []),
+        // P19-T4: يوم آخر مفتاح مجاني — يُقرأ من العمود لا يُفقد مع الاستئناف.
+        lastFreeDay: String(row.last_free_day || ""),
       });
     }
     for (const row of this.ctx.storage.sql.exec<any>("SELECT * FROM expedition_state").toArray()) {
@@ -1953,9 +1967,9 @@ export class KingdomShard extends DurableObject<Env> {
     const s = this.tavernStates.get(playerId);
     if (!s) return;
     this.ctx.storage.sql.exec(
-      `INSERT INTO tavern_state (player_id, keys_json, history_json) VALUES (?, ?, ?) ` +
-      `ON CONFLICT(player_id) DO UPDATE SET keys_json=excluded.keys_json, history_json=excluded.history_json`,
-      [playerId, JSON.stringify(s.keys), JSON.stringify(s.openedHistory)],
+      `INSERT INTO tavern_state (player_id, keys_json, history_json, last_free_day) VALUES (?, ?, ?, ?) ` +
+      `ON CONFLICT(player_id) DO UPDATE SET keys_json=excluded.keys_json, history_json=excluded.history_json, last_free_day=excluded.last_free_day`,
+      [playerId, JSON.stringify(s.keys), JSON.stringify(s.openedHistory), s.lastFreeDay || ""],
     );
   }
   private persistExpedition(playerId: string, medals: number) {
@@ -4995,7 +5009,21 @@ export class KingdomShard extends DurableObject<Env> {
       if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
       const state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
       const antiCheat = checkEpicRate(state, this.tavernSpec());
-      return Response.json({ ok: true, keys: state.keys, historyCount: state.openedHistory.length, antiCheat });
+      // P19-T4: الحمولة كانت `{ keys, historyCount, antiCheat }` بينما العميل
+      // يقرأ `lastRolls` و`opensThisHour` و`dailyKeyClaimed` — ثلاثة حقول لا
+      // تُرسَل أبداً، فالشاشة تعرض صفر فتحات ومفتاحاً مجانياً متاحاً دائماً.
+      const opensThisHour = state.openedHistory.filter(h => nowMs() - h.atMs <= MS_PER_HOUR).length;
+      return Response.json({
+        ok: true,
+        keys: state.keys,
+        historyCount: state.openedHistory.length,
+        // آخر أربع رميات: `openedHistory` سجلٌّ كامل، والواجهة تعرض النتيجة
+        // الأخيرة وحدها. `rollCount` في `tavern.json` أربع رميات لكل صندوق.
+        lastRolls: state.openedHistory.slice(-4).map(h => ({ boxId: h.boxId, kind: h.kind, quantity: 1 })),
+        opensThisHour,
+        dailyKeyClaimed: (state.lastFreeDay || "") === dayString(nowMs()),
+        antiCheat,
+      });
     }
     // P10-T1: فتح صندوق في الحانة — POST tavern-open (خصم مفتاح + 4 رميات مرجحة + سجل + حفظ)
     if (path.endsWith("/tavern-open") && request.method === "POST") {
@@ -5032,18 +5060,39 @@ export class KingdomShard extends DurableObject<Env> {
         }
         // `common` موارد لا عنصر حقيبة؛ تُمنح في مسار الموارد لا هنا.
       }
-      return Response.json({ ok: true, rolls: rollResult.rolls, antiCheat });
+      return Response.json({
+        ok: true,
+        rolls: rollResult.rolls,
+        antiCheat,
+        // P19-T4: الحمولة كانت `{ rolls, antiCheat }` وحدها، بينما `ParseTavernState`
+        // في العميل يقرأ `keys` و`lastRolls` و`opensThisHour` — فرصيد المفاتيح
+        // على الشاشة يبقى كما كان بعد الفتح حتى إعادة جلب كاملة.
+        keys: state.keys,
+        lastRolls: rollResult.rolls.map(r => ({ boxId, kind: r.kind, quantity: r.quantity })),
+        opensThisHour: opensThisHour + rollResult.rolls.length,
+        dailyKeyClaimed: (state.lastFreeDay || "") === dayString(now),
+      });
     }
     // P10-T1: إضافة مفاتيح (من المهام اليومية) — POST tavern-add-keys
     if (path.endsWith("/tavern-add-keys") && request.method === "POST") {
       const body = await request.json<any>();
       const playerId = String(body.playerId || "");
-      const keyId = String(body.keyId || "");
+      // P19-T4: يقبل `key` و`keyId` معاً — `/v1/tavern/keys` يرسل `key` بينما
+      // هذا الموضع كان يقرأ `keyId` وحده، فتصل القيمة **فارغة دائماً** ويُكتب
+      // رصيد على المفتاح `""`: طلبٌ ينجح بـ200 بلا أي أثر يراه لاعب.
+      const keyId = String(body.keyId || body.key || "");
       const count = Math.max(0, Math.min(999, Number(body.count) || 0));
       const city = this.cities.get(playerId);
       if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
       let state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
+      const before = state.keys[keyId] ?? 0;
       state = addKeys(state, this.tavernSpec(), keyId, count);
+      // `addKeys` يرفض مفتاحاً غير معروف بإعادة الحالة كما هي؛ الرفض يُبلَّغ
+      // للمتصل بدل أن يبدو نجاحاً.
+      if ((state.keys[keyId] ?? 0) === before && count > 0) {
+        this.recordCommandError(`tavern_unknown_key:${keyId}`);
+        return Response.json({ error: "unknown_key", keyId }, { status: 400 });
+      }
       this.tavernStates.set(playerId, state);
       this.persistTavern(playerId);
       return Response.json({ ok: true, keys: state.keys });
@@ -5056,9 +5105,12 @@ export class KingdomShard extends DurableObject<Env> {
       const city = this.cities.get(playerId);
       if (!city) return Response.json({ error: "unknown_player" }, { status: 404 });
       let state = this.tavernStates.get(playerId) || { keys: {}, openedHistory: [] };
-      const result = dailyFreeKey(state, dayKey, (state as any).__lastFreeDay);
+      // P19-T4: الراية من الحالة المحفوظة لا من حقل خارج النوع — كانت
+      // `(state as any).__lastFreeDay` فتضيع مع أول استئناف للشارد، فيأخذ
+      // اللاعب مفتاحاً مجانياً كلما أُعيد تحميل الكائن.
+      const result = dailyFreeKey(state, dayKey, state.lastFreeDay);
       if (!result.granted) return Response.json({ ok: true, granted: false, reason: "already_claimed_today" });
-      (state as any).__lastFreeDay = dayKey;
+      state = { ...result.newState, lastFreeDay: dayKey };
       this.tavernStates.set(playerId, state);
       this.persistTavern(playerId);
       return Response.json({ ok: true, granted: true, keys: state.keys });

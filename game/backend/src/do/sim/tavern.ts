@@ -8,7 +8,18 @@ export interface TavernLimits { maxOpensPerHour: number; maxKeysStored: number; 
 export interface TavernSpec { boxes: TavernBox[]; rateTargets: Record<string, Record<string, number>>; limits: TavernLimits }
 
 export interface TavernRoll { boxId: string; rolls: { kind: string; quantity: number }[]; openAtMs: number }
-export interface TavernState { keys: Record<string, number>; openedHistory: { boxId: string; kind: string; atMs: number }[] }
+export interface TavernState {
+  keys: Record<string, number>;
+  openedHistory: { boxId: string; kind: string; atMs: number }[];
+  /**
+   * P19-T4: يوم آخر مفتاح مجاني (`YYYY-MM-DD`).
+   *
+   * كان يُحفظ في `(state as any).__lastFreeDay` — حقل خارج النوع لا يعرفه
+   * `persistTavern`، فيضيع مع كل إعادة تحميل للشارد ويصير المفتاح «اليومي»
+   * متاحاً كلما استُؤنف الكائن. حقلٌ حقيقي في النوع وعمودٌ في الجدول.
+   */
+  lastFreeDay?: string;
+}
 
 /** مرجح عشوائي: rollCount من pool حسب الأوزان (لا hard-coded — البيانات من JSON). */
 export function rollBox(spec: TavernSpec, boxId: string, rand: () => number, opensThisHour: number):
@@ -48,6 +59,13 @@ export function spendKey(state: TavernState, spec: TavernSpec, boxId: string): {
 
 /** إضافة مفاتيح (من المهام اليومية مثلًا) مع سقف maxKeysStored. */
 export function addKeys(state: TavernState, spec: TavernSpec, key: string, count: number): TavernState {
+  // P19-T4: التحقق من المفتاح قبل الإضافة.
+  //
+  // كان أي نص يُقبل. و`/v1/tavern/keys` يرسل الحقل باسم `key` بينما الشارد يقرأ
+  // `body.keyId` — فالقيمة تصل **فارغة دائماً** ويُكتب رصيد على المفتاح `""`:
+  // صفٌّ لا يفتح صندوقاً ولا يظهر في واجهة، وطلبٌ ينجح بـ200 بلا أي أثر.
+  const valid = spec.boxes.some(b => b.key === key);
+  if (!valid || count <= 0) return state;
   const held = state.keys[key] ?? 0;
   return { ...state, keys: { ...state.keys, [key]: Math.min(held + count, spec.limits.maxKeysStored) } };
 }

@@ -37,7 +37,11 @@ enum class ERok2AudioType : uint8
 	ResearchComplete, // اكتمال بحث (tech_researched)
 	HealComplete,   // بدء شفاء جرحى
 	ZoneUnlock,     // فتح منطقة جديدة (zone_unlocked)
-	RallyLaunch     // انطلاق حملة rally (rally_launched)
+	RallyLaunch,    // انطلاق حملة rally (rally_launched)
+	// P19-T4: صوتان كانا على القرص في Content/Audio/sfx بلا أي مستهلك —
+	// `chest_open.wav` و`wheel_spin.wav` مولّدان في P10-T7 وغير مربوطين بنوع.
+	ChestOpen,      // chest_open.wav — فتح صندوق في الحانة
+	WheelSpin       // wheel_spin.wav — دوران عجلة/غاتشا
 };
 
 /** حالة الموسيقى الحالية. */

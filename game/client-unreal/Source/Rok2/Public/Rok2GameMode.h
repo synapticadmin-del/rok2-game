@@ -117,6 +117,10 @@ public:
 	UPROPERTY(Transient)
 	class URok2BagWidget* BagWidget;
 
+	/** P19-T4: شاشة الحانة والصناديق — تُفتح من بطاقة مبنى الحانة. */
+	UPROPERTY(Transient)
+	class URok2TavernWidget* TavernWidget;
+
 	/** P18-T2: مسار الزر الثانوي لبطاقة المبنى (research/train/heal/chests) —
 	 *  عام لأن CityBuilder يربطه عبر AddDynamic عند إنشاء البطاقة؛ كان
 	 *  الحدث يُبث بلا أي مشترك فأزرار (تدريب/شفاء/بحث/صناديق) تفتح لا شيء. */
@@ -125,6 +129,9 @@ public:
 
 	/** P18-T1: فتح شاشة البحث (إنشاء كسول + إحضار الشجرة من الخادم). */
 	void OpenResearchScreen();
+
+	/** P19-T4: فتح شاشة الحانة (إنشاء كسول + جلب حالة المفاتيح والرميات). */
+	void OpenTavernScreen();
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "Rok2")

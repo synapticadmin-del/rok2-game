@@ -18,6 +18,7 @@
 #include "Rok2ResearchWidget.h"
 #include "Rok2SeasonStoryWidget.h"
 #include "Rok2SettingsWidget.h"
+#include "Rok2TavernWidget.h"
 #include "Rok2TrainHealSheetWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
@@ -387,7 +388,37 @@ void ARok2GameMode::HandleBuildingAction(const FString& BuildingId, const FStrin
 	}
 	else if (ActionKind == TEXT("chests"))
 	{
-		Api->EmitToast(TEXT("الحانة تُفتح من شاشة الأحداث قريباً (P19-T4)"));
+		// P19-T4: كان توستاً صادقاً انتظاراً لهذه الشاشة. الآن تُفتح فعلاً.
+		OpenTavernScreen();
+	}
+}
+
+// ---------------------------------------------------------------------------
+// P19-T4: شاشة الحانة — 24 أصلاً بصرياً كانت بلا مستهلك، و`LoadTavernIcon`
+// معرّفة بلا مستدعٍ، و`/v1/tavern/daily-key` بلا مستدعٍ في العميل.
+// ---------------------------------------------------------------------------
+void ARok2GameMode::OpenTavernScreen()
+{
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!TavernWidget)
+	{
+		TavernWidget = Cast<URok2TavernWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2TavernWidget::StaticClass()));
+	}
+	if (TavernWidget && !TavernWidget->IsInViewport())
+	{
+		TavernWidget->AddToViewport(50);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+		}
+	}
+	// لقطة حديثة عند كل فتح: المفاتيح تُمنح من المهام اليومية بين فتحة وأخرى.
+	if (TavernWidget)
+	{
+		TavernWidget->Setup(Api);
 	}
 }
 

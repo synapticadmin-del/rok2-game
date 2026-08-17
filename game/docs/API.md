@@ -50,6 +50,14 @@ Auth header: `Authorization: Bearer <token>`
   - الاستخدام يمرّ بـ`POST /v1/shop/use-speedup` القائم؛ لا endpoint استخدام ثانٍ.
 - **إصلاح جوهري مصاحب:** خمسة مواضع في `KingdomShard` (الحانة، Expedition، Canyon، عجلة الأحداث، المملكة المفقودة) كانت تكتب `INSERT INTO player_inventory (player_id, day_key, key_id, amount)` — **أعمدة لا وجود لها** (الجدول `(player_id, item_id, count, updated_at)` في `migrations/0005_shop.sql`) وكلها مغلّفة بـ`.catch` فتفشل بصمت: اللاعب يفتح صندوقاً ويرى النتيجة في الاستجابة ولا يدخل شيء حقيبته. صار المسار الوحيد `grantInventoryItem` ويسجّل الفشل في عدّادات P7-T15 (`inventory_grant_failed`, `inventory_unknown_item:<id>`).
 
+## الحانة (P10-T1 · أُصلحت عقودها في P19-T4) — الأوزان من `data/tavern.json`
+- `GET /v1/tavern/state` → `{ keys, historyCount, lastRolls[], opensThisHour, dailyKeyClaimed, antiCheat }`
+  - **P19-T4:** الحقول الثلاثة الأخيرة كان العميل يقرأها (`ParseTavernState`) **ولم تُرسَل قط** — الحمولة كانت `{ keys, historyCount, antiCheat }`، فالشاشة تعرض صفر فتحات ومفتاحاً مجانياً متاحاً دائماً.
+- `POST /v1/tavern/open` `{ boxId }` → `{ rolls[], antiCheat, keys, lastRolls[], opensThisHour, dailyKeyClaimed }`
+  - **P19-T4:** أُضيف `keys` و`lastRolls`؛ كانت الحمولة `{ rolls, antiCheat }` فيبقى رصيد المفاتيح على الشاشة كما كان بعد الفتح.
+- `POST /v1/tavern/keys` `{ keyId, count? }` — **P19-T4:** الحقل `keyId` لا `key`. الراوتر كان يرسل `key` والشارد يقرأ `body.keyId`، فتصل القيمة **فارغة دائماً** ويُكتب رصيد على المفتاح `""`؛ والافتراضي كان `"bronze"` وهو ليس مفتاحاً في `tavern.json` (المفاتيح: `silver_key`/`gold_key`/`gear_key`). ومفتاح غير معروف يُرفض الآن بـ400 `unknown_key` بدل نجاح بلا أثر.
+- `POST /v1/tavern/daily-key` → `{ granted, keys }` — المفتاح الفضي المجاني اليومي. **P19-T4:** كان بلا أي مستدعٍ في العميل، فأول مفتاح للاعب جديد غير قابل للطلب. ويوم آخر استلام صار عموداً (`tavern_state.last_free_day`) بعد أن كان `(state as any).__lastFreeDay` — حقلاً خارج النوع لا يكتبه `persistTavern`، فيضيع مع كل استئناف للشارد ويصير المفتاح «اليومي» متاحاً كلما أُعيد تحميل الكائن.
+
 ## Battle Pass (P4-T1) — القيم من data/battlepass.json
 - `GET /v1/battlepass` — حالة اللاعب (xp/level/premium) + المستويات القابلة للمطالبة لكل مسار
 - `POST /v1/battlepass/unlock-premium` — فتح المسار المدفوع (500 gems)

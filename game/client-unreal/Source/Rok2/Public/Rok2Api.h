@@ -403,6 +403,19 @@ public:
 	void FetchTavernState();
 	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
 	void OpenTavernBox(const FString& BoxId);
+
+	/**
+	 * P19-T4: المفتاح الفضي المجاني اليومي — `POST /v1/tavern/daily-key`.
+	 *
+	 * الـendpoint موجود في الخادم منذ P10-T1 **بلا أي مستدعٍ في العميل**، أي أن
+	 * أول مفتاح يحصل عليه لاعب جديد كان غير قابل للطلب.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
+	void ClaimTavernDailyKey();
+
+	/** آخر حالة حانة وصلت (المفاتيح + آخر رميات + سقف الساعة). */
+	UFUNCTION(BlueprintPure, Category = "Rok2|P10")
+	const FRok2TavernState& GetTavernState() const { return TavernState; }
 	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")
 	void FetchExpeditionState();
 	UFUNCTION(BlueprintCallable, Category = "Rok2|P10")

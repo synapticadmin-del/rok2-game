@@ -46,7 +46,13 @@ function check(name, condition, detail = "") {
 }
 
 const readOr = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
-const strip = (s) => s.replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+/**
+ * يزيل التعليقات بلا أن يقصّ الروابط: `//` بعد نقطتين مخطّط URL لا تعليق،
+ * والنمط الساذج يقصّ بقية السطر في كل `stub.fetch("https://do/...")` فيصير
+ * الفحص يقرأ نصاً محرّفاً.
+ */
+const strip = (s) =>
+  s.replace(/(^|[^:])\/\/[^\n]*/g, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
 
 // ---------------------------------------------------------------------------
 console.log("\n[1] data/items.json — الفهرس السلطوي");

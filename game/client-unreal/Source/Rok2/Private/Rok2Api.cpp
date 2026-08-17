@@ -3439,8 +3439,41 @@ void URok2Api::OpenTavernBox(const FString& BoxId)
 		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
 	});
 }
+
+/**
+ * P19-T4: المفتاح الفضي المجاني اليومي.
+ *
+ * `POST /v1/tavern/daily-key` موجود في الخادم منذ P10-T1 **بلا أي مستدعٍ في
+ * العميل** — فأول مفتاح يحصل عليه لاعب جديد كان غير قابل للطلب، والحانة بلا
+ * مفتاح لا تُفتح أبداً.
+ */
+void URok2Api::ClaimTavernDailyKey()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("v1/tavern/daily-key"), TEXT("{}"), true, [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		// الخادم يعيد `granted:false` عند الاستلام المسبق — نبلّغ الحالتين
+		// بصدق بدل توست نجاح موحّد.
+		const bool bGranted = Obj.IsValid() && Rok2Json::Bool(Obj, TEXT("granted"));
+		Self->EmitToast(bGranted
+			? TEXT("استلمت مفتاح اليوم المجاني")
+			: TEXT("مفتاح اليوم مُستلَم بالفعل"));
+		// إعادة القراءة كاملة: حمولة `daily-key` تعيد `keys` وحدها بلا سقف
+		// الساعة ولا راية الاستلام.
+		Self->FetchTavernState();
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
 void URok2Api::ParseTavernState(const TSharedPtr<FJsonObject>& Obj)
 {
+	// P19-T4: كل حقل يُقرأ من الحمولة، والحقل الغائب يترك قيمته الافتراضية —
+	// و`tavern-open` يعيد الآن `keys` و`lastRolls` كذلك، فبناء الحالة من الصفر
+	// هنا صحيح لكلا المسارين (state و open).
 	TavernState = FRok2TavernState();
 	TavernState.Keys.Reset();
 	const TSharedPtr<FJsonObject>* KeysObj;
