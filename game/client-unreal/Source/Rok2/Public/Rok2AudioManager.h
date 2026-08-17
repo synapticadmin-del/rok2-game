@@ -121,6 +121,41 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2")
 	bool bAudioEnabled = true;
 
+	// -----------------------------------------------------------------------
+	// P18-T6: مستويان منفصلان — الموسيقى والمؤثرات.
+	//
+	// `MasterVolume` كان الرقم الوحيد ويضرب في كل شيء، فلا سبيل لخفض الموسيقى
+	// وحدها؛ وهي أول ما يخفضه اللاعب. المستويان يُضربان في `MasterVolume` فيبقى
+	// معناه «الحدّ الأعلى العام» وتبقى كل الاستدعاءات القائمة صحيحة.
+	// -----------------------------------------------------------------------
+
+	/** مستوى الموسيقى الخلفية [0..1] — يُضرب في MasterVolume. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Volume")
+	float MusicVolume = 1.f;
+
+	/** مستوى المؤثرات [0..1] — يُضرب في MasterVolume. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rok2|Volume")
+	float SfxVolume = 1.f;
+
+	/**
+	 * يضبط مستوى الموسيقى ويطبّقه **على الموسيقى العاملة الآن** عبر
+	 * `SetVolumeMultiplier` — لا انتظار لأغنية تالية.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Volume")
+	void SetMusicVolume(float NewVolume);
+
+	/** يضبط مستوى المؤثرات (يسري على أول مؤثر بعده). */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Volume")
+	void SetSfxVolume(float NewVolume);
+
+	/** المستوى الفعلي للموسيقى بعد الضرب في العام. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Volume")
+	float GetEffectiveMusicVolume() const { return FMath::Clamp(MasterVolume * MusicVolume, 0.f, 1.f); }
+
+	/** المستوى الفعلي للمؤثرات بعد الضرب في العام. */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Volume")
+	float GetEffectiveSfxVolume() const { return FMath::Clamp(MasterVolume * SfxVolume, 0.f, 1.f); }
+
 protected:
 	/** حضارة اللاعب الحالية. */
 	FString CurrentCivId = TEXT("rome");

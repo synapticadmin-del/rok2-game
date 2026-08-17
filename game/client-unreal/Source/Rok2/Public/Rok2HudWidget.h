@@ -60,6 +60,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnCollectAction;   // تحصيل الإنتاج
 	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnTrainAction;    // ورقة التدريب
 
+	/**
+	 * P18-T6: شاشة الإعدادات. `URok2Accessibility::SetUiScale/SetHighContrast`
+	 * كانتا بلا مستدعٍ في المشروع كله — فمقياس الواجهة والتباين لم يكن للاعب
+	 * سبيلٌ إلى تغييرهما، وكذلك مستوى الصوت.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Rok2") FOnHudAction OnSettingsAction;
+
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;
@@ -169,6 +176,7 @@ protected:
 	UFUNCTION() void OnBellClicked();
 	UFUNCTION() void OnCollectClickedHandler();
 	UFUNCTION() void OnTrainClickedHandler();
+	UFUNCTION() void OnSettingsClickedHandler();
 
 	UFUNCTION() void OnNotification(const FRok2HudNotification& N);
 	UFUNCTION() void OnToast(const FString& Message);

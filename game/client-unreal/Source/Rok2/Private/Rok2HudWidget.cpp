@@ -230,6 +230,20 @@ void URok2HudWidget::BuildTopBar(UCanvasPanel* RootCanvas)
 	BellBadgeText->SetColorAndOpacity(FSlateColor(URok2Accessibility::HighContrastForState(false)));
 	URok2Typography::ApplyFont(BellBadgeText, ERok2TextRole::Caption);
 	H->AddChildToHorizontalBox(BellBadgeText)->SetPadding(FMargin(0, 4, A11y ? A11y->GetScaledPx(16.f) : 16.f, 4));
+
+	// P18-T6: مدخل الإعدادات. موضعه الشريط العلوي لا عنقود الأزرار الدائرية:
+	// العنقود لأفعال اللعب (بناء/قادة/تحالف) وقد امتلأ بستة أزرار، والشريط
+	// العلوي لحالة اللعبة وأدواتها — وهناك يتوقعه اللاعب بجوار الجرس.
+	{
+		UButton* SettingsBtn = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SettingsBtn"));
+		SettingsBtn->SetStyle(Rok2Surface::GhostButton());
+		SettingsBtn->SetToolTipText(URok2Accessibility::LabelForIcon(TEXT("wrench")));
+		SettingsBtn->OnClicked.AddDynamic(this, &URok2HudWidget::OnSettingsClickedHandler);
+		URok2MotionLibrary::BindPress(SettingsBtn);
+		UImage* SettingsIco = Rok2Icon(WidgetTree, TEXT("wrench"), 18.f, Rok2HudStyle::Muted());
+		SettingsBtn->AddChild(SettingsIco);
+		H->AddChildToHorizontalBox(SettingsBtn)->SetPadding(FMargin(Rok2Space::None, Rok2Space::XS, Rok2Space::S, Rok2Space::XS));
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -546,6 +560,7 @@ void URok2HudWidget::OnSeasonStoryClickedHandler() { OnSeasonStoryAction.Broadca
 void URok2HudWidget::OnResearchClickedHandler() { OnResearchAction.Broadcast(); }
 void URok2HudWidget::OnCollectClickedHandler() { OnCollectAction.Broadcast(); }
 void URok2HudWidget::OnTrainClickedHandler() { OnTrainAction.Broadcast(); }
+void URok2HudWidget::OnSettingsClickedHandler() { OnSettingsAction.Broadcast(); }
 
 void URok2HudWidget::OnBellClicked()
 {

@@ -1,4 +1,5 @@
 #include "Rok2GameMode.h"
+#include "Rok2Accessibility.h"
 #include "Rok2Api.h"
 #include "Rok2AudioManager.h"
 #include "Rok2WorldRenderer.h"
@@ -15,7 +16,7 @@
 #include "Rok2ChatWidget.h"
 #include "Rok2ResearchWidget.h"
 #include "Rok2SeasonStoryWidget.h"
-#include "Rok2ResearchWidget.h"
+#include "Rok2SettingsWidget.h"
 #include "Rok2TrainHealSheetWidget.h"
 #include "Rok2ViewManager.h"
 #include "Rok2IsometricCamera.h"
@@ -43,6 +44,17 @@ ARok2GameMode::ARok2GameMode()
 void ARok2GameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// P18-T6: تفضيلات اللاعب المحفوظة تُطبَّق **قبل** بناء أي ودجة.
+	//
+	// مقياس الواجهة يُقرأ وقت البناء (`GetScaledPx`/`ScaledSize` في كل موضع
+	// أبعاد)، فاستعادته بعد إنشاء شاشة الدخول والـHUD كانت ستتركهما على مقياس
+	// 1.0 حتى يُعاد بناؤهما — أي أن الإعداد المحفوظ لا يُرى في الجلسة التي
+	// يُحمَّل فيها.
+	if (URok2Accessibility* A11y = URok2Accessibility::Get())
+	{
+		A11y->LoadAndApplySavedSettings();
+	}
 
 	// Create the API before actors: SpawnActor invokes BeginPlay immediately.
 	if (!Api)
@@ -185,6 +197,8 @@ void ARok2GameMode::BindHudEvents()
 	// P24-T1: فعلان ورثهما الـHUD من `URok2CityWidget` المتقاعد.
 	HudWidget->OnCollectAction.AddDynamic(this, &ARok2GameMode::HandleCollectAction);
 	HudWidget->OnTrainAction.AddDynamic(this, &ARok2GameMode::HandleTrainAction);
+	// P18-T6: مدخل الإعدادات من الشريط العلوي.
+	HudWidget->OnSettingsAction.AddDynamic(this, &ARok2GameMode::HandleSettingsAction);
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +222,31 @@ void ARok2GameMode::HandleTrainAction()
 	// الثكنة هي المبنى الافتراضي من الشريط السفلي؛ فتح الورقة من بطاقة مبنى
 	// آخر يمرّر معرّفه فتتغيّر قائمة الوحدات إلى فرعه.
 	HandleBuildingAction(TEXT("barracks"), TEXT("train"));
+}
+
+// ---------------------------------------------------------------------------
+// P18-T6: شاشة الإعدادات — المستدعي الغائب لدوال `URok2Accessibility`.
+// ---------------------------------------------------------------------------
+void ARok2GameMode::HandleSettingsAction()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	if (!SettingsWidget)
+	{
+		SettingsWidget = Cast<URok2SettingsWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2SettingsWidget::StaticClass()));
+	}
+	if (SettingsWidget && !SettingsWidget->IsInViewport())
+	{
+		// فوق اللوحات (50) وتحت طبقة الإرشاد (60): الإعدادات تعلو ما تضبط شكله،
+		// ولا تحجب بطاقة الإرشاد.
+		SettingsWidget->AddToViewport(58);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+		}
+	}
 }
 
 void ARok2GameMode::EnsureViewManager()

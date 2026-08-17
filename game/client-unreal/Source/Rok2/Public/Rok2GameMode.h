@@ -105,6 +105,14 @@ public:
 	UPROPERTY(Transient)
 	URok2ResearchWidget* ResearchWidget;
 
+	/**
+	 * P18-T6: شاشة الإعدادات — تُنشأ عند أول فتح وتبقى. لا حالة لعب فيها،
+	 * فإعادة عرضها لا تحتاج مزامنة مع الخادم (تُقرأ من `URok2Accessibility`
+	 * و`URok2AudioManager` عند كل فتح).
+	 */
+	UPROPERTY(Transient)
+	class URok2SettingsWidget* SettingsWidget;
+
 	/** P18-T2: مسار الزر الثانوي لبطاقة المبنى (research/train/heal/chests) —
 	 *  عام لأن CityBuilder يربطه عبر AddDynamic عند إنشاء البطاقة؛ كان
 	 *  الحدث يُبث بلا أي مشترك فأزرار (تدريب/شفاء/بحث/صناديق) تفتح لا شيء. */
@@ -136,6 +144,7 @@ protected:
 	UFUNCTION() void HandleResearchAction();
 	UFUNCTION() void HandleCollectAction();
 	UFUNCTION() void HandleTrainAction();
+	UFUNCTION() void HandleSettingsAction();
 	UFUNCTION() void HandleSeasonStoryEvent(const FRok2SeasonStoryEntry& Event);
 	UFUNCTION() void HandleBuildMenuPick(const FString& BuildingId);
 

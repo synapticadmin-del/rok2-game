@@ -34,7 +34,7 @@ void URok2AudioManager::InitForCiv(const FString& CivId)
 	const FString WhisperPath = URok2ArtAssets::GetCivilizationWhisperAssetPath(CivId);
 	if (bAudioEnabled && !WhisperPath.IsEmpty())
 	{
-		PlaySoundAtPath(WhisperPath, MasterVolume * 0.7f);
+		PlaySoundAtPath(WhisperPath, GetEffectiveSfxVolume() * 0.7f);
 	}
 
 	UE_LOG(LogRok2Audio, Log, TEXT("AudioManager initialized for civ: %s"), *CivId);
@@ -133,7 +133,7 @@ void URok2AudioManager::PlayCurrentModeMusic()
 	// تشغيل الموسيقى (تتكرر)
 	if (UWorld* World = GetWorld())
 	{
-		MusicComponent = UGameplayStatics::SpawnSound2D(World, Music, MasterVolume, 1.f, 0.f, nullptr, true);
+		MusicComponent = UGameplayStatics::SpawnSound2D(World, Music, GetEffectiveMusicVolume(), 1.f, 0.f, nullptr, true);
 		if (MusicComponent)
 		{
 			MusicState = ERok2MusicState::Playing;
@@ -201,7 +201,27 @@ void URok2AudioManager::StopMusic()
 
 void URok2AudioManager::PlaySfx(ERok2AudioType Type)
 {
-	PlaySfxWithVolume(Type, MasterVolume);
+	PlaySfxWithVolume(Type, GetEffectiveSfxVolume());
+}
+
+// ---------------------------------------------------------------------------
+// P18-T6: المستويان المنفصلان
+// ---------------------------------------------------------------------------
+void URok2AudioManager::SetMusicVolume(float NewVolume)
+{
+	MusicVolume = FMath::Clamp(NewVolume, 0.f, 1.f);
+
+	// يسري فوراً على الموسيقى العاملة. بلا هذا كان تحريك الشريط لا يُسمع أثره
+	// حتى تُعاد الموسيقى — وقاعدة التجربة #6 تطلب رد فعل فوري.
+	if (MusicComponent)
+	{
+		MusicComponent->SetVolumeMultiplier(GetEffectiveMusicVolume());
+	}
+}
+
+void URok2AudioManager::SetSfxVolume(float NewVolume)
+{
+	SfxVolume = FMath::Clamp(NewVolume, 0.f, 1.f);
 }
 
 void URok2AudioManager::PlaySfxWithVolume(ERok2AudioType Type, float Volume)

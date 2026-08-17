@@ -74,6 +74,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Accessibility")
 	void SetHighContrast(bool bEnable);
 
+	// -----------------------------------------------------------------------
+	// P18-T6: حفظ التفضيلات محلياً.
+	//
+	// `SetUiScale` و`SetHighContrast` كانتا معرّفتين منذ P7-T7 **بلا أي مستدعٍ
+	// في المشروع** — فالمقياس 1.0 والتباين مطفأ دائماً، ولا شاشة تُغيّرهما ولا
+	// طبقة تحفظهما. الحفظ هنا لا في الشاشة كي يبقى مصدر الحقيقة واحداً: من
+	// يستدعي الـsetter يحصل على الحفظ، فلا حالة في الذاكرة تخالف القرص.
+	// -----------------------------------------------------------------------
+
+	/**
+	 * يقرأ التفضيلات المحفوظة ويطبّقها على هذا الكائن وعلى مدير الصوت
+	 * ومقياس Slate. يُنادى مرة عند بدء اللعبة؛ آمن إن لم يوجد حفظ (يبقى على
+	 * الافتراضيات).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Accessibility")
+	void LoadAndApplySavedSettings();
+
+	/** يكتب التفضيلات الحالية إلى القرص. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Accessibility")
+	void SaveSettings() const;
+
+	/** اسم فتحة الحفظ — تفضيلات جهاز لا حالة لاعب، فبلا معرّف لاعب. */
+	static const TCHAR* SettingsSlotName;
+
 	/** بث عند أي تغيير في الإعدادات — تستمع إليه الودجات المفتوحة */
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Accessibility")
 	FOnRok2AccessibilityChanged OnAccessibilityChanged;

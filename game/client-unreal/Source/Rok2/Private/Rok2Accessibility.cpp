@@ -4,8 +4,12 @@
 // والألوان المعتمدة على التباين تحسب من WCAG AA (نسبة تباين ≥ 4.5:1 فوق #1A120B).
 
 #include "Rok2Accessibility.h"
+#include "Rok2AudioManager.h"
+#include "Rok2SettingsSaveGame.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRok2Accessibility, Log, All);
 
@@ -182,6 +186,18 @@ FText URok2Accessibility::LabelForIcon(const FString& IconId)
 void URok2Accessibility::SetUiScale(float NewScale)
 {
 	UiScale = FMath::Clamp(NewScale, 0.85f, 1.6f);
+
+	// P18-T6: مقياس Slate العام إلى جانب رمز المشروع.
+	//
+	// `UiScale` يضرب أحجام الخطوط والأيقونات وأبعاد الودجات المبنيّة **وقت
+	// البناء** فقط، فالودجات القائمة لا تتأثر حتى تُعاد. ضبط مقياس Slate يكبّر
+	// كل ما هو معروض فوراً — فيرى اللاعب أثر الشريط وهو يحرّكه، وتبقى الودجات
+	// الجديدة متسقة معه لأنها تقرأ الرمز نفسه.
+	if (FSlateApplication::IsInitialized())
+	{
+		FSlateApplication::Get().SetApplicationScale(UiScale);
+	}
+
 	OnAccessibilityChanged.Broadcast();
 }
 
@@ -189,4 +205,51 @@ void URok2Accessibility::SetHighContrast(bool bEnable)
 {
 	bHighContrast = bEnable;
 	OnAccessibilityChanged.Broadcast();
+}
+
+// ---------------------------------------------------------------------------
+// P18-T6: الحفظ والاستعادة
+// ---------------------------------------------------------------------------
+
+const TCHAR* URok2Accessibility::SettingsSlotName = TEXT("Rok2_Settings");
+
+void URok2Accessibility::LoadAndApplySavedSettings()
+{
+	URok2SettingsSaveGame* Save = Cast<URok2SettingsSaveGame>(
+		UGameplayStatics::LoadGameFromSlot(SettingsSlotName, 0));
+	if (!Save || Save->SchemaVersion != 1)
+	{
+		// لا حفظ (أو إصدار لا نعرفه): نبقى على الافتراضيات ولا نكتب شيئاً.
+		return;
+	}
+
+	// المسار هذا يمرّ بالـsetters كي يسري مقياس Slate والصوت العامل فعلاً؛
+	// إسناد الحقول مباشرة كان سيُحمّل القيم بلا أن يراها اللاعب.
+	SetUiScale(Save->UiScale);
+	SetHighContrast(Save->bHighContrast);
+
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Audio->SetMusicVolume(Save->MusicVolume);
+		Audio->SetSfxVolume(Save->SfxVolume);
+	}
+}
+
+void URok2Accessibility::SaveSettings() const
+{
+	URok2SettingsSaveGame* Save = Cast<URok2SettingsSaveGame>(
+		UGameplayStatics::CreateSaveGameObject(URok2SettingsSaveGame::StaticClass()));
+	if (!Save) return;
+
+	Save->SchemaVersion = 1;
+	Save->UiScale = UiScale;
+	Save->bHighContrast = bHighContrast;
+
+	if (URok2AudioManager* Audio = URok2AudioManager::Get())
+	{
+		Save->MusicVolume = Audio->MusicVolume;
+		Save->SfxVolume = Audio->SfxVolume;
+	}
+
+	UGameplayStatics::SaveGameToSlot(Save, SettingsSlotName, 0);
 }

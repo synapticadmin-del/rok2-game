@@ -102,7 +102,12 @@ if (hudCpp) {
   check('منقطع status text', hudCpp.includes('منقطع'));
   check('HighContrastForState in OnConnState', hudCpp.includes('HighContrastForState'));
   check('HighContrastForState on badges', hudCpp.includes('HighContrastForState'));
-  check('ScaledSize for text', hudCpp.includes('ScaledSize('));
+  // P17 نقل حجم الخط إلى `URok2Typography::ApplyFont`، وهي تضرب في `GetUiScale`
+  // داخلياً (يفحصه القسم [2] أدناه). فالـHUD لم يبق يستدعي `ScaledSize` مباشرة،
+  // والفحص الحرفي كان يفشل على كود سليم. المهم أن كل نص يمرّ بمسار **مقيس**:
+  // إما `ApplyFont` أو `ScaledSize` صريحة.
+  check('نصوص الـHUD تمرّ بمسار مقيس بمقياس الواجهة',
+    hudCpp.includes('URok2Typography::ApplyFont(') || hudCpp.includes('ScaledSize('));
   check('ScaledIconSize for icons', hudCpp.includes('ScaledIconSize('));
   check('tooltips present', hudCpp.includes('SetToolTipText'));
   check('MakePill tooltips', hudCpp.includes('SetToolTipText'));
@@ -152,11 +157,56 @@ if (cmdCpp) {
 
 const storyCpp = read('Rok2SeasonStoryWidget.cpp');
 if (storyCpp) {
-  check('SeasonStory AA Gold', storyCpp.includes('1.f, 0.80f, 0.34f'));
-  check('SeasonStory AA Azure', storyCpp.includes('0.52f, 0.78f, 1.0f'));
-  check('SeasonStory AA Crimson', storyCpp.includes('0.95f, 0.42f, 0.36f'));
-  check('SeasonStory AA Jade', storyCpp.includes('0.40f, 0.85f, 0.58f'));
+  // P17 نقل نسخ النص المفتّحة إلى طبقة رسمية في `Rok2Visual`، فهذه اللوحة صارت
+  // أسماءً مختصرة تُسند إليها بدل قيم مكتوبة محلياً. الفحص الحرفي على الأرقام
+  // كان يفشل على كود **أصحّ** من الذي كُتب له: القيم صارت مصدراً واحداً.
+  //
+  // فنفحص الربط هنا، ونفحص التباين نفسه من مصدره أدناه.
+  check('SeasonStory Gold من طبقة النص المشتركة', /Gold\s*=\s*Rok2Visual::GoldText\(\)/.test(storyCpp));
+  check('SeasonStory Azure من طبقة النص المشتركة', /Azure\s*=\s*Rok2Visual::InformationText\(\)/.test(storyCpp));
+  check('SeasonStory Crimson من طبقة النص المشتركة', /Crimson\s*=\s*Rok2Visual::DangerText\(\)/.test(storyCpp));
+  check('SeasonStory Jade من طبقة النص المشتركة', /Jade\s*=\s*Rok2Visual::SuccessText\(\)/.test(storyCpp));
+  check('لا قيمة لون خام في لوحة الحكاية',
+    !/(Gold|Azure|Crimson|Jade)\s*=\s*FLinearColor\s*\(\s*[0-9]/.test(storyCpp));
   check('day prefix symbols', storyCpp.includes('★') && storyCpp.includes('⚔'));
+}
+
+// ---------------------------------------------------------------------------
+// 5b. التباين نفسه — يُحسب من قيم Rok2Visual لا يُفترض من أسمائها
+//
+// الفحص أعلاه يثبت أن الألوان تأتي من الطبقة المشتركة؛ هذا يثبت أن الطبقة
+// المشتركة **تستحق** اسمها. بلا هذا كان تغيير رقم في Rok2VisualTheme.cpp يمرّ
+// بلا إنذار ولو هبط التباين تحت AA.
+// ---------------------------------------------------------------------------
+console.log('\n[5b] نسب التباين الفعلية (WCAG AA ≥ 4.5:1)');
+
+const themeCpp = existsSync(join(PRIV, 'Rok2VisualTheme.cpp'))
+  ? readFileSync(join(PRIV, 'Rok2VisualTheme.cpp'), 'utf8')
+  : '';
+
+/** يستخرج قيم FLinearColor من ثابت مُسمّى في لوحة الثيم. */
+function themeColor(name) {
+  const re = new RegExp(`${name}\\s*\\(\\s*([0-9.]+)f\\s*,\\s*([0-9.]+)f\\s*,\\s*([0-9.]+)f`);
+  const m = re.exec(themeCpp);
+  return m ? [parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])] : null;
+}
+
+const relLum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+// الخلفية المرجعية هي لوح الواجهة الداكن نفسه الذي تحسب عليه
+// `Rok2A11y::RelLumDark` في وحدة قابلية الوصول.
+const panel = themeColor('GPanel');
+const bgLum = panel ? relLum(panel) : 0.0128;
+
+for (const token of ['GGoldText', 'GSuccessText', 'GDangerText', 'GInformationText', 'GIvory']) {
+  const rgb = themeColor(token);
+  if (!rgb) {
+    check(`${token} موجود في لوحة الثيم`, false);
+    continue;
+  }
+  const l = relLum(rgb);
+  const ratio = (Math.max(l, bgLum) + 0.05) / (Math.min(l, bgLum) + 0.05);
+  check(`${token} تباينه ≥ 4.5:1 فوق اللوح الداكن`, ratio >= 4.5, `${ratio.toFixed(2)}:1`);
 }
 
 // ---------------------------------------------------------------------------
