@@ -63,6 +63,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnApStateChanged, const FRok2Action
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnQuestsUpdated, const FRok2QuestState&, State);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKingUpdated);
 
+// P19-T5: الحقيبة — لقطة العناصر من `GET /v1/items/bag`.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBagUpdated, const FRok2BagState&, State);
+
 // P9-T7: النسيج الاجتماعي والاقتصادي — تقنية/أرض/متجر/ألقاب/VIP/Trading/هدايا.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTechUpdated, const TArray<FRok2AllianceTechNode>&, Nodes);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllianceTerritoryUpdated, const FRok2AllianceTerritoryState&, State);
@@ -151,6 +154,29 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void UseSpeedupItem(const FString& QueueId, const FString& ItemId);
+
+	// -----------------------------------------------------------------------
+	// P19-T5: الحقيبة.
+	//
+	// لم يكن للحقيبة مسار في العميل ولا في الخادم: `HandleItemsAction` توست
+	// «قيد التجهيز»، و`/v1/shop/catalog` يعيد `{ item_id: count }` بلا اسم ولا
+	// أيقونة ولا فئة.
+	// -----------------------------------------------------------------------
+
+	/** يسحب الحقيبة من `GET /v1/items/bag` ويبثها على `OnBagUpdated`. */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Items")
+	void FetchBag();
+
+	/** آخر لقطة حقيبة وصلت (فارغة قبل أول جلب — `bLoaded` يفصلهما). */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Items")
+	const FRok2BagState& GetBag() const { return BagState; }
+
+	/**
+	 * يستخدم عنصر تسريع من الحقيبة على طابور — نفس `UseSpeedupItem` لكنه يعيد
+	 * قراءة الحقيبة بعده، فينقص العدد على الشاشة بلا إعادة فتح.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rok2|Items")
+	void UseBagItemOnQueue(const FString& ItemId, const FString& QueueId);
 
 	UFUNCTION(BlueprintCallable, Category = "Rok2")
 	void CollectCityProduction();
@@ -583,6 +609,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|VIP")
 	FOnVipStatusUpdated OnVipStatusUpdated;
 
+	/** P19-T5: تُبثّ عند وصول لقطة الحقيبة. */
+	UPROPERTY(BlueprintAssignable, Category = "Rok2|Items")
+	FOnBagUpdated OnBagUpdated;
+
 	UPROPERTY(BlueprintAssignable, Category = "Rok2|Trading")
 	FOnTradingOffersUpdated OnTradingOffersUpdated;
 
@@ -641,6 +671,8 @@ protected:
 	TArray<FRok2AllianceShopItem> AllianceShopItems;
 	int32 AllianceShopBalance = 0;
 	FRok2VipStatus VipStatus;
+	/** P19-T5: آخر لقطة حقيبة من الخادم. */
+	FRok2BagState BagState;
 	TArray<FRok2TradingOffer> TradingOffers;
 	TArray<FRok2AllianceGift> AllianceGifts;
 	// P10-T6: كاشات حالة أوضاع اللعب المتكررة.
@@ -801,6 +833,8 @@ protected:
 
 	/** يستخرج حالة VIP من GET /v1/vip/status ويبثها (P9-T7) */
 	void ParseVipStatus(const TSharedPtr<FJsonObject>& Obj);
+	/** P19-T5: يقرأ فئات الحقيبة وعناصرها من استجابة `/v1/items/bag`. */
+	void ParseBag(const TSharedPtr<FJsonObject>& Obj);
 
 	/** يستخرج عروض التداول من GET /v1/trading/list ويبثها (P9-T7) */
 	void ParseTradingOffers(const TSharedPtr<FJsonObject>& Obj);

@@ -1128,6 +1128,101 @@ struct FRok2VipStatus
 	bool bExtraBuildQueue = false;
 };
 
+/**
+ * P19-T5: سطر واحد في حقيبة اللاعب — من `GET /v1/items/bag`.
+ *
+ * كل حقل يأتي من الخادم: الاسم والوصف والفئة والنُدرة من `items.json`، والعدد من
+ * `player_inventory`. لا اسم عنصر مكتوب في العميل.
+ */
+USTRUCT(BlueprintType)
+struct FRok2BagItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString ItemId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	int32 Count = 0;
+
+	/**
+	 * هل العنصر معروف في فهرس الخادم؟
+	 *
+	 * `false` يعني معرّفاً منحته آلية أقدم من الفهرس — تعرضه الواجهة بمعرّفه
+	 * ولا تخترع له اسماً ولا أيقونة. عطلٌ يجب أن يُرى لا أن يُخفى.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	bool bKnown = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString Name;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString Description;
+
+	/** معرّف أيقونة من مكتبة الأيقونات الإجرائية (`URok2IconLibrary`). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString IconId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString Category;
+
+	/** 1..5 — يحدد لون الحافة عبر `Rok2Visual::RarityTier`. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	int32 Rarity = 1;
+
+	/** هل يمكن استخدامه من الحقيبة مباشرة؟ (التسريعات وحدها الآن) */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	bool bUsable = false;
+
+	/** الشاشة التي يُستخدم فيها العنصر (`speedup`/`tavern`/`commander`/…). */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString UseAction;
+
+	/** ثواني التسريع — صفر لغير التسريعات. */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	int32 Seconds = 0;
+};
+
+/** P19-T5: فئة عناصر (تبويب في الحقيبة) — من نفس الاستجابة. */
+USTRUCT(BlueprintType)
+struct FRok2ItemCategory
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString Id;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString Name;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	FString IconId;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	int32 Sort = 0;
+};
+
+/** P19-T5: لقطة الحقيبة كاملة. */
+USTRUCT(BlueprintType)
+struct FRok2BagState
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	TArray<FRok2ItemCategory> Categories;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	TArray<FRok2BagItem> Items;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	int32 Gems = 0;
+
+	/** هل وصلت لقطة من الخادم؟ يفصل «حقيبة فارغة» عن «لم تُقرأ بعد». */
+	UPROPERTY(BlueprintReadWrite, Category = "Rok2|P19")
+	bool bLoaded = false;
+};
+
 /** عرض تداول في Trading Post (من GET /v1/trading/list). */
 USTRUCT(BlueprintType)
 struct FRok2TradingOffer

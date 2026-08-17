@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "description": "فهرس العناصر السلطوي (P19-T5) — كل ما يمكن أن يدخل حقيبة اللاعب في جدول player_inventory. المعرّفات هنا هي **المصدر الوحيد**: أي منحة تكتب معرّفاً خارج هذا الملف تُرفض في التحقق، لأنها ستظهر للاعب كسطر بلا اسم ولا أيقونة.",
+  "constants": {
+    "max_stack": 9999,
+    "bag_page_size": 60
+  },
+  "categories": [
+    { "id": "speedup", "name": "تسريع", "icon": "speedup", "sort": 1 },
+    { "id": "key", "name": "مفاتيح", "icon": "gift", "sort": 2 },
+    { "id": "commander", "name": "قادة", "icon": "helmet", "sort": 3 },
+    { "id": "material", "name": "مواد", "icon": "bricks", "sort": 4 },
+    { "id": "boost", "name": "معزّزات", "icon": "sparkle", "sort": 5 }
+  ],
+  "items": [
+    {
+      "id": "speedup_1m",
+      "category": "speedup",
+      "name": "تسريع دقيقة",
+      "description": "يخصم دقيقة من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 1,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 60
+    },
+    {
+      "id": "speedup_5m",
+      "category": "speedup",
+      "name": "تسريع 5 دقائق",
+      "description": "يخصم خمس دقائق من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 1,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 300
+    },
+    {
+      "id": "speedup_15m",
+      "category": "speedup",
+      "name": "تسريع 15 دقيقة",
+      "description": "يخصم ربع ساعة من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 2,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 900
+    },
+    {
+      "id": "speedup_1h",
+      "category": "speedup",
+      "name": "تسريع ساعة",
+      "description": "يخصم ساعة من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 2,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 3600
+    },
+    {
+      "id": "speedup_3h",
+      "category": "speedup",
+      "name": "تسريع 3 ساعات",
+      "description": "يخصم ثلاث ساعات من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 3,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 10800
+    },
+    {
+      "id": "speedup_8h",
+      "category": "speedup",
+      "name": "تسريع 8 ساعات",
+      "description": "يخصم ثماني ساعات من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 3,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 28800
+    },
+    {
+      "id": "speedup_24h",
+      "category": "speedup",
+      "name": "تسريع يوم",
+      "description": "يخصم يوماً كاملاً من أي طابور نشط.",
+      "icon": "speedup",
+      "rarity": 4,
+      "usable": true,
+      "use_action": "speedup",
+      "seconds": 86400
+    },
+    {
+      "id": "silver_key",
+      "category": "key",
+      "name": "مفتاح فضي",
+      "description": "يفتح صندوقاً فضياً في الحانة.",
+      "icon": "gift",
+      "rarity": 2,
+      "usable": false,
+      "use_action": "tavern"
+    },
+    {
+      "id": "gold_key",
+      "category": "key",
+      "name": "مفتاح ذهبي",
+      "description": "يفتح صندوقاً ذهبياً في الحانة.",
+      "icon": "gift",
+      "rarity": 3,
+      "usable": false,
+      "use_action": "tavern"
+    },
+    {
+      "id": "gear_key",
+      "category": "key",
+      "name": "مفتاح معدات",
+      "description": "يفتح صندوق معدات في الحانة.",
+      "icon": "gift",
+      "rarity": 3,
+      "usable": false,
+      "use_action": "tavern"
+    },
+    {
+      "id": "golden_key",
+      "category": "key",
+      "name": "المفتاح الذهبي",
+      "description": "مكافأة المهام اليومية — يُستبدل بجواهر عند استلامه.",
+      "icon": "gift",
+      "rarity": 4,
+      "usable": false,
+      "use_action": "quests"
+    },
+    {
+      "id": "sculpture_shards",
+      "category": "commander",
+      "name": "منحوتات قائد",
+      "description": "تُستخدم لترقية نجوم القادة.",
+      "icon": "star",
+      "rarity": 3,
+      "usable": false,
+      "use_action": "commander"
+    },
+    {
+      "id": "epic_commander_sculpture",
+      "category": "commander",
+      "name": "منحوتة قائد Epic",
+      "description": "منحوتة قائد من الفئة البنفسجية.",
+      "icon": "helmet",
+      "rarity": 4,
+      "usable": false,
+      "use_action": "commander"
+    },
+    {
+      "id": "legendary_commander_sculpture",
+      "category": "commander",
+      "name": "منحوتة قائد أسطوري",
+      "description": "منحوتة قائد من الفئة الذهبية.",
+      "icon": "crown",
+      "rarity": 5,
+      "usable": false,
+      "use_action": "commander"
+    },
+    {
+      "id": "equipment_materials",
+      "category": "material",
+      "name": "مواد تجهيزات",
+      "description": "تُستهلك في صناعة المعدات ودمجها.",
+      "icon": "bricks",
+      "rarity": 2,
+      "usable": false,
+      "use_action": "equipment"
+    },
+    {
+      "id": "build_materials",
+      "category": "material",
+      "name": "مواد بناء",
+      "description": "تُستهلك في ترقية مبانٍ متقدمة.",
+      "icon": "wrench",
+      "rarity": 2,
+      "usable": false,
+      "use_action": "city"
+    },
+    {
+      "id": "commander_exp_boost",
+      "category": "boost",
+      "name": "معزّز خبرة القائد",
+      "description": "يرفع خبرة القائد المكتسبة لمدة محدودة.",
+      "icon": "skillup",
+      "rarity": 3,
+      "usable": false,
+      "use_action": "commander"
+    }
+  ]
+}

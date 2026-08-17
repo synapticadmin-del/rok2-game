@@ -46,6 +46,13 @@ import {
   vipStoreHallRequired,
   vipStoreDiscountForLevel,
 } from "../do/sim/shop";
+// P19-T5: فهرس العناصر — هوية كل ما يدخل player_inventory (اسم/أيقونة/فئة).
+import {
+  buildInventoryView,
+  itemCatalog,
+  itemCategories,
+  itemConstants,
+} from "../do/sim/items";
 import {
   academyReq,
   getTech,
@@ -1446,6 +1453,57 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         spent_gems: totalCost,
         gems: city.gems - totalCost,
         vip: { points: newPoints, level: newTier.level, leveled_up: newTier.level > vipTierForPoints(vip.points).level },
+      });
+    }
+
+    // ═══ P19-T5: الحقيبة — فهرس العناصر + مخزون اللاعب ═══
+    //
+    // قبله لم يكن للحقيبة endpoint أصلاً: `/v1/shop/catalog` يعيد `inventory`
+    // كخريطة `{ item_id: count }` **بلا أي وصف للعنصر** — لا اسم ولا أيقونة ولا
+    // فئة — وعلى العميل `HandleItemsAction` توست «الحقيبة قيد التجهيز».
+    if (path === "/v1/items/bag" && request.method === "GET") {
+      const { player } = await requirePlayer(request, env);
+      const invRows = await env.DB.prepare("SELECT item_id, count FROM player_inventory WHERE player_id = ?")
+        .bind(player.id).all<{ item_id: string; count: number }>().catch(() => ({ results: [] as any[] }));
+      const counts: Record<string, number> = {};
+      for (const r of invRows.results || []) counts[r.item_id] = r.count;
+
+      // `buildInventoryView` يدمج المعرّفات المكافئة بعد التطبيع: منحوتات
+      // القادة تأتي من ثلاثة مصادر بأسماء مفاتيح مختلفة، ولو بقيت سطوراً
+      // منفصلة لظهر للاعب ثلاثة أرصدة لعنصر واحد.
+      const entries = buildInventoryView(counts);
+      const city = await refreshCity(env, player.id);
+      return json({
+        ok: true,
+        gems: city.gems,
+        categories: itemCategories(),
+        items: entries.map((e) => ({
+          itemId: e.itemId,
+          count: e.count,
+          // العنصر المجهول يُعرض بمعرّفه لا باسم مخترع، و`known:false` تُعلم
+          // الواجهة أن تعرضه محايداً بدل أن تدّعي معرفته.
+          known: e.def !== null,
+          name: e.def?.name || e.itemId,
+          description: e.def?.description || "",
+          icon: e.def?.icon || "box",
+          category: e.def?.category || "",
+          rarity: e.def?.rarity || 1,
+          usable: e.def?.usable || false,
+          useAction: e.def?.use_action || "",
+          seconds: e.def?.seconds || 0,
+        })),
+        constants: itemConstants(),
+      });
+    }
+
+    // فهرس العناصر الكامل (بلا مخزون) — تعرض الواجهة به اسم عنصر في مكافأة قبل
+    // أن يملكه اللاعب.
+    if (path === "/v1/meta/items" && request.method === "GET") {
+      return json({
+        ok: true,
+        categories: itemCategories(),
+        items: itemCatalog(),
+        constants: itemConstants(),
       });
     }
 

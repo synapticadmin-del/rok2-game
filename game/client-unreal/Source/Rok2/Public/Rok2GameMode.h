@@ -113,6 +113,10 @@ public:
 	UPROPERTY(Transient)
 	class URok2SettingsWidget* SettingsWidget;
 
+	/** P19-T5: شاشة الحقيبة — تُنشأ عند أول فتح وتُعاد، وتُجلب لقطتها كل فتح. */
+	UPROPERTY(Transient)
+	class URok2BagWidget* BagWidget;
+
 	/** P18-T2: مسار الزر الثانوي لبطاقة المبنى (research/train/heal/chests) —
 	 *  عام لأن CityBuilder يربطه عبر AddDynamic عند إنشاء البطاقة؛ كان
 	 *  الحدث يُبث بلا أي مشترك فأزرار (تدريب/شفاء/بحث/صناديق) تفتح لا شيء. */

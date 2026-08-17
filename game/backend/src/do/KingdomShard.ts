@@ -122,6 +122,8 @@ const MAX_SPEEDUP_SECONDS = 30 * 24 * 60 * 60;
 import { researchBuff } from "./sim/research";
 // P9-T4: دوال VIP النقية (15 مستوى + بافات + متجر) — تُقرأ من data/shop.json
 import { vipTierForPoints, vipTiers } from "./sim/shop";
+// P19-T5: فهرس العناصر — يترجم مفاتيح المكافآت التاريخية إلى معرّفات حقيبة.
+import { isKnownItem, normalizeItemId } from "./sim/items";
 // P9-T5: منطق Trading Post النقي (سعر ديناميكي + رسوم + حدود) — يُقرأ من data/trading.json
 import {
   tradingConstants,
@@ -5015,16 +5017,20 @@ export class KingdomShard extends DurableObject<Env> {
       this.persistTavern(playerId);
       const antiCheat = checkEpicRate(state, this.tavernSpec());
       if (!antiCheat.withinLimits) this.recordCommandError(`tavern_anti_cheat: epic_rate=${antiCheat.epicRatePct}%`);
-      // تسليم سلطوي عبر D1: كل رمية kind/resource=amount في جدول player_inventory (idempotent مع المفتاح roll_key)
+      // P19-T5: تسليم سلطوي عبر `grantInventoryItem` — كان الإدراج هنا يستخدم
+      // أعمدة `(day_key, key_id, amount)` غير الموجودة في الجدول، مغلّفاً
+      // بـ`.catch` فيفشل بصمت. ومفتاح الرمية لم يكن معرّف عنصر أصلاً.
       for (const roll of rollResult.rolls) {
-        const rollKey = `tavern:${playerId}:${dayString(now)}:${rollResult.rolls.length}`;
-        try {
-          if (roll.kind === "legendary_commander" || roll.kind === "epic_commander") {
-            await this.env.DB.prepare(
-              `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, 1) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+1`,
-            ).bind(playerId, dayString(now), rollKey).run().catch(() => undefined);
-          }
-        } catch { /* جدول inventory غير مرحّل بعد — يُسجل في السجل السلطوي فقط */ }
+        if (roll.kind === "legendary") {
+          await this.grantInventoryItem(playerId, "legendary_commander_sculpture", roll.quantity || 1);
+        } else if (roll.kind === "epic") {
+          await this.grantInventoryItem(playerId, "epic_commander_sculpture", roll.quantity || 1);
+        } else if (roll.kind === "materials") {
+          await this.grantInventoryItem(playerId, "equipment_materials", roll.quantity || 1);
+        } else if (roll.kind === "rare") {
+          await this.grantInventoryItem(playerId, "sculpture_shards", roll.quantity || 1);
+        }
+        // `common` موارد لا عنصر حقيبة؛ تُمنح في مسار الموارد لا هنا.
       }
       return Response.json({ ok: true, rolls: rollResult.rolls, antiCheat });
     }
@@ -5105,12 +5111,13 @@ export class KingdomShard extends DurableObject<Env> {
       state = result.newState;
       if (result.item) {
         state.medals = medals - result.item.cost;
-        // تسليم سلطوي عبر D1: منحوتات قائد في player_inventory
+        // P19-T5: تسليم سلطوي عبر المسار الوحيد (كان بأعمدة غير موجودة).
         const reward = result.item.reward as Record<string, number | boolean>;
         if (typeof reward.sculptureShards === "number") {
-          await this.env.DB.prepare(
-            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
-          ).bind(playerId, dayString(nowMs()), `expedition_medal_${result.item.id}`, Number(reward.sculptureShards)).run().catch(() => undefined);
+          await this.grantInventoryItem(playerId, "sculpture_shards", reward.sculptureShards);
+        }
+        if (typeof reward.materials === "number") {
+          await this.grantInventoryItem(playerId, "equipment_materials", reward.materials);
         }
       }
       this.expeditionStates.set(playerId, state);
@@ -5194,9 +5201,12 @@ export class KingdomShard extends DurableObject<Env> {
           await this.env.DB.prepare(`UPDATE cities SET food=food+?, wood=wood+?, stone=stone+?, gold=gold+? WHERE player_id=?`).bind(v, v, v, v, playerId).run().catch(() => undefined);
         }
         if (typeof reward.sculptureShards === "number") {
-          await this.env.DB.prepare(
-            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
-          ).bind(playerId, dayString(nowMs()), `canyon_token_${bought.item.id}`, Number(reward.sculptureShards)).run().catch(() => undefined);
+          await this.grantInventoryItem(playerId, "sculpture_shards", reward.sculptureShards);
+        }
+        if (typeof reward.speedups === "number") {
+          // متجر Canyon يمنح «تسريعات» بلا تحديد مدة في الملف؛ ساعة هي الوحدة
+          // التي تستخدمها بقية المكافآت (`weekly_chest_speedup_id`).
+          await this.grantInventoryItem(playerId, "speedup_1h", reward.speedups);
         }
         this.broadcast({ type: "canyon_reward", playerId, itemId: bought.item.id });
       }
@@ -5355,9 +5365,10 @@ export class KingdomShard extends DurableObject<Env> {
           await this.env.DB.prepare(`UPDATE cities SET gems=gems+? WHERE player_id=?`).bind(Math.max(0, Math.min(10000, Number(value))), playerId).run().catch(() => undefined);
         }
         if (kind !== "resources" && kind !== "gems") {
-          await this.env.DB.prepare(
-            `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
-          ).bind(playerId, dayString(nowMs()), `wheel_${kind}`, Number(value)).run().catch(() => undefined);
+          // P19-T5: `kind` هنا اسم فئة الجائزة لا معرّف عنصر (`materials`,
+          // `sculptureShards`, `commanderShards`) — و`normalizeItemId` يترجمها.
+          // كان الإدراج يكتب `wheel_<kind>` بأعمدة غير موجودة، فيفشل بصمت.
+          await this.grantInventoryItem(playerId, String(kind), Number(value));
         }
         this.broadcast({ type: "wheel_reward", playerId, kind });
       }
@@ -5454,9 +5465,10 @@ export class KingdomShard extends DurableObject<Env> {
             if (key === "gems") {
               await this.env.DB.prepare(`UPDATE cities SET gems=gems+? WHERE player_id=?`).bind(Number(amount), playerId).run().catch(() => undefined);
             } else {
-              await this.env.DB.prepare(
-                `INSERT INTO player_inventory (player_id, day_key, key_id, amount) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, day_key, key_id) DO UPDATE SET amount=amount+excluded.amount`,
-              ).bind(playerId, dayString(now), `lk_${String(key)}`, Number(amount)).run().catch(() => undefined);
+              // P19-T5: مفاتيح مكافآت المملكة المفقودة (`sculpture_shards`،
+              // `speedups_8h`، `title`) تُترجم في `normalizeItemId`؛ كان
+              // الإدراج يكتب `lk_<key>` بأعمدة غير موجودة فيفشل بصمت.
+              await this.grantInventoryItem(playerId, String(key), Number(amount));
             }
           }
         }
@@ -5552,6 +5564,48 @@ export class KingdomShard extends DurableObject<Env> {
     this.antiCheatViolations.push({ playerId, action, reason, at: nowMs() });
     if (this.antiCheatViolations.length > ANTICHEAT_CONSTANTS.violationLogLimit) {
       this.antiCheatViolations.splice(0, this.antiCheatViolations.length - ANTICHEAT_CONSTANTS.violationLogLimit);
+    }
+  }
+
+  /**
+   * P19-T5: منح عنصر إلى حقيبة اللاعب — المسار الوحيد.
+   *
+   * كانت خمسة مواضع (الحانة، Expedition، Canyon، عجلة الأحداث، المملكة
+   * المفقودة) تكتب:
+   *
+   *     INSERT INTO player_inventory (player_id, day_key, key_id, amount) ...
+   *
+   * **وتلك أعمدة لا وجود لها**: الجدول في `migrations/0005_shop.sql` أعمدته
+   * `(player_id, item_id, count, updated_at)`. وكلها مغلّفة بـ
+   * `.catch(() => undefined)` فتفشل **بصمت تام**: اللاعب يفتح صندوقاً ويرى
+   * النتيجة في الاستجابة ولا يدخل شيء حقيبته أبداً.
+   *
+   * والمعرّفات كانت مفاتيح مركّبة وقت التشغيل (`canyon_token_<id>`،
+   * `tavern:<player>:<day>:<n>`) لا معرّفات عناصر — فلو نجح الإدراج لظهر
+   * للاعب سطرٌ لاتيني مركّب بلا اسم ولا أيقونة.
+   *
+   * `normalizeItemId` يترجم إلى فهرس `items.json`، والفشل يُسجَّل في عدّادات
+   * P7-T15 بدل أن يُبتلع — فعطلٌ في الجدول يظهر في `/ops` لا في شكوى لاعب.
+   */
+  private async grantInventoryItem(playerId: string, rawItemId: string, amount: number): Promise<void> {
+    const itemId = normalizeItemId(rawItemId);
+    const count = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!playerId || !itemId || count <= 0) return;
+
+    if (!isKnownItem(itemId)) {
+      // معرّف خارج الفهرس يُمنح كما هو (لا نُسقط مكافأة اللاعب) لكن يُسجَّل:
+      // سطر بلا اسم في الحقيبة عطلٌ يجب أن يُرى.
+      this.recordCommandError(`inventory_unknown_item:${itemId}`);
+    }
+
+    const now = nowMs();
+    try {
+      await this.env.DB.prepare(
+        `INSERT INTO player_inventory (player_id, item_id, count, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(player_id, item_id) DO UPDATE SET count = count + excluded.count, updated_at = excluded.updated_at`,
+      ).bind(playerId, itemId, count, now).run();
+    } catch (err) {
+      this.recordCommandError("inventory_grant_failed");
     }
   }
 

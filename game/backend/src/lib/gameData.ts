@@ -18,6 +18,7 @@ import canyonSpec from "../data/canyon.json";
 import osirisSpec from "../data/osiris.json";
 import lkSpec from "../data/lost_kingdom.json";
 import eventsSpec from "../data/events.json";
+import itemsSpec from "../data/items.json";
 
 export const MAP_SCALE = 0.5; // 2400 -> 1200 prototype world
 
@@ -161,6 +162,17 @@ export function getLostKingdomJson() {
 /** P10-T5: مواصفة الأحداث الكبرى واليومية (Mightiest Governor + Wheel + أحداث العالم) — تُقرأ من data/events.json */
 export function getEventsJson() {
   return eventsSpec;
+}
+
+/**
+ * P19-T5: فهرس العناصر — كل ما يمكن أن يدخل `player_inventory`.
+ *
+ * قبله كانت المنح تكتب معرّفات لا يعرفها أي ملف بيانات (`lk_gems`،
+ * `expedition_medal_*`، `canyon_token_*`) فلا اسم لها ولا أيقونة ولا وصف، ولا
+ * شاشة تقرأها أصلاً. هذا الملف هو المصدر الوحيد لهوية العنصر.
+ */
+export function getItemsJson() {
+  return itemsSpec;
 }
 
 export function starterBuildings(): string[] {

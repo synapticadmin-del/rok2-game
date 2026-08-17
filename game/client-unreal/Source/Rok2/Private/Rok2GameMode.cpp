@@ -10,6 +10,7 @@
 #include "Rok2BuildMenuWidget.h"
 #include "Rok2CommanderWidget.h"
 #include "Rok2AllianceRosterWidget.h"
+#include "Rok2BagWidget.h"
 #include "Rok2BattleReportWidget.h"
 #include "Rok2OnboardingWidget.h"
 #include "Rok2CivInfoWidget.h"
@@ -414,9 +415,35 @@ void ARok2GameMode::OpenResearchScreen()
 }
 
 
+// ---------------------------------------------------------------------------
+// P19-T5: الحقيبة. كان المعالج سطراً واحداً يبثّ توست «قيد التجهيز» — وزر
+// «حقيبة» في عنقود الـHUD موجود منذ P5-T3، أي أن اللاعب يملك عناصر في
+// `player_inventory` (من المتجر والمهام وBattle Pass) ولا سبيل له إلى رؤيتها.
+// ---------------------------------------------------------------------------
 void ARok2GameMode::HandleItemsAction()
 {
-	if (Api) Api->EmitToast(TEXT("الحقيبة قيد التجهيز — ستظهر العناصر هنا عند توفرها"));
+	UWorld* World = GetWorld();
+	if (!World || !Api) return;
+
+	if (!BagWidget)
+	{
+		BagWidget = Cast<URok2BagWidget>(
+			URok2BlueprintLibrary::CreateRok2Widget(World, URok2BagWidget::StaticClass()));
+	}
+	if (BagWidget && !BagWidget->IsInViewport())
+	{
+		BagWidget->AddToViewport(50);
+		if (URok2AudioManager* Audio = URok2AudioManager::Get())
+		{
+			Audio->PlaySfx(ERok2AudioType::UiPanelOpen);
+		}
+	}
+	// لقطة حديثة عند كل فتح: `Setup` يشترك مرة ويجلب، والفتح الثاني يحتاج جلباً
+	// جديداً لأن العناصر تُمنح بين الفتحتين.
+	if (BagWidget)
+	{
+		BagWidget->Setup(Api);
+	}
 }
 
 void ARok2GameMode::HandleEventsAction()

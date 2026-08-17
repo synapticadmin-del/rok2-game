@@ -3201,6 +3201,99 @@ void URok2Api::ParseVipStatus(const TSharedPtr<FJsonObject>& Obj)
 	OnVipStatusUpdated.Broadcast(VipStatus);
 }
 
+// ---------- P19-T5: الحقيبة (GET /v1/items/bag) -------------------------------
+void URok2Api::FetchBag()
+{
+	if (!HasPlayer() || !IsLoggedIn()) return;
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Get(TEXT("/v1/items/bag"), [WeakThis](const TSharedPtr<FJsonObject>& Obj)
+	{
+		if (!WeakThis.IsValid()) return;
+		WeakThis->ParseBag(Obj);
+	}, [WeakThis](const FString& Err)
+	{
+		if (WeakThis.IsValid()) WeakThis->EmitError(Err);
+	});
+}
+
+void URok2Api::ParseBag(const TSharedPtr<FJsonObject>& Obj)
+{
+	BagState = FRok2BagState();
+	if (!Obj.IsValid())
+	{
+		// لا لقطة: `bLoaded` يبقى false فتعرض الشاشة «جارٍ التحميل» لا «فارغة».
+		OnBagUpdated.Broadcast(BagState);
+		return;
+	}
+
+	BagState.bLoaded = true;
+	BagState.Gems = (int32)Rok2Json::Num(Obj, TEXT("gems"));
+
+	const TArray<TSharedPtr<FJsonValue>>* Categories = nullptr;
+	if (Obj->TryGetArrayField(TEXT("categories"), Categories) && Categories)
+	{
+		for (const TSharedPtr<FJsonValue>& Value : *Categories)
+		{
+			const TSharedPtr<FJsonObject> Entry = Value.IsValid() ? Value->AsObject() : nullptr;
+			if (!Entry.IsValid()) continue;
+			FRok2ItemCategory Category;
+			Category.Id = Rok2Json::Str(Entry, TEXT("id"));
+			Category.Name = Rok2Json::Str(Entry, TEXT("name"));
+			Category.IconId = Rok2Json::Str(Entry, TEXT("icon"));
+			Category.Sort = (int32)Rok2Json::Num(Entry, TEXT("sort"));
+			if (!Category.Id.IsEmpty())
+			{
+				BagState.Categories.Add(Category);
+			}
+		}
+	}
+
+	const TArray<TSharedPtr<FJsonValue>>* Items = nullptr;
+	if (Obj->TryGetArrayField(TEXT("items"), Items) && Items)
+	{
+		for (const TSharedPtr<FJsonValue>& Value : *Items)
+		{
+			const TSharedPtr<FJsonObject> Entry = Value.IsValid() ? Value->AsObject() : nullptr;
+			if (!Entry.IsValid()) continue;
+			FRok2BagItem Item;
+			Item.ItemId = Rok2Json::Str(Entry, TEXT("itemId"));
+			if (Item.ItemId.IsEmpty()) continue;
+			Item.Count = (int32)Rok2Json::Num(Entry, TEXT("count"));
+			Item.bKnown = Rok2Json::Bool(Entry, TEXT("known"));
+			// الاسم الاحتياطي هو المعرّف نفسه لا نصّ مخترع: عنصرٌ لا يعرفه فهرس
+			// الخادم يجب أن يُرى كما هو حتى يُصلَح، لا أن يُخفى تحت اسم عام.
+			Item.Name = Rok2Json::Str(Entry, TEXT("name"), Item.ItemId);
+			Item.Description = Rok2Json::Str(Entry, TEXT("description"));
+			Item.IconId = Rok2Json::Str(Entry, TEXT("icon"), TEXT("box"));
+			Item.Category = Rok2Json::Str(Entry, TEXT("category"));
+			Item.Rarity = FMath::Clamp((int32)Rok2Json::Num(Entry, TEXT("rarity"), 1.0), 1, 5);
+			Item.bUsable = Rok2Json::Bool(Entry, TEXT("usable"));
+			Item.UseAction = Rok2Json::Str(Entry, TEXT("useAction"));
+			Item.Seconds = (int32)Rok2Json::Num(Entry, TEXT("seconds"));
+			BagState.Items.Add(Item);
+		}
+	}
+
+	OnBagUpdated.Broadcast(BagState);
+}
+
+void URok2Api::UseBagItemOnQueue(const FString& ItemId, const FString& QueueId)
+{
+	if (ItemId.IsEmpty() || QueueId.IsEmpty()) return;
+	const FString Body = FString::Printf(TEXT("{\"queueId\":\"%s\",\"itemId\":\"%s\"}"), *QueueId, *ItemId);
+	TWeakObjectPtr<URok2Api> WeakThis(this);
+	Post(TEXT("/v1/shop/use-speedup"), Body, true, [WeakThis](const TSharedPtr<FJsonObject>&)
+	{
+		if (!WeakThis.IsValid()) return;
+		URok2Api* Self = WeakThis.Get();
+		Self->EmitToast(TEXT("تم استخدام العنصر"));
+		// إعادة قراءة الحقيبة والمدينة: العدد ينقص والطابور يقصر، وكلاهما
+		// سلطوي — فلا خصم محلي متوقَّع (AGENTS.md §3).
+		Self->FetchBag();
+		Self->LoadCity();
+	});
+}
+
 // ---------- Trading Post (GET /v1/trading/list + POST offer/claim) -------------
 void URok2Api::FetchTradingOffers()
 {

@@ -20,6 +20,7 @@ Auth header: `Authorization: Bearer <token>`
 - `GET /v1/meta/troops`
 - `GET /v1/meta/commanders`
 - `GET /v1/meta/techtree`
+- `GET /v1/meta/items` — **P19-T5:** فهرس العناصر الكامل من `data/items.json`: `categories` (خمس فئات بأيقونة وترتيب) + `items` (17 عنصراً بالاسم والوصف والأيقونة والنُدرة وقابلية الاستخدام والشاشة التي يُستخدم فيها) + `constants`. تعرض به الواجهة اسم عنصر في مكافأة **قبل** أن يملكه اللاعب.
 - `GET /v1/meta/all` — **بيانات التوازن الموحدة (P1-T6):** civilizations + buildings + troops + commanders + techTree + constants (productionBase, productionLevelMult, trainableUnits). يقرأها العميل مرة واحدة عند البدء بدل القيم الثابتة.
 
 ## Auth
@@ -40,6 +41,14 @@ Auth header: `Authorization: Bearer <token>`
 - `POST /v1/shop/buy` `{ itemId, count? }` — شراء speedup بالـ gems → مخزون + نقاط VIP
 - `POST /v1/shop/use-speedup` `{ queueId, itemId? | useFreeDaily? }` — تسريع طابور من المخزون أو التسريع المجاني اليومي
 - `POST /v1/shop/daily-gems` — منحة gems يومية (200)
+
+## الحقيبة (P19-T5) — العناصر من `data/items.json`، الأرصدة من `player_inventory`
+- `GET /v1/items/bag` → `{ gems, categories[], items[], constants }`
+  - كل عنصر: `itemId` · `count` · `known` · `name` · `description` · `icon` · `category` · `rarity` · `usable` · `useAction` · `seconds`.
+  - **`known: false`** يعني معرّفاً منحته آلية أقدم من الفهرس؛ يُعرض بمعرّفه ولا يُخترع له اسم. عطلٌ يجب أن يُرى لا أن يُخفى.
+  - الأرصدة **مدموجة بعد التطبيع**: منحوتات القادة تأتي من ثلاثة مصادر (Expedition/Canyon/Lost Kingdom) بمفاتيح مختلفة، ولو بقيت سطوراً منفصلة لظهر للاعب ثلاثة أرصدة لعنصر واحد.
+  - الاستخدام يمرّ بـ`POST /v1/shop/use-speedup` القائم؛ لا endpoint استخدام ثانٍ.
+- **إصلاح جوهري مصاحب:** خمسة مواضع في `KingdomShard` (الحانة، Expedition، Canyon، عجلة الأحداث، المملكة المفقودة) كانت تكتب `INSERT INTO player_inventory (player_id, day_key, key_id, amount)` — **أعمدة لا وجود لها** (الجدول `(player_id, item_id, count, updated_at)` في `migrations/0005_shop.sql`) وكلها مغلّفة بـ`.catch` فتفشل بصمت: اللاعب يفتح صندوقاً ويرى النتيجة في الاستجابة ولا يدخل شيء حقيبته. صار المسار الوحيد `grantInventoryItem` ويسجّل الفشل في عدّادات P7-T15 (`inventory_grant_failed`, `inventory_unknown_item:<id>`).
 
 ## Battle Pass (P4-T1) — القيم من data/battlepass.json
 - `GET /v1/battlepass` — حالة اللاعب (xp/level/premium) + المستويات القابلة للمطالبة لكل مسار
