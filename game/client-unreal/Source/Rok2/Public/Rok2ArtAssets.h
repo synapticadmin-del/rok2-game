@@ -135,13 +135,35 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
 	static UTexture2D* LoadCityBuildingTexture(const FString& BuildingId, const FString& MapType = TEXT("D"));
 
-	/** مسار أصل Texture2D لمعالم خريطة العالم 2.5D */
+	/**
+	 * P24-T6: مسار sprite معلم خريطة مقطّع من الصفائح، أو سلسلة فارغة لمعرّف
+	 * غير معروف.
+	 *
+	 * كانت تشير إلى `T_world_*` في WorldMapIcons وتلك **صفائح** لا sprites:
+	 * `T_world_resource_nodes_quad` يحمل أربع عقد ونصاً عربياً مطبوعاً داخل
+	 * الصورة. الأصول المقطّعة في Content/Art/WorldFeatures باسم
+	 * `T_feat_<id>_<D|N|E>`، ويولّدها `scripts/slice_world_feature_sprites.py`.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
 	static FString GetWorldFeatureTextureAssetPath(const FString& FeatureId, const FString& MapType = TEXT("D"));
 
-	/** يحمّل Texture2D لمعلم خريطة العالم 2.5D مع التخزين المؤقت */
+	/** يحمّل Texture2D لمعلم خريطة العالم 2.5D مع التخزين المؤقت. */
 	UFUNCTION(BlueprintCallable, Category = "Rok2|Art")
 	static UTexture2D* LoadWorldFeatureTexture(const FString& FeatureId, const FString& MapType = TEXT("D"));
+
+	/** هل المعرّف يطابق sprite معلم مقطّع؟ (للتشخيص والاختبار البنيوي) */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
+	static bool HasWorldFeatureSprite(const FString& FeatureId);
+
+	/**
+	 * معرّف المعلم المناسب لعقدة خريطة من نوعها ومستواها، أو سلسلة فارغة إن لم
+	 * يوجد رسم لها — فيبقى الراسم على أيقونته الحالية.
+	 *
+	 * النوع من لقطة الخادم (`FRok2NodeEntity::Kind`)؛ المستوى يرفع الرسم إلى
+	 * نسخته الأوفى (منجم كبير، حصن برابرة) فيقرأ اللاعب التراتب من الشكل.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Rok2|Art")
+	static FString WorldFeatureIdForNode(const FString& NodeKind, int32 Level = 1);
 
 	/**
 	 * P24-T4: معرّف صورة المبنى المرسومة (2.5D) من هوية المبنى ومستواه وحضارته.

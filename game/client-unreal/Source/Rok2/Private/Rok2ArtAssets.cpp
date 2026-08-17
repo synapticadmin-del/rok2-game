@@ -289,9 +289,77 @@ UTexture2D* URok2ArtAssets::LoadCityBuildingTexture(const FString& BuildingId, c
 	return Texture;
 }
 
+// ---------------------------------------------------------------------------
+// P24-T6: معالم الخريطة المقطّعة (2.5D).
+//
+// كانت `GetWorldFeatureTextureAssetPath` تشير إلى `T_world_*` في
+// WorldMapIcons، وتلك **صفائح** لا sprites: `T_world_resource_nodes_quad`
+// يحمل أربع عقد ونصاً عربياً مطبوعاً داخل الصورة، و`T_world_stone_gold_quarry_mine`
+// يحمل منشأتين. فالرسم منها يُظهر عقدة تحمل ثلاث عقد أخرى ونصاً معكوساً.
+//
+// `scripts/slice_world_feature_sprites.py` يقطّعها بمركّبات الشفافية المتصلة
+// إلى Content/Art/WorldFeatures كـ`T_feat_<id>_<D|N|E>`، والمعرّفات أدناه
+// مقروءة من بيان `sprites.json` لا مخترعة. أي معرّف خارجها يعيد سلسلة فارغة
+// فيبقى الراسم على أيقونته الحالية.
+// ---------------------------------------------------------------------------
+
+static const TSet<FString>& WorldFeatureSpriteIds()
+{
+	static const TSet<FString> Ids = {
+		// عقد الموارد الأربع (من صفيحة الشبكة 2×2)
+		TEXT("farm_field"), TEXT("lumber_camp"), TEXT("stone_quarry"), TEXT("gold_mine"),
+		// منشآت مفردة
+		TEXT("gold_mine_large"), TEXT("barbarian_camp"), TEXT("barbarian_keep"),
+		TEXT("pass_fortress"), TEXT("throne_temple"), TEXT("holy_shrine"),
+		TEXT("mountain_ridge")
+	};
+	return Ids;
+}
+
 FString URok2ArtAssets::GetWorldFeatureTextureAssetPath(const FString& FeatureId, const FString& MapType)
 {
-	return FString::Printf(TEXT("/Game/Art/WorldMapIcons/T_%s_%s.T_%s_%s"), *FeatureId, *MapType, *FeatureId, *MapType);
+	if (!WorldFeatureSpriteIds().Contains(FeatureId))
+	{
+		return FString();
+	}
+	return FString::Printf(TEXT("/Game/Art/WorldFeatures/T_feat_%s_%s.T_feat_%s_%s"),
+		*FeatureId, *MapType, *FeatureId, *MapType);
+}
+
+bool URok2ArtAssets::HasWorldFeatureSprite(const FString& FeatureId)
+{
+	return WorldFeatureSpriteIds().Contains(FeatureId);
+}
+
+FString URok2ArtAssets::WorldFeatureIdForNode(const FString& NodeKind, int32 Level)
+{
+	// أسماء الأنواع من لقطة الخادم (`FRok2NodeEntity::Kind`) كما يفسّرها
+	// `URok2WorldIconography::ResourceIconId` — لا اختراع اسم في العميل.
+	if (NodeKind == TEXT("food") || NodeKind == TEXT("wheat") || NodeKind == TEXT("farm"))
+	{
+		return TEXT("farm_field");
+	}
+	if (NodeKind == TEXT("wood") || NodeKind == TEXT("lumber"))
+	{
+		return TEXT("lumber_camp");
+	}
+	if (NodeKind == TEXT("stone") || NodeKind == TEXT("quarry"))
+	{
+		return TEXT("stone_quarry");
+	}
+	if (NodeKind == TEXT("gold") || NodeKind == TEXT("goldmine"))
+	{
+		// المنجم الكبير للعقد عالية المستوى: الرسم نفسه بحجم أوفى تفصيلاً،
+		// فيقرأ اللاعب ثراء العقدة من شكلها لا من رقم وحده.
+		return Level >= 4 ? TEXT("gold_mine_large") : TEXT("gold_mine");
+	}
+	if (NodeKind == TEXT("barb") || NodeKind == TEXT("barbarian"))
+	{
+		// المعسكر للمستويات الدنيا والحصن للعليا — تراتب مرئي يطابق تراتب
+		// الخطر في `zones.json`.
+		return Level >= 4 ? TEXT("barbarian_keep") : TEXT("barbarian_camp");
+	}
+	return FString();
 }
 
 UTexture2D* URok2ArtAssets::LoadWorldFeatureTexture(const FString& FeatureId, const FString& MapType)
@@ -305,7 +373,7 @@ UTexture2D* URok2ArtAssets::LoadWorldFeatureTexture(const FString& FeatureId, co
 	}
 
 	const FString Path = GetWorldFeatureTextureAssetPath(FeatureId, MapType);
-	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
+	UTexture2D* Texture = Path.IsEmpty() ? nullptr : LoadObject<UTexture2D>(nullptr, *Path);
 	CachedWorldTextures.Add(Key, Texture);
 	return Texture;
 }

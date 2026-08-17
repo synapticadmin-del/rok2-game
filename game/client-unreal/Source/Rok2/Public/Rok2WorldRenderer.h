@@ -164,6 +164,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Rok2|Alliance Structures")
 	float AllianceStructureZ = 85.f;
 
+	/**
+	 * P24-T6: مضاعف حجم الرسوم المقطّعة (Content/Art/WorldFeatures) فوق مقياس
+	 * الأيقونة الذي يعطيه `URok2WorldIconography`.
+	 *
+	 * سببه أن الأصلين ليسا من عائلة واحدة: أيقونة `icon_node_*` رمز مسطّح
+	 * 512×512 يُقرأ من بعيد، والرسم المقطّع منظر isometric بتفصيل داخلي (منجم
+	 * بعربة وسكة، معسكر بخيام ونار) عرضه 106–256 بكسل — فبنفس المقياس يصير
+	 * تفصيله بقعة. القيمة تُضبط من المحرر عند قبول PIE (P24-T7): الحكم عليها
+	 * بصري بحت ولا يصح تثبيته من غير رؤية.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Rok2|World Features")
+	float WorldFeatureSpriteScale = 1.8f;
+
 protected:
 	UPROPERTY(Transient)
 	URok2Api* Api;

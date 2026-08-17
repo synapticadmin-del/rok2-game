@@ -1,0 +1,161 @@
+{
+  "alphaThreshold": 24,
+  "minSpriteArea": 900,
+  "padding": 6,
+  "sprites": {
+    "farm_field": {
+      "sheet": "T_world_resource_nodes_quad",
+      "crop": [
+        27,
+        27,
+        152,
+        114
+      ],
+      "size": [
+        125,
+        87
+      ],
+      "area": 5120
+    },
+    "lumber_camp": {
+      "sheet": "T_world_resource_nodes_quad",
+      "crop": [
+        146,
+        2,
+        256,
+        127
+      ],
+      "size": [
+        110,
+        125
+      ],
+      "area": 6674
+    },
+    "stone_quarry": {
+      "sheet": "T_world_resource_nodes_quad",
+      "crop": [
+        27,
+        128,
+        152,
+        214
+      ],
+      "size": [
+        125,
+        86
+      ],
+      "area": 5226
+    },
+    "gold_mine": {
+      "sheet": "T_world_resource_nodes_quad",
+      "crop": [
+        150,
+        121,
+        256,
+        215
+      ],
+      "size": [
+        106,
+        94
+      ],
+      "area": 5288
+    },
+    "gold_mine_large": {
+      "sheet": "T_world_stone_gold_quarry_mine",
+      "crop": [
+        36,
+        2,
+        256,
+        185
+      ],
+      "size": [
+        220,
+        183
+      ],
+      "area": 21084
+    },
+    "barbarian_camp": {
+      "sheet": "T_world_barbarian_fort_camp",
+      "crop": [
+        13,
+        12,
+        246,
+        184
+      ],
+      "size": [
+        233,
+        172
+      ],
+      "area": 24493
+    },
+    "barbarian_keep": {
+      "sheet": "T_world_barbarian_keep_outpost",
+      "crop": [
+        6,
+        2,
+        242,
+        210
+      ],
+      "size": [
+        236,
+        208
+      ],
+      "area": 23298
+    },
+    "pass_fortress": {
+      "sheet": "T_world_mountain_pass_fortress",
+      "crop": [
+        10,
+        3,
+        256,
+        226
+      ],
+      "size": [
+        246,
+        223
+      ],
+      "area": 28241
+    },
+    "throne_temple": {
+      "sheet": "T_world_lost_temple_throne_core",
+      "crop": [
+        0,
+        2,
+        256,
+        241
+      ],
+      "size": [
+        256,
+        239
+      ],
+      "area": 33089
+    },
+    "holy_shrine": {
+      "sheet": "T_world_holy_shrine_altar",
+      "crop": [
+        55,
+        2,
+        256,
+        192
+      ],
+      "size": [
+        201,
+        190
+      ],
+      "area": 20426
+    },
+    "mountain_ridge": {
+      "sheet": "T_world_mountain_ridge_barrier",
+      "crop": [
+        0,
+        2,
+        256,
+        219
+      ],
+      "size": [
+        256,
+        217
+      ],
+      "area": 24451
+    }
+  }
+}

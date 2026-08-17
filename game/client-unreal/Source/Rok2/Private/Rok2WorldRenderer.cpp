@@ -517,7 +517,19 @@ void ARok2WorldRenderer::RefreshFromApi()
 		const FLinearColor IconColor = FMath::Lerp(Style.BaseColor, Style.TierColor, 0.35f);
 
 		// P7-T10: أيقونة PNG مخصصة للعرش والممرات عند توفر الحزمة، مع fallback هندسي.
-		if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(Style.IconId.ToString()))
+		// P24-T6: الرسم المقطّع أولاً — حصن الممر للممرات ومعبد العرش للعرش.
+		const FString PassFeatureId = (PassTargetType == TEXT("throne"))
+			? TEXT("throne_temple") : TEXT("pass_fortress");
+		if (UTexture2D* Feature = URok2ArtAssets::LoadWorldFeatureTexture(PassFeatureId))
+		{
+			if (AActor* Marker = SpawnSpriteActor(Feature, Loc,
+				FString::Printf(TEXT("Feat_%s_T%d"), *P.Id, Style.Tier),
+				Style.WorldScale * WorldFeatureSpriteScale))
+			{
+				SpawnedActors.Add(Marker);
+			}
+		}
+		else if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(Style.IconId.ToString()))
 		{
 			if (AActor* Marker = SpawnSpriteActor(Icon, Loc,
 				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *P.Id, Style.Tier), Style.WorldScale))
@@ -557,7 +569,24 @@ void ARok2WorldRenderer::RefreshFromApi()
 		if (IconId.StartsWith(TEXT("barbarian"))) IconId = TEXT("node_barbarian");
 		else if (IconId == TEXT("node_resource") || IconId == TEXT("world_marker")) IconId = TEXT("node_resource_generic");
 
-		if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(IconId))
+		// P24-T6: رسم 2.5D مقطّع أولاً — حقل قمح، معسكر أخشاب، مقلع، منجم،
+		// ومعسكر/حصن برابرة حسب المستوى. `LoadWorldFeatureTexture` لم يكن لها
+		// مستدعٍ واحد في المشروع، وأصولها كانت **صفائح** فيها نص عربي مطبوع.
+		// ثلاث طبقات احتياط: الرسم المقطّع ← أيقونة `icon_node_*` ← شكل هندسي.
+		if (UTexture2D* Feature = URok2ArtAssets::LoadWorldFeatureTexture(
+			URok2ArtAssets::WorldFeatureIdForNode(N.Kind, N.Level)))
+		{
+			// الوسم يحفظ glyph القاموس الدلالي كما تفعل بقية المسارات، فيبقى
+			// التشخيص في محرر UE مقروءاً بالرمز نفسه لا بمعرّف خادمي وحده.
+			// والمقياس مضاعف لأن الرسم المقطّع منظر مفصّل لا رمز مسطّح.
+			if (AActor* Marker = SpawnSpriteActor(Feature, Loc,
+				FString::Printf(TEXT("%s_Feat_%s_T%d"), *Style.Glyph, *N.Id, Style.Tier),
+				Style.WorldScale * WorldFeatureSpriteScale))
+			{
+				SpawnedActors.Add(Marker);
+			}
+		}
+		else if (UTexture2D* Icon = URok2ArtAssets::LoadWorldMapIcon(IconId))
 		{
 			if (AActor* Marker = SpawnSpriteActor(Icon, Loc,
 				FString::Printf(TEXT("%s_%s_T%d"), *Style.Glyph, *N.Id, Style.Tier), Style.WorldScale))
